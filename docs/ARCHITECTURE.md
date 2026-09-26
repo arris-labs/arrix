@@ -7,8 +7,9 @@ the kernel's choke point, errors, testing and the gate. The charter is
 `docs/CONCURRENCY-WASM.md`. Built: the workspace with every crate
 (`arrix-core`'s units, ids, references, persistent names, frames and
 profiles, and `Diagnostic`, `arrix-kernel`'s first slice of §The kernel
-choke point, `arrix-plugin-api` 0.1.0, `arrix-doc`'s empty-document
-open and `arrix eval` line, the empty shell in `arrix-ui` and `arrix-app`,
+choke point, `arrix-plugin-api` 0.1.0, `arrix-doc`'s
+expressions, document, DAG, commands and undo, the directory form's save
+and open, and the `arrix eval` line, the empty shell in `arrix-ui` and `arrix-app`,
 the rest stubs), §Errors and diagnostics as far as `Diagnostic` goes, the
 UI and CLI rows of §Testing, and §Gates. Each other section becomes true as
 C1 lands, and the commit that builds it keeps it true.

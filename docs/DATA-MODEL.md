@@ -7,11 +7,10 @@ this document is the design those sections commit to. Built: the id types
 types and their text form (§Persistent naming), the document's types,
 the feature-type registry and the derived DAG (§The dependency DAG),
 commands, the authority and per-author undo (§Commands and undo, less
-sketch and plugin-data edits),
-names from an extrude's
-provenance in `arrix-kernel` (§Persistent naming), expressions
-(`arrix_doc::expr`, §Parameters and expressions), and opening an empty
-document directory (§File format).
+sketch and plugin-data edits), saving and opening the directory form
+(§File format), names from an extrude's provenance in `arrix-kernel`
+(§Persistent naming), and expressions (`arrix_doc::expr`, §Parameters and
+expressions).
 Each other section becomes true as C1 lands, and the commit that builds it
 keeps it true.
 
@@ -537,12 +536,21 @@ blobs/<blake3>.<ext>   frozen results (.arrisbody), name tables, imported files,
   schema than the build knows is refused with a message naming both. A
   feature record's `type_version` is migrated by its feature type (a
   plugin's own migration, or kept frozen if the plugin is absent).
-- **What opens today** (`arrix_doc::open`): the directory form with a
-  `document.json` whose `schema` is 1, and no parts. Nothing else in the
-  header is interpreted yet. A newer schema is refused with a message
-  naming both (`the document's schema is 2, newer than this build's 1`),
-  a schema below 1 as one no ArriX wrote, and a document with parts as
-  not yet readable (M1). `tests/docs/empty/` is that document.
+- **What opens and saves today** (`arrix_doc::open`, `arrix_doc::save`):
+  the directory form, as `document.json` (`schema` 1; nothing else in the
+  header is interpreted yet), `params.json` (the parameters by id; absent
+  reads as none) and `parts/<part-id>.json` (one part, its id matching the
+  file's name). `arrix_doc::to_json` is the writer: it goes through
+  `serde_json::Value`, whose map is ordered, for sorted keys. A record
+  with a field this build does not know is refused, never dropped on the
+  next save. The opened document is checked as a command's result is
+  (`Document::validate`). A newer schema is refused with a message naming
+  both (`the document's schema is 2, newer than this build's 1`), a
+  schema below 1 as one no ArriX wrote. `save` returns the files by
+  path; the caller writes them and removes what an earlier save left.
+  Every command undone restores the earlier save's bytes, and redone the
+  later one's (`crates/arrix-doc/src/save/tests.rs`).
+  `tests/docs/empty/` is the empty document.
 - **Plugin sections** carry their plugin's schema version and are opaque
   to the core (§Frozen results).
 - **Units** in the file are SI; `meta` records the display units.

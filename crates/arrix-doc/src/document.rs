@@ -23,6 +23,7 @@ pub struct Document {
 
 /// A named, typed parameter.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Param {
     pub name: String,
     pub kind: QuantityKind,
@@ -31,6 +32,7 @@ pub struct Param {
 
 /// A part: a feature history.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Part {
     pub id: PartId,
     pub name: String,
@@ -43,6 +45,7 @@ pub struct Part {
 
 /// One history entry. Built-in and plugin features have this one shape.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct FeatureRecord {
     pub id: FeatureId,
     pub type_id: FeatureTypeId,

@@ -4,13 +4,19 @@
 
 use std::collections::BTreeMap;
 
-use crate::document::Document;
+use arrix_core::PartId;
+use serde::de::DeserializeOwned;
+
+use crate::document::{Document, Invalid, Part};
 
 /// The schema this build reads and writes.
 pub const SCHEMA: u64 = 1;
 
 /// The header every document has.
 pub const DOCUMENT_JSON: &str = "document.json";
+
+/// The parameters; absent in a document that has none written.
+pub const PARAMS_JSON: &str = "params.json";
 
 /// Where a document's files come from. Paths are relative and
 /// `/`-separated, as inside the `.arrx` zip.
@@ -62,8 +68,10 @@ pub enum OpenError {
     NewerSchema { found: u64 },
     #[error("the document's schema is {found}, which no ArriX wrote")]
     UnknownSchema { found: u64 },
-    #[error("{path}: parts are read from C1's M1; this build opens only an empty document")]
-    Unsupported { path: String },
+    #[error("{path} is not a document file: {message}")]
+    Unexpected { path: String, message: String },
+    #[error("the document is malformed: {0}")]
+    Invalid(#[from] Invalid),
 }
 
 fn read(source: &impl DocumentSource, path: &str) -> Result<Option<Vec<u8>>, OpenError> {
@@ -73,15 +81,26 @@ fn read(source: &impl DocumentSource, path: &str) -> Result<Option<Vec<u8>>, Ope
     })
 }
 
-/// Opens the document `source` holds. So far only an empty one opens: its
-/// header is checked and nothing else is interpreted.
-pub fn open(source: &impl DocumentSource) -> Result<Document, OpenError> {
-    let bytes = read(source, DOCUMENT_JSON)?.ok_or(OpenError::NotADocument)?;
-    let header: serde_json::Value =
-        serde_json::from_slice(&bytes).map_err(|e| OpenError::Malformed {
-            path: DOCUMENT_JSON.into(),
+fn read_json<T: DeserializeOwned>(
+    source: &impl DocumentSource,
+    path: &str,
+) -> Result<Option<T>, OpenError> {
+    let Some(bytes) = read(source, path)? else {
+        return Ok(None);
+    };
+    serde_json::from_slice(&bytes)
+        .map(Some)
+        .map_err(|e| OpenError::Malformed {
+            path: path.into(),
             message: e.to_string(),
-        })?;
+        })
+}
+
+/// Opens the document `source` holds: its header, parameters and parts,
+/// checked as a command's result is (`Document::validate`).
+pub fn open(source: &impl DocumentSource) -> Result<Document, OpenError> {
+    let header: serde_json::Value =
+        read_json(source, DOCUMENT_JSON)?.ok_or(OpenError::NotADocument)?;
     let schema = header
         .get("schema")
         .and_then(serde_json::Value::as_u64)
@@ -91,16 +110,34 @@ pub fn open(source: &impl DocumentSource) -> Result<Document, OpenError> {
         found if found > SCHEMA => return Err(OpenError::NewerSchema { found }),
         found => return Err(OpenError::UnknownSchema { found }),
     }
+    let mut doc = Document {
+        params: read_json(source, PARAMS_JSON)?.unwrap_or_default(),
+        ..Document::default()
+    };
     let parts = source.list("parts").map_err(|source| OpenError::Io {
         path: "parts".into(),
         source,
     })?;
-    if let Some(part) = parts.first() {
-        return Err(OpenError::Unsupported {
-            path: format!("parts/{part}"),
-        });
+    for file in parts {
+        let path = format!("parts/{file}");
+        let id: PartId = file
+            .strip_suffix(".json")
+            .and_then(|stem| stem.parse().ok())
+            .ok_or_else(|| OpenError::Unexpected {
+                path: path.clone(),
+                message: "a part is `parts/<part-id>.json`".into(),
+            })?;
+        let part: Part = read_json(source, &path)?.expect("listed, so present");
+        if part.id != id {
+            return Err(OpenError::Unexpected {
+                message: format!("it holds part {}", part.id),
+                path,
+            });
+        }
+        doc.parts.insert(id, part);
     }
-    Ok(Document::default())
+    doc.validate()?;
+    Ok(doc)
 }
 
 #[cfg(test)]
@@ -149,13 +186,34 @@ mod tests {
             err(&[(DOCUMENT_JSON, r#"{"schema": 0}"#)]),
             OpenError::UnknownSchema { found: 0 }
         ));
-        let with_part = err(&[
-            (DOCUMENT_JSON, r#"{"schema": 1}"#),
-            ("parts/0000000000001.json", "{}"),
-        ]);
+        let header = (DOCUMENT_JSON, r#"{"schema": 1}"#);
+        assert!(matches!(
+            err(&[header, ("parts/0000000000001.json", "{}")]),
+            OpenError::Malformed { path, .. } if path == "parts/0000000000001.json"
+        ));
+        assert!(matches!(
+            err(&[header, ("parts/notes.txt", "")]),
+            OpenError::Unexpected { path, .. } if path == "parts/notes.txt"
+        ));
+        let part =
+            r#"{"id":"0000000000002","name":"P","history":[],"features":{},"rollback":null}"#;
+        assert!(matches!(
+            err(&[header, ("parts/0000000000001.json", part)]),
+            OpenError::Unexpected { message, .. } if message.contains("0000000000002")
+        ));
+        let dup = r#"{"0000000000001":{"name":"w","kind":"length","expr":"1 mm"},
+                      "0000000000002":{"name":"w","kind":"length","expr":"2 mm"}}"#;
+        assert!(matches!(
+            err(&[header, (PARAMS_JSON, dup)]),
+            OpenError::Invalid(Invalid::DuplicateParam(_))
+        ));
+        let extra = r#"{"0000000000001":{"name":"w","kind":"length","expr":"1 mm","unit":"mm"}}"#;
         assert!(
-            matches!(&with_part, OpenError::Unsupported { path } if path == "parts/0000000000001.json"),
-            "{with_part:?}"
+            matches!(
+                err(&[header, (PARAMS_JSON, extra)]),
+                OpenError::Malformed { .. }
+            ),
+            "an unknown field is refused, never dropped on the next save"
         );
     }
 

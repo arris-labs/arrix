@@ -137,7 +137,7 @@ gear extrudes; nothing is built directly).
   and redo stacks. Property: apply then inverse is the identity.
 - [x] **[2]** Step 7 — ADR-0004: undo granularity for plugin commands;
   the ⚠ OPEN in `docs/DATA-MODEL.md` and `docs/PLUGINS.md` closed.
-- [ ] **[2]** Step 8 — directory-form save and load: the deterministic JSON
+- [x] **[2]** Step 8 — directory-form save and load: the deterministic JSON
   writer (sorted keys, two-space indent, shortest round-trip floats,
   trailing newline), `params.json` and `parts/<id>.json`; `open` reads
   parts. Save twice identical; save, load, save identical; undo of each
