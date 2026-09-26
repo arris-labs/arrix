@@ -165,7 +165,7 @@ gear extrudes; nothing is built directly).
   stream with a debug hash check; events carry their generation; newest
   generation wins between features; every command and event through JSON
   and back; where a client's id seed comes from (⚠ OPEN 3).
-- [ ] **[1]** Step 14 — the scenario: `tests/docs/gear-on-plane/` written
+- [x] **[1]** Step 14 — the scenario: `tests/docs/gear-on-plane/` written
   by the acceptance test's commands and saved, and its `arrix eval` golden
   in `crates/arrix-cli/tests/golden/`.
 
@@ -299,5 +299,13 @@ gate green, the wasm build included.
   check is BLAKE3 over the saved files, sent in debug builds only.
   `Rejected` stays in-process (its wire form comes with remote mode).
   A snapshot is a whole document clone for now, not a tree of `Arc`s.
+- Finding, step 14: the acceptance test checks `tests/docs/gear-on-plane/`
+  against what its commands save, and `UPDATE_SNAPSHOTS=1` rewrites it,
+  so the scenario cannot drift from the commands that define it. The
+  directory holds the document as built (criterion 1), before the
+  edits. The evaluator publishes no name table (names cross with meshes,
+  M3), so "identical names" (criterion 3) compares what carries them:
+  the evaluations, the lost reference's candidates, the frames resolved
+  by name, and the kernel call records with their curve keys.
 - OPEN 5, closed 2026-09-26 by the human: `c1-m1-sketch` starts now in
   the second plan slot, beside this one.

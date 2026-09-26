@@ -29,9 +29,9 @@ fn scratch_doc(name: &str, header: &str) -> PathBuf {
     dir
 }
 
-#[test]
-fn the_empty_document_prints_its_golden_line() {
-    let out = arrix_eval(Path::new("tests/docs/empty"));
+/// `arrix eval` on a scenario document exits 0 and prints its golden.
+fn assert_golden(doc: &str, golden: &str) {
+    let out = arrix_eval(Path::new(doc));
     assert_eq!(
         out.status.code(),
         Some(0),
@@ -39,13 +39,26 @@ fn the_empty_document_prints_its_golden_line() {
         String::from_utf8_lossy(&out.stderr)
     );
     let golden =
-        std::fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/golden/eval_empty.jsonl"))
-            .expect("read the golden");
+        std::fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join(golden)).expect("read the golden");
     assert_eq!(
         String::from_utf8_lossy(&out.stdout),
         String::from_utf8_lossy(&golden)
     );
     assert!(out.stderr.is_empty());
+}
+
+#[test]
+fn the_empty_document_prints_its_golden_line() {
+    assert_golden("tests/docs/empty", "tests/golden/eval_empty.jsonl");
+}
+
+/// The document tests/gear_on_plane.rs builds by commands and saves.
+#[test]
+fn the_gear_on_plane_document_prints_its_golden_line() {
+    assert_golden(
+        "tests/docs/gear-on-plane",
+        "tests/golden/eval_gear_on_plane.jsonl",
+    );
 }
 
 /// Exit 2, nothing on stdout, and a message on stderr that says why.

@@ -594,7 +594,10 @@ blobs/<blake3>.<ext>   frozen results (.arrisbody), name tables, imported files,
   path; the caller writes them and removes what an earlier save left.
   Every command undone restores the earlier save's bytes, and redone the
   later one's (`crates/arrix-doc/src/save/tests.rs`).
-  `tests/docs/empty/` is the empty document.
+  `tests/docs/empty/` is the empty document; `tests/docs/gear-on-plane/`
+  is M1's first scenario, written by the commands of
+  `crates/arrix-cli/tests/gear_on_plane.rs` and checked against them on
+  every run (`UPDATE_SNAPSHOTS=1` rewrites it).
 - **Plugin sections** carry their plugin's schema version and are opaque
   to the core (§Frozen results).
 - **Units** in the file are SI; `meta` records the display units.
