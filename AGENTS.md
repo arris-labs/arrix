@@ -30,8 +30,8 @@ design docs of `SEED.md` §10.2 are written, with C1 in full in
 feature → M2 part features and naming → M3 the app → M4 exchange and batch).
 **C1 M0 landed 2026-09-26:** the workspace, the gate (hooks, lints, CI,
 self-test), the headless visual harness on an empty shell, and `arrix
-eval` on an empty document. **Next:** C1 M1's first plan (`/plan`), after
-CI's first run is green.
+eval` on an empty document. **Now:** C1 M1's first plan,
+`docs/plans/c1-m1-document.md` (of three).
 
 ## Rules that are not derivable from the code
 
