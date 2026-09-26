@@ -1,0 +1,42 @@
+# Architecture Decision Records
+
+Short, append-only records of decisions that shape the system. The design
+docs describe the current design; ADRs record *why* it is that way and what
+was rejected. The decisions taken at kickoff are in `SEED.md` §9 and need no
+ADR; changing one does.
+
+## Rules
+
+- One decision per file: `NNNN-kebab-title.md`, numbers never reused.
+- Statuses: `Accepted`, `Superseded by ADR-XXXX`, `Rejected` (a proposal
+  that lost is worth recording too).
+- Never edit an accepted ADR's substance; write a superseding one.
+- An ADR is written when a decision is *made*, in the same change as the
+  code or doc it affects.
+- Work outside the current cycle's in-list gets an ADR naming the product
+  scenario it unlocks *before* it starts.
+
+## Template
+
+```markdown
+# ADR-NNNN: Title
+
+- Status: Accepted
+- Date: YYYY-MM-DD
+
+## Context
+What forces are at play; what problem demanded a decision.
+
+## Decision
+The decision, in one or two sentences, active voice.
+
+## Consequences
+What becomes easier, what becomes harder, what we're betting on.
+
+## Alternatives considered
+Each rejected option and the one-line reason it lost.
+```
+
+## Index
+
+None yet.

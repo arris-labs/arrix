@@ -1,0 +1,6 @@
+/target
+.claude/settings.local.json
+
+# Private working notes: pondered, not published. What survives becomes an
+# idea, an ADR or a design-doc section.
+/docs/notes/
