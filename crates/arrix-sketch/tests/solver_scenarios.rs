@@ -1758,3 +1758,79 @@ fn s73_reference_dimension_matches_its_own_residual() {
         );
     }
 }
+
+#[test]
+fn s24_drag_moves_underconstrained_point() {
+    let mut s = Draft::seeded(1);
+    let a = s.add_point(Point::fixed(0.0, 0.0));
+    let b = s.add_point(Point::new(0.05, 0.0));
+    s.add_constraint(Constraint::Distance { a, b, value: 0.05 });
+    // b can orbit around a — drag it upward.
+    let r = s.solve_with_drag(b, 0.0, 0.05);
+    assert!(r.converged, "residual {}", r.residual_norm);
+    almost(s.points()[&a].distance_to(&s.points()[&b]), 0.05, 1e-4);
+    assert!(
+        s.points()[&b].y > 0.02,
+        "expected drag to lift b, got {:?}",
+        s.points()[&b]
+    );
+}
+
+#[test]
+fn s25_drag_preserves_fully_constrained() {
+    let mut s = Draft::seeded(1);
+    let a = s.add_point(Point::fixed(0.0, 0.0));
+    let b = s.add_point(Point::new(0.05, 0.0));
+    s.add_constraint(Constraint::Distance { a, b, value: 0.05 });
+    s.add_constraint(Constraint::Fix {
+        point: b,
+        x: 0.05,
+        y: 0.0,
+    });
+    let _ = s.solve();
+    // Dragging a fully-fixed point: residual stays about the drag conflict
+    // once we release — during drag the Fix(drag) fights the existing Fix.
+    // After solve_with_drag removes the drag fix, original state remains.
+    let before = (s.points()[&b].x, s.points()[&b].y);
+    let _ = s.solve_with_drag(b, 0.1, 0.1);
+    // With two fixes the system is overconstrained during drag; after, the
+    // permanent Fix restores b.
+    let _ = s.solve();
+    almost(s.points()[&b].x, before.0, 1e-4);
+    almost(s.points()[&b].y, before.1, 1e-4);
+}
+
+#[test]
+fn s62_drag_symmetric_points() {
+    let mut s = Draft::seeded(1);
+    let c = s.add_point(Point::fixed(0.0, 0.0));
+    let a = s.add_point(Point::new(0.02, 0.01));
+    let b = s.add_point(Point::new(-0.02, -0.01));
+    s.add_constraint(Constraint::symmetric_points(a, b, c));
+
+    // Drag point A to (0.06, 0.08)
+    let r = s.solve_with_drag(a, 0.06, 0.08);
+    assert!(r.converged, "residual {}", r.residual_norm);
+    almost(s.points()[&a].x, 0.06, 1e-5);
+    almost(s.points()[&a].y, 0.08, 1e-5);
+    almost(s.points()[&b].x, -0.06, 1e-5);
+    almost(s.points()[&b].y, -0.08, 1e-5);
+}
+
+#[test]
+fn s63_drag_perp_bisector() {
+    let mut s = Draft::seeded(1);
+    let a = s.add_point(Point::fixed(0.0, 0.0));
+    let b = s.add_point(Point::fixed(0.10, 0.0));
+    let p = s.add_point(Point::new(0.05, 0.02));
+    s.add_constraint(Constraint::point_on_perp_bisector(p, a, b));
+
+    // Drag P along the bisector to (0.05, 0.12)
+    let r = s.solve_with_drag(p, 0.05, 0.12);
+    assert!(r.converged, "residual {}", r.residual_norm);
+    almost(s.points()[&p].x, 0.05, 1e-5);
+    almost(s.points()[&p].y, 0.12, 1e-5);
+    let da = s.points()[&p].distance_to(&s.points()[&a]);
+    let db = s.points()[&p].distance_to(&s.points()[&b]);
+    almost(da, db, 1e-6);
+}

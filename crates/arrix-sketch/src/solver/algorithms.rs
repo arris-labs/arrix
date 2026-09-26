@@ -3,7 +3,10 @@
 //! points `solve`/`solve_with_options`/`solve_with_drag`.
 
 use crate::constraint::ConstraintPriority;
+use crate::ids::PointId;
 use crate::sketch::Sketch;
+
+use super::drag::DragSession;
 
 use super::jacobian::*;
 use super::linalg::*;
@@ -684,6 +687,15 @@ pub(crate) fn solve_partitioned(
 /// Runs the nonlinear constraint solver on `sketch`, mutating point positions and circle radii in place.
 pub fn solve(sketch: &mut Sketch) -> SolveResult {
     solve_with_options(sketch, &SolverOptions::default())
+}
+
+/// One drag frame: `point` pulled toward `(x, y)` by a [`DragSession`]
+/// that lives for this frame only. The app keeps one session per drag
+/// instead (docs/CONCURRENCY-WASM.md: the solver runs on the UI thread
+/// during a drag). A frame that fails leaves the sketch as it was, and the
+/// result describes the solve that was rolled back.
+pub fn solve_with_drag(sketch: &mut Sketch, point: PointId, x: f64, y: f64) -> SolveResult {
+    DragSession::new(sketch, point).frame(sketch, x, y).0
 }
 
 #[cfg(test)]

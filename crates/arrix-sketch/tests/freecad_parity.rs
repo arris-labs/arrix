@@ -552,3 +552,234 @@ fn test_freecad_parity_circle_clearance_solving_with_radii_variation() {
 // ─────────────────────────────────────────────────────────────────────────────
 // 7. Progressive Suppression & Re-Activation Cycles (Degrees of Freedom)
 // ─────────────────────────────────────────────────────────────────────────────
+
+#[test]
+fn test_freecad_parity_3point_symmetry_central_inversion() {
+    let mut s = Draft::seeded(1);
+
+    // Center point C at non-origin position (0.04, -0.02)
+    let c = s.add_point(Point::fixed(0.04, -0.02));
+    // Point A at (0.01, 0.03)
+    let a = s.add_point(Point::new(0.01, 0.03));
+    // Point B placed far from symmetry point
+    let b = s.add_point(Point::new(0.15, -0.10));
+
+    s.add_constraint(Constraint::symmetric_points(a, b, c));
+    let fix_a = s.add_constraint(Constraint::Fix {
+        point: a,
+        x: 0.01,
+        y: 0.03,
+    });
+
+    let (r, d) = Diagnostics::evaluate(&mut s);
+    assert!(r.converged, "Solver residual: {}", r.residual_norm);
+    assert!(
+        r.residual_norm < 1e-9,
+        "Residual must converge within 1e-9: {}",
+        r.residual_norm
+    );
+    assert_eq!(d.status, SketchStatus::FullyConstrained);
+    assert_eq!(d.dof, 0);
+
+    // FreeCAD parity: B = 2 * C - A
+    // B.x = 2 * 0.04 - 0.01 = 0.07
+    // B.y = 2 * (-0.02) - 0.03 = -0.07
+    almost_eq(s.points()[&b].x, 0.07, 1e-7, "Symmetric point B.x");
+    almost_eq(s.points()[&b].y, -0.07, 1e-7, "Symmetric point B.y");
+
+    // Remove fix constraint to allow dragging A freely
+    s.remove_constraint(fix_a);
+
+    // Test dragging A to (0.06, 0.05) -> B should automatically follow to (0.02, -0.09)
+    let r_drag = s.solve_with_drag(a, 0.06, 0.05);
+    assert!(r_drag.converged);
+    almost_eq(s.points()[&a].x, 0.06, 1e-6, "Dragged A.x");
+    almost_eq(s.points()[&a].y, 0.05, 1e-6, "Dragged A.y");
+    almost_eq(s.points()[&b].x, 0.02, 1e-6, "Follower B.x after drag");
+    almost_eq(s.points()[&b].y, -0.09, 1e-6, "Follower B.y after drag");
+
+    // Test FreeCAD parity when A and B are fixed and C is free: C must solve to midpoint (A+B)/2
+    let mut s2 = Draft::seeded(1);
+    let a2 = s2.add_point(Point::fixed(-0.03, 0.04));
+    let b2 = s2.add_point(Point::fixed(0.09, -0.02));
+    let c2 = s2.add_point(Point::new(0.0, 0.0));
+    s2.add_constraint(Constraint::symmetric_points(a2, b2, c2));
+
+    let (r2, d2) = Diagnostics::evaluate(&mut s2);
+    assert!(r2.converged);
+    assert_eq!(d2.status, SketchStatus::FullyConstrained);
+    almost_eq(
+        s2.points()[&c2].x,
+        (-0.03 + 0.09) / 2.0,
+        1e-7,
+        "Midpoint C2.x",
+    );
+    almost_eq(
+        s2.points()[&c2].y,
+        (0.04 - 0.02) / 2.0,
+        1e-7,
+        "Midpoint C2.y",
+    );
+}
+
+#[test]
+fn test_freecad_parity_perpendicular_bisector_orthogonal_alignment() {
+    let mut s = Draft::seeded(1);
+
+    // Segment endpoints A(0.02, 0.01) and B(0.08, 0.09)
+    let a = s.add_point(Point::fixed(0.02, 0.01));
+    let b = s.add_point(Point::fixed(0.08, 0.09));
+    // Movable point P constrained to perpendicular bisector
+    let p = s.add_point(Point::new(0.01, 0.08));
+
+    s.add_constraint(Constraint::point_on_perp_bisector(p, a, b));
+
+    let (r, d) = Diagnostics::evaluate(&mut s);
+    assert!(r.converged);
+    assert_eq!(d.dof, 1, "Perpendicular bisector gives 1 DoF line");
+
+    // Check equidistant property dist(P, A) == dist(P, B)
+    let dist_a = s.points()[&p].distance_to(&s.points()[&a]);
+    let dist_b = s.points()[&p].distance_to(&s.points()[&b]);
+    almost_eq(dist_a, dist_b, 1e-7, "Distances to endpoints must match");
+
+    // Check orthogonality: vector (P - Midpoint) must be orthogonal to (B - A)
+    let mid_x = (0.02 + 0.08) / 2.0; // 0.05
+    let mid_y = (0.01 + 0.09) / 2.0; // 0.05
+    let ab_x = 0.08 - 0.02; // 0.06
+    let ab_y = 0.09 - 0.01; // 0.08
+    let pm_x = s.points()[&p].x - mid_x;
+    let pm_y = s.points()[&p].y - mid_y;
+    let dot_prod = pm_x * ab_x + pm_y * ab_y;
+    almost_eq(
+        dot_prod,
+        0.0,
+        1e-7,
+        "Vector PM dot AB must be 0 (orthogonality)",
+    );
+
+    // FreeCAD drag along perpendicular bisector: drag P to x = 0.01 -> y should solve to 0.08
+    let r_drag = s.solve_with_drag(p, 0.01, 0.08);
+    assert!(r_drag.converged);
+    almost_eq(s.points()[&p].x, 0.01, 1e-6, "Dragged P.x");
+    almost_eq(s.points()[&p].y, 0.08, 1e-6, "Dragged P.y");
+}
+
+#[test]
+fn test_freecad_parity_constraint_suppression_and_reactivation_cycles() {
+    let mut s = Draft::seeded(1);
+
+    // 4-point quadrilateral with full constraint set:
+    let p0 = s.add_point(Point::fixed(0.0, 0.0));
+    let p1 = s.add_point(Point::new(0.10, 0.0));
+    let p2 = s.add_point(Point::new(0.10, 0.06));
+    let p3 = s.add_point(Point::new(0.0, 0.06));
+
+    let l0 = s.add_entity(Entity::Line { start: p0, end: p1 });
+    let l1 = s.add_entity(Entity::Line { start: p1, end: p2 });
+    let l2 = s.add_entity(Entity::Line { start: p2, end: p3 });
+    let l3 = s.add_entity(Entity::Line { start: p3, end: p0 });
+
+    let c_h0 = s.add_constraint(Constraint::Horizontal { line: l0 });
+    let c_v1 = s.add_constraint(Constraint::Vertical { line: l1 });
+    let c_h2 = s.add_constraint(Constraint::Horizontal { line: l2 });
+    let c_v3 = s.add_constraint(Constraint::Vertical { line: l3 });
+    let c_len0 = s.add_constraint(Constraint::Distance {
+        a: p0,
+        b: p1,
+        value: 0.10,
+    });
+    let c_len1 = s.add_constraint(Constraint::Distance {
+        a: p1,
+        b: p2,
+        value: 0.06,
+    });
+
+    // 1. Initial State: Fully Constrained (DoF = 0)
+    let (r0, d0) = Diagnostics::evaluate(&mut s);
+    assert!(r0.converged);
+    assert_eq!(d0.status, SketchStatus::FullyConstrained);
+    assert_eq!(d0.dof, 0);
+
+    // 2. Suppress c_len1 (height distance) -> DoF becomes 1
+    assert!(s.set_constraint_active(c_len1, false));
+    let (r1, d1) = Diagnostics::evaluate(&mut s);
+    assert!(r1.converged);
+    assert_eq!(d1.status, SketchStatus::Ok);
+    assert_eq!(d1.dof, 1);
+
+    // 3. Suppress c_len0 (width distance) -> DoF becomes 2
+    assert!(s.set_constraint_active(c_len0, false));
+    let (r2, d2) = Diagnostics::evaluate(&mut s);
+    assert!(r2.converged);
+    assert_eq!(d2.status, SketchStatus::Ok);
+    assert_eq!(d2.dof, 2);
+
+    // 4. Suppress c_v1 (vertical line) -> DoF becomes 3
+    assert!(s.set_constraint_active(c_v1, false));
+    let (r3, d3) = Diagnostics::evaluate(&mut s);
+    assert!(r3.converged);
+    assert_eq!(d3.status, SketchStatus::Ok);
+    assert_eq!(d3.dof, 3);
+
+    // 5. Drag while unconstrained: deform geometry
+    let r_drag = s.solve_with_drag(p2, 0.15, 0.09);
+    assert!(r_drag.converged);
+
+    // 6. Re-activate c_v1 -> DoF decreases from 3 to 2
+    assert!(s.set_constraint_active(c_v1, true));
+    let (r4, d4) = Diagnostics::evaluate(&mut s);
+    assert!(r4.converged);
+    assert_eq!(d4.dof, 2);
+
+    // 7. Re-activate c_len0 -> DoF decreases from 2 to 1
+    assert!(s.set_constraint_active(c_len0, true));
+    let (r5, d5) = Diagnostics::evaluate(&mut s);
+    assert!(r5.converged);
+    assert_eq!(d5.dof, 1);
+
+    // 8. Re-activate c_len1 -> DoF decreases from 1 to 0 (FullyConstrained restored)
+    assert!(s.set_constraint_active(c_len1, true));
+    let (r6, d6) = Diagnostics::evaluate(&mut s);
+    assert!(r6.converged);
+    assert!(
+        r6.residual_norm < 1e-9,
+        "Re-constrained residual {} < 1e-9",
+        r6.residual_norm
+    );
+    assert_eq!(d6.status, SketchStatus::FullyConstrained);
+    assert_eq!(d6.dof, 0);
+
+    almost_eq(s.points()[&p1].x, 0.10, 1e-6, "Restored p1.x");
+    almost_eq(s.points()[&p1].y, 0.0, 1e-6, "Restored p1.y");
+    almost_eq(s.points()[&p2].x, 0.10, 1e-6, "Restored p2.x");
+    almost_eq(s.points()[&p2].y, 0.06, 1e-6, "Restored p2.y");
+
+    // 9. Add a conflicting constraint that is suppressed: verify NO over-constrained conflict is reported
+    let c_conflict = s.add_constraint_with_options(
+        Constraint::Distance {
+            a: p0,
+            b: p1,
+            value: 0.999, // Contradicts 0.10
+        },
+        true,
+        false, // Suppressed / Inactive
+        Some("Suppressed_Conflict".to_string()),
+    );
+
+    let (r_suppressed_conflict, d_suppressed_conflict) = Diagnostics::evaluate(&mut s);
+    assert!(r_suppressed_conflict.converged);
+    assert_eq!(
+        d_suppressed_conflict.status,
+        SketchStatus::FullyConstrained,
+        "Suppressed conflicting constraint must not trigger OverConstrained"
+    );
+    assert_eq!(d_suppressed_conflict.dof, 0);
+    assert!(d_suppressed_conflict.conflicting.is_empty());
+
+    // Clean up
+    s.remove_constraint(c_conflict);
+    s.remove_constraint(c_h0);
+    s.remove_constraint(c_h2);
+    s.remove_constraint(c_v3);
+}

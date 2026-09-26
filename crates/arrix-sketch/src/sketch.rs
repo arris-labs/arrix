@@ -315,6 +315,11 @@ impl Sketch {
         crate::solve(self)
     }
 
+    /// One drag frame toward `(x, y)` (see [`crate::solve_with_drag`]).
+    pub fn solve_with_drag(&mut self, point: PointId, x: f64, y: f64) -> crate::SolveResult {
+        crate::solve_with_drag(self, point, x, y)
+    }
+
     /// What a dimensional constraint measures on the current geometry: the
     /// number its residual compares with its value, and what a reference
     /// dimension shows.

@@ -30,9 +30,10 @@ pub use entity::{Entity, Point};
 pub use ids::{ConstraintId, EntityId, PointId, SketchEntityId};
 pub use sketch::{Sketch, SketchError};
 pub use solver::{
-    RESIDUAL_TOL, ResidualOwner, SolveResult, SolverAlgorithm, SolverOptions, SolverSystemAnalysis,
-    Var, analyze_system, constraint_residual_count, constraint_residuals, matrix_rank,
-    measured_value, row_space_basis, solve, solve_with_options,
+    DragFrame, DragSession, RESIDUAL_TOL, ResidualOwner, SolveResult, SolverAlgorithm,
+    SolverOptions, SolverSystemAnalysis, Var, analyze_system, constraint_residual_count,
+    constraint_residuals, matrix_rank, measured_value, row_space_basis, solve, solve_with_drag,
+    solve_with_options,
 };
 
 // Test utilities for the gradient suite and the benchmarks, not public API.

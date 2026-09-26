@@ -1,8 +1,8 @@
-//! Subsystem graph partitioning and Powell's DogLeg.
+//! Subsystem graph partitioning, Powell's DogLeg, and multi-priority drag.
 
 use arrix_sketch::{
-    Constraint, ConstraintPriority, Draft, Entity, Point, Sketch, SolverAlgorithm, SolverOptions,
-    System, solve, solve_with_options,
+    Constraint, ConstraintPriority, Diagnostics, Draft, Entity, Point, Sketch, SketchStatus,
+    SolverAlgorithm, SolverOptions, System, solve, solve_with_drag, solve_with_options,
 };
 
 fn almost_eq(a: f64, b: f64, tol: f64, msg: &str) {
@@ -263,4 +263,71 @@ fn test_constraint_priority_serde_and_sketch_api() {
         s_deserialized.constraints()[&cid].priority,
         ConstraintPriority::Primary
     );
+}
+
+#[test]
+fn test_multi_priority_dragging_preserves_rigid_assemblies() {
+    let mut s = Draft::seeded(1);
+
+    // Assembly 1: Fully constrained rigid line from (0,0) to (0.05, 0)
+    let p0 = s.add_point(Point::fixed(0.0, 0.0));
+    let p1 = s.add_point(Point::new(0.05, 0.0));
+    let l0 = s.add_entity(Entity::Line { start: p0, end: p1 });
+    s.add_constraint(Constraint::Horizontal { line: l0 });
+    s.add_constraint(Constraint::Distance {
+        a: p0,
+        b: p1,
+        value: 0.05,
+    });
+
+    let (r, d) = Diagnostics::evaluate(&mut s);
+    assert!(r.converged);
+    assert_eq!(d.status, SketchStatus::FullyConstrained);
+
+    // Drag p1 to (0.1, 0.1) using solve_with_drag
+    let res = solve_with_drag(&mut s, p1, 0.1, 0.1);
+    assert!(
+        res.converged,
+        "Solver should converge on primary constraints"
+    );
+
+    // Primary constraints must NOT be distorted
+    almost_eq(s.points()[&p1].x, 0.05, 1e-7, "Rigid p1.x preserved");
+    almost_eq(s.points()[&p1].y, 0.0, 1e-7, "Rigid p1.y preserved");
+}
+
+#[test]
+fn test_multi_priority_dragging_guides_underconstrained_mechanism() {
+    let mut s = Draft::seeded(1);
+
+    // Assembly 2: Underconstrained 2-bar linkage pinned at (0, 0)
+    // p0 (0,0) -> p1 (0.04, 0.03) -> p2 (0.08, 0.06)
+    let p0 = s.add_point(Point::fixed(0.0, 0.0));
+    let p1 = s.add_point(Point::new(0.04, 0.03));
+    let p2 = s.add_point(Point::new(0.08, 0.06));
+    s.add_entity(Entity::Line { start: p0, end: p1 });
+    s.add_entity(Entity::Line { start: p1, end: p2 });
+    s.add_constraint(Constraint::Distance {
+        a: p0,
+        b: p1,
+        value: 0.05,
+    });
+    s.add_constraint(Constraint::Distance {
+        a: p1,
+        b: p2,
+        value: 0.05,
+    });
+
+    let (r, d) = Diagnostics::evaluate(&mut s);
+    assert!(r.converged);
+    assert_eq!(d.status, SketchStatus::Ok);
+    assert_eq!(d.dof, 2);
+
+    // Drag tip p2 to (0.1, 0.0) -> linkage should fully extend along horizontal
+    let res = solve_with_drag(&mut s, p2, 0.1, 0.0);
+    assert!(res.converged);
+    almost_eq(s.points()[&p2].x, 0.1, 1e-5, "Extended p2.x");
+    almost_eq(s.points()[&p2].y, 0.0, 1e-5, "Extended p2.y");
+    almost_eq(s.points()[&p1].x, 0.05, 1e-5, "Midpoint p1.x");
+    almost_eq(s.points()[&p1].y, 0.0, 1e-5, "Midpoint p1.y");
 }

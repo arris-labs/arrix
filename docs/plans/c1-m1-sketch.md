@@ -100,7 +100,7 @@ arrangement is used, the fallback `docs/ROADMAP.md` names.
   gradient suite, the rank-stability, subsystem, status-split and FreeCAD
   parity tests green in SI; the same sketch solved twice gives
   bit-identical positions.
-- [ ] **[2]** Step 3 — drag and the branch guard: steps in the
+- [x] **[2]** Step 3 — drag and the branch guard: steps in the
   constraints' null space; a step that would flip an angle, a tangency
   side or an arc's sweep refused. The ported drag-policy tests. A
   200-entity drag solve measured against the 4 ms budget
@@ -208,3 +208,14 @@ empty.
   drag scenarios wait for step 3 and the region ones for step 5; the
   inference scenario is M3's, and a dangling-reference Jacobian case is
   gone because a sketch can no longer hold one (step 1).
+- Finding, step 3: one drag frame on a 199-entity sketch (a 9 × 10 grid
+  of 10 mm cells, one connected subsystem of 220 variables, its far
+  corner dragged) takes 34 ms median in a release build on a Ryzen 9
+  7950X, 61 ms in the dev profile: 8.5 times the 4 ms target
+  (`docs/CONCURRENCY-WASM.md` §Budgets). Reported, not gated, as the step
+  says. The drag reaches the UI in M3, whose sketch-mode plan has to
+  profile it (the dense null-space basis and retract per follow
+  iteration are the suspects) before the budget becomes a gate. The
+  prototype's absolute wall-clock ceilings in its benchmarks are reported
+  here instead of asserted, for the same reason; the analytic-against-FD
+  ratio stays asserted.

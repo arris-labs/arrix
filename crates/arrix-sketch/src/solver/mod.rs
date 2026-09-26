@@ -208,13 +208,16 @@ pub fn constraint_residual_count(c: &Constraint, sketch: &Sketch) -> usize {
 }
 
 pub(crate) mod algorithms;
+pub(crate) mod drag;
 pub(crate) mod eval;
+pub(crate) mod guard;
 pub(crate) mod jacobian;
 pub(crate) mod linalg;
 pub(crate) mod residuals;
 pub(crate) mod system;
 
-pub use algorithms::{solve, solve_with_options};
+pub use algorithms::{solve, solve_with_drag, solve_with_options};
+pub use drag::{DragFrame, DragSession};
 pub use eval::measured_value;
 pub use jacobian::{jacobian, jacobian_finite_difference, var_chain_scale};
 pub use linalg::{SolverSystemAnalysis, analyze_system, matrix_rank, row_space_basis};
