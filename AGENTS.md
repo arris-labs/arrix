@@ -17,7 +17,10 @@ skills for the idea → plan → work → retire → close-cycle pipeline live i
   Windows, clone with symlinks enabled (`git config --global core.symlinks
   true`, with Developer Mode on), or the skills and rules won't load.
 - `git config core.hooksPath .githooks` installs the gate's hooks.
-  Python 3 runs the lints.
+  Python 3 runs the lints; `rust-toolchain.toml` brings rustfmt, clippy
+  and the wasm32 target.
+- The visual scenarios need Mesa's lavapipe (`mesa-vulkan-drivers` on
+  Debian and Ubuntu). Without it they skip, loudly.
 
 ## Current state
 
@@ -74,10 +77,14 @@ it before ticking a step:
 - `.githooks/pre-push`: `cargo test --workspace` (and `--all-features`),
   `cargo build --target wasm32-unknown-unknown --workspace --exclude
   arrix-cli`, `scripts/gate-selftest`.
-- The visual harness (`docs/UI-RENDERING.md` §Visual debugging): `cargo
-  test -p arrix-app --test visual` runs the scenarios against their text
-  goldens; `scripts/snapshot-baseline [<rev>]` renders before, after and
-  diff images into `target/snapshots/`, read before any
+- CI (`.github/workflows/ci.yml`) runs the same commands; `gate-selftest`
+  fails if the two lists drift.
+- The visual harness (`docs/UI-RENDERING.md` §Visual debugging, the
+  `visual-debug` skill): `cargo test -p arrix-app --test visual` runs the
+  scenarios against their text goldens; `cargo test -p arrix-app --test
+  visual_scratch -- --nocapture` renders a state to
+  `target/visual-scratch/`; `scripts/snapshot-baseline [<rev>]` renders
+  before, after and diff images into `target/snapshots/`, read before any
   `UPDATE_SNAPSHOTS=1`.
 - `cargo run -p arrix-cli -- eval <dir>` evaluates a document directory
   and prints its JSON line (`tests/docs/empty` is the M0 scenario).

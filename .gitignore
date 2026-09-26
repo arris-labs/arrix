@@ -1,4 +1,6 @@
 /target
+# The lints are Python; its bytecode cache is build output.
+__pycache__/
 .claude/settings.local.json
 
 # Private working notes: pondered, not published. What survives becomes an
