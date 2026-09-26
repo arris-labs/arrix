@@ -72,7 +72,15 @@ rule).
   snapshot, the latest events and session state: `TreeView`, `FormView`,
   `RibbonView`, `PaletteView`, `DiagnosticsView`, `SketchView`,
   `SceneView`. They are serialisable, which is what makes them testable
-  and what a thin client would receive.
+  and what a thin client would receive. Built so far: `ShellView`, holding
+  a `RibbonView` (tabs and the open one), a `TreeView` (parts) and a
+  `StatusView` (generation, diagnostics count, display units). The
+  property panel is empty until forms exist.
+- **The shell's layout** is a function of the window size alone: the
+  ribbon 88 points high, the status bar 24, the tree at least 240 wide and
+  the property panel at least 280 (a side panel's default size is only its
+  initial wrapping width in egui, so each is also its minimum). `arrix_ui::
+  shell` returns where each region landed, which `debug_state()` reports.
 - **Intents** are what a user did, in view terms: `UiIntent::FieldCommitted
   { form, field, text }`, `RibbonClicked { command }`, `Picked { name }`.
   `arrix-app` turns an intent into a `CommandEnvelope`, or into a change of
@@ -180,6 +188,17 @@ the way in.
   scenario, `crates/arrix-app/tests/snapshots/<name>.json`, holding two
   things: the `debug_state()` at that moment, and the **coarse frame**.
   Scenarios run one at a time: concurrent software devices are not safe.
+- **The reference adapter is a CPU one**, Mesa's lavapipe. The harness
+  requires it: a hardware GPU rasterises differently, so a scenario is
+  never run on one. Without a CPU adapter a scenario skips, written
+  straight to the process's stderr so the test runner's capture cannot
+  hide it; with `ARRIX_REQUIRE_GPU=1` (CI) it fails instead.
+- **Frames are deterministic on lavapipe**: two app instances, a
+  re-render after more frames, separate processes and any lavapipe thread
+  count (`LP_NUM_THREADS`) give identical pixels (measured on Mesa 25.2.8;
+  `empty_shell_renders_identically` holds the in-process half). The coarse
+  frame's tolerance exists for a different Mesa version, not for
+  run-to-run noise.
 - **No image is committed** (ADR-0001). Goldens are text; images are build
   output, re-rendered from any commit on demand.
 - **The coarse frame** is the rendered frame reduced to a grid of 16×16

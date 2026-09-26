@@ -3,7 +3,7 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "ArriX",
         eframe::NativeOptions::default(),
-        Box::new(|_cc| Ok(Box::new(arrix_app::ArrixApp))),
+        Box::new(|cc| Ok(Box::new(arrix_app::ArrixApp::new(cc)))),
     )
 }
 

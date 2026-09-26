@@ -256,9 +256,10 @@ workflow is still to come.
    crate), which must fail it, and with the exemptions each lint promises
    (test code, the audit marker, a comment), which must pass.
 
-The visual tests need a wgpu adapter; the reference is Mesa's lavapipe
-(CI installs `mesa-vulkan-drivers`). With no adapter a scenario skips
-loudly, never silently passes.
+The visual tests need a CPU wgpu adapter, Mesa's lavapipe (CI installs
+`mesa-vulkan-drivers`). With none a scenario skips loudly, never silently
+passes, and with `ARRIX_REQUIRE_GPU=1`, as in CI, it fails
+(`docs/UI-RENDERING.md` §Visual debugging).
 
 ## Arris dependencies
 

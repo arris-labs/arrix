@@ -9,6 +9,10 @@ publish.workspace = true
 [lints]
 workspace = true
 
+[[bin]]
+name = "arrix-app"
+path = "src/main.rs"
+
 [dependencies]
 arrix-core.workspace = true
 arrix-kernel.workspace = true
@@ -20,7 +24,20 @@ arrix-viewport.workspace = true
 arrix-ui.workspace = true
 egui.workspace = true
 eframe.workspace = true
+# `debug_state()` (docs/UI-RENDERING.md §Visual debugging).
+serde.workspace = true
+serde_json.workspace = true
 
-[[bin]]
-name = "arrix-app"
-path = "src/main.rs"
+# The visual scenarios and the scratch render (tests/visual/): native and
+# dev-only, never in the shipped binary or the wasm build.
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+egui_kittest.workspace = true
+egui-wgpu.workspace = true
+image.workspace = true
+pollster.workspace = true
+
+# Looked at on demand, compared against nothing: not run by `cargo test`.
+[[test]]
+name = "visual_scratch"
+path = "tests/visual_scratch.rs"
+test = false
