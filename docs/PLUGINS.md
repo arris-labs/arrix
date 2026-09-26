@@ -3,9 +3,10 @@
 The plugin model is ArriX's reason to exist (`SEED.md` §3, §6.3): one
 interface, versioned apart from the app, hosted three ways, and enough of it
 that first-party domains need nothing else. This document is the design of
-`arrix-plugin-api` and `arrix-plugin-host`. Nothing here is built yet: each
-section becomes true as its cycle lands (Tier 0 in C1, Tiers 1 and 2 and
-the test kit in C3), and the commit that builds it keeps it true.
+`arrix-plugin-api` and `arrix-plugin-host`. Built: the world and its Rust
+traits at 0.1.0 (§One interface). Each other section becomes true as its
+cycle lands (Tier 0 in C1, Tiers 1 and 2 and the test kit in C3), and the
+commit that builds it keeps it true.
 
 ## One interface, defined once
 
@@ -21,53 +22,76 @@ API's version. From it come:
 - the **Python SDK** (`python/arrix`): stubs generated from the world, and
   a thin runtime speaking the Tier 2 wire protocol (C3).
 
-The world's shape (sketch; the file is the authority once written):
+The world as it stands at 0.1.0 (the file is the authority; comments and
+field lists are elided here):
 
 ```wit
 package arrix:plugin@0.1.0;
 
-interface types {
-  // SI units. No Arris type appears anywhere in this world.
-  record vec3 { x: f64, y: f64, z: f64 }
-  record frame { origin: vec3, x-axis: vec3, z-axis: vec3 }
-  variant quantity { length(f64), angle(f64), count(s64), ratio(f64), mass(f64) }
-  record persistent-ref { encoded: string }          // arrix-core's PersistentName, opaque here
-  record diagnostic { severity: severity, code: string, message: string, refs: list<persistent-ref> }
-  record mesh { positions: list<f32>, indices: list<u32>, colours: option<list<f32>> }
-  // profiles (lines, arcs, circles, ellipses), forms, drawables: see §Contribution points
+interface types {                                    // SI; no Arris type anywhere
+  type id = u64;                                     // arrix-core's typed ids
+  record vec2, vec3, frame { origin, x-axis, z-axis }
+  enum quantity-kind { length, angle, count, ratio, mass }
+  record quantity { kind, si: f64 }
+  record persistent-ref { encoded: string }          // a PersistentName's text form, opaque here
+  variant reference { param, feature, slot, topo, sketch, plugin }   // arrix-core's Ref
+  record diagnostic { severity, code, message, refs: list<reference>, candidates: list<reference> }
+  record profile { plane: frame, outer: profile-loop, holes: list<profile-loop> }
+  // profile-loop: a keyed circle, or a path of keyed line and arc segments
+  record mass-properties { volume, area, centroid }
 }
 
 interface kernel {                                   // a host service; imported by the plugin
   resource body;                                     // an opaque handle, valid within one evaluation
-  resource profile;
-  extrude: func(p: borrow<profile>, on: frame, length: f64) -> result<body, diagnostic>;
-  revolve: func(p: borrow<profile>, axis-origin: vec3, axis-dir: vec3, angle: f64) -> result<body, diagnostic>;
-  boolean: func(op: bool-op, target: borrow<body>, tools: list<borrow<body>>) -> result<body, diagnostic>;
-  fillet:  func(b: borrow<body>, edges: list<persistent-ref>, radius: f64) -> result<body, diagnostic>;
-  transform: func(b: borrow<body>, to: frame) -> result<body, diagnostic>;
-  // mirror, chamfer, primitives, measure, tessellate, and body bytes (ask A2) across a process boundary
+  extrude: func(p: profile, distance: f64) -> result<body, diagnostic>;
+  names: func(b: borrow<body>) -> result<list<persistent-ref>, diagnostic>;
+  face-frame: func(b: borrow<body>, face: persistent-ref) -> result<frame, diagnostic>;
+  measure: func(b: borrow<body>) -> result<mass-properties, diagnostic>;
 }
 
 interface feature {                                  // exported by a plugin that adds features
-  describe: func() -> list<feature-type>;           // id, title, form, inputs, output slots
+  describe: func() -> list<feature-type-spec>;      // id, version, title, params, inputs, output slots
   evaluate: func(type-id: string, params: list<param-value>, inputs: list<resolved-input>)
             -> result<feature-output, diagnostic>;
-  migrate:  func(type-id: string, from-version: u32, params: list<param-value>) -> result<list<param-value>, diagnostic>;
 }
 
 world plugin {
   import kernel;
-  import host;          // log, progress, cancellation check, snapshot reads
-  export feature;       // each contribution point is an optional export
-  export commands;
-  export exchange;
-  export analysis;
-  export ui;
+  export feature;
 }
 ```
 
+- **Parameters** arrive evaluated: the host evaluates each field's
+  expression to a `quantity` in SI; a `param-spec`'s default is an
+  expression's text (`1 mm`).
+- **Inputs** arrive resolved: a `plane` input (a datum, a planar face or
+  a world plane) is a `frame`. Output slots hold a `body` or a `plane`.
+- **Profiles are plain records**, keyed curve by curve like
+  `arrix_core::Profile`, since a key is what roots a side face's name.
+- **What grows it, by minor version** (breaking while 0.x): `migrate`
+  with a feature type's second `type_version`; `revolve`, `boolean`,
+  `fillet`, `transform`, primitives and body bytes (ask A2) as the kernel
+  service gains them; `import host` (log, progress, cancellation check,
+  snapshot reads) and the `commands`, `exchange`, `analysis` and `ui`
+  exports as the first plugin needs each.
+
+**The Rust side mirrors it**: `Kernel` and `Feature` traits and plain
+types, with `arrix-core`'s own types (`Frame`, `Profile`,
+`PersistentName`, `Ref`, `Diagnostic`, `Quantity`) re-exported where the
+world's type is theirs, so a plugin names them through
+`arrix-plugin-api` and the host passes them unconverted. `Feature::
+evaluate` takes the kernel as `&mut dyn Kernel`, where the world imports
+it. `crates/arrix-plugin-api/tests/wit_equality.rs` holds the two equal
+three ways: every world type converts to its Rust type and back with
+exhaustive destructuring on both sides, and round trips; `feature`'s
+generated `Guest` is implemented over a Rust `Feature` and the reverse,
+and the Rust `Kernel` over the generated imports, so a function added on
+either side fails to compile; and the world as `wit-parser` reads it is
+exactly the inventory the test covers, so an addition the bindings would
+silently absorb fails too.
+
 **No Arris types in the plugin API** (`SEED.md` §6.3). Geometry crosses as
-opaque handles (`body`, `profile`), ArriX's plain types (points, frames,
+opaque handles (`body`), ArriX's plain types (points, frames,
 profiles, meshes, persistent references) and, across a process boundary,
 Arris's body bytes (ask A2). Kernel operations are a host service with
 ArriX's signatures, implemented in `arrix-kernel`, recorded like every
@@ -246,7 +270,8 @@ only, whatever the manifest says, because determinism demands it.
 ## Versioning
 
 - `arrix-plugin-api` is versioned by **semver apart from the app**
-  (`SEED.md` §6.3), and the WIT package version is the crate's version.
+  (`SEED.md` §6.3), and the WIT package version is the crate's version,
+  which the equality test checks. The first release is 0.1.0.
   While it is `0.x`, a minor bump is breaking. Every change to it says its
   semver effect in the commit body (`.agents/rules/git.md`).
 - The host supports one API range at a time and says which in `arrix

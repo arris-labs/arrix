@@ -7,7 +7,7 @@ the kernel's choke point, errors, testing and the gate. The charter is
 `docs/CONCURRENCY-WASM.md`. Built: the workspace with every crate
 (`arrix-core`'s units, ids, references, persistent names, frames and
 profiles, and `Diagnostic`, `arrix-kernel`'s first slice of §The kernel
-choke point, `arrix-doc`'s empty-document
+choke point, `arrix-plugin-api` 0.1.0, `arrix-doc`'s empty-document
 open and `arrix eval` line, the empty shell in `arrix-ui` and `arrix-app`,
 the rest stubs), §Errors and diagnostics as far as `Diagnostic` goes, the
 UI and CLI rows of §Testing, and §Gates. Each other section becomes true as
@@ -24,7 +24,7 @@ unless an ADR says otherwise.
 | `arrix-core` | units and quantities, ids, plugin ids, plain math over `glam` (f64), persistent-reference types, `Diagnostic` | — | `glam`, `serde`, `thiserror` |
 | `arrix-kernel` | the only crate naming Arris types: operations, naming from provenance, render meshes, body bytes, call records | core | `arris`, `serde`, `thiserror` |
 | `arrix-sketch` | the sketch model, the constraint solver, inference, trim/extend/offset/mirror (ported) | core | — |
-| `arrix-plugin-api` | the WIT world, its Rust traits and plain types; semver of its own | core | `wit-bindgen` (types only) |
+| `arrix-plugin-api` | the WIT world, its Rust traits and plain types; semver of its own | core | `wit-bindgen`, `wit-parser` (the equality test only, dev) |
 | `arrix-doc` | document, parameters and expressions, DAG, feature registry, commands, undo, evaluator, `.arrx`, the `arrix eval` line; reads no files (a `DocumentSource` hands it bytes) | core, kernel, sketch, plugin-api | `serde_json`, `zip`, `blake3` |
 | `arrix-plugin-host` | tier 0/1/2 hosting, manifests, capabilities, the frozen fallback | core, doc, plugin-api | `wasmtime` (native, C3) |
 | `arrix-viewport` | wgpu scene, ID-buffer picking, overlays, camera (ported) | core | `wgpu`, `egui-wgpu` |
@@ -39,9 +39,15 @@ Crates live in `crates/<name>/`, plugins in `plugins/<name>/` (package
 pinned once, in the root `Cargo.toml`'s `[workspace.dependencies]`:
 `arris` 0.2, and one egui minor for `egui`, `eframe`, `egui-wgpu` and the
 dev-only `egui_kittest` (0.36). The table's externals not yet in a
-manifest (`wit-bindgen`, `zip`, `blake3`, `wgpu` directly, `wasmtime`)
+manifest (`zip`, `blake3`, `wgpu` directly, `wasmtime`)
 join with the code that needs them; `glam` (0.33, f64 types, `serde`)
-has. `unsafe_code = "forbid"` is a workspace lint every crate inherits.
+has, and so have `wit-bindgen` (0.62, its `macros` feature alone) and
+`wit-parser` (0.259), dev-only in `arrix-plugin-api`. `unsafe_code =
+"forbid"` is a workspace lint every crate inherits; `wit-bindgen`'s
+`generate!` compiles under it, its `export!` does not, which is why the
+equality test implements the guest traits without exporting them.
+`arrix-plugin-api` alone carries its own version (0.1.0); every other
+crate is the workspace's 0.0.0.
 The binaries are `arrix` (`arrix-cli`) and `arrix-app`. No crate is
 published yet (`publish = false`); reserving names is the human's act.
 

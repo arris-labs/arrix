@@ -60,6 +60,12 @@ serde = { version = "1", features = ["derive"] }
 # §File format), which the default parser does not promise.
 serde_json = { version = "1", features = ["float_roundtrip"] }
 thiserror = "2"
+
+# The plugin API's equality test (docs/PLUGINS.md §One interface): the
+# guest bindings generated from the WIT world, and its parser for the
+# world's inventory. Dev-only; no generated code ships.
+wit-bindgen = { version = "0.62", default-features = false, features = ["macros"] }
+wit-parser = "0.259"
 proptest = "1"
 
 # The headless visual harness (docs/UI-RENDERING.md §Visual debugging):

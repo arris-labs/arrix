@@ -117,7 +117,7 @@ gear extrudes; nothing is built directly).
   and volume as computed by hand; evaluating twice gives identical names
   and volumes; a zero-length extrude is a categorised error with its
   record kept.
-- [ ] **[3]** Step 3 — `arrix-plugin-api` 0.1.0: the WIT world (`types`,
+- [x] **[3]** Step 3 — `arrix-plugin-api` 0.1.0: the WIT world (`types`,
   `kernel` slice, `feature`), the Rust traits and plain types, and a test
   holding them equal to `wit-bindgen`'s generated bindings. Builds for
   wasm32.
@@ -237,5 +237,15 @@ gate green, the wasm build included.
   (`edge:sweep.<f>.rise.<k>`). `gen` steps first appear with booleans
   (plan 3). A call-record operand is the `CallIndex` of the call that
   made the body until A2 gives bodies a content hash.
+- Finding, step 3: the world differs from `docs/PLUGINS.md`'s sketch
+  where the code needed it: a profile is a plain record, not a
+  resource; `extrude` takes no frame (the profile carries its plane) and
+  no feature id (the host knows which feature evaluates); the mass query
+  is `measure`, since WIT refuses a function and a `use`d type of one
+  name; `names` joins the slice so a plugin can name its own faces.
+  `migrate` waits for a second `type_version`. `wit-bindgen`'s `export!`
+  emits `unsafe`, which the workspace forbids, so the equality test
+  implements `Guest` without exporting it; Tier 1 (C3) meets this in the
+  guest SDK and needs an ADR there, not here.
 - ⚠ OPEN 5: start `c1-m1-sketch` now in the second plan slot, running
   beside this one? **Human decides.**

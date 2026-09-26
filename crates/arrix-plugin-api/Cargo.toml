@@ -1,6 +1,8 @@
 [package]
 name = "arrix-plugin-api"
-version.workspace = true
+# Versioned apart from the app (docs/PLUGINS.md §Versioning): the WIT
+# package's version, which a test holds equal to this one.
+version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
@@ -11,3 +13,7 @@ workspace = true
 
 [dependencies]
 arrix-core.workspace = true
+
+[dev-dependencies]
+wit-bindgen.workspace = true
+wit-parser.workspace = true

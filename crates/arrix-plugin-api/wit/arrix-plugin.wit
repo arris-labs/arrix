@@ -1,0 +1,127 @@
+// The plugin interface (docs/PLUGINS.md §One interface): the authority for
+// every tier. `arrix-plugin-api`'s Rust traits and plain types mirror it,
+// and `tests/wit_equality.rs` holds the two equal. The package version is
+// the crate's version.
+//
+// SI throughout: metres, radians, kilograms. No Arris type appears here.
+
+package arrix:plugin@0.1.0;
+
+interface types {
+  // An id: 64 bits, as `arrix-core`'s typed ids carry it.
+  type id = u64;
+
+  record vec2 { x: f64, y: f64 }
+  record vec3 { x: f64, y: f64, z: f64 }
+
+  // A right-handed frame, Y = Z x X. A plane is its XY plane, its normal Z.
+  record frame { origin: vec3, x-axis: vec3, z-axis: vec3 }
+
+  enum quantity-kind { length, angle, count, ratio, mass }
+  record quantity { kind: quantity-kind, si: f64 }
+
+  // A face, edge or vertex by persistent name, in its canonical text form
+  // (docs/DATA-MODEL.md §Persistent naming). Opaque to a plugin.
+  record persistent-ref { encoded: string }
+
+  // A reference to a document record (docs/DATA-MODEL.md §References).
+  record slot-ref { feature: id, slot: string }
+  record sketch-ref { feature: id, entity: id }
+  record plugin-ref { plugin: string, %record: id }
+  variant reference {
+    param(id),
+    feature(id),
+    slot(slot-ref),
+    topo(persistent-ref),
+    sketch(sketch-ref),
+    plugin(plugin-ref),
+  }
+
+  enum severity { info, warning, error }
+  // `code` is `segment(.segment)*`; `candidates` are ranked best first.
+  record diagnostic {
+    severity: severity,
+    code: string,
+    message: string,
+    refs: list<reference>,
+    candidates: list<reference>,
+  }
+
+  // A planar region in (u, v) coordinates of `plane`, every curve keyed:
+  // side faces are rooted at a curve's key, so a key must be stable across
+  // evaluations for the same logical curve.
+  record line-segment { key: id, to: vec2 }
+  // A circular arc through `via` to `to`.
+  record arc-segment { key: id, to: vec2, via: vec2 }
+  variant profile-segment { line(line-segment), arc(arc-segment) }
+  record circle-loop { key: id, center: vec2, radius: f64 }
+  record path-loop { start: vec2, segments: list<profile-segment> }
+  variant profile-loop { circle(circle-loop), path(path-loop) }
+  record profile { plane: frame, outer: profile-loop, holes: list<profile-loop> }
+
+  // At unit density: cubic metres, square metres, a point.
+  record mass-properties { volume: f64, area: f64, centroid: vec3 }
+}
+
+// The kernel, a host service: operations with ArriX's signatures, each
+// recorded like a built-in's call (docs/ARCHITECTURE.md §The kernel choke
+// point). Everything built is named from provenance, as the calling
+// feature's.
+interface kernel {
+  use types.{diagnostic, frame, mass-properties, persistent-ref, profile};
+
+  // A body made in this evaluation; valid within it only.
+  resource body;
+
+  // `p` swept `distance` along its plane's normal, against it when negative.
+  extrude: func(p: profile, distance: f64) -> result<body, diagnostic>;
+  // Every face, edge and vertex of `b`, by name.
+  names: func(b: borrow<body>) -> result<list<persistent-ref>, diagnostic>;
+  // The outward frame of a planar face of `b`.
+  face-frame: func(b: borrow<body>, face: persistent-ref) -> result<frame, diagnostic>;
+  // Volume, area and centroid of `b`.
+  measure: func(b: borrow<body>) -> result<mass-properties, diagnostic>;
+}
+
+// Feature types (docs/PLUGINS.md §Contribution points, 1).
+interface feature {
+  use types.{diagnostic, frame, quantity, quantity-kind};
+  use kernel.{body};
+
+  // A numeric field; `default` is an expression (`20`, `1 mm`).
+  record param-spec { name: string, title: string, kind: quantity-kind, default: string }
+  // What an input resolves to: a plane (a datum, a planar face, a world plane).
+  enum input-kind { plane }
+  record input-spec { name: string, title: string, kind: input-kind }
+  enum slot-kind { body, plane }
+  // An output slot; `name` is one lower-kebab word.
+  record slot-spec { name: string, kind: slot-kind }
+  // `id` is `<plugin-id>.<name>`; `version` the type's own schema version.
+  record feature-type-spec {
+    id: string,
+    version: u32,
+    title: string,
+    params: list<param-spec>,
+    inputs: list<input-spec>,
+    outputs: list<slot-spec>,
+  }
+
+  // A parameter's expression, evaluated by the host to SI.
+  record param-value { name: string, value: quantity }
+  variant input-value { plane(frame) }
+  record resolved-input { name: string, value: input-value }
+  variant output-value { body(body), plane(frame) }
+  record slot-output { name: string, value: output-value }
+  record feature-output { slots: list<slot-output> }
+
+  describe: func() -> list<feature-type-spec>;
+  // Deterministic: a pure function of its arguments, the kernel's results
+  // and the plugin's version.
+  evaluate: func(type-id: string, params: list<param-value>, inputs: list<resolved-input>)
+    -> result<feature-output, diagnostic>;
+}
+
+world plugin {
+  import kernel;
+  export feature;
+}
