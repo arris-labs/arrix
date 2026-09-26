@@ -74,6 +74,11 @@ it before ticking a step:
 - `.githooks/pre-push`: `cargo test --workspace` (and `--all-features`),
   `cargo build --target wasm32-unknown-unknown --workspace --exclude
   arrix-cli`, `scripts/gate-selftest`.
+- The visual harness (`docs/UI-RENDERING.md` §Visual debugging): `cargo
+  test -p arrix-app --test visual` runs the scenarios against their text
+  goldens; `scripts/snapshot-baseline [<rev>]` renders before, after and
+  diff images into `target/snapshots/`, read before any
+  `UPDATE_SNAPSHOTS=1`.
 - Either hook runs by hand as `.githooks/pre-commit` or
   `.githooks/pre-push`. `scripts/size-lint --list` shows offenders past
   the allowlist.

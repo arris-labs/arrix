@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+"""Renders the visual scenarios at a revision and diffs them against the
+working tree: images on demand, since none is committed (ADR-0001,
+docs/UI-RENDERING.md §Visual debugging).
+
+Writes, for every scenario, into target/snapshots/:
+    <name>.before.png   the frame at <rev>
+    <name>.png          the frame of the working tree
+    <name>.diff.png     differing pixels in magenta over the dimmed frame
+
+The revision is checked out in a temporary `git worktree`, removed on exit
+even on failure, and built in `target/baseline/`: cargo hashes workspace
+crates by their path relative to the workspace, so a shared target
+directory would hand one tree's test binary to the other. The first run
+builds the dependencies once more; later runs reuse them. A scenario that
+fails its golden in either run still leaves its frame; that is usually why
+you are here.
+
+Usage:
+    scripts/snapshot-baseline [<rev>]      # default HEAD
+"""
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+OUT = ROOT / "target" / "snapshots"
+VISUAL = ["cargo", "test", "-p", "arrix-app", "--test", "visual"]
+
+
+def run_scenarios(tree, env):
+    env = {**os.environ, "ARRIX_REQUIRE_GPU": "1", **env}
+    env.pop("UPDATE_SNAPSHOTS", None)
+    r = subprocess.run(VISUAL, cwd=tree, env=env)
+    if r.returncode != 0:
+        print(f"snapshot-baseline: the visual suite failed in {tree} (frames are still written)", file=sys.stderr)
+
+
+def main(argv):
+    # Our lines interleave with cargo's; unbuffered, they land in order.
+    sys.stdout.reconfigure(line_buffering=True)
+    rev = argv[1] if len(argv) > 1 else "HEAD"
+    sha = subprocess.run(
+        ["git", "rev-parse", "--verify", f"{rev}^{{commit}}"], cwd=ROOT, capture_output=True, text=True
+    )
+    if sha.returncode != 0:
+        print(f"snapshot-baseline: no such revision: {rev}", file=sys.stderr)
+        return 2
+    sha = sha.stdout.strip()
+    OUT.mkdir(parents=True, exist_ok=True)
+    for stale in [*OUT.glob("*.before.png"), *OUT.glob("*.diff.png")]:
+        stale.unlink()
+
+    with tempfile.TemporaryDirectory(prefix="arrix-baseline-") as tmp:
+        worktree, frames = Path(tmp) / "tree", Path(tmp) / "frames"
+        subprocess.run(["git", "worktree", "add", "--detach", "--quiet", str(worktree), sha], cwd=ROOT, check=True)
+        try:
+            print(f"snapshot-baseline: rendering {rev} ({sha[:10]})")
+            run_scenarios(
+                worktree,
+                {"ARRIX_SNAPSHOT_DIR": str(frames), "CARGO_TARGET_DIR": str(ROOT / "target" / "baseline")},
+            )
+        finally:
+            subprocess.run(["git", "worktree", "remove", "--force", str(worktree)], cwd=ROOT)
+            subprocess.run(["git", "worktree", "prune"], cwd=ROOT)
+        before = sorted(frames.glob("*.png")) if frames.is_dir() else []
+        for png in before:
+            shutil.move(png, OUT / f"{png.stem}.before.png")
+
+    if not before:
+        print(f"snapshot-baseline: {rev} rendered no scenario frames", file=sys.stderr)
+        return 1
+    print("snapshot-baseline: rendering the working tree")
+    run_scenarios(ROOT, {"ARRIX_SNAPSHOT_DIFF": "1", "CARGO_TARGET_DIR": str(ROOT / "target")})
+    for png in before:
+        name = png.stem
+        paths = [OUT / f"{name}.before.png", OUT / f"{name}.png", OUT / f"{name}.diff.png"]
+        missing = [p.name for p in paths if not p.exists()]
+        state = f"missing {', '.join(missing)}" if missing else "before, after, diff"
+        print(f"  {name}: {state}")
+    print(f"snapshot-baseline: images in {OUT}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

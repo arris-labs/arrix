@@ -45,6 +45,9 @@ pub fn check_with(h: &mut Harness<'_, ArrixApp>, name: &str, tolerance: Toleranc
     let frame = harness::render(h);
     let png = frame_dir().join(format!("{name}.png"));
     frame.save(&png).expect("write the frame");
+    if harness::env_flag("ARRIX_SNAPSHOT_DIFF") {
+        write_diff(name, &frame);
+    }
     // Through text and back, as the golden was: two equal texts then give
     // equal values, whatever the float parser does.
     let state = serde_json::to_string(&h.state().debug_state()).expect("serialise debug_state");
@@ -91,6 +94,45 @@ pub fn check_with(h: &mut Harness<'_, ArrixApp>, name: &str, tolerance: Toleranc
     );
 }
 
+/// Writes `<name>.diff.png` against `<name>.before.png` beside the frame,
+/// when `scripts/snapshot-baseline` rendered one, and says how many pixels
+/// differ. Straight to stderr, so the test runner's capture cannot hide it.
+fn write_diff(name: &str, after: &image::RgbaImage) {
+    use std::io::Write as _;
+    let dir = frame_dir();
+    let before = dir.join(format!("{name}.before.png"));
+    let line = match image::open(&before) {
+        Ok(before) => {
+            let (diff, differing) = diff_image(&before.to_rgba8(), after);
+            let path = dir.join(format!("{name}.diff.png"));
+            diff.save(&path).expect("write the diff image");
+            format!(
+                "{name}: {differing} pixels differ from the baseline, {}",
+                path.display()
+            )
+        }
+        Err(err) => format!("{name}: no baseline frame at {} ({err})", before.display()),
+    };
+    let _ = writeln!(std::io::stderr(), "{line}");
+}
+
+/// `after` dimmed to a quarter, with every pixel whose RGB differs from
+/// `before` (or that `before` does not have) in magenta; and their count.
+fn diff_image(before: &image::RgbaImage, after: &image::RgbaImage) -> (image::RgbaImage, usize) {
+    let mut differing = 0;
+    let diff = image::RgbaImage::from_fn(after.width(), after.height(), |x, y| {
+        let a = after.get_pixel(x, y).0;
+        let b = before.get_pixel_checked(x, y).map(|p| p.0);
+        if b.is_some_and(|b| b[..3] == a[..3]) {
+            image::Rgba([a[0] / 4, a[1] / 4, a[2] / 4, 255])
+        } else {
+            differing += 1;
+            image::Rgba([255, 0, 255, 255])
+        }
+    });
+    (diff, differing)
+}
+
 /// The first place `actual` departs from `golden`, as a JSON pointer and
 /// both values, or `None` when they are equal.
 fn first_difference(at: &str, golden: &Value, actual: &Value) -> Option<String> {
@@ -126,8 +168,25 @@ fn first_difference(at: &str, golden: &Value, actual: &Value) -> Option<String> 
 
 #[cfg(test)]
 mod tests {
-    use super::first_difference;
+    use super::{diff_image, first_difference};
     use serde_json::json;
+
+    #[test]
+    fn the_diff_image_highlights_only_what_changed() {
+        let grey = image::Rgba([80, 80, 80, 255]);
+        let before = image::RgbaImage::from_pixel(8, 4, grey);
+        let (diff, n) = diff_image(&before, &before);
+        assert_eq!(n, 0);
+        assert!(diff.pixels().all(|p| p.0 == [20, 20, 20, 255]));
+        let mut after = before.clone();
+        after.put_pixel(3, 1, image::Rgba([90, 80, 80, 255]));
+        let (diff, n) = diff_image(&before, &after);
+        assert_eq!(n, 1);
+        assert_eq!(diff.get_pixel(3, 1).0, [255, 0, 255, 255]);
+        // A larger frame: everything the baseline lacks differs.
+        let (_, n) = diff_image(&before, &image::RgbaImage::from_pixel(8, 6, grey));
+        assert_eq!(n, 16);
+    }
 
     #[test]
     fn names_the_first_differing_path() {

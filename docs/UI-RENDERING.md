@@ -221,11 +221,17 @@ the way in.
   and gross rendering changes; a change smaller than a cell (a 1-px
   outline) is below it, and text is `debug_state()`'s to catch.
 - **Images on demand.** Every run writes the full frames to
-  `target/snapshots/<name>.png` (`ARRIX_SNAPSHOT_DIR` redirects them). `scripts/snapshot-baseline [<rev>]`
-  (default `HEAD`) renders the same scenarios at that revision in a
-  temporary worktree and writes `<name>.before.png` and a
-  `<name>.diff.png` beside them. CI uploads all three as artifacts when a
-  scenario fails.
+  `target/snapshots/<name>.png` (`ARRIX_SNAPSHOT_DIR` redirects them).
+  `scripts/snapshot-baseline [<rev>]` (default `HEAD`) renders the same
+  scenarios at that revision in a temporary `git worktree`, built in
+  `target/baseline/` (a shared target directory would hand one tree's
+  test binary to the other), and moves its frames to `<name>.before.png`;
+  it then runs the working tree's scenarios with `ARRIX_SNAPSHOT_DIFF=1`,
+  which writes `<name>.diff.png` (every pixel whose RGB differs in
+  magenta, over the frame dimmed to a quarter) and prints how many pixels
+  differ. A scenario that fails its golden in either run still leaves its
+  frames. The worktree is removed on exit, even on failure. CI uploads all
+  three images as artifacts when a scenario fails.
 - **`debug_state()`** is JSON of what the app drew and why, floats rounded
   to six places: the camera (eye, target, projection, matrices), the
   evaluation (generation, each feature's state and diagnostic), the bodies
