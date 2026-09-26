@@ -25,9 +25,9 @@ unless an ADR says otherwise.
 
 | Crate | Holds | May depend on (workspace) | Notable external |
 |---|---|---|---|
-| `arrix-core` | units and quantities, ids, plugin ids, plain math over `glam` (f64), persistent-reference types, `Diagnostic` | — | `glam`, `serde`, `thiserror` |
+| `arrix-core` | units and quantities, the length tolerance, ids, plugin ids, plain math over `glam` (f64), persistent-reference types, `Diagnostic` | — | `glam`, `serde`, `thiserror` |
 | `arrix-kernel` | the only crate naming Arris types: operations, naming from provenance, render meshes, body bytes, call records | core | `arris`, `serde`, `thiserror` |
-| `arrix-sketch` | the sketch model, the constraint solver, inference, trim/extend/offset/mirror (ported) | core | — |
+| `arrix-sketch` | the sketch model, the constraint solver, inference, trim/extend/offset/mirror (ported) | core | `serde`, `thiserror` |
 | `arrix-plugin-api` | the WIT world, its Rust traits and plain types; semver of its own | core | `wit-bindgen`, `wit-parser` (the equality test only, dev) |
 | `arrix-doc` | document, parameters and expressions, DAG, feature registry, commands, undo, evaluator, `.arrx`, the `arrix eval` line; reads no files (a `DocumentSource` hands it bytes) | core, kernel, sketch, plugin-api | `serde_json`, `zip`, `blake3` |
 | `arrix-plugin-host` | tier 0/1/2 hosting, manifests, capabilities, the frozen fallback | core, doc, plugin-api | `toml`, `semver`, `wasmtime` (native, C3) |

@@ -4,6 +4,12 @@
 
 use serde::{Deserialize, Serialize};
 
+/// The one absolute length tolerance upstream of the kernel, in metres: the
+/// micrometre `arrix-kernel` hands Arris as `default_tolerance`
+/// (`Kernel::DEFAULT_TOLERANCE`, docs/ARCHITECTURE.md §The kernel choke point), so a crate that names no
+/// kernel (the sketcher) compares lengths the way the kernel does.
+pub const LENGTH_TOLERANCE: f64 = 1.0e-6;
+
 /// What a number measures. Count and ratio are dimensionless.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]

@@ -85,7 +85,7 @@ arrangement is used, the fallback `docs/ROADMAP.md` names.
 
 ## Steps
 
-- [ ] **[2]** Step 1 — the model: points, lines, arcs, circles with the
+- [x] **[2]** Step 1 — the model: points, lines, arcs, circles with the
   construction flag; the enabled constraint kinds (OPEN 1), the rest
   gated; `SketchEntityId`s supplied by the caller; the length tolerance in
   `arrix-core`; serde as the document will write it. Ported model tests

@@ -58,8 +58,9 @@ impl Default for Kernel {
 
 impl Kernel {
     /// The model's point tolerance: a micrometre, since a model is in
-    /// metres (SI inside, `SEED.md` §8.2).
-    pub const DEFAULT_TOLERANCE: f64 = 1e-6;
+    /// metres (SI inside, `SEED.md` §8.2). The same number the sketcher
+    /// compares lengths with, so it lives in `arrix-core`.
+    pub const DEFAULT_TOLERANCE: f64 = arrix_core::LENGTH_TOLERANCE;
 
     pub fn new() -> Self {
         let precision = Precision {

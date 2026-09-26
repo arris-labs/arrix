@@ -11,3 +11,19 @@ workspace = true
 
 [dependencies]
 arrix-core.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[features]
+default = []
+# Conic and spline geometry: `Entity::{Ellipse, ArcOfEllipse, BSpline}` and
+# the constraint kinds that only name them. Off until a scenario reaches
+# them (SEED.md §8.2 rule 7); a document never holds them
+# (docs/DATA-MODEL.md §Sketches).
+conics = []
+# `Constraint::SnellsLaw`: a solver stress case, not a modelling need. Off
+# for the same reason; its code and tests run in the all-features build.
+snells-law = []

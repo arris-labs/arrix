@@ -21,4 +21,4 @@ pub use naming::{
 };
 pub use plugin::{InvalidPluginId, PluginId};
 pub use reference::{InvalidSlotName, Ref, SlotName};
-pub use units::{Quantity, QuantityKind, Unit, UnitMismatch};
+pub use units::{LENGTH_TOLERANCE, Quantity, QuantityKind, Unit, UnitMismatch};
