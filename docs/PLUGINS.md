@@ -256,7 +256,7 @@ only, whatever the manifest says, because determinism demands it.
   upgrading a plugin re-evaluates its features.
 - First-party plugins are in-tree (`plugins/`) until C3, where a breaking
   API change is one commit across all of them. At C3 they move to their
-  own repositories under `arris-cad`, which proves the out-of-tree path
+  own repositories in the project's GitHub home (ADR-0002), which proves the out-of-tree path
   third parties use (`SEED.md` §9).
 
 ## Frozen fallback

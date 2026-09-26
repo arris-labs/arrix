@@ -40,3 +40,4 @@ Each rejected option and the one-line reason it lost.
 ## Index
 
 - [ADR-0001](0001-snapshot-goldens-are-text.md): snapshot goldens are text; images are rendered on demand
+- [ADR-0002](0002-home-starts-on-a-personal-account.md): the home starts on a personal account; the organisation is chosen later
