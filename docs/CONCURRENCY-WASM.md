@@ -47,14 +47,16 @@ preclude (`SEED.md` §6.1). Locally all three are in one process.
   boundary and rolls its transaction back (Arris ask A3). Until A3 lands,
   cancellation is checked between kernel calls only, and one stale
   operation may run to completion; its result is cached if its hash is
-  still wanted and dropped if not. No thread is ever killed.
+  still wanted and dropped if not. No thread is ever killed. As built,
+  the check is between features, below.
 - **Events carry their generation.** A client drops an event older than
   the latest generation it has drawn for that feature.
   As built: the worker publishes each feature's event as it is made and
   checks for a newer snapshot after each one; it starts over on the
   newest queued, and an evaluation it left has no `finished` event. A
   `Replica` keeps each feature's newest outcome and, at a `finished`,
-  drops outcomes older than it.
+  drops outcomes older than it. A subscription opens with the document
+  as it is, and hears the evaluations made after it.
 - **The cache** maps input hash to outputs (`docs/DATA-MODEL.md`
   §Evaluation), bounded in bytes, least recently used first out, shared
   across generations. Outputs are Arris bodies in one long-lived model per
@@ -134,7 +136,8 @@ arrix eval <docs or dirs>… [--sweep <feature>.<param>=<from>..<to>:<n>]
   the CLI hands it a directory as a `DocumentSource`, and the line type,
   `EvalLine`, and `arrix_doc::eval` live in `arrix-doc`, so tests and the
   CLI share one code path. The document is evaluated with the core
-  feature types registered (`Registry::with_core_types`). An empty
+  feature types and the CLI's compiled-in plugins registered
+  (`crates/arrix-cli/src/plugins.rs`). An empty
   document prints
   `{"doc":"<dir>","sweep":null,"status":"ok","params":[],"features":[],"bodies":[]}`
   (`doc` as the caller named it) and exits 0. A missing directory, a

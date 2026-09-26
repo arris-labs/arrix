@@ -24,7 +24,11 @@ first-class history entry**. It has to be proven before anything is built
 on a document model that might not allow it.*
 
 **Status: M0 landed 2026-09-26: the gate, the harness and `arrix eval` on an
-empty document; M1 next. Seeded 2026-09-26.**
+empty document. M1 plan 1 of 3 landed 2026-09-26: the document, commands
+and per-author undo, the evaluator and `LocalSession`, plugin API 0.1,
+Tier 0 and `gears.spur` referenced downstream by persistent name
+(ADR-0004); `c1-m1-sketch` active, `c1-m1-slice` next. Seeded
+2026-09-26.**
 
 Milestones are ordered by risk after the harness: the document and the
 plugin feature are proven headless (M1) before the part features (M2), the

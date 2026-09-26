@@ -8,10 +8,13 @@ the kernel's choke point, errors, testing and the gate. The charter is
 (`arrix-core`'s units, ids, references, persistent names, frames and
 profiles, and `Diagnostic`, `arrix-kernel`'s first slice of §The kernel
 choke point, `arrix-plugin-api` 0.1.0, `arrix-doc`'s
-expressions, document, DAG, commands and undo, the directory form's save
-and open, and the `arrix eval` line, the empty shell in `arrix-ui` and `arrix-app`,
-the rest stubs), §Errors and diagnostics as far as `Diagnostic` goes, the
-UI and CLI rows of §Testing, and §Gates. Each other section becomes true as
+expressions, document, DAG, commands and undo, evaluator and cache, the
+directory form's save and open, and the `arrix eval` line,
+`arrix-plugin-host`'s Tier 0, `plugins/gears`, the empty shell in
+`arrix-ui` and `arrix-app`, the rest stubs), §The protocol boundary
+(`LocalSession` and replicas), §Errors and diagnostics, the document,
+evaluation, naming, protocol, UI and CLI rows of §Testing and the
+plugins row's determinism and round trip, and §Gates. Each other section becomes true as
 C1 lands, and the commit that builds it keeps it true.
 
 ## Crates and the layer rule
@@ -144,13 +147,16 @@ The executor, cancellation, the wasm story and budgets are in
 three reasons: to keep Arris's breaking enums out of the plugin API, to name
 geometry from provenance, and to make every kernel call a record.
 
-- **`Kernel` service.** A per-evaluation context owning one Arris `Model`
-  (or a model per independent branch, `docs/CONCURRENCY-WASM.md`), exposing
+- **`Kernel` service.** One per evaluator, long-lived, owning one Arris
+  `Model` whose bodies the evaluator's cache holds between evaluations
+  (`Model::retain` drops the rest; a model per independent branch later,
+  `docs/CONCURRENCY-WASM.md`), exposing
   ArriX-signature operations: `extrude`, `revolve`, `boolean`, `fillet`,
   `chamfer`, `transform`, `mirror`, primitives, `project_to_plane`,
   `face_frame`, `mass_properties`, `tessellate`, `export_step`,
   `export_stl`, `export_obj`, `to_bytes`/`from_bytes` (ask A2). Handles
-  it returns are opaque (`KernelBody`) and valid within the evaluation.
+  it returns are opaque (`KernelBody`) and valid while a cache entry
+  holds them; a plugin sees only its own evaluation's, by handle.
   Built: `extrude` (a keyed `Profile` along its plane's normal, a
   negative distance against it), `face_frame` (outward, planar faces
   only) and `mass_properties` (volume, area, centroid).
@@ -172,11 +178,11 @@ geometry from provenance, and to make every kernel call a record.
   `default_tolerance`, `arris_version` the locked release (a test holds it
   to `Cargo.lock`). Operands are bodies by content hash once body bytes
   land (ask A2); until then an operand names the call that made it, by
-  its `CallIndex`. The `Kernel` keeps every record of its evaluation,
-  failed calls included, and a failure names its record's index. On
-  failure the failing record, plus its operands' body bytes, is kept
-  beside the diagnostic.
-- **Fixture export.** A kept record serialises as a self-contained Arris
+  its `CallIndex`. The `Kernel` keeps every record it made, failed calls
+  included, and a failure names its record's index. On failure the
+  failing record is kept beside the diagnostic, in the feature's
+  `failed` event; its operands' body bytes join with ask A2.
+- **Fixture export** (M4, not built). A kept record serialises as a self-contained Arris
   fixture recipe (Arris's `fixture.json`): the operands' closures as body
   bytes, the operation and its arguments, the precision, and nothing else
   of the document. "Save as kernel fixture" is a command in the app and

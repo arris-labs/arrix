@@ -117,15 +117,16 @@ change, reviewed like any other, never a private hook.
 - **Tier 0 goes through the same trait objects** the Tier 1 bindings
   produce. A first-party plugin that works at Tier 0 is therefore proof the
   public API is enough; one that needs more changes the API.
-- **Tier 0 registration is an explicit list** in `arrix-app` and
-  `arrix-cli` (`crates/arrix-cli/src/plugins.rs`: `register_tier0(&mut
+- **Tier 0 registration is an explicit list** in each binary that
+  evaluates: `arrix-cli` (`crates/arrix-cli/src/plugins.rs`: `register_tier0(&mut
   registry, arrix_gears::MANIFEST, Arc::new(arrix_gears::Gears))`), not
   linker tricks, which do not work on wasm. A plugin crate exports its
   manifest's text (`MANIFEST`, `include_str!` of its
-  `arrix-plugin.toml`) and its `Feature`. A build without a plugin is a
-  build that leaves it off the list, and the CLI can also disable a
-  compiled-in plugin for a run (`--without-plugin <id>`), which is how the
-  frozen path is tested.
+  `arrix-plugin.toml`) and its `Feature`; `arrix-app` gets its list when
+  it first evaluates (M3). A build without a plugin is a build that
+  leaves it off the list, and the CLI can also disable a compiled-in
+  plugin for a run (`--without-plugin <id>`, with frozen results), which
+  is how the frozen path is tested.
 - **Tier 0 as built** (`arrix_plugin_host::register_tier0`): the
   manifest must say tier 0 and an `api` range holding this host's
   `API_VERSION`; every type the plugin describes must be
@@ -329,9 +330,13 @@ test` for any tier).
   checks a plugin's own tests cannot make (it depends on the API alone),
   in `crates/arrix-cli/tests/gears.rs` beside the registration list:
   names, volume and call records equal across fresh kernels, the volume
-  against the outline's own area, and the names a teeth edit keeps.
+  against the outline's own area, and the names a teeth edit keeps;
+  `crates/arrix-cli/tests/gear_naming.rs` references the gear's faces
+  downstream by name through edits, and a lost one's candidates.
 - **Round trip**: a document using the plugin saves and loads to identical
-  bytes and identical evaluation.
+  bytes and identical evaluation. Built for `gears` by
+  `crates/arrix-cli/tests/gear_on_plane.rs` and the
+  `tests/docs/gear-on-plane` golden.
 - **Frozen**: the document opened without the plugin shows every body,
   its features frozen with a reason, and downstream features evaluate.
 - **Migration**: every `type_version` the plugin ever shipped has a fixture

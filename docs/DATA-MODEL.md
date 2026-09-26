@@ -10,8 +10,9 @@ commands, the authority and per-author undo (§Commands and undo, less
 sketch and plugin-data edits), saving and opening the directory form
 (§File format), names from an extrude's provenance in `arrix-kernel`
 (§Persistent naming), expressions (`arrix_doc::expr`, §Parameters and
-expressions), the evaluator's synchronous core with its cache
-(§Evaluation), and `core.datum-plane`.
+expressions), the evaluator with its cache (§Evaluation),
+`core.datum-plane`, and a plugin feature (`gears.spur`) on the built-ins'
+one path, referenced downstream by persistent name.
 Each other section becomes true as C1 lands, and the commit that builds it
 keeps it true.
 
@@ -286,8 +287,10 @@ with *input unavailable* naming it; features that do not depend on it
 evaluate as normal. No retry with a nudged tolerance, ever
 (`SEED.md` §8.2).
 
-**As built** (`arrix_doc::Evaluator`, synchronous; `LocalSession` runs it
-off the calling thread). Parameters evaluate in the DAG's order, then every
+**As built** (`arrix_doc::Evaluator`; `LocalSession` runs it on its
+worker, where `evaluate_while` hands over each feature's event as it is
+made and stops between features for a newer snapshot,
+`docs/CONCURRENCY-WASM.md` §The evaluator). Parameters evaluate in the DAG's order, then every
 feature. A feature at or after its part's rollback index is `rolled-back`,
 a suppressed one `suppressed`; neither has outputs. The input hash covers
 the Arris version, the feature's id (names are rooted at it, so two
@@ -381,7 +384,9 @@ A parse error names the byte it stopped at; `gen` nests at most 32 deep.
   step.
 - **Plugin features get naming for free** when they build through kernel
   operations. Topology a plugin builds directly is rooted at a consumer
-  role with a key the plugin chooses (ask A1).
+  role with a key the plugin chooses (ask A1). `gears.spur` keys each
+  curve by its tooth, so a teeth edit keeps the surviving teeth's faces'
+  names and loses the rest's.
 
 **Resolution.** A `Ref::Topo` resolves against the current evaluation to
 exactly one entity or to a diagnostic. A name that matches nothing, or
@@ -391,8 +396,9 @@ prefix, and the user (or an agent) re-picks by command. As built: the
 pool is the bodies of the features the name reads; candidates are that
 pool's names of the same kind, the same root first, then the same
 feature's same kind of sweep part (another side face), then the same
-feature, then the longer shared chain, ties in name order, at most five. It is **never
-rebound silently** (`SEED.md` §8.2), and never matched by centroid,
+feature, then the longer shared chain, ties in name order, at most five;
+`crates/arrix-cli/tests/gear_naming.rs` holds this through `gears.spur`.
+It is **never rebound silently** (`SEED.md` §8.2), and never matched by centroid,
 normal or area.
 
 ## Frozen results

@@ -1,5 +1,5 @@
-//! M1's first acceptance scenario (docs/plans/c1-m1-document.md
-//! §Acceptance): a document built by commands alone, through
+//! M1's first acceptance scenario (docs/ROADMAP.md §M1, the plugin
+//! feature in the history): a document built by commands alone, through
 //! `LocalSession` with the compiled-in `gears` registered, headless. It
 //! also writes `tests/docs/gear-on-plane/`, the document `arrix eval`
 //! prints a golden line for: with `UPDATE_SNAPSHOTS=1` it rewrites the
