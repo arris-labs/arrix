@@ -6,6 +6,8 @@ this document is the design those sections commit to. Built: the id types
 (§Identifiers), `Ref` and `SlotName` (§References), the persistent-name
 types and their text form (§Persistent naming), the document's types,
 the feature-type registry and the derived DAG (§The dependency DAG),
+commands, the authority and per-author undo (§Commands and undo, less
+sketch and plugin-data edits),
 names from an extrude's
 provenance in `arrix-kernel` (§Persistent naming), expressions
 (`arrix_doc::expr`, §Parameters and expressions), and opening an empty
@@ -25,7 +27,6 @@ and nothing that can be regenerated.
 ```rust
 pub struct Document {
     schema: SchemaVersion,              // the .arrx schema, §File format
-    generation: Generation,             // bumped by every applied command; runtime only
     params: Params,                     // named, typed parameters and expressions
     parts: BTreeMap<PartId, Part>,      // a part is a feature history
     plugin_data: BTreeMap<PluginId, PluginSection>,
@@ -40,6 +41,12 @@ pub struct Part {
     rollback: Option<usize>,            // features at and after this index are not evaluated
 }
 ```
+
+The generation, bumped by every applied command, is the authority's
+runtime state beside the document (§Commands and undo), so an undone
+document equals the one before it. Built so far (`arrix_doc::Document`):
+parameters and parts; `schema` is the build's constant, and plugin data
+and `meta` join with their first use.
 
 Assemblies (components, instances, joints) are C2's and extend this type
 with an `assemblies` map; the DAG already admits cross-part references, so
@@ -403,33 +410,58 @@ pub struct CommandEnvelope {
 }
 
 pub enum Command {
-    SetParam { param: ParamId, expr: String },
+    AddParam { param: ParamId, record: Param },
+    SetParam { param: ParamId, expr: Expr },
+    DeleteParam { param: ParamId },
+    AddPart { part: Part },                               // with its features: DeletePart's inverse
+    DeletePart { part: PartId },
     AddFeature { part: PartId, at: usize, record: FeatureRecord },
-    EditFeature { feature: FeatureId, params: ParamValues, inputs: InputEdits },
+    EditFeature { feature: FeatureId, edit: FeatureEdit },
     DeleteFeature { feature: FeatureId },
-    ReorderFeature { feature: FeatureId, to: usize },
-    SketchEdit { feature: FeatureId, edit: SketchEdit },   // entities, constraints, dimensions
+    ReorderFeature { feature: FeatureId, to: usize },    // `to` counted after the move
     SetRollback { part: PartId, at: Option<usize> },
-    PluginData { plugin: PluginId, edit: RecordEdit },     // opaque to the core
     Group { label: String, commands: Vec<Command> },       // one undo entry
-    // …
+    // SketchEdit { feature, edit } joins with core.sketch; PluginData { plugin, edit }
+    // with plugin document data.
+}
+
+pub struct FeatureEdit {        // what it leaves out is kept
+    name: Option<String>,
+    suppressed: Option<bool>,
+    params: BTreeMap<String, Option<Expr>>,   // null removes the field
+    inputs: BTreeMap<String, Option<Ref>>,
 }
 ```
+
+In JSON a command is an object with one key, the variant in snake case,
+and an `Expr` is its text: `{"set_param":{"param":"…","expr":"12 mm"}}`.
+Inserting a feature before a part's rollback index moves the index with
+the features after it; inserting at the index puts the feature behind the
+bar. Deleting the last feature before the index moves it back, so that
+deletion's inverse is a `Group` of the insertion and the old index.
 
 Applying a command is a pure function of the document and the command:
 it returns the new document, its **inverse** command, and the set of nodes
 it touched. It either applies whole or not at all.
 
-- **Generations.** Every record carries the generation that last changed
-  it. A command applies if nothing it reads or writes changed after its
-  `base`; otherwise it is rejected as **stale** and the author rebuilds it
-  against the new state. There is one writer, the document, so there is no
-  merge and no CRDT. Locally the base is always current.
+- **Generations.** The authority (`arrix_doc::Authority`, the document's
+  one writer) stamps every DAG node (§The dependency DAG) with the
+  generation that last changed it. A command applies if none of the nodes
+  it touches (the parameter, the part, the feature it adds, edits, moves
+  or deletes) carries a stamp newer than its `base`; otherwise it is
+  rejected as **stale**, naming them, and the author rebuilds it against
+  the new state. There is one writer, so there is no merge and no CRDT.
+  Locally the base is always current. A deleted node keeps its stamp.
 - **Undo is per author, by inverse commands.** Each author has an undo and
   a redo stack of inverses. Undo applies the top inverse as an ordinary
-  command, subject to the same staleness rule; an undo that would clobber
-  another author's later change is stale and refused. Undo never restores
-  a snapshot.
+  command, subject to the same staleness rule against the generation the
+  entry's change made; an undo that would clobber another author's later
+  change is stale and refused, and the entry stays. Undo and redo put the
+  stamps of what they touch back to what they were before the entry's
+  change: the content is back, so its stamp is, and the author's next
+  entry stays fresh. Undo never restores a snapshot. A new command clears
+  its author's redo stack; an undo or redo whose effect equals the
+  current state is consumed as a no-op.
 - **One gesture is one command** (`SEED.md` §8.2). A multi-step gesture
   (a sketch drag that adds a point and a coincidence) is one `Group`. A
   command whose effect equals the current state is not applied and leaves

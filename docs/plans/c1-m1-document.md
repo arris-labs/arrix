@@ -129,7 +129,7 @@ gear extrudes; nothing is built directly).
   `FeatureType` registry, and the DAG derived from refs and expression
   names: history-order rule, cycle refused with its nodes, dirty
   descendants in topological order. Proptest over random DAG edits.
-- [ ] **[2]** Step 6 — `Command` and apply: `SetParam`, `AddParam`,
+- [x] **[2]** Step 6 — `Command` and apply: `SetParam`, `AddParam`,
   `DeleteParam`, `AddFeature`, `EditFeature`, `DeleteFeature`,
   `ReorderFeature`, `SetRollback`, `Group`; each returns the new document,
   its inverse and the touched nodes, whole or not at all. Generation
@@ -253,5 +253,9 @@ gate green, the wasm build included.
   made, join with join and cut in `c1-m1-slice`; nothing in this plan
   modifies a body. The DAG is rebuilt whole per command, not
   incrementally, until a budget says otherwise.
+- Finding, step 6: building a document by commands alone needs parts,
+  so the subset gains `AddPart` (a whole part: `DeletePart`'s inverse)
+  and `DeletePart`. Stamps live in the authority, keyed by DAG node, and
+  undo and redo restore them, since the file carries none.
 - ⚠ OPEN 5: start `c1-m1-sketch` now in the second plan slot, running
   beside this one? **Human decides.**
