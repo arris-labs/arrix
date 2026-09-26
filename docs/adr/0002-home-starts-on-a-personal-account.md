@@ -1,6 +1,6 @@
 # ADR-0002: The home starts on a personal account; the organisation is chosen later
 
-- Status: Accepted
+- Status: Superseded by ADR-0003
 - Date: 2026-09-26
 
 ## Context

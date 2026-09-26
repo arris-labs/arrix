@@ -12,7 +12,7 @@ ArriX starts as a clean repository. Existing code that holds up (a sketch solver
 ## 2. The Naming Rationale
 An **arris** is the sharp edge where two surfaces meet. The kernel computes it; **ArriX** is what you build with it. The X is the extension point: the application exists to be extended.
 
-Registry check on 2026-09-26: `arrix` and `arrix-core` are free on crates.io, and `arrix` is free on PyPI. The project lives beside the kernel on GitHub, at `Divelix/arrix` next to `Divelix/arris`, until a GitHub organisation for the family is chosen; both repositories move into it then, and first-party plugins become repositories there once they leave the tree (§6.2; ADR-0002). Reserving names is the human's act.
+Registry check on 2026-09-26: `arrix` and `arrix-core` are free on crates.io, and `arrix` is free on PyPI. The project lives in the GitHub organisation **`arris-labs`**, beside the kernel (`arris-labs/arris`, `arris-labs/arrix`); first-party plugins become repositories there once they leave the tree (§6.2; ADR-0003). Reserving names is the human's act.
 
 ## 3. The Problem Statement
 There is no free CAD that is both **solid at its core** and **cleanly extensible**:
@@ -231,7 +231,7 @@ The kernel changes this design needs are recorded in Arris's repository as the i
 | Kernel | **Arris, no swap facade; Arris types confined to `arrix-kernel`** | The kernel is ours; the confinement protects the plugin API, not swapability |
 | UI stack | **egui/eframe/wgpu** (ported) | Pure Rust, native and web, immediate mode fits a projection of the document |
 | Licence | **MIT OR Apache-2.0** | Matches Arris; plugins may be under any licence, commercial ones included. Copyleft would deter plugin vendors, and the Tier 0 derived-work question would be murky |
-| Home | **A GitHub organisation for the family, chosen later; `Divelix/arrix` until then** (ADR-0002): kernel, app and plugins as separate repositories | One family, visible together; `arris` and `arrix` are taken; the name should not be narrower than what plugins will make of it |
+| Home | **GitHub organisation `arris-labs`** (ADR-0003): kernel, app and plugins as separate repositories | One family, visible together; `arris` and `arrix` are taken; the name is no narrower than what plugins will make of the family |
 | First-party plugins | **In-tree until C3, then their own repositories** | A breaking API change is one commit while the API is young; moving out proves the out-of-tree path third parties use |
 | Plugins on the web | **Tier 0 only at first** | Hosting components inside a wasm app is unsolved in the ecosystem; frozen results cover documents that use other tiers |
 | First cycle | **Vertical slice including a plugin feature** | Proves the document model admits plugins before anything is built on it |

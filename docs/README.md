@@ -15,7 +15,7 @@ ADRs record why it is that way.
 | [`CONCURRENCY-WASM.md`](CONCURRENCY-WASM.md) | Background evaluation, cancellation, the wasm build, batch evaluation, performance budgets | Design, C1 not started |
 | [`ROADMAP.md`](ROADMAP.md) | Cycles with goal / in / out / accept; the risk register | Design, C1 not started |
 | [`BACKLOG.md`](BACKLOG.md) | One line per raw idea; rejected ones with the reason | Live |
-| [`adr/`](adr/README.md) | Architecture decision records | 2 |
+| [`adr/`](adr/README.md) | Architecture decision records | 3 |
 | [`ideas/`](ideas/) | Brainstorms awaiting a decision (from `ideas/TEMPLATE.md`) | Empty |
 | [`plans/`](plans/) | Active plans, at most two (from `plans/TEMPLATE.md`) | Empty |
 
