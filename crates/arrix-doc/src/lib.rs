@@ -7,10 +7,12 @@ mod core_types;
 mod dag;
 mod document;
 mod eval;
+mod executor;
 pub mod expr;
 mod open;
 mod registry;
 mod save;
+mod session;
 
 pub use authority::{AuthorId, Authority, Change, CommandEnvelope, Generation, Outcome, Rejected};
 pub use command::{Applied, Command, CommandError, FeatureEdit, apply};
@@ -27,3 +29,7 @@ pub use eval::{
 pub use open::{DOCUMENT_JSON, DocumentSource, MemorySource, OpenError, PARAMS_JSON, SCHEMA, open};
 pub use registry::{FeatureArgs, FeatureType, Registry, RegistryError};
 pub use save::{save, to_json};
+pub use session::{
+    DocHash, EventStream, LocalSession, ParamValues, Replica, ReplicaError, Request, Session,
+    SessionEvent,
+};

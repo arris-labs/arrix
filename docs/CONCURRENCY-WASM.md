@@ -3,8 +3,9 @@
 Where work runs, how an edit supersedes an evaluation, what determinism
 promises, how many documents are evaluated at once, what the browser build
 is, and the performance budgets. Built: `arrix eval` on one document
-directory (§Batch evaluation) and the evaluator's synchronous core with
-its cache (§The evaluator). Each other section becomes true as its cycle lands (the native executor and batch evaluation
+directory (§Batch evaluation), the evaluator with its cache (§The
+evaluator), and `LocalSession`'s session thread and evaluator worker
+with the clients' replicas (§Roles and threads). Each other section becomes true as its cycle lands (the native executor and batch evaluation
 in C1, the browser in C4), and the commit that builds it keeps it true.
 
 ## Roles and threads
@@ -22,10 +23,16 @@ preclude (`SEED.md` §6.1). Locally all three are in one process.
   applies the same applied-command stream to its own copy, which is cheap
   (applying is pure and fast) and makes the protocol boundary real on every
   run. A debug build checks the replica's hash against the authority's at
-  each generation.
+  each generation. As built: `LocalSession` spawns both threads through
+  the executor (`crates/arrix-doc/src/executor`, the one place a thread
+  is spawned; on wasm32 spawning fails with an error until C4). A
+  `Replica` follows `applied` events and refuses a gap in generations;
+  each `applied` event carries the document's BLAKE3 hash over its saved
+  files in a debug build, and the replica refuses one it differs from.
 - **Snapshots** are immutable and cheap to clone: the document is a tree
   of `Arc`ed parts and records, so a snapshot shares everything a command
-  did not touch.
+  did not touch. As built: a snapshot is a whole clone of the document
+  in an `Arc`, until a budget says sharing pays.
 - Tier 2 plugins are separate processes (C3); the evaluator waits on them
   like on any other feature.
 
@@ -43,6 +50,11 @@ preclude (`SEED.md` §6.1). Locally all three are in one process.
   still wanted and dropped if not. No thread is ever killed.
 - **Events carry their generation.** A client drops an event older than
   the latest generation it has drawn for that feature.
+  As built: the worker publishes each feature's event as it is made and
+  checks for a newer snapshot after each one; it starts over on the
+  newest queued, and an evaluation it left has no `finished` event. A
+  `Replica` keeps each feature's newest outcome and, at a `finished`,
+  drops outcomes older than it.
 - **The cache** maps input hash to outputs (`docs/DATA-MODEL.md`
   §Evaluation), bounded in bytes, least recently used first out, shared
   across generations. Outputs are Arris bodies in one long-lived model per

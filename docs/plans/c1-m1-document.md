@@ -160,7 +160,7 @@ gear extrudes; nothing is built directly).
   offset from the gear's top face by persistent name follows width edits
   and survives a teeth edit; a reference to tooth 20's flank after teeth
   go to 18 is a lost reference with ranked candidates, never a rebind.
-- [ ] **[2]** Step 13 — `Session` and `LocalSession`: the session thread
+- [x] **[2]** Step 13 — `Session` and `LocalSession`: the session thread
   and the evaluator worker through the executor; replicas fed the applied
   stream with a debug hash check; events carry their generation; newest
   generation wins between features; every command and event through JSON
@@ -228,11 +228,11 @@ gate green, the wasm build included.
   docs. Below the base circle a flank is a radial line; undercut is not
   modelled. Curve keys are `tooth · 1000 + k`, tooth from 1, so a teeth
   edit keeps the surviving teeth's names and loses the rest's.
-- ⚠ OPEN 3: where a client's `IdMinter` seed comes from
-  (`docs/DATA-MODEL.md` §Identifiers defers it to sessions). Agent
-  proposes in step 13: the caller supplies it, `arrix-app` and `arrix-cli`
-  read entropy at the edge, tests pass a fixed seed. An ADR only if the
-  human wants one.
+- OPEN 3, closed in step 13 by the agent as proposed: a client's
+  `IdMinter` seed is its caller's; the session never mints, `arrix-app`
+  and `arrix-cli` read entropy at the edge when they first build
+  commands, tests pass a fixed seed. Written into `docs/DATA-MODEL.md`
+  §Identifiers; no ADR, unless the human wants one.
 - OPEN 4, closed: CI's first run was green on `b72906e` (run
   36252879779, 2026-09-26), the precondition `docs/BACKLOG.md` and
   `AGENTS.md` set for M1's first plan.
@@ -291,5 +291,13 @@ gate green, the wasm build included.
   before it is lost. A plane on the top face is a cache hit after a
   teeth edit: its input hash is over the frame it resolved to, and a
   teeth edit leaves the top face's frame where it was.
+- Finding, step 13: the trait is `request(Request)` with `submit`,
+  `undo` and `redo` over it, since undo and redo cross the boundary too.
+  A subscription opens with the document as its directory form's files,
+  the one plain-data form a document already has; a late subscriber
+  hears only evaluations made after it subscribed. The replica's hash
+  check is BLAKE3 over the saved files, sent in debug builds only.
+  `Rejected` stays in-process (its wire form comes with remote mode).
+  A snapshot is a whole document clone for now, not a tree of `Arc`s.
 - OPEN 5, closed 2026-09-26 by the human: `c1-m1-sketch` starts now in
   the second plan slot, beside this one.

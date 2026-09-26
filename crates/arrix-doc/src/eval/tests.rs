@@ -530,3 +530,18 @@ fn the_cache_keeps_what_the_latest_evaluation_used_past_its_capacity() {
         "within capacity, undo is a hit"
     );
 }
+
+#[test]
+fn a_stopped_evaluation_keeps_what_it_computed_cached() {
+    let mut ev = Evaluator::new(registry());
+    let mut seen = 0;
+    let stopped = ev.evaluate_while(&scenario(), |_| {
+        seen += 1;
+        seen < 2
+    });
+    assert!(stopped.is_none());
+    assert_eq!(seen, 2, "it stops right after the event that said so");
+    let e = ev.evaluate(&scenario());
+    assert!(cached(&e, 1) && cached(&e, 2));
+    assert!(!cached(&e, 3));
+}

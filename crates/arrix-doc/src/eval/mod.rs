@@ -1,7 +1,7 @@
 //! The evaluator (docs/DATA-MODEL.md §Evaluation): a document snapshot in,
 //! each feature's outputs or diagnostic out, memoised by input hash and
-//! failing soft. Built so far: the synchronous core. `LocalSession` runs it
-//! on its worker (docs/CONCURRENCY-WASM.md §The evaluator).
+//! failing soft. `LocalSession` runs it on its worker, stopping between
+//! features for a newer snapshot (docs/CONCURRENCY-WASM.md §The evaluator).
 
 mod hash;
 mod host;
@@ -193,6 +193,20 @@ impl Evaluator {
 
     /// Evaluates `doc`: parameters, then every feature in the DAG's order.
     pub fn evaluate(&mut self, doc: &Document) -> Evaluation {
+        self.evaluate_while(doc, |_| true)
+            .expect("an evaluation that is never stopped finishes")
+    }
+
+    /// Evaluates `doc` as [`Evaluator::evaluate`] does, handing each
+    /// feature's event to `go` as it is made. When `go` returns `false` the
+    /// evaluation stops there, between features, and returns `None`: a
+    /// newer snapshot wins (docs/CONCURRENCY-WASM.md §The evaluator). What
+    /// it computed so far stays cached.
+    pub fn evaluate_while(
+        &mut self,
+        doc: &Document,
+        mut go: impl FnMut(&EvalEvent) -> bool,
+    ) -> Option<Evaluation> {
         self.run += 1;
         let dag = Dag::build(doc).expect("a document is valid by construction");
         let params = Params::evaluate(doc, &dag);
@@ -203,16 +217,22 @@ impl Evaluator {
             let (part, at, record) = doc.feature(*id).expect("the DAG's features are the doc's");
             let (outcome, state) = self.feature(doc, part, at, record, &params, &states);
             states.insert(*id, state);
-            events.push(EvalEvent {
+            let event = EvalEvent {
                 feature: *id,
                 outcome,
-            });
+            };
+            let more = go(&event);
+            events.push(event);
+            if !more {
+                self.collect();
+                return None;
+            }
         }
         self.collect();
-        Evaluation {
+        Some(Evaluation {
             params: params.values,
             events,
-        }
+        })
     }
 
     fn feature(

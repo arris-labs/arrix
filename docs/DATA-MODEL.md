@@ -79,8 +79,10 @@ either case with Crockford's aliases (`I` and `L` as 1, `O` as 0); a JSON
 string both ways. An `IdMinter` (SplitMix64) mints them from a seed its
 caller passes: `arrix-core` reads no entropy source, so the same seed
 gives the same ids on every target, a `const` assertion pinning the first
-ids of seed 1 in every build, the wasm one included. Where a client's
-seed comes from is decided with sessions (M1).
+ids of seed 1 in every build, the wasm one included. A client's seed is
+supplied by its caller: the session never mints, `arrix-app` and
+`arrix-cli` read entropy at the edge when they first build commands, and
+tests pass a fixed seed.
 
 Ids are identity, not order. `history` holds the order; maps are
 `BTreeMap`s keyed by id so the serialised form is sorted.

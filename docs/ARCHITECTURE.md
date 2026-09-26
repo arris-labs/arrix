@@ -111,14 +111,19 @@ day 0:
 4. **Session state belongs to the client**: selection, the active sketch,
    the camera, the edit mode.
 
-The boundary is the `Session` trait in `arrix-doc`: `submit(envelope) ->
-Result<Applied, Rejected>` and `subscribe() -> EventStream`, whose events
-are the applied commands (from which each client keeps its own replica of
-the document, `docs/CONCURRENCY-WASM.md` §Roles and threads) and the
-`EvalEvent`s. Local mode is `LocalSession`, an in-process transport over
-channels, and it is the only one that exists. A round-trip test
-serialises every command and event through JSON and back on every run, so
-nothing unserialisable can creep across. No network code exists until
+The boundary is the `Session` trait in `arrix-doc`: `request(Request) ->
+Result<Outcome, Rejected>` (a `Request` is a submitted `CommandEnvelope`,
+or an author's undo or redo) and `subscribe() -> EventStream`, whose
+`SessionEvent`s are `opened` (the document at subscription, as its
+directory form's files), each `applied` change (from which each client
+keeps its own `Replica` of the document, `docs/CONCURRENCY-WASM.md`
+§Roles and threads), each feature's `evaluated` outcome and each
+`finished` evaluation, the last two with their generation. Local mode is
+`LocalSession`, an in-process transport over channels, and it is the only
+one that exists. A round-trip test serialises every request and event
+through JSON and back on every run, so nothing unserialisable can creep
+across. A `Rejected` answer crosses in-process only; its wire form comes
+with remote mode. No network code exists until
 remote mode is built.
 
 ## Threads
