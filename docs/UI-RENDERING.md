@@ -120,13 +120,22 @@ orthographic projection.
   budget per frame (`docs/CONCURRENCY-WASM.md` §Budgets); a solve that
   does not converge within it leaves the geometry where it was and says
   so.
-- **The solver** is ported (`SEED.md` §8.1): DogLeg by default and
-  Levenberg–Marquardt selectable, an analytic sparse Jacobian, independent
+- **The solver** is `arrix-sketch`'s, ported (`SEED.md` §8.1) and
+  headless: DogLeg by default and Levenberg–Marquardt selectable
+  (`SolverAlgorithm`), an analytic sparse Jacobian, independent
   subsystems solved apart, DoF, redundancy and conflict from one rank
-  analysis. Drag steps within the constraints' null space and a branch
+  analysis (`Diagnostics`), and validation of degenerate geometry and
+  open gaps. Drag steps within the constraints' null space and a branch
   guard refuses a step that would flip an angle, a tangency side or an
-  arc's sweep.
-- **Inference is one engine** in `arrix-sketch`: a search over candidate
+  arc's sweep. Trim, extend, offset and mirror are pure edits of the
+  model that transfer its constraints, each row they add kept only if
+  the insert-time check (`Sketch::check_candidate`) passes, with hover
+  previews from the same pieces. The same sketch solved twice gives
+  bit-identical positions. The drag is over its frame budget as
+  measured (`docs/CONCURRENCY-WASM.md` §Budgets).
+- **Inference is one engine** in `arrix-sketch`, ported with sketch mode
+  in M3, as are the sketch fillet, auto-constrain and the constraint
+  descriptions: a search over candidate
   snaps in priority order, in plane-local metres with a tolerance in
   pixels. Its result is drawn as glyphs and guides, and the click commits
   the same inferences. Every candidate is checked against the sketch first:
@@ -139,8 +148,20 @@ orthographic projection.
   region a profile pick stores is the one shaded (`docs/DATA-MODEL.md`
   §Sketches).
 - **Constraint kinds reachable from the UI are the only ones a document
-  holds.** The solver's other kinds stay behind feature gates until a
-  scenario reaches them (`SEED.md` §8.2 rule 7).
+  holds.** Enabled: coincident, horizontal, vertical, horizontal and
+  vertical alignment of two points, parallel, perpendicular, equal,
+  concentric, tangent (line–circle, circle–circle), symmetric about a
+  line and about a point, point on line, point on circle, point on a
+  perpendicular bisector, midpoint, fix, block; the sketch-origin and
+  axis kinds (point on, coincident with, distance to, angle with and
+  symmetric across a datum; distance to the X and Y axes); dimensions:
+  distance, horizontal and vertical distance, point–line, parallel-lines,
+  point–circle and circle–circle distance, angle, three-point angle,
+  radius, diameter, arc length. The conic and spline kinds are behind
+  `conics` and `SnellsLaw` behind `snells-law`, their code and tests run
+  in the all-features build, until a scenario reaches them (`SEED.md`
+  §8.2 rule 7). A kind M3's sketch mode leaves without a tool is gated
+  then.
 
 ## The viewport
 

@@ -10,10 +10,12 @@ profiles, and `Diagnostic`, `arrix-kernel`'s first slice of §The kernel
 choke point, `arrix-plugin-api` 0.2.0, `arrix-doc`'s
 expressions, document, DAG, commands and undo, evaluator and cache, the
 directory form's save and open, and the `arrix eval` line,
-`arrix-plugin-host`'s Tier 0, `plugins/gears`, the empty shell in
+`arrix-sketch` less inference (the model, solver, diagnostics,
+validation, regions and their profiles, trim, extend, offset, mirror,
+`SketchEdit`), `arrix-plugin-host`'s Tier 0, `plugins/gears`, the empty shell in
 `arrix-ui` and `arrix-app`, the rest stubs), §The protocol boundary
 (`LocalSession` and replicas), §Errors and diagnostics, the document,
-evaluation, naming, protocol, UI and CLI rows of §Testing and the
+evaluation, naming, protocol, UI, CLI and sketch-solver rows of §Testing and the
 plugins row's determinism and round trip, and §Gates. Each other section becomes true as
 C1 lands, and the commit that builds it keeps it true.
 
@@ -27,7 +29,7 @@ unless an ADR says otherwise.
 |---|---|---|---|
 | `arrix-core` | units and quantities, the length tolerance, ids, plugin ids, plain math over `glam` (f64), persistent-reference types, `Diagnostic` | — | `glam`, `serde`, `thiserror` |
 | `arrix-kernel` | the only crate naming Arris types: operations, naming from provenance, render meshes, body bytes, call records | core | `arris`, `serde`, `thiserror` |
-| `arrix-sketch` | the sketch model, the constraint solver, inference, trim/extend/offset/mirror (ported) | core | `serde`, `thiserror` |
+| `arrix-sketch` | the sketch model and `SketchEdit`, the constraint solver and diagnostics, regions and their keyed profiles, trim/extend/offset/mirror, inference (M3) (ported) | core | `serde`, `thiserror` |
 | `arrix-plugin-api` | the WIT world, its Rust traits and plain types; semver of its own | core | `wit-bindgen`, `wit-parser` (the equality test only, dev) |
 | `arrix-doc` | document, parameters and expressions, DAG, feature registry, commands, undo, evaluator, `.arrx`, the `arrix eval` line; reads no files (a `DocumentSource` hands it bytes) | core, kernel, sketch, plugin-api | `serde_json`, `zip`, `blake3` |
 | `arrix-plugin-host` | tier 0/1/2 hosting, manifests, capabilities, the frozen fallback | core, doc, plugin-api | `toml`, `semver`, `wasmtime` (native, C3) |
@@ -237,7 +239,7 @@ Everything is checkable without a human looking at a screen (`SEED.md`
 | Layer | How |
 |---|---|
 | Unit and property | in each crate; `proptest` for expressions, the DAG, naming and the file format's determinism |
-| Sketch solver | the ported scenario suite: build a sketch, solve, assert geometry, DoF and diagnostics |
+| Sketch solver | the ported suite in `crates/arrix-sketch/tests/`: scenarios (build a sketch, solve, assert geometry, DoF and diagnostics), analytic-against-finite-difference gradients, rank stability, subsystems, drag policy, FreeCAD parity, regions and their keys, the modify operations; bit-identical re-solves; `crates/arrix-doc/tests/sketched_plate.rs` end to end through commands and the evaluator |
 | Document | command → state → inverse round trips; undo/redo gives byte-identical files; stale-command rejection |
 | Evaluation | scenario documents in `tests/docs/<name>/` (the unzipped form, so a diff reads), evaluated by the same code path `arrix eval` uses, asserting volume, area, counts, names and diagnostics |
 | Naming | an edit that keeps a face keeps its name; a lost reference is a diagnostic with candidates, never a rebind |

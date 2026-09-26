@@ -178,11 +178,20 @@ measured number written here.
 |---|---|
 | A UI frame with the C1 acceptance part on screen | ≤ 16 ms |
 | Applying a command (authority and replica) | ≤ 1 ms |
-| One sketch-drag solve on a 200-entity sketch | ≤ 4 ms, on the UI thread |
+| One sketch-drag solve on a 200-entity sketch | ≤ 4 ms, on the UI thread; measured 34 ms |
 | First coarse mesh after a parameter edit of the acceptance part | ≤ 150 ms |
 | Cancellation latency once A3 lands | ≤ 50 ms |
 | Save and load of the acceptance document | ≤ 100 ms each |
 | `arrix eval` throughput over the scenario documents | reported, no target yet |
+
+The sketch drag was measured on a 199-entity sketch (a 9 × 10 grid of
+10 mm cells, one connected subsystem of 220 variables, its far corner
+dragged): 34 ms median per frame in a release build on a Ryzen 9 7950X,
+61 ms in the dev profile, 8.5 times the target
+(`crates/arrix-sketch/tests/solver_benchmarks.rs`, reported, not
+asserted). M3's sketch-mode plan profiles it before the target becomes a
+gate; the dense null-space basis and the retract per follow iteration
+are the suspects.
 
 ## Open questions
 

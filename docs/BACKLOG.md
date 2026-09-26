@@ -11,5 +11,7 @@ idea is not brainstormed twice.
 - Upstream failure reporting: the opt-in, locally shrunk, previewed report of a kernel failure to Arris (`SEED.md` §6.6), its transport and where reports land
 - Replay of public feature-history datasets through the batch API as an Arris corpus source, each dataset's licence checked first (`SEED.md` §6.6)
 - Parameter-sweep continuity checks over the batch API: volume, area and topology across a swept parameter, a jump reported as a failure (`SEED.md` §6.6)
+- Sketch mode's remaining ports: the sketch fillet, auto-constrain with validation's gap closing, and the constraint descriptions, when M3's sketch mode reaches them (plans/c1-m1-sketch steps 4 and 6)
+- The sketch drag over its 4 ms frame budget (34 ms measured, `docs/CONCURRENCY-WASM.md` §Budgets): profile the null-space basis and retract before the budget gates, in M3's sketch-mode plan (plans/c1-m1-sketch step 3)
 
 ## Rejected

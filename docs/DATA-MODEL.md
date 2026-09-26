@@ -180,7 +180,7 @@ target's slot (§Bodies across features).
 
 | Type | Inputs | Kernel operation | Cycle |
 |---|---|---|---|
-| `core.sketch` | a plane: a datum, a planar face, or a frame | none in the kernel; `arrix-sketch` solves it; its closed regions are profiles | C1 |
+| `core.sketch` | a plane: a datum's plane slot or a planar face; without one, a world plane | none in the kernel; `arrix-sketch` solves it; its closed regions are profiles | C1 |
 | `core.datum-plane` | offset from a plane or face, or from a world plane; through three points, at an angle about an edge | none | C1 |
 | `core.extrude` | a profile (sketch regions), a direction, a mode: new body, join, cut | `ops::extrude`, then `fuse` or `cut` | C1 |
 | `core.revolve` | a profile, an axis, a mode | `ops::revolve`, then `fuse` or `cut` | C1 |
@@ -573,16 +573,22 @@ are `arrix-sketch` (`docs/UI-RENDERING.md` §Sketch mode for the
 interaction).
 
 - **Entities**: points, lines, arcs and circles, each with an id and a
-  construction flag. Ellipses, elliptic arcs and B-splines are ported
+  construction flag. Points, curves and constraints share one id space,
+  `SketchEntityId` (§Identifiers), minted by the command's author, never
+  by `arrix-sketch`; lengths compare to `arrix_core::LENGTH_TOLERANCE`
+  (1 µm). Ellipses, elliptic arcs and B-splines are ported
   behind a feature gate that stays off until a scenario reaches them
   (`SEED.md` §8.2 rule 7). Projected geometry (an
-  edge or vertex of a body projected onto the plane) is an entity with a
+  edge or vertex of a body projected onto the plane, M2) is an entity with a
   `Ref::Topo` source, re-projected on evaluation and failing like any lost
   reference.
 - **Constraints and dimensions** reference entities by id. A dimension is
   a constraint with a value, driving or reference, and its value is an
   expression, so it can name a parameter. The kinds a document can hold
-  are the kinds the UI can create; the solver may know more.
+  are the kinds the UI can create (`docs/UI-RENDERING.md` §Sketch mode
+  lists them); the solver knows more, behind the `conics` and
+  `snells-law` gates, and a document holding a gated kind does not
+  deserialise.
 - **The last solved positions are recipe.** They are the solver's starting
   point, and with a nonlinear solver the starting point selects which of
   several solutions it lands on. Stored positions make re-solving

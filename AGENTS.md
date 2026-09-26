@@ -32,8 +32,9 @@ feature → M2 part features and naming → M3 the app → M4 exchange and batch
 self-test), the headless visual harness on an empty shell, and `arrix
 eval` on an empty document. **C1 M1 plan 1 of 3 landed 2026-09-26:** the
 document, the evaluator and `LocalSession`, and `gears.spur` as a Tier 0
-plugin feature named downstream. **Now:** `docs/plans/c1-m1-sketch.md`,
-then `c1-m1-slice`.
+plugin feature named downstream. **C1 M1 plan 2 of 3 landed 2026-09-27:**
+the ported sketcher, `core.sketch` and region references (plugin API
+0.2). **Now:** `c1-m1-slice`, to be planned.
 
 ## Rules that are not derivable from the code
 

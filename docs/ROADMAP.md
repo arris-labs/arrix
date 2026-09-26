@@ -27,7 +27,10 @@ on a document model that might not allow it.*
 empty document. M1 plan 1 of 3 landed 2026-09-26: the document, commands
 and per-author undo, the evaluator and `LocalSession`, plugin API 0.1,
 Tier 0 and `gears.spur` referenced downstream by persistent name
-(ADR-0004); `c1-m1-sketch` active, `c1-m1-slice` next. Seeded
+(ADR-0004). M1 plan 2 of 3 landed 2026-09-27: `arrix-sketch` ported
+headless less inference, `core.sketch` solved by the evaluator from
+stored positions (ADR-0005), regions as keyed profiles referenced by
+`Ref::Region`, plugin API 0.2 (ADR-0006); `c1-m1-slice` next. Seeded
 2026-09-26.**
 
 Milestones are ordered by risk after the harness: the document and the
