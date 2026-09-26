@@ -53,7 +53,11 @@ egui-wgpu = "0.36"
 
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+# Exact float parsing: the file format's floats round-trip (docs/DATA-MODEL.md
+# §File format), which the default parser does not promise.
+serde_json = { version = "1", features = ["float_roundtrip"] }
+thiserror = "2"
+proptest = "1"
 
 # The headless visual harness (docs/UI-RENDERING.md §Visual debugging):
 # drives the real eframe app and renders through wgpu, preferring a CPU

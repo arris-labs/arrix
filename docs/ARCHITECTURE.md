@@ -16,7 +16,7 @@ unless an ADR says otherwise.
 
 | Crate | Holds | May depend on (workspace) | Notable external |
 |---|---|---|---|
-| `arrix-core` | units and quantities, ids, plain math over `glam` (f64), persistent-reference types, `Diagnostic` | — | `glam`, `serde` |
+| `arrix-core` | units and quantities, ids, plugin ids, plain math over `glam` (f64), persistent-reference types, `Diagnostic` | — | `glam`, `serde`, `thiserror` |
 | `arrix-kernel` | the only crate naming Arris types: operations, naming from provenance, render meshes, body bytes, call records | core | `arris` |
 | `arrix-sketch` | the sketch model, the constraint solver, inference, trim/extend/offset/mirror (ported) | core | — |
 | `arrix-plugin-api` | the WIT world, its Rust traits and plain types; semver of its own | core | `wit-bindgen` (types only) |
@@ -167,12 +167,17 @@ dependencies).
 - **Library errors** are `thiserror` enums per crate, naming the entities
   involved (which feature, which reference, which face pair). No `anyhow`
   outside `arrix-app` and `arrix-cli`.
-- **User-facing failures are `Diagnostic`s** (`arrix-core`): severity, a
-  stable code (`ref.lost`, `kernel.degenerate.tangent-contact`,
-  `plugin.frozen.missing`), a message, the persistent references to
-  highlight, and for a lost reference the ranked candidates. A diagnostic
-  is data: it crosses the protocol boundary and the plugin boundary, and
-  `arrix eval` prints it as JSON.
+- **User-facing failures are `Diagnostic`s** (`arrix-core`): severity
+  (`info`, `warning`, `error`), a stable code (`ref.lost`,
+  `kernel.degenerate.tangent-contact`, `plugin.frozen.missing`), a
+  message, the persistent references to highlight, and for a lost
+  reference the ranked candidates. The code's grammar is
+  `segment(.segment)*`, each segment lower-case letters and digits in
+  hyphen-joined words starting with a letter, checked when a
+  `DiagnosticCode` is built or deserialised. The references and the
+  candidates join with `Ref` in M1; M0's `Diagnostic` is severity, code
+  and message. A diagnostic is data: it crosses the protocol boundary and
+  the plugin boundary, and `arrix eval` prints it as JSON.
 - **Fail soft, never silently** (`SEED.md` §8.2): a failed feature keeps
   its parameters and says why; the rest of the model lives. No panic on
   user input; a panic in a plugin's Tier 0 code is caught at the host

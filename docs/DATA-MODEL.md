@@ -56,6 +56,17 @@ reproduces the document byte for byte. An id is never reused within a
 document; a collision (vanishingly rare with random ids) is a rejected
 command, not a rename.
 
+The id type is `arrix_core::Id` (a `u64`), wrapped by one typed id per
+kind of record: `PartId`, `FeatureId`, `ParamId`, `SketchEntityId`,
+`RecordId`. Its text is 13 characters of Crockford's alphabet, most
+significant first, so the first is `0`–`F`; written upper-case, read in
+either case with Crockford's aliases (`I` and `L` as 1, `O` as 0); a JSON
+string both ways. An `IdMinter` (SplitMix64) mints them from a seed its
+caller passes: `arrix-core` reads no entropy source, so the same seed
+gives the same ids on every target, a `const` assertion pinning the first
+ids of seed 1 in every build, the wasm one included. Where a client's
+seed comes from is decided with sessions (M1).
+
 Ids are identity, not order. `history` holds the order; maps are
 `BTreeMap`s keyed by id so the serialised form is sorted.
 
@@ -73,7 +84,10 @@ the recipe, so a diff shows what the user typed.
   that parameter, not a silent conversion.
 - **SI inside.** Values evaluate to metres, radians, kilograms. The UI shows
   mm and deg by default; display units are a document preference in `meta`,
-  never a scale applied to stored values.
+  never a scale applied to stored values. The unit table
+  (`arrix_core::units`): `mm`, `cm`, `m`, `in` (25.4 mm exactly), `deg`,
+  `rad`, `g`, `kg`, each an exact ratio to SI; count and ratio are
+  dimensionless. A `Quantity` is its kind and its SI value.
 - Every numeric field of a feature (built-in or plugin) and every sketch
   dimension holds an expression, not a number. A plain number is the
   expression `12 mm`.
