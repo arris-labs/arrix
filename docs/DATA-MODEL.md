@@ -370,7 +370,12 @@ A parse error names the byte it stopped at; `gen` nests at most 32 deep.
   face is rooted at the **key of the curve** that swept it, not at its
   loop index: every curve of an `arrix_core::Profile` carries a
   `CurveKey`, the sketch entity's id for a sketch region, a key the
-  plugin chooses for a plugin's own profile. `arrix-kernel` translates
+  plugin chooses for a plugin's own profile. A curve that is piece `i` of
+  an entity the arrangement cut (pieces numbered from 0 along it) is keyed
+  `arrix_sketch::curve_key(entity, i)`, the id mixed with the piece
+  number, so an entity that bounds one region twice gives two keys and an
+  uncrossed sketch keys every curve by its entity id alone. Cutting a
+  whole entity re-keys it, and what named its face is a lost reference. `arrix-kernel` translates
   keys to Arris's `(loop_index, segment)` on the way in and back on the
   way out, so re-ordering or re-drawing a sketch keeps names on the curves
   that survive. A part at a vertex (`rise`, `start-vertex`, `end-vertex`)

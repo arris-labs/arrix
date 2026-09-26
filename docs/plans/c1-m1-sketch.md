@@ -128,7 +128,7 @@ arrangement is used, the fallback `docs/ROADMAP.md` names.
   Apply-then-inverse proptest extended to sketch edits; save, open, save
   identical with a sketch; undo restores the earlier bytes; dimension
   expressions appear as DAG edges.
-- [ ] **[3]** Step 8 — regions to profiles: a region becomes an
+- [x] **[3]** Step 8 — regions to profiles: a region becomes an
   `arrix_core::Profile` on the sketch's plane, its curves keyed by entity
   id and, when the entity is cut, its piece number (OPEN 3).
   Probe through `arrix-kernel`: a sketched 40 × 30 mm plate with a bore
@@ -205,7 +205,11 @@ empty.
   number, so an uncrossed sketch keys each curve by its entity id alone.
   Step 8 maps that onto `CurveKey` (a cut entity's pieces need keys of
   their own, since `Profile` refuses a key twice) and states the rule in
-  §Persistent naming.
+  §Persistent naming. Done: a `CurveKey` is one id, so piece `i` of
+  a cut entity is keyed `curve_key(entity, i)`, the entity's id mixed
+  with the piece number by SplitMix64's finaliser (a bijection, pinned by
+  a test); a whole entity keeps its id. No change to `arrix-core` or the
+  plugin API, and the name grammar is unchanged.
 - Finding, step 2: the ported scenario suite reads its verdicts through
   `Diagnostics`, so the diagnostics moved from step 4 into step 2. The
   drag scenarios wait for step 3 and the region ones for step 5; the

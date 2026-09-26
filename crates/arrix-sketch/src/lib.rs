@@ -20,6 +20,7 @@ mod entity;
 mod ids;
 pub mod instrument;
 pub mod modify;
+mod profile;
 mod region;
 mod sketch;
 mod solver;
@@ -40,6 +41,7 @@ pub use draft::Draft;
 pub use edit::SketchEdit;
 pub use entity::{Entity, Point};
 pub use ids::{ConstraintId, EntityId, PointId, SketchEntityId};
+pub use profile::{RegionProfileError, curve_key};
 pub use region::{
     EdgeGeom, EdgePiece, Loop, LoopEdge, Profile, Region, RegionKey, find_profiles,
     find_region_outlines, find_regions,
