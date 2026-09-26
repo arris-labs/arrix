@@ -4,6 +4,8 @@
 
 use std::collections::BTreeMap;
 
+use crate::document::Document;
+
 /// The schema this build reads and writes.
 pub const SCHEMA: u64 = 1;
 
@@ -64,13 +66,6 @@ pub enum OpenError {
     Unsupported { path: String },
 }
 
-/// An opened document. So far only the empty one opens: its header is
-/// checked and nothing else is interpreted (plans/c1-m0).
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Document {
-    pub schema: u64,
-}
-
 fn read(source: &impl DocumentSource, path: &str) -> Result<Option<Vec<u8>>, OpenError> {
     source.read(path).map_err(|source| OpenError::Io {
         path: path.into(),
@@ -78,7 +73,8 @@ fn read(source: &impl DocumentSource, path: &str) -> Result<Option<Vec<u8>>, Ope
     })
 }
 
-/// Opens the document `source` holds.
+/// Opens the document `source` holds. So far only an empty one opens: its
+/// header is checked and nothing else is interpreted.
 pub fn open(source: &impl DocumentSource) -> Result<Document, OpenError> {
     let bytes = read(source, DOCUMENT_JSON)?.ok_or(OpenError::NotADocument)?;
     let header: serde_json::Value =
@@ -104,7 +100,7 @@ pub fn open(source: &impl DocumentSource) -> Result<Document, OpenError> {
             path: format!("parts/{part}"),
         });
     }
-    Ok(Document { schema })
+    Ok(Document::default())
 }
 
 #[cfg(test)]
@@ -123,7 +119,7 @@ mod tests {
     #[test]
     fn opens_an_empty_document() {
         let d = open(&doc(&[(DOCUMENT_JSON, r#"{"schema": 1}"#)])).unwrap();
-        assert_eq!(d, Document { schema: 1 });
+        assert_eq!(d, Document::default());
     }
 
     #[test]

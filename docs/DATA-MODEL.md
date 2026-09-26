@@ -4,7 +4,9 @@ What a document is, how it changes, how it evaluates, how its geometry is
 named and how it is written to disk. The charter is `SEED.md` §6.4–§6.5;
 this document is the design those sections commit to. Built: the id types
 (§Identifiers), `Ref` and `SlotName` (§References), the persistent-name
-types and their text form (§Persistent naming), names from an extrude's
+types and their text form (§Persistent naming), the document's types,
+the feature-type registry and the derived DAG (§The dependency DAG),
+names from an extrude's
 provenance in `arrix-kernel` (§Persistent naming), expressions
 (`arrix_doc::expr`, §Parameters and expressions), and opening an empty
 document directory (§File format).
@@ -202,9 +204,15 @@ an object with one key, the variant in snake case: `{"topo":"face:…"}`,
 
 The DAG exists from day 0 (`SEED.md` §6.5). Its nodes are parameters,
 features, parts and plugin records; its edges are every `Ref` in a record
-and every parameter name in an expression. It is derived from the
-document, never stored, and rebuilt incrementally by the command that
-changes an edge.
+and every parameter name in an expression, and each feature reads its
+part (whose order and rollback place it). A `Topo` reference reads every
+feature its name's root and steps name. It is derived from the document,
+never stored (`arrix_doc::Dag`, rebuilt whole by every command for now;
+incremental when a measured budget asks). A reference whose target the
+document lacks is no edge: it is the evaluator's lost reference.
+Plugin-record nodes join with plugin data; the implicit edges of a body
+slot's versions (a feature reading the body a join or cut before it made)
+join with join and cut.
 
 - **Within a part**, a feature references only features before it in
   `history`. Reordering is a command that is refused when it would break
@@ -218,6 +226,15 @@ changes an edge.
 - **Dirty propagation**: a command marks the nodes it touched; the
   evaluator re-evaluates their descendants in topological order, and a
   node whose inputs hash the same as last time is a cache hit (§Evaluation).
+- **The order is deterministic**: parameters by id, then parts, then
+  features by part and history position, each as soon as what it reads
+  is placed. A refused order names the feature, the field (`inputs.plane`,
+  `params.width`) and the target (`dag.order`); a cycle is returned from
+  its least node, each node reading the next (`dag.cycle`).
+  `Document::validate` checks these with the rest of a document's
+  invariants: parameter names are identifiers and unique, feature names
+  unique within a part, a part's history lists exactly its features, and
+  its rollback is within it.
 
 ## Evaluation
 

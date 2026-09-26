@@ -125,7 +125,7 @@ gear extrudes; nothing is built directly).
   `arrix_core::units`, AST stored as its text, dimensional analysis at
   parse time, evaluation to SI, the functions of §Parameters. Proptest
   (print-parse round trip), unit-mismatch diagnostics.
-- [ ] **[2]** Step 5 — `Document`, `Part`, `FeatureRecord`, the
+- [x] **[2]** Step 5 — `Document`, `Part`, `FeatureRecord`, the
   `FeatureType` registry, and the DAG derived from refs and expression
   names: history-order rule, cycle refused with its nodes, dirty
   descendants in topological order. Proptest over random DAG edits.
@@ -247,5 +247,11 @@ gate green, the wasm build included.
   emits `unsafe`, which the workspace forbids, so the equality test
   implements `Guest` without exporting it; Tier 1 (C3) meets this in the
   guest SDK and needs an ADR there, not here.
+- Finding, step 5: the DAG's edges are the explicit ones (refs,
+  expression names, a feature's part). The implicit edges of a body
+  slot's versions, a feature reading the body a join or cut before it
+  made, join with join and cut in `c1-m1-slice`; nothing in this plan
+  modifies a body. The DAG is rebuilt whole per command, not
+  incrementally, until a budget says otherwise.
 - ⚠ OPEN 5: start `c1-m1-sketch` now in the second plan slot, running
   beside this one? **Human decides.**
