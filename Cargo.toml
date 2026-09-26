@@ -51,6 +51,9 @@ egui = "0.36"
 eframe = "0.36"
 egui-wgpu = "0.36"
 
+# Plain math in `arrix-core` (docs/ARCHITECTURE.md §Crates): f64 vectors
+# with serde, no SIMD-dependent results.
+glam = { version = "0.33", features = ["serde"] }
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 # Exact float parsing: the file format's floats round-trip (docs/DATA-MODEL.md

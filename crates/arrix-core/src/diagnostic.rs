@@ -1,10 +1,12 @@
 //! User-facing failures as data (docs/ARCHITECTURE.md §Errors and
-//! diagnostics). The persistent references to highlight and a lost
-//! reference's ranked candidates join in M1, with `Ref`.
+//! diagnostics): a severity, a stable code, a message, the references to
+//! highlight and, for a lost reference, the ranked candidates.
 
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
+
+use crate::Ref;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -28,7 +30,7 @@ pub struct DiagnosticCode(String);
 )]
 pub struct InvalidCode(pub String);
 
-fn is_segment(s: &str) -> bool {
+pub(crate) fn is_segment(s: &str) -> bool {
     s.starts_with(|c: char| c.is_ascii_lowercase())
         && s.split('-').all(|word| {
             !word.is_empty()
@@ -80,6 +82,14 @@ pub struct Diagnostic {
     pub severity: Severity,
     pub code: DiagnosticCode,
     pub message: String,
+    /// What to highlight: the entities the failure is about.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub refs: Vec<Ref>,
+    /// For a lost reference, what the user might re-pick, best first
+    /// (docs/DATA-MODEL.md §Persistent naming, "Resolution"). Never
+    /// applied by the core: re-picking is the user's command.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub candidates: Vec<Ref>,
 }
 
 impl Diagnostic {
@@ -92,7 +102,19 @@ impl Diagnostic {
             severity,
             code: DiagnosticCode::new(code)?,
             message: message.into(),
+            refs: Vec::new(),
+            candidates: Vec::new(),
         })
+    }
+
+    pub fn with_refs(mut self, refs: impl IntoIterator<Item = Ref>) -> Self {
+        self.refs.extend(refs);
+        self
+    }
+
+    pub fn with_candidates(mut self, candidates: impl IntoIterator<Item = Ref>) -> Self {
+        self.candidates.extend(candidates);
+        self
     }
 }
 
@@ -147,5 +169,32 @@ mod tests {
         assert_eq!(serde_json::from_str::<Diagnostic>(&json).unwrap(), d);
         let bad = json.replace("ref.lost", "Ref.Lost");
         assert!(serde_json::from_str::<Diagnostic>(&bad).is_err());
+    }
+
+    #[test]
+    fn carries_its_references_and_ranked_candidates() {
+        let lost: Ref = Ref::Topo(
+            "face:sweep.0000000000001.side.0000000000002"
+                .parse()
+                .unwrap(),
+        );
+        let near: Ref = Ref::Topo(
+            "face:sweep.0000000000001.side.0000000000003"
+                .parse()
+                .unwrap(),
+        );
+        let far: Ref = Ref::Topo("face:sweep.0000000000001.end-cap".parse().unwrap());
+        let d = Diagnostic::new(Severity::Error, "ref.lost", "the flank is gone")
+            .unwrap()
+            .with_refs([lost])
+            .with_candidates([near.clone(), far.clone()]);
+        let json = serde_json::to_string(&d).unwrap();
+        let back: Diagnostic = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, d);
+        assert_eq!(
+            back.candidates,
+            [near, far],
+            "the ranking survives the crossing"
+        );
     }
 }

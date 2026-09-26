@@ -5,7 +5,8 @@ the kernel's choke point, errors, testing and the gate. The charter is
 `SEED.md` §6; the document model is `docs/DATA-MODEL.md`, the plugin model
 `docs/PLUGINS.md`, the UI `docs/UI-RENDERING.md`, threads and the browser
 `docs/CONCURRENCY-WASM.md`. Built: the workspace with every crate
-(`arrix-core`'s units, ids and `Diagnostic`, `arrix-doc`'s empty-document
+(`arrix-core`'s units, ids, references, persistent names, frames and
+profiles, and `Diagnostic`, `arrix-doc`'s empty-document
 open and `arrix eval` line, the empty shell in `arrix-ui` and `arrix-app`,
 the rest stubs), §Errors and diagnostics as far as `Diagnostic` goes, the
 UI and CLI rows of §Testing, and §Gates. Each other section becomes true as
@@ -37,8 +38,9 @@ Crates live in `crates/<name>/`, plugins in `plugins/<name>/` (package
 pinned once, in the root `Cargo.toml`'s `[workspace.dependencies]`:
 `arris` 0.2, and one egui minor for `egui`, `eframe`, `egui-wgpu` and the
 dev-only `egui_kittest` (0.36). The table's externals not yet in a
-manifest (`glam`, `wit-bindgen`, `zip`, `blake3`, `wgpu` directly,
-`wasmtime`) join with the code that needs them. `unsafe_code = "forbid"` is a workspace lint every crate inherits.
+manifest (`wit-bindgen`, `zip`, `blake3`, `wgpu` directly, `wasmtime`)
+join with the code that needs them; `glam` (0.33, f64 types, `serde`)
+has. `unsafe_code = "forbid"` is a workspace lint every crate inherits.
 The binaries are `arrix` (`arrix-cli`) and `arrix-app`. No crate is
 published yet (`publish = false`); reserving names is the human's act.
 
@@ -179,9 +181,9 @@ dependencies).
   reference the ranked candidates. The code's grammar is
   `segment(.segment)*`, each segment lower-case letters and digits in
   hyphen-joined words starting with a letter, checked when a
-  `DiagnosticCode` is built or deserialised. The references and the
-  candidates join with `Ref` in M1; M0's `Diagnostic` is severity, code
-  and message. A diagnostic is data: it crosses the protocol boundary and
+  `DiagnosticCode` is built or deserialised. `refs` and `candidates` are
+  `Ref`s, the candidates ranked best first and omitted from JSON when
+  empty; the core never applies a candidate. A diagnostic is data: it crosses the protocol boundary and
   the plugin boundary, and `arrix eval` prints it as JSON.
 - **Fail soft, never silently** (`SEED.md` §8.2): a failed feature keeps
   its parameters and says why; the rest of the model lives. No panic on

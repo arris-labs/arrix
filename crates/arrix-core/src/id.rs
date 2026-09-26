@@ -128,6 +128,11 @@ typed_ids! {
     SketchEntityId,
     /// A plugin's record in its own section.
     RecordId,
+    /// A curve of a profile: the id of the sketch entity it came from, or
+    /// a key a plugin chooses, stable across evaluations for the same
+    /// logical curve. Side faces are rooted at it (docs/DATA-MODEL.md
+    /// §Persistent naming).
+    CurveKey,
 }
 
 /// Mints ids from a seed the caller chooses, so `arrix-core` reads no

@@ -3,7 +3,9 @@
 What a document is, how it changes, how it evaluates, how its geometry is
 named and how it is written to disk. The charter is `SEED.md` §6.4–§6.5;
 this document is the design those sections commit to. Built: the id types
-(§Identifiers) and opening an empty document directory (§File format).
+(§Identifiers), `Ref` and `SlotName` (§References), the persistent-name
+types and their text form (§Persistent naming), and opening an empty
+document directory (§File format).
 Each other section becomes true as C1 lands, and the commit that builds it
 keeps it true.
 
@@ -59,7 +61,8 @@ command, not a rename.
 
 The id type is `arrix_core::Id` (a `u64`), wrapped by one typed id per
 kind of record: `PartId`, `FeatureId`, `ParamId`, `SketchEntityId`,
-`RecordId`. Its text is 13 characters of Crockford's alphabet, most
+`RecordId`, and `CurveKey`, the key of a profile curve (§Persistent
+naming). Its text is 13 characters of Crockford's alphabet, most
 significant first, so the first is `0`–`F`; written upper-case, read in
 either case with Crockford's aliases (`I` and `L` as 1, `O` as 0); a JSON
 string both ways. An `IdMinter` (SplitMix64) mints them from a seed its
@@ -169,7 +172,10 @@ pub enum Ref {
 ```
 
 Every `Ref` is a DAG edge. `Topo` references are the ones naming solves;
-the rest are by id.
+the rest are by id. A `SlotName` is one lower-kebab word (`body`,
+`plane`), the grammar of a diagnostic code's segment. In JSON a `Ref` is
+an object with one key, the variant in snake case: `{"topo":"face:…"}`,
+`{"slot":{"feature":"…","slot":"body"}}`.
 
 ## The dependency DAG
 
@@ -232,17 +238,21 @@ words. Arris ships no name grammar by design.
 
 ```rust
 pub struct PersistentName {
+    kind: TopoKind,           // Face | Edge | Vertex
     root: NameRoot,           // where the chain starts
     chain: Vec<NameStep>,     // what happened to it since, feature by feature
-    kind: TopoKind,           // Face | Edge | Vertex
 }
 
 pub enum NameRoot {
-    Sweep { feature: FeatureId, part: SweepPartName },   // cap, side of sketch curve c, …
-    Primitive { feature: FeatureId, role: PrimitiveRole },
-    Plugin { feature: FeatureId, key: u64 },             // Arris ask A1, consumer roles
-    Imported { feature: FeatureId, entity: u64 },        // a file's own entity (C2)
+    Sweep { feature: FeatureId, part: SweepPartName },   // a cap, or a part of curve k
+    Plugin { feature: FeatureId, key: Id },              // Arris ask A1, consumer roles
     Frozen { feature: FeatureId, index: u32 },           // a frozen result's stored name table
+    // Primitive and Imported (C2) join with primitives and import.
+}
+
+pub enum SweepPartName {      // curve-keyed parts name the profile curve by its CurveKey
+    StartCap, EndCap, Side(CurveKey), StartEdge(CurveKey), EndEdge(CurveKey),
+    Rise(CurveKey), StartVertex(CurveKey), EndVertex(CurveKey), Cavity(CurveKey),
 }
 
 pub enum NameStep {
@@ -251,12 +261,32 @@ pub enum NameStep {
 }
 ```
 
+**Text form.** A name has one canonical text, which is how it is written
+in a document, in a diagnostic and across the plugin boundary (the WIT
+world's `persistent-ref`):
+
+```text
+name  := kind ':' root ('/' step)*
+kind  := 'face' | 'edge' | 'vertex'
+root  := 'sweep.' ID '.' part | 'plugin.' ID '.' ID | 'frozen.' ID '.' N
+part  := 'start-cap' | 'end-cap' | curve-part '.' ID
+step  := 'mod.' ID '.' N | 'gen.' ID '[' name (',' name)* ']'
+```
+
+`ID` is an id's 13 characters, `N` a decimal `u32` without leading zeros,
+`curve-part` one of `side`, `start-edge`, `end-edge`, `rise`,
+`start-vertex`, `end-vertex`, `cavity`: `face:sweep.<feature>.side.<curve>`.
+A parse error names the byte it stopped at; `gen` nests at most 32 deep.
+
 - **Roots** come from what made an entity from nothing. A sweep's side
-  face is rooted at the sketch **entity id** of the curve that swept it,
-  not at its loop index: `arrix-kernel` translates sketch ids to Arris's
-  `(loop_index, segment)` on the way in and back on the way out, so
-  re-ordering or re-drawing a sketch keeps names on the curves that
-  survive.
+  face is rooted at the **key of the curve** that swept it, not at its
+  loop index: every curve of an `arrix_core::Profile` carries a
+  `CurveKey`, the sketch entity's id for a sketch region, a key the
+  plugin chooses for a plugin's own profile. `arrix-kernel` translates
+  keys to Arris's `(loop_index, segment)` on the way in and back on the
+  way out, so re-ordering or re-drawing a sketch keeps names on the curves
+  that survive. A part at a vertex (`rise`, `start-vertex`, `end-vertex`)
+  is named by the curve that starts there.
 - **Generated entities** name their origins: the rim of a hole is the edge
   generated from the pair *(hole wall, top face)*. Edges and vertices
   derive from their faces where Arris records them that way.

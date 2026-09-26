@@ -105,7 +105,7 @@ gear extrudes; nothing is built directly).
 
 ## Steps
 
-- [ ] **[1]** Step 1 — `arrix-core`: `Ref`, `SlotName`, `PersistentName`
+- [x] **[1]** Step 1 — `arrix-core`: `Ref`, `SlotName`, `PersistentName`
   and its text encoding, `Frame`, keyed `Profile`, `Diagnostic` references
   and candidates. Proptest round trips (serde and text), grammar
   rejections.
