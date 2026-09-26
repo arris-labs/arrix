@@ -15,3 +15,6 @@ scripts/size-lint
 
 echo "pre-commit: wasm-lint"
 scripts/wasm-lint
+
+echo "pre-commit: layer-lint"
+scripts/layer-lint

@@ -26,7 +26,7 @@ design docs of `SEED.md` §10.2 are written, with C1 in full in
 `docs/ROADMAP.md` (M0 gate and harness → M1 the document and a plugin
 feature → M2 part features and naming → M3 the app → M4 exchange and batch).
 **Now:** C1 M0, `docs/plans/c1-m0.md`: the workspace (stub crates) and
-the hooks exist; the layer lint, the headless harness and `arrix eval`
+the gate's hooks and lints exist; the headless harness and `arrix eval`
 follow.
 
 ## Rules that are not derivable from the code
@@ -70,7 +70,7 @@ it before ticking a step:
 
 - `.githooks/pre-commit`: `cargo fmt --all -- --check`, `cargo clippy
   --workspace --all-targets --all-features -- -D warnings`,
-  `scripts/size-lint`, `scripts/wasm-lint`.
+  `scripts/size-lint`, `scripts/wasm-lint`, `scripts/layer-lint`.
 - `.githooks/pre-push`: `cargo test --workspace` (and `--all-features`),
   `cargo build --target wasm32-unknown-unknown --workspace --exclude
   arrix-cli`, `scripts/gate-selftest`.

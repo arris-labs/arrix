@@ -1,0 +1,165 @@
+#!/usr/bin/env python3
+"""Layer lint: the layer rules of SEED.md §6.7 (docs/ARCHITECTURE.md §Crates
+and the layer rule, §Gates).
+
+Two checks, because each catches what the other cannot:
+
+1. **Edges.** Every workspace package's declared dependencies (normal, dev
+   and build, from `cargo metadata --no-deps`, so a `package = …` rename
+   is seen through) against the allowed-edges table below. A crate the
+   table does not name fails until it is added, so the rules cover it from
+   its first commit. Because `arrix-ui` may depend only on crates that do
+   not reach `arrix-doc` or `arrix-sketch`, a doc type re-exported through
+   another crate cannot reach it either; the transitive check makes that
+   explicit.
+2. **Paths.** Rust source as written (comments and literals blanked): no
+   `arris::` outside `arrix-kernel`, no egui/eframe/wgpu path outside the
+   UI crates, no `arrix_doc` or `arrix_sketch` in `arrix-ui`, no `arrix_*`
+   but `arrix_plugin_api` in `plugins/`.
+
+Usage:
+    scripts/layer-lint          exit 0 if clean, 1 listing the offenders
+"""
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+from lintlib import ROOT, clean_lines, rel, report, rust_files
+
+UI_CRATES = {"arrix-viewport", "arrix-ui", "arrix-app"}
+
+# Workspace crate -> the workspace crates it may depend on (§Crates).
+ALLOWED = {
+    "arrix-core": set(),
+    "arrix-kernel": {"arrix-core"},
+    "arrix-sketch": {"arrix-core"},
+    "arrix-plugin-api": {"arrix-core"},
+    "arrix-doc": {"arrix-core", "arrix-kernel", "arrix-sketch", "arrix-plugin-api"},
+    "arrix-plugin-host": {"arrix-core", "arrix-doc", "arrix-plugin-api"},
+    "arrix-viewport": {"arrix-core"},
+    "arrix-ui": {"arrix-core", "arrix-viewport", "arrix-plugin-api"},
+    "arrix-app": {
+        "arrix-core",
+        "arrix-kernel",
+        "arrix-sketch",
+        "arrix-plugin-api",
+        "arrix-doc",
+        "arrix-plugin-host",
+        "arrix-viewport",
+        "arrix-ui",
+    },
+    "arrix-cli": {"arrix-core", "arrix-doc", "arrix-plugin-host", "arrix-kernel"},
+}
+# Every package under plugins/: the plugin API alone, first-party included.
+PLUGIN_ALLOWED = {"arrix-plugin-api"}
+
+# Crates `arrix-ui` must not reach, directly or through another crate.
+UI_UNREACHABLE = {"arrix-doc", "arrix-sketch"}
+
+
+def is_kernel_dep(name):
+    return name == "arris" or name.startswith("arris-")
+
+
+def is_ui_dep(name):
+    return name in ("egui", "eframe") or name.startswith(("egui-", "egui_", "wgpu"))
+
+
+def metadata():
+    out = subprocess.run(
+        ["cargo", "metadata", "--no-deps", "--format-version", "1"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    return json.loads(out)["packages"]
+
+
+def package_dir(pkg):
+    return Path(pkg["manifest_path"]).parent.relative_to(ROOT).as_posix()
+
+
+def check_edges(packages):
+    found = []
+    names = {p["name"] for p in packages}
+    graph = {}
+    for pkg in packages:
+        name = pkg["name"]
+        deps = {d["name"] for d in pkg["dependencies"]}
+        graph[name] = deps & names
+        is_plugin = package_dir(pkg).startswith("plugins/")
+        if is_plugin:
+            allowed = PLUGIN_ALLOWED
+        elif name in ALLOWED:
+            allowed = ALLOWED[name]
+        else:
+            found.append(f"{name}: a crate the layer table does not name; add it to scripts/layer-lint")
+            continue
+        for dep in sorted(deps):
+            if dep in names and dep not in allowed:
+                what = "a plugin depends on arrix-plugin-api alone" if is_plugin else "not an allowed edge"
+                found.append(f"{name} -> {dep}: {what}")
+            elif is_kernel_dep(dep) and name != "arrix-kernel":
+                found.append(f"{name} -> {dep}: Arris only in arrix-kernel")
+            elif is_ui_dep(dep) and name not in UI_CRATES:
+                found.append(f"{name} -> {dep}: egui/eframe/wgpu only in viewport, ui and app")
+    # The transitive rule, for when the table itself is edited wrongly.
+    reach, stack = set(), list(graph.get("arrix-ui", ()))
+    while stack:
+        n = stack.pop()
+        if n not in reach:
+            reach.add(n)
+            stack.extend(graph.get(n, ()))
+    for bad in sorted(reach & UI_UNREACHABLE):
+        found.append(f"arrix-ui reaches {bad}: arrix-ui never names a doc or sketch type")
+    return found
+
+
+ARRIS_RE = re.compile(r"\barris(_\w+)?\s*(::|;|\s+as\b)")
+UI_RE = re.compile(r"\b(egui\w*|eframe|wgpu\w*)\s*(::|;|\s+as\b)")
+DOC_RE = re.compile(r"\barrix_(doc|sketch)\b")
+PLUGIN_RE = re.compile(r"\barrix_(?!plugin_api\b)\w+")
+
+
+def path_rules(name):
+    """(pattern, message) pairs that apply to the file at `name`."""
+    rules = []
+    if not name.startswith("crates/arrix-kernel/"):
+        rules.append((ARRIS_RE, "Arris only in arrix-kernel"))
+    if not name.startswith(tuple(f"crates/{c}/" for c in UI_CRATES)):
+        rules.append((UI_RE, "egui/eframe/wgpu only in viewport, ui and app"))
+    if name.startswith("crates/arrix-ui/"):
+        rules.append((DOC_RE, "arrix-ui never names a doc or sketch type"))
+    if name.startswith("plugins/"):
+        rules.append((PLUGIN_RE, "a plugin names arrix_plugin_api alone"))
+    return rules
+
+
+def check_paths():
+    found = []
+    for path in rust_files():
+        name = rel(path)
+        rules = path_rules(name)
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        for i, line in enumerate(clean_lines(lines)):
+            for pattern, message in rules:
+                if pattern.search(line):
+                    found.append(f"{name}:{i + 1}: {lines[i].strip()}  ({message})")
+    return found
+
+
+def main():
+    violations = check_edges(metadata()) + check_paths()
+    return report(
+        "layer-lint",
+        violations,
+        "The layer rules are binding (SEED.md §6.7). A need they block is a "
+        "design change with its ADR, not an exception here.",
+    )
+
+
+if __name__ == "__main__":
+    sys.exit(main())

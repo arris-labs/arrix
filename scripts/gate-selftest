@@ -8,6 +8,9 @@ one file, and the copy's own lint must exit 1 (a violation) or 0 (a
 counter-case: the exemption the lint promises). The clean copy must pass
 every lint first, so a failing case is never the tree's own fault.
 
+Every case's file must end in the section the snippet belongs to (a
+manifest's `[dependencies]`, a crate root's items).
+
 Usage:
     scripts/gate-selftest
 """
@@ -19,7 +22,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-LINTS = ("size-lint", "wasm-lint")
+LINTS = ("size-lint", "wasm-lint", "layer-lint")
 
 LONG_FN = "\npub fn oversize() {\n" + "    let _ = 0;\n" * 200 + "}\n"
 
@@ -60,6 +63,24 @@ CASES = [
         "wasm-lint",
         "crates/arrix-kernel/src/lib.rs",
         "\npub fn go() {\n    std::thread::spawn(|| {});\n}\n",
+        1,
+    ),
+    ("egui dependency in arrix-doc", "layer-lint", "crates/arrix-doc/Cargo.toml", "egui.workspace = true\n", 1),
+    ("egui path in arrix-doc", "layer-lint", "crates/arrix-doc/src/lib.rs", "\npub use egui::Context;\n", 1),
+    ("egui named in a comment in arrix-doc", "layer-lint", "crates/arrix-doc/src/lib.rs", "\n// egui::Context\n", 0),
+    ("arris path outside arrix-kernel", "layer-lint", "crates/arrix-doc/src/lib.rs", "\npub use arris::Model;\n", 1),
+    (
+        "a second arrix-* dependency in a plugin",
+        "layer-lint",
+        "plugins/gears/Cargo.toml",
+        "arrix-core.workspace = true\n",
+        1,
+    ),
+    (
+        "arrix-ui reaching arrix-doc through another crate",
+        "layer-lint",
+        "crates/arrix-ui/Cargo.toml",
+        "arrix-plugin-host.workspace = true\n",
         1,
     ),
 ]

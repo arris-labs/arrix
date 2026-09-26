@@ -206,8 +206,8 @@ is a plan step.
 `AGENTS.md` §Commands repeats how to run each part. The lints are Python 3
 scripts sharing `scripts/lintlib.py`: they read Rust source as written,
 with comments and literal contents blanked first, and each takes the
-repository root from its own path. Until C1's first plan lands, the layer
-lint and the CI workflow are still to come.
+repository root from its own path. Until C1's first plan lands, the CI
+workflow is still to come.
 
 **pre-commit** (fast):
 
@@ -228,11 +228,17 @@ lint and the CI workflow are still to come.
    `arrix-plugin-host`. `arrix-cli` is native-only and exempt from the
    thread and fs rules, as is test code. The permitted places are one
    table at the top of the script.
-5. `scripts/layer-lint`: the layer rules above, from `cargo metadata`
-   (dependency edges per crate) plus a scan of `use` paths (no `arris::`
-   outside `arrix-kernel`, no `egui::` in the non-UI crates, no `arrix_doc`
-   or `arrix_sketch` in `arrix-ui`, no `arrix_*` but `arrix_plugin_api` in
-   `plugins/`).
+5. `scripts/layer-lint`: the layer rules above, two ways. **Edges**:
+   every package's declared dependencies (`cargo metadata --no-deps`, so a
+   rename is seen through; dev and build dependencies included) against
+   the allowed-edges table of §Crates, kept in the script; a crate the
+   table does not name fails until it is added; `arris*` only in
+   `arrix-kernel`, `egui*`/`eframe`/`wgpu*` only in viewport, ui and app;
+   and `arrix-ui` must not reach `arrix-doc` or `arrix-sketch`
+   transitively, so a re-export cannot carry a doc type to it. **Paths**:
+   source as written, no `arris::` outside `arrix-kernel`, no egui, eframe
+   or wgpu path outside the UI crates, no `arrix_doc` or `arrix_sketch` in
+   `arrix-ui`, no `arrix_*` but `arrix_plugin_api` in `plugins/`.
 
 **pre-push** (slow):
 
@@ -244,8 +250,11 @@ lint and the CI workflow are still to come.
 4. `scripts/gate-selftest`: each lint run on a copy of the tree with a
    deliberate violation planted (an oversize function, `Instant::now` in a
    core crate, `std::fs` in `arrix-doc`, a thread spawned in
-   `arrix-kernel`), which must fail it, and with the exemptions each lint
-   promises, which must pass.
+   `arrix-kernel`, `egui` in `arrix-doc` as a dependency and as a path,
+   `arris` outside the kernel, a second `arrix-*` dependency in
+   `plugins/gears`, `arrix-ui` reaching `arrix-doc` through another
+   crate), which must fail it, and with the exemptions each lint promises
+   (test code, the audit marker, a comment), which must pass.
 
 The visual tests need a wgpu adapter; the reference is Mesa's lavapipe
 (CI installs `mesa-vulkan-drivers`). With no adapter a scenario skips
