@@ -1,0 +1,26 @@
+[package]
+name = "arrix-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+arrix-core.workspace = true
+arrix-kernel.workspace = true
+arrix-sketch.workspace = true
+arrix-plugin-api.workspace = true
+arrix-doc.workspace = true
+arrix-plugin-host.workspace = true
+arrix-viewport.workspace = true
+arrix-ui.workspace = true
+egui.workspace = true
+eframe.workspace = true
+
+[[bin]]
+name = "arrix-app"
+path = "src/main.rs"

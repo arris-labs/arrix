@@ -4,8 +4,9 @@ The crates, the rules between them, the one data flow, where threads run,
 the kernel's choke point, errors, testing and the gate. The charter is
 `SEED.md` §6; the document model is `docs/DATA-MODEL.md`, the plugin model
 `docs/PLUGINS.md`, the UI `docs/UI-RENDERING.md`, threads and the browser
-`docs/CONCURRENCY-WASM.md`. Nothing here is built yet: each section
-becomes true as C1 lands, and the commit that builds it keeps it true.
+`docs/CONCURRENCY-WASM.md`. The workspace and its crates exist, as stubs
+so far; each other section becomes true as C1 lands, and the commit that
+builds it keeps it true.
 
 ## Crates and the layer rule
 
@@ -27,6 +28,14 @@ unless an ADR says otherwise.
 | `arrix-cli` | headless open / eval / export / run / test | core, doc, plugin-host, kernel | `clap` |
 | `plugins/*` | first-party plugins: `gears` (C1), `robotics` (by C3) | plugin-api **only** | — |
 | `python/arrix` | the Tier 2 SDK (C3), not a Cargo crate | — | — |
+
+Crates live in `crates/<name>/`, plugins in `plugins/<name>/` (package
+`arrix-<name>`: `plugins/gears` is `arrix-gears`). External versions are
+pinned once, in the root `Cargo.toml`'s `[workspace.dependencies]`:
+`arris` 0.2, and one egui minor for `egui`, `eframe` and `egui-wgpu`
+(0.36). `unsafe_code = "forbid"` is a workspace lint every crate inherits.
+The binaries are `arrix` (`arrix-cli`) and `arrix-app`. No crate is
+published yet (`publish = false`); reserving names is the human's act.
 
 **The layer rules** (`SEED.md` §6.7) are binding and checked by the layer
 lint (§Gates):

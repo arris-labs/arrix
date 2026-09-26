@@ -1,0 +1,21 @@
+[package]
+name = "arrix-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+arrix-core.workspace = true
+arrix-doc.workspace = true
+arrix-plugin-host.workspace = true
+arrix-kernel.workspace = true
+clap.workspace = true
+
+[[bin]]
+name = "arrix"
+path = "src/main.rs"

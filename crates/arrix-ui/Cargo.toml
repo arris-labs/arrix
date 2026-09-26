@@ -1,0 +1,16 @@
+[package]
+name = "arrix-ui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+arrix-core.workspace = true
+arrix-viewport.workspace = true
+arrix-plugin-api.workspace = true
+egui.workspace = true

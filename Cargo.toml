@@ -1,0 +1,57 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/arrix-core",
+    "crates/arrix-kernel",
+    "crates/arrix-sketch",
+    "crates/arrix-plugin-api",
+    "crates/arrix-doc",
+    "crates/arrix-plugin-host",
+    "crates/arrix-viewport",
+    "crates/arrix-ui",
+    "crates/arrix-app",
+    "crates/arrix-cli",
+    "plugins/gears",
+]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/arris-labs/arrix"
+# Reserving and publishing names is the human's act (SEED.md §2).
+publish = false
+
+# The kernel re-evaluates on every parameter edit and the sketch solver runs
+# per frame on the UI thread, so an unoptimised dependency tree is felt in
+# `cargo run`. Dependencies build at full optimisation once; our own crates
+# stay at 1 so backtraces and stepping still work.
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[workspace.dependencies]
+arrix-core = { path = "crates/arrix-core" }
+arrix-kernel = { path = "crates/arrix-kernel" }
+arrix-sketch = { path = "crates/arrix-sketch" }
+arrix-plugin-api = { path = "crates/arrix-plugin-api" }
+arrix-doc = { path = "crates/arrix-doc" }
+arrix-plugin-host = { path = "crates/arrix-plugin-host" }
+arrix-viewport = { path = "crates/arrix-viewport" }
+arrix-ui = { path = "crates/arrix-ui" }
+
+# The kernel: pinned minor, crates.io only (SEED.md §8.3). Named by
+# `arrix-kernel` alone (docs/ARCHITECTURE.md §Crates and the layer rule).
+arris = "0.2"
+
+# One egui minor for the whole workspace (docs/UI-RENDERING.md).
+egui = "0.36"
+eframe = "0.36"
+egui-wgpu = "0.36"
+
+clap = { version = "4", features = ["derive"] }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
