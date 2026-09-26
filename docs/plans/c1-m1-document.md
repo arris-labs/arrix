@@ -216,11 +216,10 @@ gate green, the wasm build included.
 
 ## Open questions
 
-- ⚠ OPEN 1: origin planes. `core.datum-plane` takes a world plane (XY, XZ,
-  YZ) as a plain parameter when it has no input, or every part starts with
-  a `core.origin` feature whose slots are the three planes and axes, which
-  is a new core type outside `docs/DATA-MODEL.md`'s table. Agent's
-  preference: the parameter, so no new type. **Human decides, by step 9.**
+- OPEN 1, closed 2026-09-26 by the human: `core.datum-plane` takes a
+  world plane (XY, XZ, YZ) as a plain parameter when it has no input; no
+  `core.origin` type. Step 9 builds it and writes it into
+  `docs/DATA-MODEL.md` §The core feature types.
 - ⚠ OPEN 2: the gear's arc-approximation tolerance and whether `gears.spur`
   has a bore in 0.1. Agent decides in step 11 and states both in the
   plugin's docs; the tolerance is the plugin's, not a kernel setting.
@@ -257,5 +256,5 @@ gate green, the wasm build included.
   so the subset gains `AddPart` (a whole part: `DeletePart`'s inverse)
   and `DeletePart`. Stamps live in the authority, keyed by DAG node, and
   undo and redo restore them, since the file carries none.
-- ⚠ OPEN 5: start `c1-m1-sketch` now in the second plan slot, running
-  beside this one? **Human decides.**
+- OPEN 5, closed 2026-09-26 by the human: `c1-m1-sketch` starts now in
+  the second plan slot, beside this one.
