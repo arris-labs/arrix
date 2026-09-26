@@ -1,6 +1,14 @@
 //! The visual scenarios (docs/UI-RENDERING.md §Visual debugging).
 
+mod coarse;
 mod harness;
+mod snapshot;
+
+/// The shell at startup: no document content, the Sketch tab open.
+#[test]
+fn empty_shell() {
+    harness::with_app("empty_shell", |h| snapshot::check(h, "empty_shell"));
+}
 
 /// Frames are a function of the app's state alone. Established on lavapipe
 /// in plans/c1-m0 step 4: identical pixels from two app instances, from a

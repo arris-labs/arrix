@@ -38,10 +38,8 @@ fn can_render(what: &str) -> bool {
     if reference_adapter().is_some() {
         return true;
     }
-    let required =
-        std::env::var("ARRIX_REQUIRE_GPU").is_ok_and(|v| !matches!(v.as_str(), "" | "0" | "false"));
     assert!(
-        !required,
+        !env_flag("ARRIX_REQUIRE_GPU"),
         "{what}: no CPU wgpu adapter, and ARRIX_REQUIRE_GPU is set"
     );
     // Written to the process's stderr, not through `eprintln!`: the test
@@ -54,6 +52,12 @@ fn can_render(what: &str) -> bool {
          (`mesa-vulkan-drivers`) to run the visual suite."
     );
     false
+}
+
+/// Whether the environment variable `name` is set to something other than
+/// empty, `0` or `false`.
+pub fn env_flag(name: &str) -> bool {
+    std::env::var(name).is_ok_and(|v| !matches!(v.as_str(), "" | "0" | "false"))
 }
 
 /// Serialises everything that renders: concurrent lavapipe devices at this

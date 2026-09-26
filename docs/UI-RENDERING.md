@@ -201,17 +201,27 @@ the way in.
   run-to-run noise.
 - **No image is committed** (ADR-0001). Goldens are text; images are build
   output, re-rendered from any commit on demand.
+- **The golden** is `{"debug_state": …, "coarse_frame": {"cell", "size",
+  "rows"}}`, pretty-printed; `debug_state` is the app's JSON with its keys
+  sorted. A failure reports the first `debug_state` difference as a JSON
+  pointer with both values, and the coarse frame's differing regions.
 - **The coarse frame** is the rendered frame reduced to a grid of 16×16
-  pixel cells, each the cell's mean RGB, written as one hex string per grid
-  row (90×56 cells at 1440×900, about 30 KB of text that deltas well in
-  git). A scenario fails when more than its budget of cells differ from the
-  golden by more than the per-cell tolerance; the cell size, tolerance and
-  budget are the harness's, overridable per scenario. The failure names the
-  differing cells as pixel rectangles. It catches layout, placement, colour
+  pixel cells, each the cell's mean RGB, written as one string of six hex
+  digits per cell per grid row. A cell the frame's edge cuts short averages
+  the pixels it holds, so 1440×900 is 90×57 cells, about 31 KB of text that
+  deltas well in git. A cell differs when any channel of its mean moved by
+  more than the **tolerance, 8** (of 255); a scenario fails when more cells
+  differ than its **budget, 0** by default. Both are overridable per
+  scenario (`snapshot::check_with` and a `Tolerance`). Frames are identical
+  run to run, so the tolerance only absorbs another Mesa version's edge
+  rasterisation, a few levels per pixel averaged over 256 pixels; CI's
+  first run checks that. The failure names the differing cells as pixel
+  rectangles, one per 4-connected region, cell-aligned (`x 0..1440, y
+  864..900 (270 cells, max delta 63)`). It catches layout, placement, colour
   and gross rendering changes; a change smaller than a cell (a 1-px
   outline) is below it, and text is `debug_state()`'s to catch.
 - **Images on demand.** Every run writes the full frames to
-  `target/snapshots/<name>.png`. `scripts/snapshot-baseline [<rev>]`
+  `target/snapshots/<name>.png` (`ARRIX_SNAPSHOT_DIR` redirects them). `scripts/snapshot-baseline [<rev>]`
   (default `HEAD`) renders the same scenarios at that revision in a
   temporary worktree and writes `<name>.before.png` and a
   `<name>.diff.png` beside them. CI uploads all three as artifacts when a
