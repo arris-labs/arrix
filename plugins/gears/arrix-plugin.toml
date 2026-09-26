@@ -12,4 +12,4 @@ licence = "MIT OR Apache-2.0"
 kernel = true
 
 [contributes]
-features = []
+features = ["gears.spur"]

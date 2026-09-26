@@ -18,6 +18,10 @@ arrix-gears.workspace = true
 clap.workspace = true
 serde_json.workspace = true
 
+[dev-dependencies]
+# The kernel-backed checks of the compiled-in plugins (tests/gears.rs).
+arrix-plugin-api.workspace = true
+
 [[bin]]
 name = "arrix"
 path = "src/main.rs"

@@ -4,8 +4,9 @@ The plugin model is ArriX's reason to exist (`SEED.md` §3, §6.3): one
 interface, versioned apart from the app, hosted three ways, and enough of it
 that first-party domains need nothing else. This document is the design of
 `arrix-plugin-api` and `arrix-plugin-host`. Built: the world and its Rust
-traits at 0.1.0 (§One interface), manifests (§The manifest) and Tier 0
-hosting (§Three tiers). Each other section becomes true as its
+traits at 0.1.0 (§One interface), manifests (§The manifest), Tier 0
+hosting (§Three tiers), and the first plugin, `plugins/gears` with
+`gears.spur` (its crate docs state its geometry and tolerance). Each other section becomes true as its
 cycle lands (Tier 0 in C1, Tiers 1 and 2 and the test kit in C3), and the
 commit that builds it keeps it true.
 
@@ -324,7 +325,11 @@ packages them for third parties (`arrix-plugin-test` for Rust, `arrix
 test` for any tier).
 
 - **Determinism**: every feature evaluated twice from fresh state gives
-  byte-identical bodies and names.
+  byte-identical bodies and names. Built for `gears`, with the kernel-backed
+  checks a plugin's own tests cannot make (it depends on the API alone),
+  in `crates/arrix-cli/tests/gears.rs` beside the registration list:
+  names, volume and call records equal across fresh kernels, the volume
+  against the outline's own area, and the names a teeth edit keeps.
 - **Round trip**: a document using the plugin saves and loads to identical
   bytes and identical evaluation.
 - **Frozen**: the document opened without the plugin shows every body,

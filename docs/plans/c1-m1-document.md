@@ -151,7 +151,7 @@ gear extrudes; nothing is built directly).
   through the plugin API's traits only; plugin version in the hash; a
   panicking test plugin becomes a diagnostic, not a crash; the explicit
   registration list in `arrix-cli`, and the layer lint's new edge.
-- [ ] **[2]** Step 11 — `plugins/gears`: `gears.spur` (teeth, module,
+- [x] **[2]** Step 11 — `plugins/gears`: `gears.spur` (teeth, module,
   width, pressure angle, on a plane), involute flanks as arcs within a
   stated tolerance, checked against the true involute; evaluated twice
   from fresh state to identical names and volume; manifest
@@ -220,9 +220,13 @@ gate green, the wasm build included.
   world plane (XY, XZ, YZ) as a plain parameter when it has no input; no
   `core.origin` type. Step 9 builds it and writes it into
   `docs/DATA-MODEL.md` §The core feature types.
-- ⚠ OPEN 2: the gear's arc-approximation tolerance and whether `gears.spur`
-  has a bore in 0.1. Agent decides in step 11 and states both in the
-  plugin's docs; the tolerance is the plugin's, not a kernel setting.
+- OPEN 2, closed in step 11 by the agent: each involute flank is arcs
+  within `module / 1000` of the true involute (1 µm at 1 mm, the kernel's
+  point tolerance), halved at most six times (64 arcs a flank), else
+  `gears.tolerance`; no bore in 0.1. Both are stated in the plugin's crate
+  docs. Below the base circle a flank is a radial line; undercut is not
+  modelled. Curve keys are `tooth · 1000 + k`, tooth from 1, so a teeth
+  edit keeps the surviving teeth's names and loses the rest's.
 - ⚠ OPEN 3: where a client's `IdMinter` seed comes from
   (`docs/DATA-MODEL.md` §Identifiers defers it to sessions). Agent
   proposes in step 13: the caller supplies it, `arrix-app` and `arrix-cli`
