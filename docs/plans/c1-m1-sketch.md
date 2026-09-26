@@ -111,7 +111,7 @@ arrangement is used, the fallback `docs/ROADMAP.md` names.
   auto-constrain, which is sketch mode's, M3. Its gap closing adds
   constraints through auto-constrain's one-by-one check, so it waits for
   M3 too; the validation report counts regions, so it comes with step 5.)
-- [ ] **[3]** Step 5 — the arrangement and regions: pieces, loops, faces,
+- [x] **[3]** Step 5 — the arrangement and regions: pieces, loops, faces,
   `RegionKey` (bounding entity ids and an interior sample); a key resolves
   to one region or none. The same sketch twice gives the same regions in
   the same order; a key whose region was split, merged or removed resolves
@@ -222,3 +222,14 @@ empty.
   prototype's absolute wall-clock ceilings in its benchmarks are reported
   here instead of asserted, for the same reason; the analytic-against-FD
   ratio stays asserted.
+- Finding, step 5: the prototype's `RegionKey` left hole boundaries out
+  on purpose, so a hole drawn later would not lose a region. Acceptance
+  step 4 needs the opposite (the holed plate's key must not resolve to
+  the plain rectangle once the bore is deleted), so the key names every
+  entity bounding the face, holes included. The price: a hole drawn
+  inside a region later makes it another region too, and the feature
+  holding the key is re-picked (`ref.lost` with candidates, step 9).
+  Stated on `RegionKey`; `docs/DATA-MODEL.md` §Sketches at retirement.
+  A key two faces answer to resolves to none, as the section says, and
+  regions of equal area (to the tolerance squared) are ordered by their
+  entities, not by the walk.

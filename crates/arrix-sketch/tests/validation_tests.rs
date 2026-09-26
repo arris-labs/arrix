@@ -1,8 +1,7 @@
-//! Validation: open vertices, the gaps between them, and degenerate
-//! geometry with its purge. The region counts a validation report adds
-//! arrive with the regions (`find_profiles`).
+//! Validation: open vertices, the gaps between them, degenerate geometry
+//! with its purge, and the report that adds the regions a sketch closes.
 
-use arrix_sketch::{Constraint, DegenerateKind, Draft, Entity, Point};
+use arrix_sketch::{Constraint, DegenerateKind, Draft, Entity, Point, ValidationOptions};
 
 #[test]
 fn test_open_vertex_detection_open_chain() {
@@ -256,4 +255,63 @@ fn test_open_vertex_detection_with_arcs() {
         end: s,
     });
     assert!(sketch.detect_open_vertices().is_empty());
+}
+
+// ─── the validation report ───────────────────────────────────────────────
+
+#[test]
+fn a_closed_rectangle_is_valid_for_extrusion() {
+    let mut sketch = Draft::seeded(1);
+    let p: Vec<_> = [(0.0, 0.0), (0.01, 0.0), (0.01, 0.01), (0.0, 0.01)]
+        .iter()
+        .map(|&(x, y)| sketch.add_point(Point::new(x, y)))
+        .collect();
+    for i in 0..4 {
+        sketch.add_entity(Entity::Line {
+            start: p[i],
+            end: p[(i + 1) % 4],
+        });
+    }
+    let report = sketch.validate_sketch(&ValidationOptions::default());
+    assert!(report.open_vertices.is_empty());
+    assert_eq!(report.closed_profiles_count, 1);
+    assert_eq!(report.total_loops_count, 1);
+    assert!(report.is_fully_closed);
+    assert!(report.is_valid_for_extrusion);
+}
+
+#[test]
+fn an_open_chain_is_not_closed_and_a_collapsed_curve_is_not_extrudable() {
+    let mut sketch = Draft::seeded(1);
+    let (_, _, _) = sketch.add_line(0.0, 0.0, 0.01, 0.0);
+    let report = sketch.validate_sketch(&ValidationOptions::default());
+    assert_eq!(report.open_vertices.len(), 2);
+    assert!(!report.is_fully_closed && !report.is_valid_for_extrusion);
+
+    let mut sketch = Draft::seeded(1);
+    sketch.add_circle(0.0, 0.0, 0.01);
+    sketch.add_circle(0.03, 0.0, 0.0);
+    let report = sketch.validate_sketch(&ValidationOptions::default());
+    assert!(report.is_fully_closed);
+    assert_eq!(report.degenerate_entities.len(), 1);
+    assert!(!report.is_valid_for_extrusion);
+}
+
+#[test]
+fn a_pie_slice_closes_and_a_washer_counts_its_hole() {
+    let mut sketch = Draft::seeded(1);
+    let (_c, s, e, _arc) = sketch.add_arc(0.0, 0.0, 0.01, 0.0, 0.0, 0.01);
+    let o = sketch.add_point(Point::new(0.0, 0.0));
+    sketch.add_entity(Entity::Line { start: e, end: o });
+    sketch.add_entity(Entity::Line { start: o, end: s });
+    let report = sketch.validate_sketch(&ValidationOptions::default());
+    assert!(report.is_fully_closed);
+    assert_eq!(report.closed_profiles_count, 1);
+
+    let mut washer = Draft::seeded(1);
+    washer.add_circle(0.0, 0.0, 0.02);
+    washer.add_circle(0.0, 0.0, 0.01);
+    let report = washer.validate_sketch(&ValidationOptions::default());
+    assert_eq!(report.closed_profiles_count, 2, "the ring and the bore");
+    assert_eq!(report.total_loops_count, 3);
 }

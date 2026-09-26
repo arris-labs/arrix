@@ -49,6 +49,41 @@ pub struct DegenerateEntity {
     pub duplicate_of: Option<EntityId>,
 }
 
+/// What [`SketchValidation::validate`] checks, and at what tolerance.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ValidationOptions {
+    /// Metres, for gaps and degenerate geometry. Default 0.1 mm.
+    pub linear_tol: f64,
+    pub check_degenerate: bool,
+    pub check_open_vertices: bool,
+}
+
+impl Default for ValidationOptions {
+    fn default() -> Self {
+        Self {
+            linear_tol: 1e-4,
+            check_degenerate: true,
+            check_open_vertices: true,
+        }
+    }
+}
+
+/// Whether a sketch closes, and what stops it.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct ValidationReport {
+    pub open_vertices: Vec<OpenVertex>,
+    pub open_gaps: Vec<OpenGap>,
+    pub degenerate_entities: Vec<DegenerateEntity>,
+    /// Regions of the arrangement.
+    pub closed_profiles_count: usize,
+    /// Boundary loops, the regions' holes included.
+    pub total_loops_count: usize,
+    /// No open vertex, and at least one region.
+    pub is_fully_closed: bool,
+    /// Fully closed, and no degenerate entity.
+    pub is_valid_for_extrusion: bool,
+}
+
 /// The validation checks over one sketch.
 pub struct SketchValidation<'a> {
     sketch: &'a Sketch,
@@ -270,6 +305,34 @@ impl<'a> SketchValidation<'a> {
         let same_ends =
             (s1 == s2 && e1 == e2) || dist(xa[1], xb[1]) + dist(xa[2], xb[2]) <= 2.0 * tol;
         same_centre && same_ends
+    }
+
+    /// Every check, and the regions the sketch closes.
+    pub fn validate(&mut self, options: &ValidationOptions) -> ValidationReport {
+        let (open_vertices, open_gaps) = if options.check_open_vertices {
+            (
+                self.detect_open_vertices(),
+                self.detect_open_gaps(options.linear_tol),
+            )
+        } else {
+            (Vec::new(), Vec::new())
+        };
+        let degenerate_entities = if options.check_degenerate {
+            self.detect_degenerate_geometries(options.linear_tol)
+        } else {
+            Vec::new()
+        };
+        let profiles = crate::region::find_profiles(self.sketch);
+        let is_fully_closed = open_vertices.is_empty() && !profiles.is_empty();
+        ValidationReport {
+            closed_profiles_count: profiles.len(),
+            total_loops_count: profiles.iter().map(|p| 1 + p.holes.len()).sum(),
+            is_fully_closed,
+            is_valid_for_extrusion: is_fully_closed && degenerate_entities.is_empty(),
+            open_vertices,
+            open_gaps,
+            degenerate_entities,
+        }
     }
 
     /// Removes the degenerate entities, the constraints that named them and

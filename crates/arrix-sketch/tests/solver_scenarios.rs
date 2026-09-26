@@ -5,6 +5,7 @@
 
 use arrix_sketch::{
     Constraint, Diagnostics, Draft, Entity, EntityConstraintState, Point, Sketch, SketchStatus,
+    find_profiles,
 };
 
 /// Drops every `Fix` constraint — several scenarios below seed one for the
@@ -1833,4 +1834,112 @@ fn s63_drag_perp_bisector() {
     let da = s.points()[&p].distance_to(&s.points()[&a]);
     let db = s.points()[&p].distance_to(&s.points()[&b]);
     almost(da, db, 1e-6);
+}
+
+/// Classic M3 acceptance profile: plate with two holes, fully constrained.
+#[test]
+fn s27_plate_with_two_holes_fully_constrained() {
+    let mut s = Draft::seeded(1);
+    // Outer rectangle 100×60 mm.
+    let p0 = s.add_point(Point::fixed(0.0, 0.0));
+    let p1 = s.add_point(Point::new(0.10, 0.0));
+    let p2 = s.add_point(Point::new(0.10, 0.06));
+    let p3 = s.add_point(Point::new(0.0, 0.06));
+    let l0 = s.add_entity(Entity::Line { start: p0, end: p1 });
+    let l1 = s.add_entity(Entity::Line { start: p1, end: p2 });
+    let l2 = s.add_entity(Entity::Line { start: p2, end: p3 });
+    let l3 = s.add_entity(Entity::Line { start: p3, end: p0 });
+    s.add_constraint(Constraint::Horizontal { line: l0 });
+    s.add_constraint(Constraint::Horizontal { line: l2 });
+    s.add_constraint(Constraint::Vertical { line: l1 });
+    s.add_constraint(Constraint::Vertical { line: l3 });
+    s.add_constraint(Constraint::Distance {
+        a: p0,
+        b: p1,
+        value: 0.10,
+    });
+    s.add_constraint(Constraint::Distance {
+        a: p0,
+        b: p3,
+        value: 0.06,
+    });
+
+    // Two holes Ø10 mm at (25,30) and (75,30) mm.
+    let (c1, h1) = s.add_circle(0.025, 0.03, 0.005);
+    let (c2, h2) = s.add_circle(0.075, 0.03, 0.005);
+    s.add_constraint(Constraint::Radius {
+        target: h1,
+        value: 0.005,
+    });
+    s.add_constraint(Constraint::Radius {
+        target: h2,
+        value: 0.005,
+    });
+    s.add_constraint(Constraint::Fix {
+        point: c1,
+        x: 0.025,
+        y: 0.03,
+    });
+    s.add_constraint(Constraint::Fix {
+        point: c2,
+        x: 0.075,
+        y: 0.03,
+    });
+
+    let (r, d) = Diagnostics::evaluate(&mut s);
+    assert!(
+        r.converged,
+        "residual {} msg {}",
+        r.residual_norm, d.message
+    );
+    assert!(
+        d.status == SketchStatus::FullyConstrained || d.dof == 0,
+        "expected fully constrained, got {:?} dof {} — {}",
+        d.status,
+        d.dof,
+        d.message
+    );
+
+    // Region detection: the plate comes first and carries both circles as
+    // holes; each circle is also an island profile of its own.
+    let profiles = find_profiles(&s);
+    assert_eq!(profiles.len(), 3, "{profiles:#?}");
+    assert_eq!(profiles[0].outer.edges.len(), 4, "{profiles:#?}");
+    assert_eq!(profiles[0].holes.len(), 2, "{profiles:#?}");
+}
+
+#[test]
+fn s28_rectangle_region_detected() {
+    let mut s = Draft::seeded(1);
+    let p0 = s.add_point(Point::new(0.0, 0.0));
+    let p1 = s.add_point(Point::new(0.1, 0.0));
+    let p2 = s.add_point(Point::new(0.1, 0.05));
+    let p3 = s.add_point(Point::new(0.0, 0.05));
+    s.add_entity(Entity::Line { start: p0, end: p1 });
+    s.add_entity(Entity::Line { start: p1, end: p2 });
+    s.add_entity(Entity::Line { start: p2, end: p3 });
+    s.add_entity(Entity::Line { start: p3, end: p0 });
+    let profiles = find_profiles(&s);
+    assert!(
+        !profiles.is_empty(),
+        "rectangle should yield a closed profile"
+    );
+    let area = profiles[0].outer.signed_area.abs();
+    almost(area, 0.1 * 0.05, 1e-6);
+    assert!(profiles[0].outer.edges.len() >= 4);
+    // Persistent segment ids present.
+    for edge in &profiles[0].outer.edges {
+        assert!(s.entities().contains_key(&edge.entity));
+    }
+    // A lone closed boundary has no holes. The half-edge walk also traces
+    // the *unbounded outside* of the same boundary (same four edges,
+    // reversed) — left unfiltered, that spurious loop reads as a hole
+    // nested inside its own outer (this was caught by a real regression: a
+    // plain rectangle extrude failed with "wire is not on one plane"
+    // because `try_attach_plane` got that bogus hole as a second wire).
+    assert_eq!(
+        profiles[0].holes.len(),
+        0,
+        "a lone rectangle must not report a hole"
+    );
 }

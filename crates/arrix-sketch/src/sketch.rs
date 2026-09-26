@@ -281,6 +281,15 @@ impl Sketch {
         &self.construction
     }
 
+    /// Every entity that can bound a profile: all but construction
+    /// geometry. Region detection reads the sketch through this; the
+    /// solver, diagnostics and snapping read every entity.
+    pub(crate) fn profile_entities(&self) -> impl Iterator<Item = (&EntityId, &Entity)> {
+        self.entities
+            .iter()
+            .filter(|(id, _)| !self.construction.contains(id))
+    }
+
     /// Removes a point and every entity and constraint built on it.
     pub fn remove_point(&mut self, id: PointId) {
         self.points.remove(&id);
@@ -341,6 +350,11 @@ impl Sketch {
     /// Collapsed and duplicate curves at tolerance `tol`.
     pub fn detect_degenerate_geometries(&self, tol: f64) -> Vec<crate::DegenerateEntity> {
         crate::SketchValidation::new(self).detect_degenerate_geometries(tol)
+    }
+
+    /// Every validation check, and the regions the sketch closes.
+    pub fn validate_sketch(&self, options: &crate::ValidationOptions) -> crate::ValidationReport {
+        crate::SketchValidation::new(self).validate(options)
     }
 
     /// Removes the degenerate curves and what only they used.
