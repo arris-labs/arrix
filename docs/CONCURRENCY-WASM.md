@@ -109,6 +109,16 @@ arrix eval <docs or dirs>… [--sweep <feature>.<param>=<from>..<to>:<n>]
   and Arris model: parallelism across documents, never inside one.
 - Exit status: 0 when every document evaluated without a failed feature,
   1 otherwise, 2 on usage or I/O errors.
+- **Built so far:** `arrix eval <dir>` on one document directory, no
+  flags. It opens the document through `arrix-doc`, which reads no files:
+  the CLI hands it a directory as a `DocumentSource`, and the line type,
+  `EvalLine`, and `arrix_doc::eval` live in `arrix-doc`, so tests and the
+  CLI share one code path. An empty document prints
+  `{"doc":"<dir>","sweep":null,"status":"ok","features":[],"bodies":[]}`
+  (`doc` as the caller named it) and exits 0. A missing directory, a
+  `document.json` that is absent or not JSON, a schema other than 1, or a
+  document with parts (read from M1) exits 2 with the reason on stderr and
+  nothing on stdout. The rest of the flags are M4's.
 
 ## The browser build
 

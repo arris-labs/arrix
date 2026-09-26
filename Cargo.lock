@@ -405,6 +405,7 @@ dependencies = [
  "arrix-kernel",
  "arrix-plugin-host",
  "clap",
+ "serde_json",
 ]
 
 [[package]]
@@ -425,6 +426,9 @@ dependencies = [
  "arrix-kernel",
  "arrix-plugin-api",
  "arrix-sketch",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

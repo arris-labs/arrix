@@ -14,3 +14,6 @@ arrix-core.workspace = true
 arrix-kernel.workspace = true
 arrix-sketch.workspace = true
 arrix-plugin-api.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true

@@ -79,6 +79,8 @@ it before ticking a step:
   goldens; `scripts/snapshot-baseline [<rev>]` renders before, after and
   diff images into `target/snapshots/`, read before any
   `UPDATE_SNAPSHOTS=1`.
+- `cargo run -p arrix-cli -- eval <dir>` evaluates a document directory
+  and prints its JSON line (`tests/docs/empty` is the M0 scenario).
 - Either hook runs by hand as `.githooks/pre-commit` or
   `.githooks/pre-push`. `scripts/size-lint --list` shows offenders past
   the allowlist.

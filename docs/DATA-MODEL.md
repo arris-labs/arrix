@@ -432,6 +432,12 @@ blobs/<blake3>.<ext>   frozen results (.arrisbody), name tables, imported files,
   schema than the build knows is refused with a message naming both. A
   feature record's `type_version` is migrated by its feature type (a
   plugin's own migration, or kept frozen if the plugin is absent).
+- **What opens today** (`arrix_doc::open`): the directory form with a
+  `document.json` whose `schema` is 1, and no parts. Nothing else in the
+  header is interpreted yet. A newer schema is refused with a message
+  naming both (`the document's schema is 2, newer than this build's 1`),
+  a schema below 1 as one no ArriX wrote, and a document with parts as
+  not yet readable (M1). `tests/docs/empty/` is that document.
 - **Plugin sections** carry their plugin's schema version and are opaque
   to the core (§Frozen results).
 - **Units** in the file are SI; `meta` records the display units.

@@ -15,6 +15,7 @@ arrix-doc.workspace = true
 arrix-plugin-host.workspace = true
 arrix-kernel.workspace = true
 clap.workspace = true
+serde_json.workspace = true
 
 [[bin]]
 name = "arrix"

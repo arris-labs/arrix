@@ -20,7 +20,7 @@ unless an ADR says otherwise.
 | `arrix-kernel` | the only crate naming Arris types: operations, naming from provenance, render meshes, body bytes, call records | core | `arris` |
 | `arrix-sketch` | the sketch model, the constraint solver, inference, trim/extend/offset/mirror (ported) | core | — |
 | `arrix-plugin-api` | the WIT world, its Rust traits and plain types; semver of its own | core | `wit-bindgen` (types only) |
-| `arrix-doc` | document, parameters and expressions, DAG, feature registry, commands, undo, evaluator, `.arrx` | core, kernel, sketch, plugin-api | `serde_json`, `zip`, `blake3` |
+| `arrix-doc` | document, parameters and expressions, DAG, feature registry, commands, undo, evaluator, `.arrx`, the `arrix eval` line; reads no files (a `DocumentSource` hands it bytes) | core, kernel, sketch, plugin-api | `serde_json`, `zip`, `blake3` |
 | `arrix-plugin-host` | tier 0/1/2 hosting, manifests, capabilities, the frozen fallback | core, doc, plugin-api | `wasmtime` (native, C3) |
 | `arrix-viewport` | wgpu scene, ID-buffer picking, overlays, camera (ported) | core | `wgpu`, `egui-wgpu` |
 | `arrix-ui` | egui widgets over plain view types; the declarative-UI renderer | core, viewport, plugin-api (UI types only) | `egui` |
@@ -198,7 +198,7 @@ Everything is checkable without a human looking at a screen (`SEED.md`
 | Plugins | the in-tree test kit: determinism (evaluate twice), round trip, frozen open, migration (`docs/PLUGINS.md` §The test kit) |
 | Protocol | every command and event serialised through JSON and back |
 | UI | headless `egui_kittest` snapshots on wgpu, each a text golden: the `debug_state()` JSON and a coarse frame; images rendered on demand, never committed (`docs/UI-RENDERING.md` §Visual debugging, ADR-0001) |
-| CLI | golden JSON of `arrix eval` over the scenario documents |
+| CLI | golden JSON of `arrix eval` over the scenario documents: the binary run from the workspace root by `crates/arrix-cli/tests/eval.rs`, compared byte for byte with `crates/arrix-cli/tests/golden/<name>.jsonl` |
 
 A wanted behaviour that does not work yet is not an `#[ignore]`d test. If
 the gap is the kernel's, it is an Arris fixture or ask; if it is ours, it
