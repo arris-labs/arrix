@@ -4,7 +4,8 @@ What a document is, how it changes, how it evaluates, how its geometry is
 named and how it is written to disk. The charter is `SEED.md` §6.4–§6.5;
 this document is the design those sections commit to. Built: the id types
 (§Identifiers), `Ref` and `SlotName` (§References), the persistent-name
-types and their text form (§Persistent naming), and opening an empty
+types and their text form (§Persistent naming), names from an extrude's
+provenance in `arrix-kernel` (§Persistent naming), and opening an empty
 document directory (§File format).
 Each other section becomes true as C1 lands, and the commit that builds it
 keeps it true.
@@ -289,7 +290,11 @@ A parse error names the byte it stopped at; `gen` nests at most 32 deep.
   is named by the curve that starts there.
 - **Generated entities** name their origins: the rim of a hole is the edge
   generated from the pair *(hole wall, top face)*. Edges and vertices
-  derive from their faces where Arris records them that way.
+  derive from their faces where Arris records them that way; a sweep
+  records its own edges and vertices by role (`start-edge`, `end-edge`,
+  `rise`, `start-vertex`, `end-vertex`), so theirs are roots, not `gen`
+  steps. An extrude of a plate with a bore names 7 faces, 15 edges and 10
+  vertices, all from roots (`crates/arrix-kernel/tests/probe.rs`).
 - **Kept entities** keep their names across features; a kept id is not a
   step.
 - **Plugin features get naming for free** when they build through kernel

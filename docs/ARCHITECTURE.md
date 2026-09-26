@@ -6,7 +6,8 @@ the kernel's choke point, errors, testing and the gate. The charter is
 `docs/PLUGINS.md`, the UI `docs/UI-RENDERING.md`, threads and the browser
 `docs/CONCURRENCY-WASM.md`. Built: the workspace with every crate
 (`arrix-core`'s units, ids, references, persistent names, frames and
-profiles, and `Diagnostic`, `arrix-doc`'s empty-document
+profiles, and `Diagnostic`, `arrix-kernel`'s first slice of §The kernel
+choke point, `arrix-doc`'s empty-document
 open and `arrix eval` line, the empty shell in `arrix-ui` and `arrix-app`,
 the rest stubs), §Errors and diagnostics as far as `Diagnostic` goes, the
 UI and CLI rows of §Testing, and §Gates. Each other section becomes true as
@@ -21,7 +22,7 @@ unless an ADR says otherwise.
 | Crate | Holds | May depend on (workspace) | Notable external |
 |---|---|---|---|
 | `arrix-core` | units and quantities, ids, plugin ids, plain math over `glam` (f64), persistent-reference types, `Diagnostic` | — | `glam`, `serde`, `thiserror` |
-| `arrix-kernel` | the only crate naming Arris types: operations, naming from provenance, render meshes, body bytes, call records | core | `arris` |
+| `arrix-kernel` | the only crate naming Arris types: operations, naming from provenance, render meshes, body bytes, call records | core | `arris`, `serde`, `thiserror` |
 | `arrix-sketch` | the sketch model, the constraint solver, inference, trim/extend/offset/mirror (ported) | core | — |
 | `arrix-plugin-api` | the WIT world, its Rust traits and plain types; semver of its own | core | `wit-bindgen` (types only) |
 | `arrix-doc` | document, parameters and expressions, DAG, feature registry, commands, undo, evaluator, `.arrx`, the `arrix eval` line; reads no files (a `DocumentSource` hands it bytes) | core, kernel, sketch, plugin-api | `serde_json`, `zip`, `blake3` |
@@ -136,17 +137,31 @@ geometry from provenance, and to make every kernel call a record.
   `face_frame`, `mass_properties`, `tessellate`, `export_step`,
   `export_stl`, `export_obj`, `to_bytes`/`from_bytes` (ask A2). Handles
   it returns are opaque (`KernelBody`) and valid within the evaluation.
+  Built: `extrude` (a keyed `Profile` along its plane's normal, a
+  negative distance against it), `face_frame` (outward, planar faces
+  only) and `mass_properties` (volume, area, centroid).
 - **Units.** The model's `Precision` is set for metres at the micrometre
-  scale, matching SI inside.
+  scale, matching SI inside: `default_tolerance` 1e-6, Arris's defaults
+  otherwise, as Arris's own `probe-*-m` fixtures carry.
 - **Naming.** Each operation returns its outputs with their
   `PersistentName`s, derived from Arris's `Provenance` in this crate
   (`docs/DATA-MODEL.md` §Persistent naming). Sketch entity ids map to
-  Arris's `(loop_index, segment)` here and nowhere else.
-- **Call records.** Before an operation runs, it is described by a value:
-  `KernelCall { op, operands, params, precision, arris_version }`, with
-  operands by content hash. The evaluator keeps the records of the current
-  evaluation. On failure the failing record, plus its operands' body bytes,
-  is kept beside the diagnostic.
+  Arris's `(loop_index, segment)` here and nowhere else. Every face, edge
+  and vertex of a result has exactly one name and every name one entity
+  (`BodyNames`); a result that breaks either, or carries an origin the
+  operation should not record, is refused as `kernel.naming` with its
+  record kept, never named by position.
+- **Call records.** Before an operation or query runs, it is described
+  by a value: `KernelCall { op, operands, precision, arris_version }`,
+  `op` carrying its arguments in ArriX's own types (`KernelOp::Extrude {
+  feature, profile, distance }`), `precision` the recipe's
+  `default_tolerance`, `arris_version` the locked release (a test holds it
+  to `Cargo.lock`). Operands are bodies by content hash once body bytes
+  land (ask A2); until then an operand names the call that made it, by
+  its `CallIndex`. The `Kernel` keeps every record of its evaluation,
+  failed calls included, and a failure names its record's index. On
+  failure the failing record, plus its operands' body bytes, is kept
+  beside the diagnostic.
 - **Fixture export.** A kept record serialises as a self-contained Arris
   fixture recipe (Arris's `fixture.json`): the operands' closures as body
   bytes, the operation and its arguments, the precision, and nothing else
@@ -158,7 +173,11 @@ geometry from provenance, and to make every kernel call a record.
 - **Failure categories.** Every failure maps to a stable, countable key:
   the kernel's typed error with its reason (`OpError::Degenerate(
   TangentContact)`), the feature type, and the plugin id when a plugin
-  called it. The same failure across a thousand documents is one row with
+  called it. The kernel's part is a `DiagnosticCode`,
+  `kernel.<error>[.<reason>]` in lower-kebab words
+  (`kernel.degenerate.not-positive`, `kernel.internal.checker`,
+  `kernel.profile`), and `kernel.naming`, `kernel.unknown-body`,
+  `kernel.unknown-name`, `kernel.wrong-kind` for ArriX's own refusals. The same failure across a thousand documents is one row with
   a count in `arrix eval`'s summary.
 - **Nothing leaves the machine unasked.** No code in this crate, or any
   crate, sends a record anywhere. Reporting upstream is a backlog item

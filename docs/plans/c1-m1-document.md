@@ -109,7 +109,7 @@ gear extrudes; nothing is built directly).
   and its text encoding, `Frame`, keyed `Profile`, `Diagnostic` references
   and candidates. Proptest round trips (serde and text), grammar
   rejections.
-- [ ] **[3]** Step 2 — `arrix-kernel` probe and first slice: `Kernel` with
+- [x] **[3]** Step 2 — `arrix-kernel` probe and first slice: `Kernel` with
   `extrude`, `face_frame`, `mass_properties` and `KernelCall` records;
   names from provenance (caps, side faces rooted at curve keys, edges
   generated from face pairs). Probe tests in SI: a 40 × 30 mm plate with a
@@ -232,5 +232,10 @@ gate green, the wasm build included.
 - OPEN 4, closed: CI's first run was green on `b72906e` (run
   36252879779, 2026-09-26), the precondition `docs/BACKLOG.md` and
   `AGENTS.md` set for M1's first plan.
+- Finding, step 2: an extrude's edges and vertices are not generated from
+  face pairs; Arris records each by its own sweep role, so they are roots
+  (`edge:sweep.<f>.rise.<k>`). `gen` steps first appear with booleans
+  (plan 3). A call-record operand is the `CallIndex` of the call that
+  made the body until A2 gives bodies a content hash.
 - ⚠ OPEN 5: start `c1-m1-sketch` now in the second plan slot, running
   beside this one? **Human decides.**
