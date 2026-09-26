@@ -211,8 +211,13 @@ is a plan step.
 `AGENTS.md` §Commands repeats how to run each part. The lints are Python 3
 scripts sharing `scripts/lintlib.py`: they read Rust source as written,
 with comments and literal contents blanked first, and each takes the
-repository root from its own path. Until C1's first plan lands, the CI
-workflow is still to come.
+repository root from its own path. CI, `.github/workflows/ci.yml`, runs
+the same commands in five jobs (fmt, clippy, lints, test, wasm) on a push
+to `main` and on pull requests; its steps named `gate: …` are exactly the
+hooks' commands, which `gate-selftest` checks. The test job installs
+`mesa-vulkan-drivers` and sets `ARRIX_REQUIRE_GPU=1`; when it fails, it
+runs `scripts/snapshot-baseline HEAD~1` and uploads `target/snapshots/`
+as an artifact.
 
 **pre-commit** (fast):
 
@@ -259,7 +264,9 @@ workflow is still to come.
    `arris` outside the kernel, a second `arrix-*` dependency in
    `plugins/gears`, `arrix-ui` reaching `arrix-doc` through another
    crate), which must fail it, and with the exemptions each lint promises
-   (test code, the audit marker, a comment), which must pass.
+   (test code, the audit marker, a comment), which must pass. It also
+   checks that CI's `gate: …` steps run exactly the hooks' commands, each
+   as often, and that the check fails on a planted drift of either side.
 
 The visual tests need a CPU wgpu adapter, Mesa's lavapipe (CI installs
 `mesa-vulkan-drivers`). With none a scenario skips loudly, never silently

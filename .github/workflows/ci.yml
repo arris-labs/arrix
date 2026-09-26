@@ -1,0 +1,92 @@
+# The gate (docs/ARCHITECTURE.md §Gates), job for job the commands of
+# .githooks/pre-commit and .githooks/pre-push. scripts/gate-selftest checks
+# that the two stay the same list: the steps named `gate: …` run, one line
+# each, exactly the hooks' commands, each once. Other steps are setup.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  fmt:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: toolchain from rust-toolchain.toml
+        run: rustup toolchain install
+      - name: "gate: rustfmt"
+        run: cargo fmt --all -- --check
+
+  clippy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: toolchain from rust-toolchain.toml
+        run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      - name: "gate: clippy"
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+  lints:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: toolchain from rust-toolchain.toml
+        run: rustup toolchain install
+      - name: "gate: size lint"
+        run: scripts/size-lint
+      - name: "gate: wasm lint"
+        run: scripts/wasm-lint
+      - name: "gate: layer lint"
+        run: scripts/layer-lint
+      - name: "gate: lint self-test"
+        run: scripts/gate-selftest
+
+  test:
+    runs-on: ubuntu-24.04
+    env:
+      # CI has lavapipe, so a visual scenario that skips is a failure.
+      ARRIX_REQUIRE_GPU: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: toolchain from rust-toolchain.toml
+        run: rustup toolchain install
+      - name: lavapipe, the reference adapter
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends mesa-vulkan-drivers
+      - uses: Swatinem/rust-cache@v2
+      - name: "gate: tests"
+        run: cargo test --workspace
+      - name: "gate: tests, all features"
+        run: cargo test --workspace --all-features
+      # Before, after and diff images against the parent: on a push the
+      # previous commit, on a pull request the base branch.
+      - name: baseline images of a failed scenario
+        if: failure()
+        run: scripts/snapshot-baseline HEAD~1
+      - name: upload the frames of a failed scenario
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshots
+          path: target/snapshots/
+          if-no-files-found: ignore
+
+  wasm:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: toolchain from rust-toolchain.toml
+        run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      - name: "gate: wasm32 build"
+        run: cargo build --target wasm32-unknown-unknown --workspace --exclude arrix-cli

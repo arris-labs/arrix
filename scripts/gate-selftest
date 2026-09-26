@@ -11,13 +11,20 @@ every lint first, so a failing case is never the tree's own fault.
 Every case's file must end in the section the snippet belongs to (a
 manifest's `[dependencies]`, a crate root's items).
 
+It also checks that CI runs the hooks' commands: the steps of
+`.github/workflows/ci.yml` named `gate: …` must run exactly the commands of
+`.githooks/pre-commit` and `pre-push`, each as often, so the two cannot
+drift; and that the check fails on a planted drift of either side.
+
 Usage:
     scripts/gate-selftest
 """
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
+from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -86,6 +93,73 @@ CASES = [
 ]
 
 
+HOOKS = (".githooks/pre-commit", ".githooks/pre-push")
+CI = ".github/workflows/ci.yml"
+
+# (name, file, text replaced, replacement): each must make CI and the hooks
+# disagree.
+DRIFT_CASES = [
+    (
+        "a hook command CI does not run",
+        ".githooks/pre-push",
+        "scripts/gate-selftest\n",
+        "scripts/gate-selftest\ncargo doc --workspace\n",
+    ),
+    (
+        "a CI gate step no hook runs",
+        CI,
+        "run: cargo test --workspace --all-features",
+        "run: cargo test --workspace --all-features --release",
+    ),
+    (
+        "CI running one test command twice, the other never",
+        CI,
+        "        run: cargo test --workspace --all-features\n",
+        "        run: cargo test --workspace\n",
+    ),
+]
+
+GATE_STEP_RE = re.compile(r"^\s*(?:-\s+)?name:\s*[\"']?gate: ")
+RUN_RE = re.compile(r"^\s*run:\s*(.*?)\s*$")
+STEP_RE = re.compile(r"^\s*-\s")
+
+
+def hook_commands(tree):
+    """The commands the hooks run: every line but the shebang, comments,
+    `echo`, `set` and `cd`."""
+    out = []
+    for hook in HOOKS:
+        for line in (tree / hook).read_text().splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and not re.match(r"(echo|set|cd)\b", line):
+                out.append(line)
+    return out
+
+
+def ci_gate_commands(tree):
+    """The one-line `run:` of every step named `gate: …` in the workflow.
+    A multi-line run is kept as its `|` or `>`, so it cannot match."""
+    out, in_gate_step = [], False
+    for line in (tree / CI).read_text().splitlines():
+        if STEP_RE.match(line):
+            in_gate_step = False
+        if GATE_STEP_RE.match(line):
+            in_gate_step = True
+        run = RUN_RE.match(line)
+        if run and in_gate_step:
+            out.append(run.group(1))
+            in_gate_step = False
+    return out
+
+
+def ci_drift(tree):
+    """How CI and the hooks disagree, as lines; empty when they agree."""
+    hooks, ci = Counter(hook_commands(tree)), Counter(ci_gate_commands(tree))
+    return [f"hooks run {c!r} {n}x, CI {ci[c]}x" for c, n in (hooks - ci).items()] + [
+        f"CI runs {c!r} {n}x, hooks {hooks[c]}x" for c, n in (ci - hooks).items()
+    ]
+
+
 def tree_files():
     out = subprocess.run(
         ["git", "ls-files", "-co", "--exclude-standard", "-z"],
@@ -118,6 +192,24 @@ def main():
             if r.returncode != 0:
                 print(f"gate-selftest: {lint} fails on the clean tree:\n{r.stderr}", file=sys.stderr)
                 return 1
+        drift = ci_drift(clean)
+        if drift:
+            print(f"gate-selftest: {CI} and the hooks disagree:", file=sys.stderr)
+            for d in drift:
+                print(f"- {d}", file=sys.stderr)
+            return 1
+        print(f"  ok  {CI} runs exactly the hooks' {len(hook_commands(clean))} commands")
+        for i, (name, file, old, new) in enumerate(DRIFT_CASES):
+            tree = Path(tmp) / f"drift{i}"
+            shutil.copytree(clean, tree)
+            text = (tree / file).read_text()
+            assert old in text, f"drift case {name!r}: {old!r} not in {file}"
+            (tree / file).write_text(text.replace(old, new, 1))
+            ok = bool(ci_drift(tree))
+            print(f"  {'ok ' if ok else 'BAD'} the CI check fails on: {name}")
+            if not ok:
+                failures.append(f"{name}: the CI check saw no drift")
+            shutil.rmtree(tree)
         for i, (name, lint, file, snippet, expected) in enumerate(CASES):
             tree = Path(tmp) / f"case{i}"
             shutil.copytree(clean, tree)
@@ -135,7 +227,7 @@ def main():
         for f in failures:
             print(f"- {f}", file=sys.stderr)
         return 1
-    print(f"gate-selftest: {len(CASES)} cases ok")
+    print(f"gate-selftest: {len(CASES) + len(DRIFT_CASES)} cases ok")
     return 0
 
 
