@@ -467,15 +467,15 @@ it touched. It either applies whole or not at all.
   command whose effect equals the current state is not applied and leaves
   no undo entry.
 - **Plugin commands** are composed from core commands and the plugin's own
-  `PluginData` edits (`docs/PLUGINS.md` §Commands).
+  `PluginData` edits (`docs/PLUGINS.md` §Commands), below.
 
-⚠ OPEN: undo granularity for plugin commands (C1). A plugin command
-expands into core commands and plugin-data edits; whether its undo entry is
-the expansion as one `Group`, or the plugin supplies its own inverse over
-its data, decides whether a plugin can have undo that is not the literal
-reverse of its steps. Within `SEED.md` §6.1's per-author inverse rule
-either way. Agent proposes, by the C1 step that adds plugin commands; the
-ADR records it.
+**Plugin commands** (ADR-0004) run on the client that issues them: the
+plugin expands a gesture into one `Group` of core commands and
+`PluginData` edits, which is what is submitted, and its undo entry is
+that group's inverse, computed by the core. A `PluginData` edit is a
+whole-record put or remove, so the core inverts it without the plugin.
+A plugin never supplies an inverse, and the authority never runs plugin
+code, so undo works with the plugin absent.
 
 ## Sketches
 
@@ -555,5 +555,5 @@ blobs/<blake3>.<ext>   frozen results (.arrisbody), name tables, imported files,
 
 ## Open questions
 
-- ⚠ OPEN: undo granularity for plugin commands (§Commands and undo). C1;
-  agent proposes; ADR.
+None open. Undo granularity for plugin commands was settled by ADR-0004
+(§Commands and undo).

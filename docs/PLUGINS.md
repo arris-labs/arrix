@@ -213,8 +213,12 @@ absent.
 
 Undoable edits, each a composition of core commands and edits to the
 plugin's own data, applied atomically as one gesture. A plugin never
-mutates the document any other way. Its undo entry follows the rule the
-C1 ADR sets (`docs/DATA-MODEL.md` §Commands and undo, ⚠ OPEN).
+mutates the document any other way. The plugin expands the gesture on
+the client into one `Group`, which is submitted; its undo entry is that
+group's inverse, computed by the core, and a plugin-data edit is a
+whole-record put or remove the core inverts without the plugin
+(ADR-0004, `docs/DATA-MODEL.md` §Commands and undo). A plugin never
+supplies an inverse.
 
 ### 4. Importers and exporters
 
@@ -316,5 +320,3 @@ test` for any tier).
 ## Open questions
 
 - ⚠ OPEN: the Tier 2 wire encoding (§Three tiers). C3; agent proposes; ADR.
-- ⚠ OPEN: undo granularity for plugin commands, shared with
-  `docs/DATA-MODEL.md`. C1; agent proposes; ADR.

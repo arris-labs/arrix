@@ -42,3 +42,4 @@ Each rejected option and the one-line reason it lost.
 - [ADR-0001](0001-snapshot-goldens-are-text.md): snapshot goldens are text; images are rendered on demand
 - [ADR-0002](0002-home-starts-on-a-personal-account.md): the home starts on a personal account; the organisation is chosen later (superseded)
 - [ADR-0003](0003-the-home-is-arris-labs.md): the home is the `arris-labs` organisation
+- [ADR-0004](0004-plugin-commands-undo-as-one-group.md): a plugin command's undo is its expansion, inverted by the core

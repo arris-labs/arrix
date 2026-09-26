@@ -326,6 +326,6 @@ This table is brought up to date at every cycle close (`/close-cycle`).
 
 ## Open questions
 
-None of its own. The two open at kickoff are in `docs/DATA-MODEL.md`
-(undo granularity for plugin commands) and `docs/PLUGINS.md` (the Tier 2
-wire encoding).
+None of its own. Of the two open at kickoff, undo granularity for plugin
+commands is settled (ADR-0004); the Tier 2 wire encoding is open in
+`docs/PLUGINS.md`.

@@ -79,7 +79,7 @@ Headless throughout; no viewport yet.
   (`docs/DATA-MODEL.md` §Frozen results). Needs body bytes (A2).
 - `.arrx` v1: the directory form and the zip, deterministic, with the
   migration mechanism and its first (identity) fixture.
-- ⚠ OPEN closed here: undo granularity for plugin commands, with its ADR.
+- Closed here: undo granularity for plugin commands (ADR-0004).
 
 **Accept:** a scenario document built by commands alone: a sketched plate
 extruded, a spur gear on a datum plane above it joined to it, a pocket cut

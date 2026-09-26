@@ -135,7 +135,7 @@ gear extrudes; nothing is built directly).
   its inverse and the touched nodes, whole or not at all. Generation
   stamps, stale rejection, a no-op leaves no undo entry, per-author undo
   and redo stacks. Property: apply then inverse is the identity.
-- [ ] **[2]** Step 7 — ADR-0004: undo granularity for plugin commands;
+- [x] **[2]** Step 7 — ADR-0004: undo granularity for plugin commands;
   the ⚠ OPEN in `docs/DATA-MODEL.md` and `docs/PLUGINS.md` closed.
 - [ ] **[2]** Step 8 — directory-form save and load: the deterministic JSON
   writer (sorted keys, two-space indent, shortest round-trip floats,
