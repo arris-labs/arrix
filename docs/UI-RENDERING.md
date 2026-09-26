@@ -254,8 +254,9 @@ the way in.
   without a render does no GPU work; a click is one event per rendered
   frame; evaluation is asynchronous, so settle before asserting; never
   start a camera animation in a test.
-- The `visual-debug` skill, ported with the harness, is the agent's
-  how-to.
+- The `visual-debug` skill (`.agents/skills/visual-debug/SKILL.md`) is
+  the agent's how-to: scratch or scenario, reading the golden, the knobs,
+  the baseline before any refresh, and these pitfalls.
 
 ## Open questions
 
