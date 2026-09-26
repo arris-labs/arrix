@@ -21,12 +21,12 @@ skills for the idea → plan → work → retire → close-cycle pipeline live i
 
 ## Current state
 
-**Seeded 2026-09-26.** `SEED.md` agreed; the docs system is scaffolded. No
-code, no workspace, no design docs yet. **Next:** the design docs of
-`SEED.md` §10.2 (`ARCHITECTURE`, `DATA-MODEL`, `PLUGINS`, `UI-RENDERING`,
-`CONCURRENCY-WASM`, `ROADMAP` with C1 in full), then C1's first plan: the
-workspace, the gate (hooks, size/wasm/layer lints) and the ported headless
-harness.
+**Seeded 2026-09-26.** `SEED.md` agreed; the docs system is scaffolded; the
+design docs of `SEED.md` §10.2 are written, with C1 in full in
+`docs/ROADMAP.md` (M0 gate and harness → M1 the document and a plugin
+feature → M2 part features and naming → M3 the app → M4 exchange and batch).
+No code or workspace yet. **Next:** C1's first plan, M0: the workspace, the
+gate (hooks, size/wasm/layer lints) and the ported headless harness.
 
 ## Rules that are not derivable from the code
 

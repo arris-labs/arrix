@@ -39,4 +39,4 @@ Each rejected option and the one-line reason it lost.
 
 ## Index
 
-None yet.
+- [ADR-0001](0001-snapshot-goldens-are-text.md): snapshot goldens are text; images are rendered on demand

@@ -8,14 +8,14 @@ ADRs record why it is that way.
 | Doc | What it holds | State |
 |---|---|---|
 | [`../SEED.md`](../SEED.md) | The charter | Agreed 2026-09-26 |
-| `ARCHITECTURE.md` | Crates, layer rules, the one data flow, threading, the kernel choke point and call records, errors, testing, the gate | To write (`SEED.md` §10.2) |
-| `DATA-MODEL.md` | Document, DAG, features, parameters, persistent naming, frozen results, commands and undo, the `.arrx` format | To write |
-| `PLUGINS.md` | The WIT world, the three tiers, manifest, contribution points, capabilities, versioning, the test kit | To write |
-| `UI-RENDERING.md` | egui shell, ribbon and palette, declarative plugin UI, sketch mode, viewport, picking, visual debugging | To write |
-| `CONCURRENCY-WASM.md` | Background evaluation, cancellation, the wasm build, batch evaluation, performance budgets | To write |
-| `ROADMAP.md` | Cycles with goal / in / out / accept; the risk register | To write |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Crates, layer rules, the one data flow, threading, the kernel choke point and call records, errors, testing, the gate | Design, C1 not started |
+| [`DATA-MODEL.md`](DATA-MODEL.md) | Document, DAG, features, parameters, persistent naming, frozen results, commands and undo, the `.arrx` format | Design, C1 not started |
+| [`PLUGINS.md`](PLUGINS.md) | The WIT world, the three tiers, manifest, contribution points, capabilities, versioning, the test kit | Design, C1 not started |
+| [`UI-RENDERING.md`](UI-RENDERING.md) | egui shell, ribbon and palette, declarative plugin UI, sketch mode, viewport, picking, visual debugging | Design, C1 not started |
+| [`CONCURRENCY-WASM.md`](CONCURRENCY-WASM.md) | Background evaluation, cancellation, the wasm build, batch evaluation, performance budgets | Design, C1 not started |
+| [`ROADMAP.md`](ROADMAP.md) | Cycles with goal / in / out / accept; the risk register | Design, C1 not started |
 | [`BACKLOG.md`](BACKLOG.md) | One line per raw idea; rejected ones with the reason | Live |
-| [`adr/`](adr/README.md) | Architecture decision records | Empty |
+| [`adr/`](adr/README.md) | Architecture decision records | 1 |
 | [`ideas/`](ideas/) | Brainstorms awaiting a decision (from `ideas/TEMPLATE.md`) | Empty |
 | [`plans/`](plans/) | Active plans, at most two (from `plans/TEMPLATE.md`) | Empty |
 

@@ -20,8 +20,10 @@
 - Never push unless asked. Commits are the agent's; pushes are the human's.
 - Stage deliberately: read `git status` and `git diff`; no blind `git add
   -A`. A refreshed snapshot golden is only staged with a matching intentional
-  UI change, after its diff image was looked at, and the commit message says
-  why. `docs/notes/` is gitignored and stays so.
+  UI change, after its before/after/diff images (rendered on demand,
+  `scripts/snapshot-baseline`) were looked at, and the commit message says
+  why. No image or other binary golden is ever committed (ADR-0001).
+  `docs/notes/` is gitignored and stays so.
 
 ## Message format
 
