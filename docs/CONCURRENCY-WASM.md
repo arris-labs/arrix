@@ -2,8 +2,8 @@
 
 Where work runs, how an edit supersedes an evaluation, what determinism
 promises, how many documents are evaluated at once, what the browser build
-is, and the performance budgets. Nothing here is built yet: each section
-becomes true as its cycle lands (the native executor and batch evaluation
+is, and the performance budgets. Built: `arrix eval` on one document
+directory (§Batch evaluation). Each other section becomes true as its cycle lands (the native executor and batch evaluation
 in C1, the browser in C4), and the commit that builds it keeps it true.
 
 ## Roles and threads

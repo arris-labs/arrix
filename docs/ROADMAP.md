@@ -7,7 +7,7 @@ before its plan starts. One section per cycle; a finished cycle compresses
 to its status line (`/close-cycle`), and the next is detailed below it.
 
 Spine: **C1** M0 → M1 → M2 → M3 → M4 (the vertical slice with a plugin
-feature in it; not started), then **C2** (the mechanical core), **C3** (the
+feature in it; M0 landed, M1 next), then **C2** (the mechanical core), **C3** (the
 boundary crossed), **C4** (the web). Beyond C4, the named cycles are
 unordered.
 
@@ -23,7 +23,8 @@ features after it still evaluate. The risk retired: **a plugin feature is a
 first-class history entry**. It has to be proven before anything is built
 on a document model that might not allow it.*
 
-**Status: not started. Seeded 2026-09-26.**
+**Status: M0 landed 2026-09-26: the gate, the harness and `arrix eval` on an
+empty document; M1 next. Seeded 2026-09-26.**
 
 Milestones are ordered by risk after the harness: the document and the
 plugin feature are proven headless (M1) before the part features (M2), the

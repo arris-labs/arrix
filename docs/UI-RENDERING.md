@@ -5,8 +5,9 @@ the viewport and picking, and how the agent sees all of it headless. Crates:
 `arrix-ui` (widgets over view types), `arrix-viewport` (wgpu), `arrix-app`
 (the shell and the translation to and from the document). The stack is
 egui/eframe/wgpu (`SEED.md` §9), pinned to one egui minor for the workspace.
-Nothing here is built yet: each section becomes true as C1 lands, and the
-commit that builds it keeps it true.
+Built: the empty shell's layout and its first view types (§View types) and
+the headless harness (§Visual debugging). Each other section becomes true
+as C1 lands, and the commit that builds it keeps it true.
 
 ## Principles
 
@@ -239,7 +240,9 @@ the way in.
   hover as persistent names, the open sketch (points in plane and screen
   coordinates, constraints, DoF, solver status), the ribbon and palette,
   and each plugin form and panel rendered. It is how the agent tells which
-  number is wrong, not only that a pixel is.
+  number is wrong, not only that a pixel is. Built so far: the window
+  size, the rect of each shell region (`layout`) and the `ShellView` drawn
+  (`shell`); the rest joins as its part of the app is built.
 - **Deterministic frames.** No wall clock reaches a drawn pixel in a test:
   animations are skipped, the frame-time readout is off, and evaluation is
   waited for, not timed.

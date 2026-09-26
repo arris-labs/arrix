@@ -4,9 +4,12 @@ The crates, the rules between them, the one data flow, where threads run,
 the kernel's choke point, errors, testing and the gate. The charter is
 `SEED.md` §6; the document model is `docs/DATA-MODEL.md`, the plugin model
 `docs/PLUGINS.md`, the UI `docs/UI-RENDERING.md`, threads and the browser
-`docs/CONCURRENCY-WASM.md`. The workspace and its crates exist, as stubs
-so far; each other section becomes true as C1 lands, and the commit that
-builds it keeps it true.
+`docs/CONCURRENCY-WASM.md`. Built: the workspace with every crate
+(`arrix-core`'s units, ids and `Diagnostic`, `arrix-doc`'s empty-document
+open and `arrix eval` line, the empty shell in `arrix-ui` and `arrix-app`,
+the rest stubs), §Errors and diagnostics as far as `Diagnostic` goes, the
+UI and CLI rows of §Testing, and §Gates. Each other section becomes true as
+C1 lands, and the commit that builds it keeps it true.
 
 ## Crates and the layer rule
 
@@ -32,8 +35,10 @@ unless an ADR says otherwise.
 Crates live in `crates/<name>/`, plugins in `plugins/<name>/` (package
 `arrix-<name>`: `plugins/gears` is `arrix-gears`). External versions are
 pinned once, in the root `Cargo.toml`'s `[workspace.dependencies]`:
-`arris` 0.2, and one egui minor for `egui`, `eframe` and `egui-wgpu`
-(0.36). `unsafe_code = "forbid"` is a workspace lint every crate inherits.
+`arris` 0.2, and one egui minor for `egui`, `eframe`, `egui-wgpu` and the
+dev-only `egui_kittest` (0.36). The table's externals not yet in a
+manifest (`glam`, `wit-bindgen`, `zip`, `blake3`, `wgpu` directly,
+`wasmtime`) join with the code that needs them. `unsafe_code = "forbid"` is a workspace lint every crate inherits.
 The binaries are `arrix` (`arrix-cli`) and `arrix-app`. No crate is
 published yet (`publish = false`); reserving names is the human's act.
 
@@ -193,7 +198,7 @@ Everything is checkable without a human looking at a screen (`SEED.md`
 | Unit and property | in each crate; `proptest` for expressions, the DAG, naming and the file format's determinism |
 | Sketch solver | the ported scenario suite: build a sketch, solve, assert geometry, DoF and diagnostics |
 | Document | command → state → inverse round trips; undo/redo gives byte-identical files; stale-command rejection |
-| Evaluation | scenario documents in `tests/docs/*.arrx` (unzipped form, so a diff reads), evaluated by the same code path `arrix eval` uses, asserting volume, area, counts, names and diagnostics |
+| Evaluation | scenario documents in `tests/docs/<name>/` (the unzipped form, so a diff reads), evaluated by the same code path `arrix eval` uses, asserting volume, area, counts, names and diagnostics |
 | Naming | an edit that keeps a face keeps its name; a lost reference is a diagnostic with candidates, never a rebind |
 | Plugins | the in-tree test kit: determinism (evaluate twice), round trip, frozen open, migration (`docs/PLUGINS.md` §The test kit) |
 | Protocol | every command and event serialised through JSON and back |

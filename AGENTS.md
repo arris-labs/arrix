@@ -28,9 +28,10 @@ skills for the idea → plan → work → retire → close-cycle pipeline live i
 design docs of `SEED.md` §10.2 are written, with C1 in full in
 `docs/ROADMAP.md` (M0 gate and harness → M1 the document and a plugin
 feature → M2 part features and naming → M3 the app → M4 exchange and batch).
-**Now:** C1 M0, `docs/plans/c1-m0.md`: the workspace (stub crates) and
-the gate's hooks and lints exist; the headless harness and `arrix eval`
-follow.
+**C1 M0 landed 2026-09-26:** the workspace, the gate (hooks, lints, CI,
+self-test), the headless visual harness on an empty shell, and `arrix
+eval` on an empty document. **Next:** C1 M1's first plan (`/plan`), after
+CI's first run is green.
 
 ## Rules that are not derivable from the code
 

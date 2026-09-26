@@ -2,8 +2,9 @@
 
 What a document is, how it changes, how it evaluates, how its geometry is
 named and how it is written to disk. The charter is `SEED.md` §6.4–§6.5;
-this document is the design those sections commit to. Nothing here is built
-yet: each section becomes true as C1 lands, and the commit that builds it
+this document is the design those sections commit to. Built: the id types
+(§Identifiers) and opening an empty document directory (§File format).
+Each other section becomes true as C1 lands, and the commit that builds it
 keeps it true.
 
 Types live in `arrix-doc` unless named otherwise. Persistent-reference types
