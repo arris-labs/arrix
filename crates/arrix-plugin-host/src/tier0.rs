@@ -8,8 +8,8 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::Arc;
 
 use arrix_core::{Diagnostic, Severity};
-use arrix_doc::{FeatureArgs, FeatureType, FeatureTypeId, Registry, RegistryError};
-use arrix_plugin_api::{Feature, FeatureOutput, FeatureTypeSpec, Kernel};
+use arrix_doc::{FeatureArgs, FeatureType, FeatureTypeId, Registry, RegistryError, TypeOutput};
+use arrix_plugin_api::{Feature, FeatureTypeSpec, Kernel};
 
 use crate::manifest::{Manifest, ManifestError};
 
@@ -48,7 +48,7 @@ impl FeatureType for Tier0Type {
         &self,
         kernel: &mut dyn Kernel,
         args: &FeatureArgs,
-    ) -> Result<FeatureOutput, Diagnostic> {
+    ) -> Result<TypeOutput, Diagnostic> {
         if let Some(choice) = args.choices.keys().next() {
             return Err(error(
                 "feature.unknown-choice",
@@ -59,12 +59,14 @@ impl FeatureType for Tier0Type {
             self.feature
                 .evaluate(kernel, &self.spec.id, &args.params, &args.inputs)
         });
-        catch_unwind(run).unwrap_or_else(|payload| {
-            Err(error(
-                "plugin.panic",
-                format!("{} panicked: {}", self.spec.id, panic_message(&*payload)),
-            ))
-        })
+        catch_unwind(run)
+            .unwrap_or_else(|payload| {
+                Err(error(
+                    "plugin.panic",
+                    format!("{} panicked: {}", self.spec.id, panic_message(&*payload)),
+                ))
+            })
+            .map(TypeOutput::from)
     }
 
     fn plugin_version(&self) -> Option<&str> {

@@ -16,7 +16,7 @@ mod session;
 
 pub use authority::{AuthorId, Authority, Change, CommandEnvelope, Generation, Outcome, Rejected};
 pub use command::{Applied, Command, CommandError, FeatureEdit, apply};
-pub use core_types::{DatumPlane, WORLD_PLANES};
+pub use core_types::{CoreSketch, DatumPlane, WORLD_PLANES};
 pub use dag::{Dag, DagError, Node};
 pub use document::{
     Document, FeatureRecord, FeatureTypeId, Invalid, InvalidFeatureTypeId, Param, Part,
@@ -24,10 +24,10 @@ pub use document::{
 };
 pub use eval::{
     BodyLine, BodyMeasures, EvalEvent, EvalLine, EvalStatus, Evaluation, Evaluator, FeatureLine,
-    FeatureOutcome, InputHash, ParamLine, SlotView, SweepPoint, eval,
+    FeatureOutcome, InputHash, ParamLine, RegionView, SketchView, SlotView, SweepPoint, eval,
 };
 pub use open::{DOCUMENT_JSON, DocumentSource, MemorySource, OpenError, PARAMS_JSON, SCHEMA, open};
-pub use registry::{FeatureArgs, FeatureType, Registry, RegistryError};
+pub use registry::{FeatureArgs, FeatureType, Registry, RegistryError, SketchArgs, TypeOutput};
 pub use save::{save, to_json};
 pub use session::{
     DocHash, EventStream, LocalSession, ParamValues, Replica, ReplicaError, Request, Session,

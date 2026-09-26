@@ -10,9 +10,10 @@ commands, the authority and per-author undo (§Commands and undo, less
 plugin-data edits), the sketch record and its `SketchEdit` (§Sketches),
 saving and opening the directory form (§File format), names from an
 extrude's provenance in `arrix-kernel` (§Persistent naming), expressions
-(`arrix_doc::expr`, §Parameters and expressions), the evaluator with its cache (§Evaluation),
-`core.datum-plane`, and a plugin feature (`gears.spur`) on the built-ins'
-one path, referenced downstream by persistent name.
+(`arrix_doc::expr`, §Parameters and expressions), the evaluator with its
+cache (§Evaluation), `core.datum-plane`, `core.sketch`, and a plugin
+feature (`gears.spur`) on the built-ins' one path, referenced downstream
+by persistent name.
 Each other section becomes true as C1 lands, and the commit that builds it
 keeps it true.
 
@@ -162,7 +163,10 @@ namespace through the same `FeatureType` shape a plugin's `Feature` is
 adapted onto (`docs/PLUGINS.md` §Features), so the evaluator has one code
 path for both: `FeatureType` is the plugin API's `evaluate` for one type,
 taking the plugin API's `Kernel` and a `FeatureArgs` of SI parameters, the
-record's choices and resolved inputs. A `type_id` the registry does not
+record's choices and resolved inputs, and a `core.sketch` record's sketch
+with its dimensions resolved. It returns the plugin API's output plus the
+slots of a kind the plugin API has no word for, which only a built-in
+declares (`sketch_slots`) and fills: a sketch's. A `type_id` the registry does not
 know is not an error: the feature evaluates as frozen. Until frozen
 results land it fails as `feature.unknown-type`, and a `type_version`
 other than the registered one as `feature.type-version`.
@@ -193,6 +197,21 @@ it stands on the world plane its `world` choice names: `xy` (the
 default), `yz` or `zx`, `Frame::WORLD_*`'s planes. Both at once is
 `datum-plane.two-bases`. Its output slot is `plane`. No `core.origin`
 type: a world plane is a choice, not a feature.
+
+`core.sketch` stands on its plane the same way: its `plane` input, or the
+world plane its `world` choice names (`sketch.two-bases`,
+`sketch.world`). It has no form parameters; its record's `sketch` is its
+content. Evaluating it resolves each driving dimension's expression to
+the quantity its constraint measures (a failure names the constraint as
+`Ref::Sketch`; an expression on a constraint with no value is
+`sketch.not-a-dimension`), solves from the stored positions (ADR-0005),
+and fills its one slot, `sketch`: the plane, the degrees of freedom left,
+the redundant constraints, the solved sketch, and every region, largest
+first, as its `RegionKey` and its keyed `Profile` on the plane. A
+conflict fails the feature as `sketch.conflict` naming the constraints
+that cannot be met together, a solve that stopped short as
+`sketch.not-converged` naming the ones it left unmet; nothing is
+written back to the document.
 
 Sweep, loft, shell, draft and split wait for their Arris cycles
 (`SEED.md` §6.2). A type that is not in this table is not planned around.
@@ -299,7 +318,8 @@ the Arris version, the feature's id (names are rooted at it, so two
 features never share a result), `type_id`, `type_version`, the plugin's
 version (none for a built-in), each parameter's
 SI value (not its text: `1 cm` and `10 mm` hash alike), the choices and
-each input as the geometry it resolved to (a plane as its frame); the
+each input as the geometry it resolved to (a plane as its frame), and a
+sketch as its solve reads it (stored positions, resolved dimensions); the
 feature's name is not an input. It is canonical JSON through BLAKE3,
 written as 64 hex digits. A failure's codes: `input.unavailable` (a read
 feature or parameter has no value; its `refs` name it), `ref.lost` (with

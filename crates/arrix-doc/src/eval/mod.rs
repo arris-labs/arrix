@@ -8,15 +8,18 @@ mod host;
 mod line;
 mod resolve;
 #[cfg(test)]
+mod sketch_tests;
+#[cfg(test)]
 mod tests;
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use arrix_core::{
-    Diagnostic, FeatureId, Frame, ParamId, Quantity, Ref, Severity, SlotName, TopoKind,
+    Diagnostic, FeatureId, Frame, ParamId, Profile, Quantity, Ref, Severity, SlotName, TopoKind,
 };
 use arrix_kernel::{CallIndex, Kernel, KernelBody, KernelCall};
 use arrix_plugin_api::{InputKind, InputValue, OutputValue, ParamValue, ResolvedInput, SlotKind};
+use arrix_sketch::{ConstraintId, RegionKey, Sketch};
 use serde::{Deserialize, Serialize};
 
 pub use hash::InputHash;
@@ -25,7 +28,7 @@ pub use line::{BodyLine, EvalLine, EvalStatus, FeatureLine, ParamLine, SweepPoin
 use crate::dag::{Dag, Node};
 use crate::document::{Document, FeatureRecord, Part};
 use crate::expr::Expr;
-use crate::registry::{FeatureArgs, FeatureType, Registry};
+use crate::registry::{FeatureArgs, FeatureType, Registry, SketchArgs};
 use host::FeatureKernel;
 use resolve::Params;
 
@@ -47,6 +50,32 @@ pub struct BodyMeasures {
 pub enum SlotView {
     Plane(Frame),
     Body(BodyMeasures),
+    Sketch(Box<SketchView>),
+}
+
+/// A solved sketch, as its `core.sketch` feature outputs it: the plane it
+/// stands on, how free it still is, the solved sketch and its regions.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SketchView {
+    pub plane: Frame,
+    /// Degrees of freedom left; 0 is fully constrained.
+    pub dof: i32,
+    /// Constraints the others already imply. Consistent, so the sketch
+    /// solves; a client shows them.
+    pub redundant: Vec<ConstraintId>,
+    /// Solved from the stored positions with the dimensions resolved.
+    pub sketch: Sketch,
+    /// Largest first, the order `arrix_sketch::find_regions` gives.
+    pub regions: Vec<RegionView>,
+}
+
+/// One region: the key a feature stores to come back to it, and the
+/// region as a profile on the sketch's plane, its curves keyed by entity
+/// (docs/DATA-MODEL.md §Persistent naming).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct RegionView {
+    pub key: RegionKey,
+    pub profile: Profile,
 }
 
 /// How one feature's evaluation ended.
@@ -112,6 +141,7 @@ pub(crate) enum SlotOut {
         body: KernelBody,
         measures: BodyMeasures,
     },
+    Sketch(Box<SketchView>),
 }
 
 impl SlotOut {
@@ -119,6 +149,7 @@ impl SlotOut {
         match self {
             SlotOut::Plane(f) => SlotView::Plane(*f),
             SlotOut::Body { measures, .. } => SlotView::Body(*measures),
+            SlotOut::Sketch(s) => SlotView::Sketch(s.clone()),
         }
     }
 }
@@ -358,6 +389,16 @@ impl Evaluator {
         }
         let mut args = FeatureArgs {
             choices: record.choices.clone(),
+            sketch: record
+                .sketch
+                .as_deref()
+                .map(|sketch| {
+                    Ok::<_, Diagnostic>(SketchArgs {
+                        feature: record.id,
+                        sketch: resolve::dimensions(record.id, sketch, params)?,
+                    })
+                })
+                .transpose()?,
             ..FeatureArgs::default()
         };
         for p in &spec.params {
@@ -412,7 +453,18 @@ impl Evaluator {
         })?;
         let bad = |message: String| Failure::from(error("feature.output", message));
         let mut slots = Slots::new();
-        for out in output.slots {
+        for (name, view) in output.sketches {
+            if !ty.sketch_slots().contains(&name) {
+                return Err(bad(format!("{} declares no sketch slot `{name}`", spec.id)));
+            }
+            if slots
+                .insert(name.clone(), SlotOut::Sketch(Box::new(view)))
+                .is_some()
+            {
+                return Err(bad(format!("slot `{name}` is filled twice")));
+            }
+        }
+        for out in output.output.slots {
             let declared = spec.outputs.iter().find(|s| s.name == out.name);
             let slot = match (declared.map(|s| s.kind), out.value) {
                 (Some(SlotKind::Plane), OutputValue::Plane(f)) => SlotOut::Plane(f),
@@ -436,8 +488,12 @@ impl Evaluator {
                 return Err(bad(format!("slot `{}` is filled twice", out.name)));
             }
         }
-        if let Some(missing) = spec.outputs.iter().find(|s| !slots.contains_key(&s.name)) {
-            return Err(bad(format!("slot `{}` was not filled", missing.name)));
+        let declared = spec.outputs.iter().map(|s| &s.name);
+        if let Some(missing) = declared
+            .chain(ty.sketch_slots())
+            .find(|name| !slots.contains_key(*name))
+        {
+            return Err(bad(format!("slot `{missing}` was not filled")));
         }
         for slot in slots.values_mut() {
             if let SlotOut::Body { body, measures } = slot {
@@ -483,7 +539,7 @@ impl Evaluator {
             .flat_map(|e| e.slots.values())
             .filter_map(|s| match s {
                 SlotOut::Body { body, .. } => Some(*body),
-                SlotOut::Plane(_) => None,
+                SlotOut::Plane(_) | SlotOut::Sketch(_) => None,
             })
             .collect();
         self.kernel.retain(&keep);

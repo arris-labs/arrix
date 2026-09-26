@@ -151,7 +151,10 @@ fn every_type_registers_under_the_plugins_namespace() {
     let ids: Vec<_> = ids.iter().map(FeatureTypeId::as_str).collect();
     assert_eq!(ids, ["demo.disc", "demo.boom"]);
     let all: Vec<_> = r.ids().map(FeatureTypeId::as_str).collect();
-    assert_eq!(all, ["core.datum-plane", "demo.boom", "demo.disc"]);
+    assert_eq!(
+        all,
+        ["core.datum-plane", "core.sketch", "demo.boom", "demo.disc"]
+    );
 }
 
 #[test]

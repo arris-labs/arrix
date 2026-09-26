@@ -32,6 +32,10 @@ struct Canonical<'a> {
     choices: &'a std::collections::BTreeMap<String, String>,
     /// Each input as the geometry it resolved to.
     inputs: Vec<(&'a str, Frame)>,
+    /// A sketch as its solve reads it: stored positions and resolved
+    /// dimensions. Left out when there is none, so no other hash moves.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    sketch: Option<&'a arrix_sketch::Sketch>,
 }
 
 impl InputHash {
@@ -55,6 +59,7 @@ impl InputHash {
                     InputValue::Plane(f) => (i.name.as_str(), f),
                 })
                 .collect(),
+            sketch: args.sketch.as_ref().map(|s| &s.sketch),
         };
         let bytes = serde_json::to_vec(&canonical).expect("the canonical form serialises");
         Self(*blake3::hash(&bytes).as_bytes())

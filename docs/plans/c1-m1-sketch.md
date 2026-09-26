@@ -134,13 +134,19 @@ arrangement is used, the fallback `docs/ROADMAP.md` names.
   Probe through `arrix-kernel`: a sketched 40 × 30 mm plate with a bore
   extrudes, its side faces named by the entities that swept them; a
   region with a doubly-contributing entity extrudes with unique names.
-- [ ] **[2]** Step 9 — `core.sketch` as a feature type (waits on
+- [x] **[2]** Step 9 — `core.sketch` as a feature type (waits on
   `c1-m1-document` step 9): the plane from its input or its world-plane
-  parameter, dimensions resolved to SI, solved from the stored positions;
-  its `sketch` slot carries the solved sketch and its regions. A solve
-  that does not converge, or a conflict, fails the feature soft with the
-  entities named; a region key that resolves to none is `ref.lost` with
-  the current regions as candidates.
+  choice, dimensions resolved to SI, solved from the stored positions;
+  its `sketch` slot carries the solved sketch and its regions, a slot
+  kind only built-ins declare (OPEN 4). A solve that does not converge,
+  or a conflict, fails the feature soft with the entities named.
+- [ ] **[2]** Step 9b — ADR-0006, region references (OPEN 5):
+  `Ref::Region { feature, key }` with `RegionKey` in `arrix-core`, its
+  sample in integer nanometres, and a region input kind resolving to a
+  keyed `Profile`; the WIT world's `reference` and `input-kind` gain them
+  (plugin API 0.2, breaking). A region key that resolves to none is
+  `ref.lost` with the current regions as candidates, each a
+  `Ref::Region`.
 - [ ] **[1]** Step 10 — the acceptance test, and the docs it proves.
 
 ## Acceptance
@@ -226,6 +232,15 @@ empty.
   prototype's absolute wall-clock ceilings in its benchmarks are reported
   here instead of asserted, for the same reason; the analytic-against-FD
   ratio stays asserted.
+- OPEN 4, closed 2026-09-27 by the human: the `sketch` slot is a
+  doc-level slot kind. `arrix-doc`'s `FeatureType` returns the plugin
+  API's output plus the slots only a built-in declares and fills; the
+  plugin API and the WIT world are unchanged, and the evaluator keeps one
+  path.
+- OPEN 5, closed 2026-09-27 by the human: a feature holds a region as
+  `Ref::Region` in `arrix-core` and the WIT world, a breaking plugin-API
+  change (0.1 → 0.2) with its ADR. Split out of step 9 as step 9b, since
+  it is a change of its own.
 - Finding, step 5: the prototype's `RegionKey` left hole boundaries out
   on purpose, so a hole drawn later would not lose a region. Acceptance
   step 4 needs the opposite (the holed plate's key must not resolve to

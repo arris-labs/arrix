@@ -6,11 +6,13 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use arrix_core::Diagnostic;
+use arrix_core::{Diagnostic, FeatureId, SlotName};
 use arrix_plugin_api::{FeatureOutput, FeatureTypeSpec, Kernel, ParamValue, ResolvedInput};
+use arrix_sketch::Sketch;
 
-use crate::core_types::DatumPlane;
+use crate::core_types::{CoreSketch, DatumPlane};
 use crate::document::{FeatureTypeId, InvalidFeatureTypeId};
+use crate::eval::SketchView;
 
 /// A feature type as the evaluator sees it, built-in or plugin: the plugin
 /// API's `Feature` for one type, so a Tier 0 plugin is adapted onto it
@@ -27,7 +29,14 @@ pub trait FeatureType: Send + Sync {
         &self,
         kernel: &mut dyn Kernel,
         args: &FeatureArgs,
-    ) -> Result<FeatureOutput, Diagnostic>;
+    ) -> Result<TypeOutput, Diagnostic>;
+
+    /// Slots of a kind the plugin API has no word for, which only a
+    /// built-in declares and fills: a sketch's. Its spec's `outputs` are
+    /// the rest.
+    fn sketch_slots(&self) -> &[SlotName] {
+        &[]
+    }
 
     /// The contributing plugin's own version, `None` for a built-in. It is
     /// part of every input hash, so upgrading a plugin re-evaluates its
@@ -39,13 +48,40 @@ pub trait FeatureType: Send + Sync {
 
 /// What the evaluator resolved for one feature: every parameter of the
 /// type's form in SI (the record's expression or the form's default), its
-/// plain choices as written, and the inputs the record gives, in the
-/// form's order.
+/// plain choices as written, the inputs the record gives, in the form's
+/// order, and a `core.sketch` record's sketch.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct FeatureArgs {
     pub params: Vec<ParamValue>,
     pub choices: BTreeMap<String, String>,
     pub inputs: Vec<ResolvedInput>,
+    pub sketch: Option<SketchArgs>,
+}
+
+/// A record's sketch with every driving dimension's expression resolved
+/// into its value in SI, as the solve reads it, and the feature it
+/// belongs to, which what it names is named under.
+#[derive(Clone, Debug, PartialEq)]
+pub struct SketchArgs {
+    pub feature: FeatureId,
+    pub sketch: Sketch,
+}
+
+/// What a feature type's `evaluate` returns: the plugin API's output, and
+/// the slots only a built-in fills, by the name `sketch_slots` declares.
+#[derive(Debug, Default, PartialEq)]
+pub struct TypeOutput {
+    pub output: FeatureOutput,
+    pub sketches: Vec<(SlotName, SketchView)>,
+}
+
+impl From<FeatureOutput> for TypeOutput {
+    fn from(output: FeatureOutput) -> Self {
+        Self {
+            output,
+            sketches: Vec::new(),
+        }
+    }
 }
 
 impl FeatureArgs {
@@ -80,8 +116,13 @@ impl Registry {
     /// The built-in types, under `core.`.
     pub fn with_core_types() -> Self {
         let mut r = Registry::default();
-        r.register(Arc::new(DatumPlane::new()))
-            .expect("the core types have distinct, well-formed ids");
+        for ty in [
+            Arc::new(DatumPlane::new()) as Arc<dyn FeatureType>,
+            Arc::new(CoreSketch::new()),
+        ] {
+            r.register(ty)
+                .expect("the core types have distinct, well-formed ids");
+        }
         r
     }
 
@@ -121,12 +162,8 @@ mod tests {
             &self.0
         }
 
-        fn evaluate(
-            &self,
-            _: &mut dyn Kernel,
-            _: &FeatureArgs,
-        ) -> Result<FeatureOutput, Diagnostic> {
-            Ok(FeatureOutput::default())
+        fn evaluate(&self, _: &mut dyn Kernel, _: &FeatureArgs) -> Result<TypeOutput, Diagnostic> {
+            Ok(TypeOutput::default())
         }
     }
 
@@ -164,7 +201,7 @@ mod tests {
     fn the_core_types_are_registered_under_core() {
         let r = Registry::with_core_types();
         let ids: Vec<_> = r.ids().map(FeatureTypeId::as_str).collect();
-        assert_eq!(ids, ["core.datum-plane"]);
+        assert_eq!(ids, ["core.datum-plane", "core.sketch"]);
     }
 
     #[test]

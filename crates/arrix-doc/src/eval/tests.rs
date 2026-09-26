@@ -13,6 +13,7 @@ use arrix_plugin_api::{
 
 use super::*;
 use crate::document::{FeatureTypeId, Param};
+use crate::registry::TypeOutput;
 
 const PART: PartId = PartId(Id(1));
 
@@ -63,7 +64,7 @@ impl FeatureType for Block {
         &self,
         kernel: &mut dyn Kernel,
         args: &FeatureArgs,
-    ) -> Result<FeatureOutput, Diagnostic> {
+    ) -> Result<TypeOutput, Diagnostic> {
         let w = args.param("width").unwrap();
         let plane = match args.input("plane").map(|i| i.value) {
             Some(InputValue::Plane(f)) => f,
@@ -89,7 +90,8 @@ impl FeatureType for Block {
                 name: slot("body"),
                 value: OutputValue::Body(body),
             }],
-        })
+        }
+        .into())
     }
 }
 

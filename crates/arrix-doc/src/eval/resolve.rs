@@ -9,6 +9,7 @@ use arrix_core::{
     TopoKind,
 };
 use arrix_kernel::{Kernel, KernelBody};
+use arrix_sketch::Sketch;
 
 use super::host::kernel_diagnostic;
 use super::{Failure, SlotOut, State};
@@ -118,12 +119,20 @@ pub(super) fn plane(
     match r {
         Ref::Slot { feature, slot } => match outputs(doc, states, *feature, r)?.get(slot) {
             Some(SlotOut::Plane(frame)) => Ok(*frame),
-            Some(SlotOut::Body { .. }) => Err(error(
-                "input.wrong-kind",
-                format!("slot `{slot}` of feature {feature} is a body, where a plane is wanted"),
-            )
-            .with_refs([r.clone()])
-            .into()),
+            Some(other) => {
+                let kind = match other {
+                    SlotOut::Body { .. } => "a body",
+                    _ => "a sketch",
+                };
+                Err(error(
+                    "input.wrong-kind",
+                    format!(
+                        "slot `{slot}` of feature {feature} is {kind}, where a plane is wanted"
+                    ),
+                )
+                .with_refs([r.clone()])
+                .into())
+            }
             None => Err(error(
                 "ref.lost",
                 format!("feature {feature} has no slot `{slot}`"),
@@ -237,4 +246,44 @@ pub(super) fn candidates(lost: &PersistentName, pool: &[PersistentName]) -> Vec<
         .take(MAX_CANDIDATES)
         .map(|n| Ref::Topo(n.clone()))
         .collect()
+}
+
+/// `sketch` with each driving dimension's expression resolved into its
+/// value in SI, the quantity its constraint measures. A failure names the
+/// constraint, as `Ref::Sketch`; a reference or suppressed record's
+/// expression is not read.
+pub(super) fn dimensions(
+    feature: FeatureId,
+    sketch: &Sketch,
+    params: &Params,
+) -> Result<Sketch, Diagnostic> {
+    let mut out = sketch.clone();
+    for (id, record) in sketch.constraints() {
+        let Some(text) = record.expr.as_deref() else {
+            continue;
+        };
+        if record.is_reference() || record.is_suppressed() {
+            continue;
+        }
+        let named = Ref::Sketch {
+            feature,
+            entity: *id,
+        };
+        let Some(kind) = record.constraint.dimension_kind() else {
+            return Err(error(
+                "sketch.not-a-dimension",
+                format!("constraint {id} has an expression and no value for it to drive"),
+            )
+            .with_refs([named]));
+        };
+        let expr = Expr::parse(text).map_err(|e| e.diagnostic().with_refs([named.clone()]))?;
+        let value = params.quantity(&expr, kind).map_err(|mut d| {
+            d.message = format!("dimension {id}: {}", d.message);
+            d.with_refs([named])
+        })?;
+        out.get_constraint_mut(*id)
+            .expect("the id is the sketch's")
+            .set_dimensional_value(value.si);
+    }
+    Ok(out)
 }
