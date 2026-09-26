@@ -121,7 +121,7 @@ gear extrudes; nothing is built directly).
   `kernel` slice, `feature`), the Rust traits and plain types, and a test
   holding them equal to `wit-bindgen`'s generated bindings. Builds for
   wasm32.
-- [ ] **[2]** Step 4 — parameters and expressions: parser over
+- [x] **[2]** Step 4 — parameters and expressions: parser over
   `arrix_core::units`, AST stored as its text, dimensional analysis at
   parse time, evaluation to SI, the functions of §Parameters. Proptest
   (print-parse round trip), unit-mismatch diagnostics.

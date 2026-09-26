@@ -5,7 +5,8 @@ named and how it is written to disk. The charter is `SEED.md` §6.4–§6.5;
 this document is the design those sections commit to. Built: the id types
 (§Identifiers), `Ref` and `SlotName` (§References), the persistent-name
 types and their text form (§Persistent naming), names from an extrude's
-provenance in `arrix-kernel` (§Persistent naming), and opening an empty
+provenance in `arrix-kernel` (§Persistent naming), expressions
+(`arrix_doc::expr`, §Parameters and expressions), and opening an empty
 document directory (§File format).
 Each other section becomes true as C1 lands, and the commit that builds it
 keeps it true.
@@ -99,6 +100,25 @@ the recipe, so a diff shows what the user typed.
 - A parameter referenced by an expression is a DAG edge (§The dependency
   DAG). A cycle between parameters is refused when the command that would
   create it is applied.
+
+The grammar, from loosest to tightest: `+ -`, then `* /`, then a prefix
+`-`, then `^` (right-associative, so `-2^2` is −4 and `2^3^2` is 512),
+then atoms: a number with an optional unit, a call, a name, a
+parenthesised expression. **A unit is only ever a number's suffix**
+(`2 m`, `12mm`), so a bare `m` is the parameter named `m`. The functions:
+`sin`, `cos`, `tan` (of an angle or a plain number, as radians), `asin`,
+`acos`, `atan`, `atan2` (to an angle), `sqrt`, `abs`, `min`, `max`, and
+`round`, `floor`, `ceil` of a plain number only, so rounding a length is
+written `round(w / 1 mm) * 1 mm`. A dimension is the exponents of length,
+angle and mass; a dimensioned value is raised only to a whole number
+written out. `Expr::check` is the dimensional analysis, against the
+parameters' kinds; `Expr::evaluate` gives the SI value; `Expr::quantity`
+does both for a slot of a known kind, and a count must come out whole.
+Each failure is a code: `expr.syntax` (with the byte it stopped at),
+`expr.unknown-unit`, `expr.unknown-name`, `expr.unknown-function`,
+`expr.arity`, `expr.dimension`, `expr.unit-mismatch`, `expr.not-finite`,
+`expr.not-whole`. An `Expr` serialises as its text and is parsed on the
+way in.
 
 ## Features
 

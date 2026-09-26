@@ -433,6 +433,7 @@ dependencies = [
  "arrix-kernel",
  "arrix-plugin-api",
  "arrix-sketch",
+ "proptest",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
