@@ -234,4 +234,20 @@ impl Draft {
             periodic,
         })
     }
+
+    /// A clamped B-spline on new control points at `coords`.
+    #[cfg(feature = "conics")]
+    pub fn add_clamped_bspline(
+        &mut self,
+        coords: &[[f64; 2]],
+        degree: usize,
+    ) -> (Vec<PointId>, EntityId) {
+        let pids: Vec<PointId> = coords
+            .iter()
+            .map(|&[x, y]| self.add_point(Point::new(x, y)))
+            .collect();
+        let knots = crate::bspline::default_clamped_knots(coords.len(), degree);
+        let eid = self.add_bspline(pids.clone(), knots, degree, false);
+        (pids, eid)
+    }
 }

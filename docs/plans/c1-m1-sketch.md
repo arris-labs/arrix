@@ -91,20 +91,24 @@ arrangement is used, the fallback `docs/ROADMAP.md` names.
   `arrix-core`; serde as the document will write it. Ported model tests
   green, a JSON round trip, and a test that a gated kind does not
   deserialise on the default build.
-- [ ] **[3]** Step 2 — the solver: the system and its partition into
+- [x] **[3]** Step 2 — the solver: the system and its partition into
   independent subsystems, residuals and the analytic Jacobian, DogLeg and
-  LM, the DogLeg loop split under 200 lines. The ported solver scenarios
-  and the analytic-against-finite-difference gradient suite green in SI;
-  the same sketch solved twice gives bit-identical positions.
+  LM, the DogLeg loop split under 200 lines; and the diagnostics (DoF,
+  redundancy and conflict from one rank analysis, `Diagnostics::analyze`
+  split), since the ported scenarios read every verdict through them.
+  The ported solver scenarios, the analytic-against-finite-difference
+  gradient suite, the rank-stability, subsystem, status-split and FreeCAD
+  parity tests green in SI; the same sketch solved twice gives
+  bit-identical positions.
 - [ ] **[2]** Step 3 — drag and the branch guard: steps in the
   constraints' null space; a step that would flip an angle, a tangency
   side or an arc's sweep refused. The ported drag-policy tests. A
   200-entity drag solve measured against the 4 ms budget
   (`docs/CONCURRENCY-WASM.md` §Budgets), reported, not gated.
-- [ ] **[2]** Step 4 — diagnostics and validation: DoF, redundancy and
-  conflict from one rank analysis; degenerate geometry and open gaps;
-  both long functions split. Rank-stability, subsystem, analysis and
-  validation tests ported.
+- [ ] **[2]** Step 4 — validation: degenerate geometry and open gaps, the
+  degenerate-geometry function split. Validation tests ported. (The
+  diagnostics came with step 2; the prototype's `analysis_scenarios` test
+  auto-constrain, which is sketch mode's, M3.)
 - [ ] **[3]** Step 5 — the arrangement and regions: pieces, loops, faces,
   `RegionKey` (bounding entity ids and an interior sample); a key resolves
   to one region or none. The same sketch twice gives the same regions in
@@ -199,3 +203,8 @@ empty.
   Step 8 maps that onto `CurveKey` (a cut entity's pieces need keys of
   their own, since `Profile` refuses a key twice) and states the rule in
   §Persistent naming.
+- Finding, step 2: the ported scenario suite reads its verdicts through
+  `Diagnostics`, so the diagnostics moved from step 4 into step 2. The
+  drag scenarios wait for step 3 and the region ones for step 5; the
+  inference scenario is M3's, and a dangling-reference Jacobian case is
+  gone because a sketch can no longer hold one (step 1).

@@ -309,6 +309,19 @@ impl Sketch {
         self.constraints.remove(&id).is_some()
     }
 
+    /// Solves the sketch in place from its current positions (see
+    /// [`crate::solve`]).
+    pub fn solve(&mut self) -> crate::SolveResult {
+        crate::solve(self)
+    }
+
+    /// What a dimensional constraint measures on the current geometry: the
+    /// number its residual compares with its value, and what a reference
+    /// dimension shows.
+    pub fn measure(&self, constraint: &Constraint) -> Option<f64> {
+        crate::measured_value(self, constraint)
+    }
+
     /// The nearest point to `(x, y)` within `tol`, for a pick.
     pub fn hit_point(&self, x: f64, y: f64, tol: f64) -> Option<PointId> {
         let mut best: Option<(PointId, f64)> = None;
