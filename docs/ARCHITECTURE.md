@@ -201,22 +201,33 @@ is a plan step.
 
 ## Gates
 
-`.githooks/` mirrors CI (`.agents/rules/git.md`); `git config
-core.hooksPath .githooks` once per clone or worktree. C1's first plan
-creates both; this list is what it builds, and `AGENTS.md` §Commands
-repeats it once it runs.
+`.githooks/` holds the gate and CI mirrors it (`.agents/rules/git.md`);
+`git config core.hooksPath .githooks` once per clone or worktree.
+`AGENTS.md` §Commands repeats how to run each part. The lints are Python 3
+scripts sharing `scripts/lintlib.py`: they read Rust source as written,
+with comments and literal contents blanked first, and each takes the
+repository root from its own path. Until C1's first plan lands, the layer
+lint and the CI workflow are still to come.
 
 **pre-commit** (fast):
 
 1. `cargo fmt --all -- --check`
 2. `cargo clippy --workspace --all-targets --all-features -- -D warnings`
 3. `scripts/size-lint`: at most 1,500 lines per file and 200 per function
-   outside tests (`SEED.md` §8.2). An allowlist exists; its growth is the
-   signal to split, and every entry names the plan that removes it.
-4. `scripts/wasm-lint`: no `std::time::Instant` or `SystemTime` (use
-   `web_time`), no `std::thread::spawn` outside the executor module, no
-   `std::fs` outside `arrix-cli`, `arrix-app`'s native file dialog and
-   `arrix-plugin-host`.
+   in `crates/` and `plugins/` (`SEED.md` §8.2). Integration tests are
+   skipped; an inline `mod tests` and a `tests.rs` file are exempt from the
+   function limit. The allowlist, `scripts/size-allowlist.txt`, is empty;
+   its growth is the signal to split, and every entry names the plan that
+   removes it and has the human's OK.
+4. `scripts/wasm-lint`: what compiles for wasm32 and fails there. No
+   `std::time::Instant` or `SystemTime` (use `web_time`; a deliberately
+   native-only item carries `#[allow(clippy::disallowed_types, reason =
+   …)]`); no `thread::spawn` or `thread::Builder` outside the executor
+   (`crates/arrix-doc/src/executor`); no `std::fs` outside `arrix-app`'s
+   native file dialog (`crates/arrix-app/src/file_dialog`) and
+   `arrix-plugin-host`. `arrix-cli` is native-only and exempt from the
+   thread and fs rules, as is test code. The permitted places are one
+   table at the top of the script.
 5. `scripts/layer-lint`: the layer rules above, from `cargo metadata`
    (dependency edges per crate) plus a scan of `use` paths (no `arris::`
    outside `arrix-kernel`, no `egui::` in the non-UI crates, no `arrix_doc`
@@ -227,8 +238,14 @@ repeats it once it runs.
 
 1. `cargo test --workspace`
 2. `cargo test --workspace --all-features`
-3. `cargo build --target wasm32-unknown-unknown` for every crate but
-   `arrix-cli` and `arrix-plugin-host`'s native tiers.
+3. `cargo build --target wasm32-unknown-unknown --workspace --exclude
+   arrix-cli`. `arrix-plugin-host`'s native tiers (C3) go behind a
+   target cfg so the crate still builds.
+4. `scripts/gate-selftest`: each lint run on a copy of the tree with a
+   deliberate violation planted (an oversize function, `Instant::now` in a
+   core crate, `std::fs` in `arrix-doc`, a thread spawned in
+   `arrix-kernel`), which must fail it, and with the exemptions each lint
+   promises, which must pass.
 
 The visual tests need a wgpu adapter; the reference is Mesa's lavapipe
 (CI installs `mesa-vulkan-drivers`). With no adapter a scenario skips

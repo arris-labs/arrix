@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+"""Size lint: split, don't allowlist (SEED.md §8.2 rule 8).
+
+Fails if a `.rs` file under crates/ or plugins/ exceeds 1,500 lines, or a
+function outside test code exceeds 200, unless the offender is listed in
+scripts/size-allowlist.txt. Integration tests (any `tests/` directory) are
+skipped; an inline `mod tests` block and a `tests.rs` module file are exempt
+from the function check and still count toward their file's total.
+
+A function's length is found by brace depth over source whose comments and
+literals are blanked (scripts/lintlib.py).
+
+Usage:
+    scripts/size-lint          exit 0 if clean, 1 listing the offenders
+    scripts/size-lint --list   every offender, ignoring the allowlist
+"""
+import re
+import sys
+
+from lintlib import ROOT, block_end, clean_lines, in_ranges, rel, report, rust_files, test_ranges
+
+FILE_LIMIT = 1500
+FN_LIMIT = 200
+
+ALLOWLIST = ROOT / "scripts" / "size-allowlist.txt"
+
+FN_RE = re.compile(
+    r"^\s*(pub(\([^)]*\))?\s+)?"
+    r"(default\s+)?(const\s+)?(async\s+)?(unsafe\s+)?"
+    r'(extern\s+"[^"]*"\s+)?'
+    r"fn\s+([A-Za-z_][A-Za-z0-9_]*)"
+)
+
+
+def load_allowlist():
+    files, fns = set(), set()
+    if not ALLOWLIST.exists():
+        return files, fns
+    for raw in ALLOWLIST.read_text().splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if not line:
+            continue
+        if ":" in line:
+            path, name = line.split(":", 1)
+            fns.add((path.strip(), name.strip()))
+        else:
+            files.add(line)
+    return files, fns
+
+
+def functions(clean):
+    """(name, first line, last line, length), 1-based, for each fn with a
+    body; a body-less signature (a trait method) is skipped."""
+    out = []
+    i = 0
+    while i < len(clean):
+        m = FN_RE.match(clean[i])
+        if m:
+            end = block_end(clean, i)
+            if end is not None and "{" in "".join(clean[i : end + 1]):
+                out.append((m.group(8), i + 1, end + 1, end - i + 1))
+                i = end + 1
+                continue
+        i += 1
+    return out
+
+
+def check(path, allow_files, allow_fns):
+    name = rel(path)
+    lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    found = []
+    if len(lines) > FILE_LIMIT and name not in allow_files:
+        found.append(f"{name}: {len(lines)} lines (limit {FILE_LIMIT})")
+    clean = clean_lines(lines)
+    tests = test_ranges(path, clean)
+    for fn, start, end, length in functions(clean):
+        if length <= FN_LIMIT or in_ranges(start - 1, tests) or (name, fn) in allow_fns:
+            continue
+        found.append(f"{name}:{start}-{end} fn `{fn}`: {length} lines (limit {FN_LIMIT})")
+    return found
+
+
+def main():
+    list_mode = "--list" in sys.argv[1:]
+    allow_files, allow_fns = (set(), set()) if list_mode else load_allowlist()
+    violations = []
+    for path in rust_files(include_test_dirs=False):
+        violations.extend(check(path, allow_files, allow_fns))
+    if list_mode:
+        print("\n".join(violations) or "no offenders")
+        return 0
+    return report(
+        "size-lint",
+        violations,
+        "Split the file or the function. An allowlist entry in "
+        "scripts/size-allowlist.txt needs a written reason, the plan that "
+        "removes it, and the human's OK.",
+    )
+
+
+if __name__ == "__main__":
+    sys.exit(main())

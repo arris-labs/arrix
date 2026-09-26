@@ -16,8 +16,8 @@ skills for the idea → plan → work → retire → close-cycle pipeline live i
 - `.claude/rules` and `.claude/skills` are symlinks into `.agents/`. On
   Windows, clone with symlinks enabled (`git config --global core.symlinks
   true`, with Developer Mode on), or the skills and rules won't load.
-- The git hooks arrive with C1's first plan (`git config core.hooksPath
-  .githooks`).
+- `git config core.hooksPath .githooks` installs the gate's hooks.
+  Python 3 runs the lints.
 
 ## Current state
 
@@ -25,8 +25,9 @@ skills for the idea → plan → work → retire → close-cycle pipeline live i
 design docs of `SEED.md` §10.2 are written, with C1 in full in
 `docs/ROADMAP.md` (M0 gate and harness → M1 the document and a plugin
 feature → M2 part features and naming → M3 the app → M4 exchange and batch).
-No code or workspace yet. **Next:** C1's first plan, M0: the workspace, the
-gate (hooks, size/wasm/layer lints) and the ported headless harness.
+**Now:** C1 M0, `docs/plans/c1-m0.md`: the workspace (stub crates) and
+the hooks exist; the layer lint, the headless harness and `arrix eval`
+follow.
 
 ## Rules that are not derivable from the code
 
@@ -64,7 +65,18 @@ gate (hooks, size/wasm/layer lints) and the ported headless harness.
 
 ## Commands
 
-None yet. C1's first plan creates the workspace and writes the gate here.
+The gate, as `docs/ARCHITECTURE.md` §Gates defines it; `/work` runs all of
+it before ticking a step:
+
+- `.githooks/pre-commit`: `cargo fmt --all -- --check`, `cargo clippy
+  --workspace --all-targets --all-features -- -D warnings`,
+  `scripts/size-lint`, `scripts/wasm-lint`.
+- `.githooks/pre-push`: `cargo test --workspace` (and `--all-features`),
+  `cargo build --target wasm32-unknown-unknown --workspace --exclude
+  arrix-cli`, `scripts/gate-selftest`.
+- Either hook runs by hand as `.githooks/pre-commit` or
+  `.githooks/pre-push`. `scripts/size-lint --list` shows offenders past
+  the allowlist.
 
 ## Local reference checkouts
 

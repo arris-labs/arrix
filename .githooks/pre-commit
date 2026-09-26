@@ -1,0 +1,17 @@
+#!/bin/sh
+# The fast half of the gate (docs/ARCHITECTURE.md §Gates), mirrored by CI.
+# Installed once per clone or worktree: git config core.hooksPath .githooks
+set -e
+cd "$(git rev-parse --show-toplevel)"
+
+echo "pre-commit: cargo fmt --check"
+cargo fmt --all -- --check
+
+echo "pre-commit: cargo clippy -D warnings"
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+echo "pre-commit: size-lint"
+scripts/size-lint
+
+echo "pre-commit: wasm-lint"
+scripts/wasm-lint

@@ -1,0 +1,12 @@
+# Allowlist for scripts/size-lint.
+#
+# Empty is the normal state. The rule is "split, don't allowlist" (SEED.md
+# §8.2 rule 8), and the list growing is the watch signal in the C1 risk
+# register (docs/ROADMAP.md). An entry needs a reason, the plan that removes
+# it, and the human's OK; an entry with no owner is the thing to object to.
+#
+# Format, one entry per line, then `# reason; removed by plans/<slug> step N`:
+#   crates/x/src/file.rs                  exempts the file from the
+#                                         1,500-line check
+#   crates/x/src/file.rs:function_name    exempts one function from the
+#                                         200-line check

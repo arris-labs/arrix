@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+"""Proves each lint of the gate fails on the violation it exists for
+(docs/ARCHITECTURE.md §Gates, docs/ROADMAP.md §M0 accept).
+
+The working tree (tracked and untracked files, `.gitignore` respected) is
+copied to a temporary directory once per case; the case appends a snippet to
+one file, and the copy's own lint must exit 1 (a violation) or 0 (a
+counter-case: the exemption the lint promises). The clean copy must pass
+every lint first, so a failing case is never the tree's own fault.
+
+Usage:
+    scripts/gate-selftest
+"""
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+
+LINTS = ("size-lint", "wasm-lint")
+
+LONG_FN = "\npub fn oversize() {\n" + "    let _ = 0;\n" * 200 + "}\n"
+
+# (name, lint, file, appended snippet, expected exit code)
+CASES = [
+    ("oversize function", "size-lint", "crates/arrix-core/src/lib.rs", LONG_FN, 1),
+    (
+        "oversize function in mod tests",
+        "size-lint",
+        "crates/arrix-core/src/lib.rs",
+        "\n#[cfg(test)]\nmod tests {" + LONG_FN + "}\n",
+        0,
+    ),
+    (
+        "Instant::now in a core crate",
+        "wasm-lint",
+        "crates/arrix-core/src/lib.rs",
+        "\npub fn now() -> std::time::Instant {\n    std::time::Instant::now()\n}\n",
+        1,
+    ),
+    (
+        "Instant under the audit marker",
+        "wasm-lint",
+        "crates/arrix-core/src/lib.rs",
+        '\n#[allow(clippy::disallowed_types, reason = "native-only")]\n'
+        "pub fn now() -> std::time::Instant {\n    std::time::Instant::now()\n}\n",
+        0,
+    ),
+    (
+        "std::fs in arrix-doc",
+        "wasm-lint",
+        "crates/arrix-doc/src/lib.rs",
+        '\npub fn read() -> Vec<u8> {\n    std::fs::read("x").unwrap_or_default()\n}\n',
+        1,
+    ),
+    (
+        "thread::spawn outside the executor",
+        "wasm-lint",
+        "crates/arrix-kernel/src/lib.rs",
+        "\npub fn go() {\n    std::thread::spawn(|| {});\n}\n",
+        1,
+    ),
+]
+
+
+def tree_files():
+    out = subprocess.run(
+        ["git", "ls-files", "-co", "--exclude-standard", "-z"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+    ).stdout
+    return [p for p in out.decode().split("\0") if p and (ROOT / p).is_file()]
+
+
+def copy_tree(files, dest):
+    for f in files:
+        target = dest / f
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(ROOT / f, target)
+
+
+def run_lint(tree, lint):
+    return subprocess.run([sys.executable, str(tree / "scripts" / lint)], cwd=tree, capture_output=True, text=True)
+
+
+def main():
+    files = tree_files()
+    failures = []
+    with tempfile.TemporaryDirectory(prefix="arrix-gate-selftest-") as tmp:
+        clean = Path(tmp) / "clean"
+        copy_tree(files, clean)
+        for lint in LINTS:
+            r = run_lint(clean, lint)
+            if r.returncode != 0:
+                print(f"gate-selftest: {lint} fails on the clean tree:\n{r.stderr}", file=sys.stderr)
+                return 1
+        for i, (name, lint, file, snippet, expected) in enumerate(CASES):
+            tree = Path(tmp) / f"case{i}"
+            shutil.copytree(clean, tree)
+            with open(tree / file, "a") as f:
+                f.write(snippet)
+            r = run_lint(tree, lint)
+            ok = r.returncode == expected
+            verdict = "fails" if expected else "passes"
+            print(f"  {'ok ' if ok else 'BAD'} {lint} {verdict} on: {name}")
+            if not ok:
+                failures.append(f"{name}: {lint} exited {r.returncode}, expected {expected}\n{r.stdout}{r.stderr}")
+            shutil.rmtree(tree)
+    if failures:
+        print("\ngate-selftest: FAILED", file=sys.stderr)
+        for f in failures:
+            print(f"- {f}", file=sys.stderr)
+        return 1
+    print(f"gate-selftest: {len(CASES)} cases ok")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

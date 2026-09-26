@@ -1,0 +1,112 @@
+#!/usr/bin/env python3
+"""Wasm lint: what compiles for wasm32 but fails there (docs/ARCHITECTURE.md
+§Gates, docs/CONCURRENCY-WASM.md §The browser build).
+
+The wasm build only compiles, and each of these compiles:
+
+- `std::time::Instant` / `SystemTime` panic on wasm32-unknown-unknown (no
+  clock). Use `web_time`. Checked everywhere, tests included; a deliberately
+  native-only item carries `#[allow(clippy::disallowed_types, reason = "…")]`
+  as its audit trail. (Clippy's `disallowed_types` cannot express the rule:
+  `web_time` re-exports `std::time` natively, so both paths resolve to the
+  same type. Hence a lint that reads the path as written.)
+- Spawning a thread panics there. Threads are spawned by the executor only.
+- There is no filesystem. `std::fs` is named only where a native path owns
+  it.
+
+Thread and fs rules skip test code (`tests/` dirs, `mod tests`, `tests.rs`),
+which never ships. The permitted places are the table below.
+
+Usage:
+    scripts/wasm-lint          exit 0 if clean, 1 listing the offenders
+"""
+import re
+import sys
+
+from lintlib import block_end, clean_lines, in_ranges, rel, report, rust_files, test_ranges
+
+# Crates never built for wasm32 (the pre-push wasm build excludes them).
+NATIVE_ONLY = ("crates/arrix-cli/",)
+
+# Path prefixes where a rule does not apply, besides NATIVE_ONLY.
+PERMITTED = {
+    # The session and evaluator threads (docs/CONCURRENCY-WASM.md §Roles and
+    # threads); a web worker in C4.
+    "thread": ("crates/arrix-doc/src/executor",),
+    # The app's native file dialog, and the plugin host (manifests, Tier 1
+    # and Tier 2 on native).
+    "fs": ("crates/arrix-app/src/file_dialog", "crates/arrix-plugin-host/"),
+}
+
+RULES = {
+    "time": [
+        re.compile(r"\bstd::time::(Instant|SystemTime)\b"),
+        re.compile(r"\bstd::time::\{[^}]*\b(Instant|SystemTime)\b"),
+    ],
+    "thread": [
+        re.compile(r"\bthread::(spawn|Builder)\b"),
+        re.compile(r"\bstd::thread::\{[^}]*\b(spawn|Builder)\b"),
+    ],
+    "fs": [
+        re.compile(r"\bstd::fs\b"),
+        re.compile(r"\bstd::\{[^}]*\bfs\b"),
+    ],
+}
+
+ADVICE = {
+    "time": "use web_time::{Instant, SystemTime}",
+    "thread": "spawn through the executor (crates/arrix-doc/src/executor)",
+    "fs": "take bytes; only a native path reads files",
+}
+
+ALLOW_RE = re.compile(r"^\s*#\[allow\([^\]]*clippy::disallowed_types")
+
+
+def time_exemptions(clean):
+    """Line ranges covered by `#[allow(clippy::disallowed_types, ...)]`: the
+    attribute through the end of the item after it."""
+    ranges = []
+    for i, line in enumerate(clean):
+        if ALLOW_RE.match(line):
+            end = block_end(clean, i + 1)
+            ranges.append((i, end if end is not None else i))
+    return ranges
+
+
+def check(path):
+    name = rel(path)
+    lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    clean = clean_lines(lines)
+    is_test_file = "/tests/" in f"/{name}" or "/benches/" in f"/{name}"
+    tests = test_ranges(path, clean)
+    exempt = time_exemptions(clean)
+    found = []
+    for rule, patterns in RULES.items():
+        if rule != "time":
+            if name.startswith(NATIVE_ONLY) or name.startswith(PERMITTED[rule]) or is_test_file:
+                continue
+        for i, line in enumerate(clean):
+            if not any(p.search(line) for p in patterns):
+                continue
+            if rule == "time" and in_ranges(i, exempt):
+                continue
+            if rule != "time" and in_ranges(i, tests):
+                continue
+            found.append(f"{name}:{i + 1}: [{rule}] {lines[i].strip()}  ({ADVICE[rule]})")
+    return found
+
+
+def main():
+    violations = []
+    for path in rust_files():
+        violations.extend(check(path))
+    return report(
+        "wasm-lint",
+        violations,
+        "Each compiles for wasm32 and fails at run time there. The permitted "
+        "places are the table at the top of scripts/wasm-lint.",
+    )
+
+
+if __name__ == "__main__":
+    sys.exit(main())
