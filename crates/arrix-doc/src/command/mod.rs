@@ -10,6 +10,7 @@ mod tests;
 use std::collections::{BTreeMap, BTreeSet};
 
 use arrix_core::{Diagnostic, FeatureId, Id, ParamId, PartId, Ref, Severity};
+use arrix_sketch::{SketchEdit, SketchError};
 use serde::{Deserialize, Serialize};
 
 use crate::dag::Node;
@@ -62,6 +63,13 @@ pub enum Command {
         part: PartId,
         at: Option<usize>,
     },
+    /// Puts or removes records of a `core.sketch` feature's sketch. It
+    /// carries the positions its author solved for; applying it never
+    /// solves (ADR-0005).
+    SketchEdit {
+        feature: FeatureId,
+        edit: SketchEdit,
+    },
     /// One undo entry.
     Group {
         label: String,
@@ -98,6 +106,13 @@ pub enum CommandError {
     IdTaken(Id),
     #[error("index {at} is past the {len} places there are")]
     Index { at: usize, len: usize },
+    #[error("feature {0} holds no sketch")]
+    NoSketch(FeatureId),
+    #[error("feature {feature}'s sketch: {error}")]
+    Sketch {
+        feature: FeatureId,
+        error: SketchError,
+    },
     #[error("the result would be malformed: {0}")]
     Invalid(#[from] Invalid),
 }

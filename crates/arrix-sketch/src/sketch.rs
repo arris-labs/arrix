@@ -54,18 +54,19 @@ pub struct Sketch {
     pub(crate) construction: BTreeSet<EntityId>,
 }
 
-/// The unchecked wire form a [`Sketch`] is read through.
+/// The unchecked wire form a [`Sketch`] is read through, and what an edit
+/// is applied to before the result is checked.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct SketchRecord {
+pub(crate) struct SketchRecord {
     #[serde(default)]
-    points: BTreeMap<PointId, Point>,
+    pub(crate) points: BTreeMap<PointId, Point>,
     #[serde(default)]
-    entities: BTreeMap<EntityId, Entity>,
+    pub(crate) entities: BTreeMap<EntityId, Entity>,
     #[serde(default)]
-    constraints: BTreeMap<ConstraintId, ConstraintRecord>,
+    pub(crate) constraints: BTreeMap<ConstraintId, ConstraintRecord>,
     #[serde(default)]
-    construction: BTreeSet<EntityId>,
+    pub(crate) construction: BTreeSet<EntityId>,
 }
 
 impl TryFrom<SketchRecord> for Sketch {

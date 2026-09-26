@@ -6,7 +6,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
-use arrix_core::{Diagnostic, FeatureId, ParamId, PartId, PluginId, QuantityKind, Ref, Severity};
+use arrix_core::{
+    Diagnostic, FeatureId, ParamId, PartId, PluginId, QuantityKind, Ref, Severity, SketchEntityId,
+};
+use arrix_sketch::Sketch;
 use serde::{Deserialize, Serialize};
 
 use crate::dag::{Dag, DagError};
@@ -62,6 +65,12 @@ pub struct FeatureRecord {
     /// Named inputs: a plane, a profile, faces, a body.
     pub inputs: BTreeMap<String, Ref>,
     pub suppressed: bool,
+    /// A `core.sketch` feature's sketch: its entities, constraints with
+    /// their dimensions' expressions, and last solved positions
+    /// (docs/DATA-MODEL.md §Sketches). Changed only by `SketchEdit`.
+    /// Boxed: most features hold none, and a command carries records.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sketch: Option<Box<Sketch>>,
 }
 
 /// `core.<name>` for a built-in, `<plugin>.<name>` for a plugin's; the
@@ -151,6 +160,15 @@ pub enum Invalid {
     },
     #[error("part {part}: the rollback index {at} is past its {len} features")]
     Rollback { part: PartId, at: usize, len: usize },
+    #[error(
+        "feature {feature}: dimension {constraint}'s expression {text:?} does not parse: {error}"
+    )]
+    SketchExpr {
+        feature: FeatureId,
+        constraint: SketchEntityId,
+        text: String,
+        error: String,
+    },
 }
 
 impl Invalid {
@@ -234,6 +252,7 @@ fn validate_part(key: PartId, part: &Part, seen: &mut BTreeSet<FeatureId>) -> Re
                 name: record.name.clone(),
             });
         }
+        sketch_exprs(record)?;
     }
     match part.rollback {
         Some(at) if at > part.history.len() => Err(Invalid::Rollback {
@@ -243,4 +262,27 @@ fn validate_part(key: PartId, part: &Part, seen: &mut BTreeSet<FeatureId>) -> Re
         }),
         _ => Ok(()),
     }
+}
+
+/// A sketch's dimension expressions, parsed, by constraint. One that does
+/// not parse makes the document malformed, as a feature's own field would.
+pub(crate) fn sketch_exprs(record: &FeatureRecord) -> Result<Vec<(SketchEntityId, Expr)>, Invalid> {
+    let Some(sketch) = &record.sketch else {
+        return Ok(Vec::new());
+    };
+    sketch
+        .constraints()
+        .iter()
+        .filter_map(|(id, c)| Some((*id, c.expr.as_deref()?)))
+        .map(|(id, text)| {
+            Expr::parse(text)
+                .map(|e| (id, e))
+                .map_err(|e| Invalid::SketchExpr {
+                    feature: record.id,
+                    constraint: id,
+                    text: text.into(),
+                    error: e.to_string(),
+                })
+        })
+        .collect()
 }

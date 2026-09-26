@@ -94,6 +94,7 @@ fn record(
         choices: BTreeMap::new(),
         inputs: plane.into_iter().map(|r| ("plane".into(), r)).collect(),
         suppressed: false,
+        sketch: None,
     }
 }
 

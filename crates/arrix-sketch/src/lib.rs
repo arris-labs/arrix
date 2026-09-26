@@ -15,6 +15,7 @@ mod constraint;
 mod diagnostics;
 mod draft;
 mod dsu;
+mod edit;
 mod entity;
 mod ids;
 pub mod instrument;
@@ -36,6 +37,7 @@ pub use constraint::{
 };
 pub use diagnostics::{Diagnostics, EntityConstraintState, SketchStatus};
 pub use draft::Draft;
+pub use edit::SketchEdit;
 pub use entity::{Entity, Point};
 pub use ids::{ConstraintId, EntityId, PointId, SketchEntityId};
 pub use region::{

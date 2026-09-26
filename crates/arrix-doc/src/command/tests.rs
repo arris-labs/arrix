@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use arrix_core::{FeatureId, Id, IdMinter, ParamId, PartId, QuantityKind, Ref};
+use arrix_sketch::{Constraint, Draft, Entity, Point, Sketch, SketchEdit, SketchError};
 use proptest::prelude::*;
 
 use super::*;
@@ -50,7 +51,23 @@ fn plane(id: u64, name: &str, inputs: &[(&str, Ref)]) -> FeatureRecord {
             .map(|(k, r)| (k.to_string(), r.clone()))
             .collect(),
         suppressed: false,
+        sketch: None,
     }
+}
+
+fn sketch_feature(id: u64, name: &str) -> FeatureRecord {
+    FeatureRecord {
+        type_id: FeatureTypeId::new("core.sketch").unwrap(),
+        params: BTreeMap::new(),
+        sketch: Some(Box::default()),
+        ..plane(id, name, &[])
+    }
+}
+
+/// The sketch of feature `id`.
+fn sketch_of(doc: &Document, id: u64) -> &Sketch {
+    let (_, _, record) = doc.feature(FeatureId(Id(id))).unwrap();
+    record.sketch.as_deref().unwrap()
 }
 
 fn add_feature(part: u64, at: usize, record: FeatureRecord) -> Command {
@@ -300,6 +317,77 @@ fn same_author_undo_after_undo_stays_fresh() {
 }
 
 #[test]
+fn a_sketch_edit_applies_whole_or_is_refused() {
+    let mut doc = Document::default();
+    for c in [
+        add_param(1, "w", "8 mm"),
+        empty_part(10),
+        add_feature(10, 0, plane(20, "Plane", &[])),
+        add_feature(10, 1, sketch_feature(21, "Sketch")),
+    ] {
+        doc = apply(&doc, &c).unwrap().document;
+    }
+    let sketch = |edit: SketchEdit| Command::SketchEdit {
+        feature: FeatureId(Id(21)),
+        edit,
+    };
+    let mut d = Draft::seeded(3);
+    let (a, b, line) = d.add_line(0.0, 0.0, 0.01, 0.0);
+    let dim = d.add_constraint(Constraint::Distance { a, b, value: 0.01 });
+    d.set_constraint_expr(dim, Some("w".into()));
+    let draw = sketch(SketchEdit::diff(&Sketch::new(), &d));
+    let drawn = apply(&doc, &draw).unwrap();
+    assert_eq!(sketch_of(&drawn.document, 21), &d.sketch);
+    assert_eq!(drawn.touched, [Node::Feature(FeatureId(Id(21)))].into());
+    assert_eq!(
+        apply(&drawn.document, &drawn.inverse).unwrap().document,
+        doc
+    );
+
+    // Removing a point a line still stands on is refused, not swept.
+    let dangling = sketch(SketchEdit {
+        points: [(a, None)].into(),
+        ..SketchEdit::default()
+    });
+    assert_eq!(
+        apply(&drawn.document, &dangling),
+        Err(CommandError::Sketch {
+            feature: FeatureId(Id(21)),
+            error: SketchError::MissingPoint { by: line, point: a },
+        })
+    );
+    // With what stands on it, it goes, and comes back.
+    let remove = sketch(SketchEdit::remove(&d, &[a].into()));
+    let removed = apply(&drawn.document, &remove).unwrap();
+    assert_eq!(sketch_of(&removed.document, 21).points().len(), 1);
+    assert_eq!(
+        apply(&removed.document, &removed.inverse).unwrap().document,
+        drawn.document
+    );
+
+    // A plane has no sketch to edit.
+    let on_plane = Command::SketchEdit {
+        feature: FeatureId(Id(20)),
+        edit: SketchEdit::default(),
+    };
+    assert_eq!(
+        apply(&drawn.document, &on_plane),
+        Err(CommandError::NoSketch(FeatureId(Id(20))))
+    );
+    // A dimension's expression parses, as a feature field's does.
+    let mut record = d.get_constraint_record(dim).unwrap().clone();
+    record.expr = Some("w +".into());
+    let bad = sketch(SketchEdit {
+        constraints: [(dim, Some(record))].into(),
+        ..SketchEdit::default()
+    });
+    assert!(matches!(
+        apply(&drawn.document, &bad),
+        Err(CommandError::Invalid(Invalid::SketchExpr { constraint, .. })) if constraint == dim
+    ));
+}
+
+#[test]
 fn commands_cross_as_json() {
     let c = Command::Group {
         label: "g".into(),
@@ -331,7 +419,12 @@ fn command_for(doc: &Document, minter: &mut IdMinter, op: (u8, u64, u64), depth:
     let pick = |n: usize| (a as usize) % n.max(1);
     let exprs = ["1 mm", "p0 + 1 mm", "p1 * 2", "p2 - p0"];
     let e = || expr(exprs[(b % 4) as usize]);
-    match kind % 11 {
+    let sketches: Vec<(FeatureId, &Sketch)> = parts
+        .iter()
+        .flat_map(|p| p.features.values())
+        .filter_map(|r| Some((r.id, r.sketch.as_deref()?)))
+        .collect();
+    match kind % 16 {
         3 => {
             let id = minter.next_id().0;
             empty_part(id)
@@ -375,6 +468,19 @@ fn command_for(doc: &Document, minter: &mut IdMinter, op: (u8, u64, u64), depth:
                 at: (b % 3 != 0).then(|| (b as usize) % (part.history.len() + 1)),
             }
         }
+        11 if !parts.is_empty() => {
+            let part = parts[pick(parts.len())];
+            let rec = sketch_feature(minter.next_id().0, &format!("f{}", b % 5));
+            add_feature(part.id.0.0, (b as usize) % (part.history.len() + 1), rec)
+        }
+        // Weighted up: a sketch takes many edits to hold anything.
+        12..=15 if !sketches.is_empty() => {
+            let (feature, sketch) = sketches[pick(sketches.len())];
+            Command::SketchEdit {
+                feature,
+                edit: sketch_edit_for(sketch, minter, a, b, e()),
+            }
+        }
         10 if depth < 2 => Command::Group {
             label: "g".into(),
             commands: vec![
@@ -396,6 +502,60 @@ fn command_for(doc: &Document, minter: &mut IdMinter, op: (u8, u64, u64), depth:
             empty_part(id)
         }
     }
+}
+
+/// A random edit of `sketch`: a line drawn from one of its points, a
+/// dimension by an expression, a point moved, a construction mark flipped,
+/// a record removed with what stands on it, or a bare point removed, which
+/// is refused while something stands on it.
+fn sketch_edit_for(sketch: &Sketch, minter: &mut IdMinter, a: u64, b: u64, e: Expr) -> SketchEdit {
+    let mut d = Draft::with_sketch(sketch.clone(), IdMinter::new(minter.next_id().0));
+    let points: Vec<_> = sketch.points().keys().copied().collect();
+    let lines: Vec<_> = sketch.entities().keys().copied().collect();
+    let pick = |n: usize| (b as usize) % n.max(1);
+    let (x, y) = ((a % 97) as f64 * 1e-3, (b % 89) as f64 * 1e-3);
+    match (a % 6, points.first()) {
+        (1, Some(_)) if points.len() > 1 => {
+            let (p, q) = (
+                points[pick(points.len())],
+                points[(b as usize + 1) % points.len()],
+            );
+            if p != q {
+                let c = d.add_constraint(Constraint::Distance {
+                    a: p,
+                    b: q,
+                    value: x + 1e-3,
+                });
+                d.set_constraint_expr(c, Some(e.text().into()));
+            }
+        }
+        (2, Some(_)) => d
+            .point_mut(points[pick(points.len())])
+            .unwrap()
+            .set_pos(x, y),
+        (3, _) if !lines.is_empty() => {
+            let l = lines[pick(lines.len())];
+            let on = !d.is_construction(l);
+            d.set_construction(l, on);
+        }
+        (4, _) if !points.is_empty() => {
+            return SketchEdit::remove(sketch, &[points[pick(points.len())]].into());
+        }
+        (5, Some(_)) => {
+            return SketchEdit {
+                points: [(points[pick(points.len())], None)].into(),
+                ..SketchEdit::default()
+            };
+        }
+        (_, from) => {
+            let start = from
+                .copied()
+                .unwrap_or_else(|| d.add_point(Point::new(0.0, 0.0)));
+            let end = d.add_point(Point::new(x, y));
+            d.add_entity(Entity::Line { start, end });
+        }
+    }
+    SketchEdit::diff(sketch, &d)
 }
 
 proptest! {

@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use arrix_core::{FeatureId, Id, IdMinter, ParamId, PartId, QuantityKind, Ref, SlotName};
+use arrix_sketch::{Constraint, Draft, Entity, EntityId, Point, Sketch, SketchEdit};
 
 use super::*;
 use crate::authority::{AuthorId, Authority, CommandEnvelope, Outcome};
@@ -61,6 +62,7 @@ fn feature(
         choices: BTreeMap::new(),
         inputs: inputs.into_iter().map(|(k, r)| (k.into(), r)).collect(),
         suppressed: false,
+        sketch: None,
     }
 }
 
@@ -224,4 +226,148 @@ fn writes_the_documented_layout() {
     let part = text(&files, &format!("parts/{part}.json"));
     assert!(part.contains("\"type_id\": \"gears.spur\""), "{part}");
     assert!(part.contains("\"rollback\": null"), "{part}");
+}
+
+/// The `SketchEdit` that takes the sketch from `before` to `now`, which
+/// becomes the next `before`: how a client makes one command of a gesture
+/// it ran on its own draft, positions solved there.
+fn gesture(feature: FeatureId, before: &mut Sketch, now: &Sketch) -> Command {
+    let edit = SketchEdit::diff(before, now);
+    *before = now.clone();
+    Command::SketchEdit { feature, edit }
+}
+
+/// A sketched rectangle dimensioned by `w` and `h`, then edited the ways a
+/// client edits a sketch.
+fn sketch_scenario() -> Vec<Command> {
+    let mut ids = IdMinter::new(7);
+    let (w, h): (ParamId, ParamId) = (ids.mint(), ids.mint());
+    let part: PartId = ids.mint();
+    let sketch: FeatureId = ids.mint();
+    let mut d = Draft::seeded(99);
+    let mut before = Sketch::new();
+
+    let corners = [(0.0, 0.0), (0.04, 0.0), (0.04, 0.03), (0.0, 0.03)];
+    let p = corners.map(|(x, y)| d.add_point(Point::new(x, y)));
+    let l: Vec<EntityId> = (0..4)
+        .map(|i| {
+            d.add_entity(Entity::Line {
+                start: p[i],
+                end: p[(i + 1) % 4],
+            })
+        })
+        .collect();
+    for (i, line) in l.iter().enumerate() {
+        d.add_constraint(if i % 2 == 0 {
+            Constraint::Horizontal { line: *line }
+        } else {
+            Constraint::Vertical { line: *line }
+        });
+    }
+    let dw = d.add_constraint(Constraint::Distance {
+        a: p[0],
+        b: p[1],
+        value: 0.04,
+    });
+    let dh = d.add_constraint(Constraint::Distance {
+        a: p[1],
+        b: p[2],
+        value: 0.03,
+    });
+    d.set_constraint_expr(dw, Some("w".into()));
+    d.set_constraint_expr(dh, Some("h".into()));
+    let draw = gesture(sketch, &mut before, &d);
+
+    d.get_constraint_mut(dw)
+        .unwrap()
+        .set_dimensional_value(0.05);
+    assert!(d.solve().converged);
+    let resolve = gesture(sketch, &mut before, &d);
+
+    d.set_construction(l[3], true);
+    let construction = gesture(sketch, &mut before, &d);
+
+    d.set_constraint_expr(dh, Some("h / 2".into()));
+    let half = gesture(sketch, &mut before, &d);
+
+    let remove = Command::SketchEdit {
+        feature: sketch,
+        edit: SketchEdit::remove(&d, &[l[2]].into()),
+    };
+    vec![
+        Command::AddParam {
+            param: w,
+            record: param("w", QuantityKind::Length, "40 mm"),
+        },
+        Command::AddParam {
+            param: h,
+            record: param("h", QuantityKind::Length, "30 mm"),
+        },
+        Command::AddPart {
+            part: Part {
+                id: part,
+                name: "Plate".into(),
+                history: vec![],
+                features: BTreeMap::new(),
+                rollback: None,
+            },
+        },
+        Command::AddFeature {
+            part,
+            at: 0,
+            record: FeatureRecord {
+                sketch: Some(Box::default()),
+                ..feature(sketch, "core.sketch", "Sketch", &[], vec![])
+            },
+        },
+        draw,
+        Command::SetParam {
+            param: w,
+            expr: Expr::parse("50 mm").unwrap(),
+        },
+        resolve,
+        construction,
+        half,
+        remove,
+    ]
+}
+
+#[test]
+fn a_sketch_saves_opens_saves_the_same_and_undo_restores_every_earlier_file() {
+    let mut auth = Authority::default();
+    let mut saves = vec![save(auth.document())];
+    for command in sketch_scenario() {
+        let json = serde_json::to_string(&command).unwrap();
+        assert_eq!(serde_json::from_str::<Command>(&json).unwrap(), command);
+        let envelope = CommandEnvelope {
+            author: ME,
+            base: auth.generation(),
+            command,
+        };
+        let inverse = crate::command::apply(auth.document(), &envelope.command)
+            .unwrap()
+            .inverse;
+        let json = serde_json::to_string(&inverse).unwrap();
+        assert_eq!(serde_json::from_str::<Command>(&json).unwrap(), inverse);
+        match auth.submit(&envelope) {
+            Ok(Outcome::Applied(_)) => {}
+            other => panic!("{:?}: {other:?}", envelope.command),
+        }
+        let files = save(auth.document());
+        let reopened = open(&files).unwrap();
+        assert_eq!(&reopened, auth.document());
+        assert_eq!(save(&reopened).0, files.0, "saved, opened, saved");
+        saves.push(files);
+    }
+    let part = auth.document().parts.keys().next().unwrap();
+    let text = text(saves.last().unwrap(), &format!("parts/{part}.json"));
+    assert!(text.contains("\"expr\": \"h / 2\""), "{text}");
+    for want in saves.iter().rev().skip(1) {
+        auth.undo(ME).unwrap();
+        assert_eq!(&save(auth.document()).0, &want.0);
+    }
+    for want in saves.iter().skip(1) {
+        auth.redo(ME).unwrap();
+        assert_eq!(&save(auth.document()).0, &want.0);
+    }
 }

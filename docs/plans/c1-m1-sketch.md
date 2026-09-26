@@ -120,7 +120,7 @@ arrangement is used, the fallback `docs/ROADMAP.md` names.
   scenarios step 2 held back.
 - [x] **[2]** Step 6 — trim, extend, offset, mirror, each a pure edit of
   the model with its constraint transfer. Their ported tests.
-- [ ] **[2]** Step 7 — ADR-0005 (who solves), then the sketch record and
+- [x] **[2]** Step 7 — ADR-0005 (who solves), then the sketch record and
   `SketchEdit` in `arrix-doc`: add and remove entities and constraints,
   set a dimension's expression, set positions, set construction; each
   with its inverse. A dimension's expression travels on its constraint
@@ -241,3 +241,17 @@ empty.
   constraint's kind itself. Break came with extend, and the hover
   previews with both, since they are pure reads of the same pieces. The
   sketch fillet (M3) and the projected-geometry cases (M2) stay out.
+- Finding, step 7: `SketchEdit` is a record diff, the shape `FeatureEdit`
+  and ADR-0004's plugin puts already have: per point, entity and
+  constraint a whole record or `null`, plus construction marks. Adding,
+  removing, setting positions, an expression or construction are all
+  entries of it, so there is one command, and the client makes it by
+  diffing its draft (`SketchEdit::diff`). The sketch is checked whole
+  after an edit, so a removal that leaves a record naming what it
+  removed is refused rather than swept (`SketchEdit::remove` collects
+  the dependents). OPEN 2's precedent held: the expression stays text on
+  the record, parsed when the document is validated. `FeatureRecord`
+  holds the sketch boxed, or every command grows by a sketch's size
+  (clippy's large-variant lint). For step 9: the evaluator's input hash
+  is over the feature type's resolved arguments, so `core.sketch` must
+  put the sketch into them or a sketch edit would hit the cache.

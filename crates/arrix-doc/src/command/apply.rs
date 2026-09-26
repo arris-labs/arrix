@@ -90,6 +90,21 @@ pub(super) fn apply_mut(
                 at: old,
             }
         }
+        Command::SketchEdit { feature, edit } => {
+            let sketch = feature_mut(doc, *feature)?
+                .sketch
+                .as_mut()
+                .ok_or(CommandError::NoSketch(*feature))?;
+            let inverse = edit.apply(sketch).map_err(|error| CommandError::Sketch {
+                feature: *feature,
+                error,
+            })?;
+            touched.insert(Node::Feature(*feature));
+            Command::SketchEdit {
+                feature: *feature,
+                edit: inverse,
+            }
+        }
         Command::Group { label, commands } => {
             let mut inverses = Vec::with_capacity(commands.len());
             for c in commands {

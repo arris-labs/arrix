@@ -60,6 +60,7 @@ fn record(id: FeatureId, ty: &str, params: &[(&str, &str)], input: Option<Ref>) 
         choices: BTreeMap::new(),
         inputs: input.into_iter().map(|r| ("plane".into(), r)).collect(),
         suppressed: false,
+        sketch: None,
     }
 }
 

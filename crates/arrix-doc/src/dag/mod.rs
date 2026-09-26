@@ -1,7 +1,8 @@
 //! The dependency DAG (docs/DATA-MODEL.md §The dependency DAG): derived
 //! from the document, never stored. Its edges are every `Ref` in a record
-//! and every parameter name in an expression; a feature also reads its
-//! part, whose order and rollback place it.
+//! and every parameter name in an expression, a sketch dimension's
+//! included; a feature also reads its part, whose order and rollback place
+//! it.
 
 #[cfg(test)]
 mod tests;
@@ -14,7 +15,7 @@ use arrix_core::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::document::{Document, FeatureRecord};
+use crate::document::{Document, FeatureRecord, sketch_exprs};
 
 /// A node of the DAG: what a command touches and the evaluator orders.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -131,6 +132,14 @@ fn feature_reads(doc: &Document, record: &FeatureRecord) -> Vec<(String, Node)> 
         for name in expr.names() {
             if let Some((id, _)) = doc.param_by_name(name) {
                 out.push((format!("params.{field}"), Node::Param(id)));
+            }
+        }
+    }
+    // A document that reaches here is valid, so each expression parses.
+    for (constraint, expr) in sketch_exprs(record).unwrap_or_default() {
+        for name in expr.names() {
+            if let Some((id, _)) = doc.param_by_name(name) {
+                out.push((format!("sketch.{constraint}"), Node::Param(id)));
             }
         }
     }

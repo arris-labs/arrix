@@ -120,6 +120,7 @@ fn record(
             .map(|(k, r)| (k.to_string(), r.clone()))
             .collect(),
         suppressed: false,
+        sketch: None,
     }
 }
 

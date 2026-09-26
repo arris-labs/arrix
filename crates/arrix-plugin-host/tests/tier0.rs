@@ -104,6 +104,7 @@ fn record(id: u64, type_id: &str, inputs: &[(&str, Ref)]) -> FeatureRecord {
             .map(|(k, r)| (k.to_string(), r.clone()))
             .collect(),
         suppressed: false,
+        sketch: None,
     }
 }
 

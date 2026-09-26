@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use arrix_core::{FeatureId, Id, ParamId, PartId, QuantityKind, Ref};
+use arrix_sketch::{Constraint, Draft};
 use proptest::prelude::*;
 
 use super::*;
@@ -29,6 +30,7 @@ fn record(id: FeatureId, inputs: Vec<Ref>, exprs: &[&str]) -> FeatureRecord {
             .map(|(i, r)| (format!("in{i}"), r))
             .collect(),
         suppressed: false,
+        sketch: None,
     }
 }
 
@@ -106,6 +108,33 @@ fn orders_the_scenario_and_finds_what_is_dirty() {
     );
     assert_eq!(dag.dirty(&BTreeSet::from([missing])), []);
     assert!(doc.validate().is_ok());
+}
+
+#[test]
+fn a_sketch_dimension_reads_the_parameters_its_expression_names() {
+    let mut doc = Document::default();
+    let w = param(&mut doc, 1, "w", "40 mm");
+    let h = param(&mut doc, 2, "h", "w / 2");
+    param(&mut doc, 3, "unread", "1 mm");
+    let part = PartId(Id(10));
+    let mut d = Draft::seeded(1);
+    let (a, b, _) = d.add_line(0.0, 0.0, 0.02, 0.0);
+    let dim = d.add_constraint(Constraint::Distance { a, b, value: 0.02 });
+    d.set_constraint_expr(dim, Some("h + 1 mm".into()));
+    let mut rec = record(fid(20), vec![], &[]);
+    rec.sketch = Some(Box::new(d.sketch));
+    push_feature(&mut doc, part, rec);
+
+    let dag = doc.validate().unwrap();
+    let sketch = Node::Feature(fid(20));
+    assert_eq!(
+        dag.reads(sketch).collect::<Vec<_>>(),
+        [Node::Param(h), Node::Part(part)]
+    );
+    assert_eq!(
+        dag.dirty(&BTreeSet::from([Node::Param(w)])),
+        [Node::Param(w), Node::Param(h), sketch]
+    );
 }
 
 #[test]

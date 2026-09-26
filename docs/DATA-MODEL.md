@@ -7,10 +7,10 @@ this document is the design those sections commit to. Built: the id types
 types and their text form (§Persistent naming), the document's types,
 the feature-type registry and the derived DAG (§The dependency DAG),
 commands, the authority and per-author undo (§Commands and undo, less
-sketch and plugin-data edits), saving and opening the directory form
-(§File format), names from an extrude's provenance in `arrix-kernel`
-(§Persistent naming), expressions (`arrix_doc::expr`, §Parameters and
-expressions), the evaluator with its cache (§Evaluation),
+plugin-data edits), the sketch record and its `SketchEdit` (§Sketches),
+saving and opening the directory form (§File format), names from an
+extrude's provenance in `arrix-kernel` (§Persistent naming), expressions
+(`arrix_doc::expr`, §Parameters and expressions), the evaluator with its cache (§Evaluation),
 `core.datum-plane`, and a plugin feature (`gears.spur`) on the built-ins'
 one path, referenced downstream by persistent name.
 Each other section becomes true as C1 lands, and the commit that builds it
@@ -147,13 +147,14 @@ pub struct FeatureRecord {
     choices: BTreeMap<String, String>,  // the form's plain values: a word the type lists
     inputs: BTreeMap<String, Ref>,      // named inputs: a plane, a profile, faces, a body
     suppressed: bool,
+    sketch: Option<Sketch>,        // a core.sketch feature's sketch, §Sketches
     frozen: Option<FrozenResult>,  // §Frozen results; always present for a plugin feature
 }
 ```
 
 A form field the record leaves out takes the type's default; a field the
 type does not list is refused (`feature.unknown-field`), never ignored.
-`choices` is omitted from JSON when empty.
+`choices` is omitted from JSON when empty, and `sketch` when absent.
 
 The feature *type* (its parameters' form, its inputs, its `evaluate`) comes
 from a registry. Built-in types register under the reserved `core.`
@@ -231,7 +232,8 @@ an object with one key, the variant in snake case: `{"topo":"face:…"}`,
 
 The DAG exists from day 0 (`SEED.md` §6.5). Its nodes are parameters,
 features, parts and plugin records; its edges are every `Ref` in a record
-and every parameter name in an expression, and each feature reads its
+and every parameter name in an expression (a sketch dimension's
+included, by the field `sketch.<constraint>`), and each feature reads its
 part (whose order and rollback place it). A `Topo` reference reads every
 feature its name's root and steps name. It is derived from the document,
 never stored (`arrix_doc::Dag`, rebuilt whole by every command for now;
@@ -468,9 +470,16 @@ pub enum Command {
     DeleteFeature { feature: FeatureId },
     ReorderFeature { feature: FeatureId, to: usize },    // `to` counted after the move
     SetRollback { part: PartId, at: Option<usize> },
+    SketchEdit { feature: FeatureId, edit: SketchEdit },  // §Sketches
     Group { label: String, commands: Vec<Command> },       // one undo entry
-    // SketchEdit { feature, edit } joins with core.sketch; PluginData { plugin, edit }
-    // with plugin document data.
+    // PluginData { plugin, edit } joins with plugin document data.
+}
+
+pub struct SketchEdit {         // arrix_sketch; what it leaves out is kept
+    points: BTreeMap<PointId, Option<Point>>,             // null removes the record
+    entities: BTreeMap<EntityId, Option<Entity>>,
+    constraints: BTreeMap<ConstraintId, Option<ConstraintRecord>>,
+    construction: BTreeMap<EntityId, bool>,
 }
 
 pub struct FeatureEdit {        // what it leaves out is kept
@@ -555,6 +564,19 @@ interaction).
   arrangement the kernel's own, so what the sketch shades is what extrude
   accepts by construction; until it lands the arrangement is
   `arrix-sketch`'s.
+- **Edits** are `SketchEdit` commands: whole-record puts and removals of
+  points, entities and constraints, and construction marks, keyed by the
+  ids their author minted. The inverse holds the records each entry
+  replaced. The sketch is checked whole after an edit, as one read from a
+  file is: a removal must name what stands on what it removes
+  (`SketchEdit::remove` collects it), or it is refused, never swept. The
+  client solves and the edit carries the positions it produced; the
+  authority applies it without solving, and the evaluator re-solves from
+  the stored positions (ADR-0005). A client makes one command of a
+  gesture by diffing its draft before and after (`SketchEdit::diff`).
+- A dimension's expression travels on its constraint record as text, so
+  undo and removal carry it; a document whose expression does not parse
+  is malformed (`doc.invalid`), and the parameters it names are DAG edges.
 - A sketch placed on a face follows the face's frame on re-evaluation
   (`ops::query::face_frame`); a lost face is a lost reference.
 
