@@ -41,6 +41,9 @@ arrix-doc = { path = "crates/arrix-doc" }
 arrix-plugin-host = { path = "crates/arrix-plugin-host" }
 arrix-viewport = { path = "crates/arrix-viewport" }
 arrix-ui = { path = "crates/arrix-ui" }
+# First-party Tier 0 plugins, named only by the binaries' registration
+# lists (docs/PLUGINS.md §Three tiers).
+arrix-gears = { path = "plugins/gears" }
 
 # The kernel: pinned minor, crates.io only (SEED.md §8.3). Named by
 # `arrix-kernel` alone (docs/ARCHITECTURE.md §Crates and the layer rule).
@@ -60,6 +63,10 @@ serde = { version = "1", features = ["derive"] }
 # §File format), which the default parser does not promise.
 serde_json = { version = "1", features = ["float_roundtrip"] }
 thiserror = "2"
+# Plugin manifests (docs/PLUGINS.md §The manifest): `arrix-plugin.toml`,
+# its versions and its `api` range.
+toml = { version = "1", default-features = false, features = ["std", "serde", "parse"] }
+semver = "1"
 # Feature input hashes (docs/DATA-MODEL.md §Evaluation). `pure`: no C or
 # assembly, so every target hashes through the same code.
 blake3 = { version = "1", default-features = false, features = ["std", "pure"] }

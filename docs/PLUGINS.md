@@ -4,7 +4,8 @@ The plugin model is ArriX's reason to exist (`SEED.md` §3, §6.3): one
 interface, versioned apart from the app, hosted three ways, and enough of it
 that first-party domains need nothing else. This document is the design of
 `arrix-plugin-api` and `arrix-plugin-host`. Built: the world and its Rust
-traits at 0.1.0 (§One interface). Each other section becomes true as its
+traits at 0.1.0 (§One interface), manifests (§The manifest) and Tier 0
+hosting (§Three tiers). Each other section becomes true as its
 cycle lands (Tier 0 in C1, Tiers 1 and 2 and the test kit in C3), and the
 commit that builds it keeps it true.
 
@@ -116,11 +117,25 @@ change, reviewed like any other, never a private hook.
   produce. A first-party plugin that works at Tier 0 is therefore proof the
   public API is enough; one that needs more changes the API.
 - **Tier 0 registration is an explicit list** in `arrix-app` and
-  `arrix-cli` (`plugins::register(&mut host, robotics::plugin())`), not
-  linker tricks, which do not work on wasm. A build without a plugin is a
+  `arrix-cli` (`crates/arrix-cli/src/plugins.rs`: `register_tier0(&mut
+  registry, arrix_gears::MANIFEST, Arc::new(arrix_gears::Gears))`), not
+  linker tricks, which do not work on wasm. A plugin crate exports its
+  manifest's text (`MANIFEST`, `include_str!` of its
+  `arrix-plugin.toml`) and its `Feature`. A build without a plugin is a
   build that leaves it off the list, and the CLI can also disable a
   compiled-in plugin for a run (`--without-plugin <id>`), which is how the
   frozen path is tested.
+- **Tier 0 as built** (`arrix_plugin_host::register_tier0`): the
+  manifest must say tier 0 and an `api` range holding this host's
+  `API_VERSION`; every type the plugin describes must be
+  `<plugin-id>.<name>`; all its types register or none do. Each is
+  adapted onto `arrix_doc::FeatureType` through the plugin API's traits
+  only, with the manifest's `version` as its plugin version (in every
+  input hash). A plugin type takes no choices. A panic in `evaluate` is
+  caught and becomes the feature's `plugin.panic` diagnostic, and the
+  evaluator carries on; natively only, since a wasm32 build aborts on a
+  panic. A panic inside a kernel call it made is caught the same way, but
+  the model's state after one is not vouched for.
 - **Tier 1** runs each component in its own `wasmtime` store, with fuel as
   the deterministic step budget and an epoch interrupt for cancellation.
   In the browser, hosting components inside a wasm app is unsolved in the
@@ -165,6 +180,10 @@ ribbon = ["gears"]
 ```
 
 Contributed ids are `<plugin-id>.<name>`. `core.` is reserved for built-ins.
+`arrix_plugin_host::Manifest::parse` refuses an unknown key, a `version`
+that is not semver, an `api` that is not a range, a tier past 2, and a
+`[tier2]` section on any tier but 2 (or its absence there).
+Capabilities default to off.
 A plugin id is registered nowhere yet; a plugin index is a named, unordered
 cycle (`docs/ROADMAP.md`).
 

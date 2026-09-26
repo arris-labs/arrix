@@ -1,6 +1,7 @@
 //! `arrix`: the headless CLI, to open, evaluate, export, run and test
 //! documents (docs/CONCURRENCY-WASM.md §Batch evaluation).
 
+mod plugins;
 mod source;
 
 use std::io::Write as _;
@@ -41,7 +42,7 @@ fn eval(doc: &std::path::Path) -> ExitCode {
         eprintln!("arrix eval: {name}: no such directory");
         return ExitCode::from(2);
     }
-    let registry = arrix_doc::Registry::with_core_types();
+    let registry = plugins::registry();
     let line = match arrix_doc::eval(&name, &DirSource::new(doc), &registry) {
         Ok(line) => line,
         Err(err) => {

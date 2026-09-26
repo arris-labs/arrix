@@ -289,7 +289,8 @@ off the calling thread). Parameters evaluate in the DAG's order, then every
 feature. A feature at or after its part's rollback index is `rolled-back`,
 a suppressed one `suppressed`; neither has outputs. The input hash covers
 the Arris version, the feature's id (names are rooted at it, so two
-features never share a result), `type_id`, `type_version`, each parameter's
+features never share a result), `type_id`, `type_version`, the plugin's
+version (none for a built-in), each parameter's
 SI value (not its text: `1 cm` and `10 mm` hash alike), the choices and
 each input as the geometry it resolved to (a plane as its frame); the
 feature's name is not an input. It is canonical JSON through BLAKE3,

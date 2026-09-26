@@ -147,7 +147,7 @@ gear extrudes; nothing is built directly).
   unavailable* downstream), `EvalEvent`s; `core.datum-plane`; `arrix_doc::
   eval` lines gain bodies and features. Tests: cache hit on an unchanged
   hash, a failed feature's dependents fail and the rest evaluate.
-- [ ] **[2]** Step 10 — Tier 0 host: `Feature` adapted onto `FeatureType`
+- [x] **[2]** Step 10 — Tier 0 host: `Feature` adapted onto `FeatureType`
   through the plugin API's traits only; plugin version in the hash; a
   panicking test plugin becomes a diagnostic, not a crash; the explicit
   registration list in `arrix-cli`, and the layer lint's new edge.
@@ -267,5 +267,14 @@ gate green, the wasm build included.
   cache is bounded by entry count until body bytes (A2) give sizes, and
   the kernel keeps its call records for the evaluator's life. `EvalLine`
   gains `params` and each body line its `feature`.
+- Finding, step 10: a Tier 0 plugin crate exports its manifest's text
+  and its `Feature`; the host reads identity, version and `api` range
+  from the manifest, so no plugin API type was needed for registration.
+  `arrix-gears` joins the CLI's list here with its manifest and no types;
+  step 11 gives it `gears.spur`. A plugin crate's own tests cannot reach a
+  kernel (plugins depend on the API alone, dev-dependencies included), so
+  the kernel-backed checks of a first-party plugin live beside the
+  registration list that names it, in `arrix-cli`'s tests, until C3's
+  test kit.
 - OPEN 5, closed 2026-09-26 by the human: `c1-m1-sketch` starts now in
   the second plan slot, beside this one.

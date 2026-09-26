@@ -50,7 +50,14 @@ ALLOWED = {
         "arrix-viewport",
         "arrix-ui",
     },
-    "arrix-cli": {"arrix-core", "arrix-doc", "arrix-plugin-host", "arrix-kernel"},
+    # The CLI's Tier 0 registration list names each compiled-in plugin.
+    "arrix-cli": {
+        "arrix-core",
+        "arrix-doc",
+        "arrix-plugin-host",
+        "arrix-kernel",
+        "arrix-gears",
+    },
 }
 # Every package under plugins/: the plugin API alone, first-party included.
 PLUGIN_ALLOWED = {"arrix-plugin-api"}

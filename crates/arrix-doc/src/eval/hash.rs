@@ -27,6 +27,7 @@ struct Canonical<'a> {
     feature: FeatureId,
     type_id: &'a str,
     type_version: u32,
+    plugin_version: Option<&'a str>,
     params: Vec<(&'a str, Quantity)>,
     choices: &'a std::collections::BTreeMap<String, String>,
     /// Each input as the geometry it resolved to.
@@ -40,6 +41,7 @@ impl InputHash {
             feature: record.id,
             type_id: &ty.spec().id,
             type_version: ty.spec().version,
+            plugin_version: ty.plugin_version(),
             params: args
                 .params
                 .iter()

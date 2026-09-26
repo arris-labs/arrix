@@ -28,6 +28,13 @@ pub trait FeatureType: Send + Sync {
         kernel: &mut dyn Kernel,
         args: &FeatureArgs,
     ) -> Result<FeatureOutput, Diagnostic>;
+
+    /// The contributing plugin's own version, `None` for a built-in. It is
+    /// part of every input hash, so upgrading a plugin re-evaluates its
+    /// features (docs/PLUGINS.md §Versioning).
+    fn plugin_version(&self) -> Option<&str> {
+        None
+    }
 }
 
 /// What the evaluator resolved for one feature: every parameter of the

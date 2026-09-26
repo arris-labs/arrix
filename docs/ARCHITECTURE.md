@@ -27,11 +27,11 @@ unless an ADR says otherwise.
 | `arrix-sketch` | the sketch model, the constraint solver, inference, trim/extend/offset/mirror (ported) | core | — |
 | `arrix-plugin-api` | the WIT world, its Rust traits and plain types; semver of its own | core | `wit-bindgen`, `wit-parser` (the equality test only, dev) |
 | `arrix-doc` | document, parameters and expressions, DAG, feature registry, commands, undo, evaluator, `.arrx`, the `arrix eval` line; reads no files (a `DocumentSource` hands it bytes) | core, kernel, sketch, plugin-api | `serde_json`, `zip`, `blake3` |
-| `arrix-plugin-host` | tier 0/1/2 hosting, manifests, capabilities, the frozen fallback | core, doc, plugin-api | `wasmtime` (native, C3) |
+| `arrix-plugin-host` | tier 0/1/2 hosting, manifests, capabilities, the frozen fallback | core, doc, plugin-api | `toml`, `semver`, `wasmtime` (native, C3) |
 | `arrix-viewport` | wgpu scene, ID-buffer picking, overlays, camera (ported) | core | `wgpu`, `egui-wgpu` |
 | `arrix-ui` | egui widgets over plain view types; the declarative-UI renderer | core, viewport, plugin-api (UI types only) | `egui` |
 | `arrix-app` | the binary: the shell, the command registry, translation between document and view types | all of the above | `eframe` |
-| `arrix-cli` | headless open / eval / export / run / test | core, doc, plugin-host, kernel | `clap` |
+| `arrix-cli` | headless open / eval / export / run / test; its Tier 0 registration list | core, doc, plugin-host, kernel, and each compiled-in plugin (`arrix-gears`) | `clap` |
 | `plugins/*` | first-party plugins: `gears` (C1), `robotics` (by C3) | plugin-api **only** | — |
 | `python/arrix` | the Tier 2 SDK (C3), not a Cargo crate | — | — |
 
@@ -43,7 +43,8 @@ dev-only `egui_kittest` (0.36). The table's externals not yet in a
 manifest (`zip`, `wgpu` directly, `wasmtime`)
 join with the code that needs them; `glam` (0.33, f64 types, `serde`)
 has, `blake3` (1, its `pure` feature: no C or assembly, so every target
-hashes through the same code) has, and so have `wit-bindgen` (0.62, its `macros` feature alone) and
+hashes through the same code) has, `toml` (1, parsing and serde only) and
+`semver` (1) have, for manifests, and so have `wit-bindgen` (0.62, its `macros` feature alone) and
 `wit-parser` (0.259), dev-only in `arrix-plugin-api`. `unsafe_code =
 "forbid"` is a workspace lint every crate inherits; `wit-bindgen`'s
 `generate!` compiles under it, its `export!` does not, which is why the

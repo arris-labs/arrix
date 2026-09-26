@@ -1,0 +1,15 @@
+# The gears plugin's manifest (docs/PLUGINS.md §The manifest). `version` is
+# the plugin's own and goes into every input hash of its features.
+[plugin]
+id = "gears"
+version = "0.1.0"
+api = "^0.1"
+tier = 0
+title = "Gears"
+licence = "MIT OR Apache-2.0"
+
+[capabilities]
+kernel = true
+
+[contributes]
+features = []
