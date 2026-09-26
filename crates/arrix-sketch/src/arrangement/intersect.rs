@@ -58,6 +58,32 @@ pub(crate) fn intersect(a: &Curve, b: &Curve) -> Vec<[f64; 2]> {
     hits
 }
 
+/// Where the *unbounded* carriers of two curves cross: the whole line, the
+/// whole circle. [`intersect`] is the same question cut down to each curve's
+/// extent; an offset needs the carriers, since a corner it moves to can lie
+/// past the end of the curve it is a corner of. A circle or arc is read as
+/// the full circle (so a concentric pair never meets), and a pair of parallel
+/// lines never does.
+pub(crate) fn carrier_crossings(a: &Curve, b: &Curve) -> Vec<[f64; 2]> {
+    let full = |c: &Curve| {
+        c.circle()
+            .map(|(center, radius)| Curve::Circle { center, radius })
+    };
+    let candidates = match (full(a), full(b)) {
+        (None, None) => line_line(a.line().unwrap(), b.line().unwrap()),
+        (None, Some(cb)) => line_circle(a.line().unwrap(), cb.circle().unwrap()),
+        (Some(ca), None) => line_circle(b.line().unwrap(), ca.circle().unwrap()),
+        (Some(ca), Some(cb)) => circle_circle(&ca, &cb, ca.circle().unwrap(), cb.circle().unwrap()),
+    };
+    let mut hits: Vec<[f64; 2]> = Vec::new();
+    for p in candidates {
+        if !hits.iter().any(|&q| dist(q, p) <= LENGTH_TOLERANCE) {
+            hits.push(p);
+        }
+    }
+    hits
+}
+
 fn line_line(l1: ([f64; 2], [f64; 2]), l2: ([f64; 2], [f64; 2])) -> Vec<[f64; 2]> {
     let ((a1, b1), (a2, b2)) = (l1, l2);
     let (d1, d2) = (sub(b1, a1), sub(b2, a2));

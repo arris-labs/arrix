@@ -267,6 +267,29 @@ impl Curve {
             }
         }
     }
+
+    /// How far `p` is from the nearest point of this curve's own extent.
+    pub(crate) fn distance_to(&self, p: [f64; 2]) -> f64 {
+        match *self {
+            Curve::Line { .. } => {
+                let t = self.param_at(p).clamp(0.0, 1.0);
+                dist(p, self.point_at(t))
+            }
+            Curve::Circle { center, radius } => (dist(p, center) - radius).abs(),
+            Curve::Arc {
+                center,
+                radius,
+                start_angle,
+                sweep,
+            } => {
+                if wrap_tau(angle_at(center, p) - start_angle) <= sweep {
+                    (dist(p, center) - radius).abs()
+                } else {
+                    dist(p, self.point_at(0.0)).min(dist(p, self.point_at(1.0)))
+                }
+            }
+        }
+    }
 }
 
 pub(crate) fn sub(a: [f64; 2], b: [f64; 2]) -> [f64; 2] {

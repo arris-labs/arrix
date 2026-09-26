@@ -10,6 +10,7 @@
 mod arrangement;
 #[cfg(feature = "conics")]
 pub mod bspline;
+mod candidate;
 mod constraint;
 mod diagnostics;
 mod draft;
@@ -17,6 +18,7 @@ mod dsu;
 mod entity;
 mod ids;
 pub mod instrument;
+pub mod modify;
 mod region;
 mod sketch;
 mod solver;
@@ -26,6 +28,7 @@ pub use arrangement::{
     ArrangementEdge, ArrangementLoop, EntityPiece, RegionOutline, arrangement_loops,
     entity_intersections, entity_pieces,
 };
+pub use candidate::CandidateVerdict;
 #[cfg(feature = "conics")]
 pub use constraint::AlignmentKind;
 pub use constraint::{

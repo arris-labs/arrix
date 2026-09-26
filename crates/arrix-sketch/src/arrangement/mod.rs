@@ -19,5 +19,7 @@ pub use faces::RegionOutline;
 pub(crate) use faces::SAMPLES_PER_TURN;
 pub(crate) use faces::{FaceLoop, face_loops, nest};
 pub use intersect::entity_intersections;
+pub(crate) use intersect::{carrier_crossings, intersect};
 pub use split::{EntityPiece, entity_pieces};
+pub(crate) use split::{Piece, split_all};
 pub use walk::{ArrangementEdge, ArrangementLoop, arrangement_loops};

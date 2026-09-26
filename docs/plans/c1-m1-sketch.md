@@ -118,7 +118,7 @@ arrangement is used, the fallback `docs/ROADMAP.md` names.
   to none, never the nearest. Arrangement, region and construction-profile
   tests ported, with the validation report (its region counts) and the
   scenarios step 2 held back.
-- [ ] **[2]** Step 6 — trim, extend, offset, mirror, each a pure edit of
+- [x] **[2]** Step 6 — trim, extend, offset, mirror, each a pure edit of
   the model with its constraint transfer. Their ported tests.
 - [ ] **[2]** Step 7 — ADR-0005 (who solves), then the sketch record and
   `SketchEdit` in `arrix-doc`: add and remove entities and constraints,
@@ -233,3 +233,11 @@ empty.
   A key two faces answer to resolves to none, as the section says, and
   regions of equal area (to the tolerance squared) are ordered by their
   entities, not by the walk.
+- Finding, step 6: the modify operations keep each row they add only on
+  the insert-time pre-check's `Ok` (`Sketch::check_candidate`), so the
+  pre-check came with them, its tests too; it tries the row on a clone
+  under the lowest id the sketch does not hold, reading no minter. The
+  constraint descriptions did not (M3), so the transfer table reads the
+  constraint's kind itself. Break came with extend, and the hover
+  previews with both, since they are pure reads of the same pieces. The
+  sketch fillet (M3) and the projected-geometry cases (M2) stay out.
