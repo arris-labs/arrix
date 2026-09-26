@@ -44,3 +44,4 @@ Each rejected option and the one-line reason it lost.
 - [ADR-0003](0003-the-home-is-arris-labs.md): the home is the `arris-labs` organisation
 - [ADR-0004](0004-plugin-commands-undo-as-one-group.md): a plugin command's undo is its expansion, inverted by the core
 - [ADR-0005](0005-the-client-solves-a-sketch-edit.md): the client solves a sketch edit; the authority applies it without solving
+- [ADR-0006](0006-region-references-in-ref-and-the-plugin-api.md): a sketch region is a `Ref`, and a feature input; plugin API 0.2

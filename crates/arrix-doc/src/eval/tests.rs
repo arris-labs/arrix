@@ -66,9 +66,9 @@ impl FeatureType for Block {
         args: &FeatureArgs,
     ) -> Result<TypeOutput, Diagnostic> {
         let w = args.param("width").unwrap();
-        let plane = match args.input("plane").map(|i| i.value) {
-            Some(InputValue::Plane(f)) => f,
-            None => Frame::WORLD_XY,
+        let plane = match args.input("plane").map(|i| &i.value) {
+            Some(InputValue::Plane(f)) => *f,
+            _ => Frame::WORLD_XY,
         };
         let line = |k: u64, x: f64, y: f64| ProfileSegment::Line {
             key: CurveKey(Id(k)),

@@ -115,7 +115,10 @@ fn name_features(name: &PersistentName, out: &mut BTreeSet<FeatureId>) {
 pub(crate) fn ref_features(r: &Ref) -> BTreeSet<FeatureId> {
     let mut out = BTreeSet::new();
     match r {
-        Ref::Feature(f) | Ref::Slot { feature: f, .. } | Ref::Sketch { feature: f, .. } => {
+        Ref::Feature(f)
+        | Ref::Slot { feature: f, .. }
+        | Ref::Sketch { feature: f, .. }
+        | Ref::Region { feature: f, .. } => {
             out.insert(*f);
         }
         Ref::Topo(name) => name_features(name, &mut out),

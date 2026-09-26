@@ -2,7 +2,7 @@
 //! none: never the nearest (docs/DATA-MODEL.md §Sketches). And the same
 //! sketch gives the same regions, in the same order, every time.
 
-use arrix_sketch::{Draft, EntityId, Point, RegionKey, find_regions};
+use arrix_sketch::{Draft, EntityId, Point, RegionKey, ResolveRegion, find_regions};
 
 /// The acceptance plate: 40 × 30 mm, one shared point per corner, and a
 /// 10 mm bore. Returns the draft, its four sides and the bore.

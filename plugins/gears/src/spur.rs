@@ -108,7 +108,9 @@ pub fn evaluate(
             value: InputValue::Plane(f),
             ..
         }) => *f,
-        None => return Err(error("gears.plane", "a spur gear needs a plane")),
+        // The host resolves the input as the spec's `plane`; a region is
+        // never handed over, but the API has the word.
+        _ => return Err(error("gears.plane", "a spur gear needs a plane")),
     };
     let outline = spur.outline().map_err(|e| match e {
         OutlineError::Pointed => error(

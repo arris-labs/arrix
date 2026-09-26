@@ -5,7 +5,7 @@
 
 use std::fmt;
 
-use arrix_core::{FeatureId, Frame, Quantity};
+use arrix_core::{FeatureId, Frame, Profile, Quantity};
 use arrix_kernel::ARRIS_VERSION;
 use arrix_plugin_api::InputValue;
 use serde::{Deserialize, Serialize};
@@ -31,11 +31,20 @@ struct Canonical<'a> {
     params: Vec<(&'a str, Quantity)>,
     choices: &'a std::collections::BTreeMap<String, String>,
     /// Each input as the geometry it resolved to.
-    inputs: Vec<(&'a str, Frame)>,
+    inputs: Vec<(&'a str, Input<'a>)>,
     /// A sketch as its solve reads it: stored positions and resolved
     /// dimensions. Left out when there is none, so no other hash moves.
     #[serde(skip_serializing_if = "Option::is_none")]
     sketch: Option<&'a arrix_sketch::Sketch>,
+}
+
+/// An input's geometry, written bare: a plane as its frame, as before
+/// regions were inputs, so no plane's hash moved when they came.
+#[derive(Serialize)]
+#[serde(untagged)]
+enum Input<'a> {
+    Plane(Frame),
+    Region(&'a Profile),
 }
 
 impl InputHash {
@@ -55,8 +64,12 @@ impl InputHash {
             inputs: args
                 .inputs
                 .iter()
-                .map(|i| match i.value {
-                    InputValue::Plane(f) => (i.name.as_str(), f),
+                .map(|i| {
+                    let value = match &i.value {
+                        InputValue::Plane(f) => Input::Plane(*f),
+                        InputValue::Region(p) => Input::Region(p),
+                    };
+                    (i.name.as_str(), value)
                 })
                 .collect(),
             sketch: args.sketch.as_ref().map(|s| &s.sketch),

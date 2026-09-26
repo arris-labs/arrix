@@ -4,7 +4,7 @@ The plugin model is ArriX's reason to exist (`SEED.md` §3, §6.3): one
 interface, versioned apart from the app, hosted three ways, and enough of it
 that first-party domains need nothing else. This document is the design of
 `arrix-plugin-api` and `arrix-plugin-host`. Built: the world and its Rust
-traits at 0.1.0 (§One interface), manifests (§The manifest), Tier 0
+traits at 0.2.0 (§One interface), manifests (§The manifest), Tier 0
 hosting (§Three tiers), and the first plugin, `plugins/gears` with
 `gears.spur` (its crate docs state its geometry and tolerance). Each other section becomes true as its
 cycle lands (Tier 0 in C1, Tiers 1 and 2 and the test kit in C3), and the
@@ -24,11 +24,11 @@ API's version. From it come:
 - the **Python SDK** (`python/arrix`): stubs generated from the world, and
   a thin runtime speaking the Tier 2 wire protocol (C3).
 
-The world as it stands at 0.1.0 (the file is the authority; comments and
+The world as it stands at 0.2.0 (the file is the authority; comments and
 field lists are elided here):
 
 ```wit
-package arrix:plugin@0.1.0;
+package arrix:plugin@0.2.0;
 
 interface types {                                    // SI; no Arris type anywhere
   type id = u64;                                     // arrix-core's typed ids
@@ -36,7 +36,8 @@ interface types {                                    // SI; no Arris type anywhe
   enum quantity-kind { length, angle, count, ratio, mass }
   record quantity { kind, si: f64 }
   record persistent-ref { encoded: string }          // a PersistentName's text form, opaque here
-  variant reference { param, feature, slot, topo, sketch, plugin }   // arrix-core's Ref
+  variant reference { param, feature, slot, topo, sketch, region, plugin }   // arrix-core's Ref
+  record region-ref { feature, entities: list<id>, sample: tuple<s64, s64> } // a RegionKey, nm
   record diagnostic { severity, code, message, refs: list<reference>, candidates: list<reference> }
   record profile { plane: frame, outer: profile-loop, holes: list<profile-loop> }
   // profile-loop: a keyed circle, or a path of keyed line and arc segments
@@ -67,7 +68,10 @@ world plugin {
   expression to a `quantity` in SI; a `param-spec`'s default is an
   expression's text (`1 mm`).
 - **Inputs** arrive resolved: a `plane` input (a datum, a planar face or
-  a world plane) is a `frame`. Output slots hold a `body` or a `plane`.
+  a world plane) is a `frame`, and a `region` input (a sketch region, by
+  `Ref::Region`) is its `profile` on the sketch's plane, keyed by the
+  entities that bound it. Output slots hold a `body` or a `plane`; a
+  sketch slot is a built-in's alone (`docs/DATA-MODEL.md` §Features).
 - **Profiles are plain records**, keyed curve by curve like
   `arrix_core::Profile`, since a key is what roots a side face's name.
 - **What grows it, by minor version** (breaking while 0.x): `migrate`
@@ -161,7 +165,7 @@ Every plugin, whatever its tier, has an `arrix-plugin.toml`:
 [plugin]
 id = "gears"                 # the namespace of everything it contributes; [a-z][a-z0-9-]*
 version = "0.1.0"            # the plugin's own semver
-api = "^0.1"                 # the arrix-plugin-api range it was built against
+api = "^0.2"                 # the arrix-plugin-api range it was built against
 tier = 0                     # 0, 1 or 2
 title = "Gears"
 licence = "MIT OR Apache-2.0"
@@ -296,7 +300,8 @@ only, whatever the manifest says, because determinism demands it.
 
 - `arrix-plugin-api` is versioned by **semver apart from the app**
   (`SEED.md` §6.3), and the WIT package version is the crate's version,
-  which the equality test checks. The first release is 0.1.0.
+  which the equality test checks. The first release was 0.1.0; 0.2.0
+  added region references and region inputs (ADR-0006).
   While it is `0.x`, a minor bump is breaking. Every change to it says its
   semver effect in the commit body (`.agents/rules/git.md`).
 - The host supports one API range at a time and says which in `arrix

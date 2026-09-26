@@ -23,7 +23,7 @@ use arrix_plugin_api as api;
 use arrix_plugin_api::{
     Body, CurveKey, DVec2, DVec3, Diagnostic, FeatureId, Frame, Id, ParamId, PersistentName,
     PluginId, Profile, ProfileLoop, ProfileSegment, Quantity, QuantityKind, RecordId, Ref,
-    Severity, SketchEntityId, SlotName,
+    RegionKey, Severity, SketchEntityId, SlotName,
 };
 
 mod wit {
@@ -174,6 +174,11 @@ impl Mirror for Ref {
                 feature: feature.0.0,
                 entity: entity.0.0,
             }),
+            Ref::Region { feature, key } => wt::Reference::Region(wt::RegionRef {
+                feature: feature.0.0,
+                entities: key.entities.iter().map(|e| e.0.0).collect(),
+                sample: (key.sample[0], key.sample[1]),
+            }),
             Ref::Plugin { plugin, record } => wt::Reference::Plugin(wt::PluginRef {
                 plugin: plugin.to_string(),
                 record: record.0.0,
@@ -192,6 +197,20 @@ impl Mirror for Ref {
             wt::Reference::Sketch(wt::SketchRef { feature, entity }) => Ref::Sketch {
                 feature: FeatureId(Id(feature)),
                 entity: SketchEntityId(Id(entity)),
+            },
+            wt::Reference::Region(wt::RegionRef {
+                feature,
+                entities,
+                sample,
+            }) => Ref::Region {
+                feature: FeatureId(Id(feature)),
+                key: RegionKey {
+                    entities: entities
+                        .into_iter()
+                        .map(|e| SketchEntityId(Id(e)))
+                        .collect(),
+                    sample: [sample.0, sample.1],
+                },
             },
             wt::Reference::Plugin(wt::PluginRef { plugin, record }) => Ref::Plugin {
                 plugin: PluginId::new(plugin).unwrap(),
@@ -411,11 +430,13 @@ impl Mirror for api::InputKind {
     fn to_wit(&self) -> wf::InputKind {
         match self {
             api::InputKind::Plane => wf::InputKind::Plane,
+            api::InputKind::Region => wf::InputKind::Region,
         }
     }
     fn from_wit(w: wf::InputKind) -> Self {
         match w {
             wf::InputKind::Plane => api::InputKind::Plane,
+            wf::InputKind::Region => api::InputKind::Region,
         }
     }
 }
@@ -538,6 +559,7 @@ impl Mirror for api::ResolvedInput {
         let api::ResolvedInput { name, value } = self;
         let value = match value {
             api::InputValue::Plane(f) => wf::InputValue::Plane(f.to_wit()),
+            api::InputValue::Region(p) => wf::InputValue::Region(p.to_wit()),
         };
         wf::ResolvedInput {
             name: name.clone(),
@@ -548,6 +570,7 @@ impl Mirror for api::ResolvedInput {
         let wf::ResolvedInput { name, value } = w;
         let value = match value {
             wf::InputValue::Plane(f) => api::InputValue::Plane(Frame::from_wit(f)),
+            wf::InputValue::Region(p) => api::InputValue::Region(Profile::from_wit(p)),
         };
         api::ResolvedInput { name, value }
     }
@@ -685,7 +708,7 @@ impl api::Feature for Offset {
         }
         let (Some(distance), Some(api::InputValue::Plane(plane))) = (
             params.iter().find(|p| p.name == "distance"),
-            inputs.iter().find(|i| i.name == "plane").map(|i| i.value),
+            inputs.iter().find(|i| i.name == "plane").map(|i| &i.value),
         ) else {
             return refuse("missing distance or plane");
         };
@@ -798,6 +821,13 @@ fn every_type_round_trips_through_the_world() {
             feature: FeatureId(Id(4)),
             entity: SketchEntityId(Id(5)),
         },
+        Ref::Region {
+            feature: FeatureId(Id(4)),
+            key: RegionKey::new(
+                [SketchEntityId(Id(6)), SketchEntityId(Id(5))],
+                [-0.02, 0.015],
+            ),
+        },
         Ref::Plugin {
             plugin: PluginId::new("gears").unwrap(),
             record: RecordId(Id(u64::MAX)),
@@ -886,6 +916,7 @@ const COVERED: &[(&str, &[&str], &[&str])] = &[
             "persistent-ref",
             "slot-ref",
             "sketch-ref",
+            "region-ref",
             "plugin-ref",
             "reference",
             "severity",
@@ -959,11 +990,11 @@ fn the_world_is_exactly_what_is_covered() {
     // `types` only through the `use`s.
     assert_eq!(
         names(&world.imports),
-        BTreeSet::from(["arrix:plugin/kernel@0.1.0", "arrix:plugin/types@0.1.0"].map(String::from))
+        BTreeSet::from(["arrix:plugin/kernel@0.2.0", "arrix:plugin/types@0.2.0"].map(String::from))
     );
     assert_eq!(
         names(&world.exports),
-        BTreeSet::from(["arrix:plugin/feature@0.1.0".to_owned()])
+        BTreeSet::from(["arrix:plugin/feature@0.2.0".to_owned()])
     );
 
     let mut found = BTreeSet::new();

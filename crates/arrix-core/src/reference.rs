@@ -76,11 +76,60 @@ pub enum Ref {
         feature: FeatureId,
         entity: SketchEntityId,
     },
+    /// A region of a sketch: a face of its planar arrangement, by its key.
+    Region {
+        feature: FeatureId,
+        key: RegionKey,
+    },
     /// A plugin's document record.
     Plugin {
         plugin: PluginId,
         record: RecordId,
     },
+}
+
+/// Which face of a sketch's planar arrangement a feature was given
+/// (docs/DATA-MODEL.md §Sketches): every entity bounding the face, its
+/// holes' included, sorted, plus a point inside it. The entity set alone
+/// does not name a face (a circle and its chord bound the cap and the D
+/// alike), so the sample tells two faces of the same curves apart.
+/// `arrix-sketch` resolves a key to exactly one region or to none.
+///
+/// The sample is in whole nanometres of the sketch's `(u, v)`, so a key
+/// is plain data that compares, orders and hashes exactly, as every `Ref`
+/// does. A nanometre is a thousandth of the length tolerance, and the
+/// sample sits as far inside its face as the face allows.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct RegionKey {
+    /// Sorted and deduplicated, so two keys of one face compare equal
+    /// whichever order their loops were walked in.
+    pub entities: Vec<SketchEntityId>,
+    /// A point inside the face, in nanometres.
+    pub sample: [i64; 2],
+}
+
+/// Nanometres per metre, the sample's unit.
+const NM: f64 = 1e9;
+
+impl RegionKey {
+    /// A key from its entities in any order and a sample in metres, which
+    /// is rounded to the nanometre.
+    pub fn new(entities: impl IntoIterator<Item = SketchEntityId>, sample: [f64; 2]) -> Self {
+        let mut entities: Vec<SketchEntityId> = entities.into_iter().collect();
+        entities.sort_unstable();
+        entities.dedup();
+        // `as` saturates: a sample past ±9.2 km is no sketch's.
+        let nm = |m: f64| (m * NM).round() as i64;
+        Self {
+            entities,
+            sample: [nm(sample[0]), nm(sample[1])],
+        }
+    }
+
+    /// The sample in metres.
+    pub fn sample_m(&self) -> [f64; 2] {
+        [self.sample[0] as f64 / NM, self.sample[1] as f64 / NM]
+    }
 }
 
 #[cfg(test)]
@@ -122,6 +171,16 @@ mod tests {
                     entity: SketchEntityId(Id(3)),
                 },
                 r#"{"sketch":{"feature":"0000000000001","entity":"0000000000003"}}"#,
+            ),
+            (
+                Ref::Region {
+                    feature: f,
+                    key: RegionKey::new(
+                        [SketchEntityId(Id(5)), SketchEntityId(Id(3))],
+                        [0.02, -1e-9],
+                    ),
+                },
+                r#"{"region":{"feature":"0000000000001","key":{"entities":["0000000000003","0000000000005"],"sample":[20000000,-1]}}}"#,
             ),
             (
                 Ref::Plugin {

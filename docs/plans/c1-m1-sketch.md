@@ -140,7 +140,7 @@ arrangement is used, the fallback `docs/ROADMAP.md` names.
   its `sketch` slot carries the solved sketch and its regions, a slot
   kind only built-ins declare (OPEN 4). A solve that does not converge,
   or a conflict, fails the feature soft with the entities named.
-- [ ] **[2]** Step 9b — ADR-0006, region references (OPEN 5):
+- [x] **[2]** Step 9b — ADR-0006, region references (OPEN 5):
   `Ref::Region { feature, key }` with `RegionKey` in `arrix-core`, its
   sample in integer nanometres, and a region input kind resolving to a
   keyed `Profile`; the WIT world's `reference` and `input-kind` gain them

@@ -78,8 +78,12 @@ fn stand_on(args: &FeatureArgs, ty: &str, what: &str) -> Result<Frame, Diagnosti
             &format!("{ty}.two-bases"),
             format!("{what} stands on its input plane or on a world plane, not both"),
         )),
-        (Some(input), None) => match input.value {
-            InputValue::Plane(frame) => Ok(frame),
+        (Some(input), None) => match &input.value {
+            InputValue::Plane(frame) => Ok(*frame),
+            InputValue::Region(_) => Err(error(
+                "input.wrong-kind",
+                format!("{what} stands on a plane, not a region"),
+            )),
         },
         (None, world) => {
             let word = world.map_or("xy", String::as_str);

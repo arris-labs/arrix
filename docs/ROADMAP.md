@@ -71,9 +71,10 @@ Headless throughout; no viewport yet.
 - `arrix-kernel`: the `Kernel` service for primitives, extrude and the
   booleans; naming from provenance for them; call records.
 - `core.sketch`, `core.datum-plane`, `core.extrude` (new body, join, cut).
-- `arrix-plugin-api` 0.1: the WIT world's `types`, `kernel` (the subset
-  above) and `feature` interfaces, and the Rust traits a test holds equal
-  to what `wit-bindgen` generates from the world. `arrix-plugin-host` Tier 0.
+- `arrix-plugin-api` 0.1, and 0.2 with region references (ADR-0006):
+  the WIT world's `types`, `kernel` (the subset above) and `feature`
+  interfaces, and the Rust traits a test holds equal to what
+  `wit-bindgen` generates from the world. `arrix-plugin-host` Tier 0.
 - `plugins/gears`: `gears.spur` (teeth, module, width, pressure angle, on a
   plane), its involute flanks approximated by arcs within a stated
   tolerance, which is the plugin's choice of profile and not a kernel

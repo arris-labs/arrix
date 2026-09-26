@@ -43,7 +43,7 @@ pub use entity::{Entity, Point};
 pub use ids::{ConstraintId, EntityId, PointId, SketchEntityId};
 pub use profile::{RegionProfileError, curve_key};
 pub use region::{
-    EdgeGeom, EdgePiece, Loop, LoopEdge, Profile, Region, RegionKey, find_profiles,
+    EdgeGeom, EdgePiece, Loop, LoopEdge, Profile, Region, RegionKey, ResolveRegion, find_profiles,
     find_region_outlines, find_regions,
 };
 pub use sketch::{Sketch, SketchError};

@@ -237,7 +237,13 @@ pub enum Ref {
     Slot { feature: FeatureId, slot: SlotName },          // a body, datum or sketch output
     Topo(PersistentName),                                  // a face, edge or vertex
     Sketch { feature: FeatureId, entity: SketchEntityId }, // a sketch point or curve
+    Region { feature: FeatureId, key: RegionKey },         // a sketch region, ADR-0006
     Plugin { plugin: PluginId, record: RecordId },         // a plugin document record
+}
+
+pub struct RegionKey {
+    entities: Vec<SketchEntityId>,   // every entity bounding the face, sorted
+    sample: [i64; 2],                // a point inside it, in nanometres of (u, v)
 }
 ```
 
@@ -582,10 +588,15 @@ interaction).
   several solutions it lands on. Stored positions make re-solving
   deterministic and keep a sketch on its branch after an edit.
 - **Profiles** are the faces of the planar arrangement of the
-  non-construction curves. A feature references a region by a key: the
-  ids of the entities that bound it plus an interior sample point. A key
-  that resolves to no region, or to two, is a lost reference, never the
-  nearest region. Arris ask A5 (`region2` as public API) would make the
+  non-construction curves. A feature references a region by a key
+  (`Ref::Region`, ADR-0006): the ids of every entity that bounds it, its
+  holes' included, plus an interior sample point in whole nanometres, as
+  far inside the face as it allows. A key that resolves to no region, or
+  to two, is a lost reference, never the nearest region: `ref.lost`, the
+  sketch's current regions as candidates, most shared bounding entities
+  first. A hole drawn inside a region later makes it another region, and
+  the feature holding its key is re-picked. A `region` input resolves to
+  the region's `Profile` on the sketch's plane. Arris ask A5 (`region2` as public API) would make the
   arrangement the kernel's own, so what the sketch shades is what extrude
   accepts by construction; until it lands the arrangement is
   `arrix-sketch`'s.

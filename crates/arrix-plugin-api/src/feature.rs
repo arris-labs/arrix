@@ -1,7 +1,7 @@
 //! Feature types a plugin contributes (the world's `feature`;
 //! docs/PLUGINS.md §Contribution points, 1).
 
-use arrix_core::{Diagnostic, Frame, Quantity, QuantityKind, SlotName};
+use arrix_core::{Diagnostic, Frame, Profile, Quantity, QuantityKind, SlotName};
 
 use crate::{Body, Kernel};
 
@@ -20,6 +20,10 @@ pub struct ParamSpec {
 pub enum InputKind {
     /// A datum plane, a planar face or a world plane, as a `Frame`.
     Plane,
+    /// A sketch region, referenced by its key (`Ref::Region`), as a
+    /// `Profile` on the sketch's plane whose curves are keyed by the
+    /// entities that bound it.
+    Region,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -62,9 +66,10 @@ pub struct ParamValue {
     pub value: Quantity,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum InputValue {
     Plane(Frame),
+    Region(Profile),
 }
 
 #[derive(Clone, Debug, PartialEq)]

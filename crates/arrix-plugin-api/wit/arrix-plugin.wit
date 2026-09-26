@@ -5,7 +5,7 @@
 //
 // SI throughout: metres, radians, kilograms. No Arris type appears here.
 
-package arrix:plugin@0.1.0;
+package arrix:plugin@0.2.0;
 
 interface types {
   // An id: 64 bits, as `arrix-core`'s typed ids carry it.
@@ -27,6 +27,9 @@ interface types {
   // A reference to a document record (docs/DATA-MODEL.md §References).
   record slot-ref { feature: id, slot: string }
   record sketch-ref { feature: id, entity: id }
+  // A sketch region: the entities bounding it, sorted, and a point inside
+  // it in whole nanometres of the sketch's (u, v).
+  record region-ref { feature: id, entities: list<id>, sample: tuple<s64, s64> }
   record plugin-ref { plugin: string, %record: id }
   variant reference {
     param(id),
@@ -34,6 +37,7 @@ interface types {
     slot(slot-ref),
     topo(persistent-ref),
     sketch(sketch-ref),
+    region(region-ref),
     plugin(plugin-ref),
   }
 
@@ -85,13 +89,14 @@ interface kernel {
 
 // Feature types (docs/PLUGINS.md §Contribution points, 1).
 interface feature {
-  use types.{diagnostic, frame, quantity, quantity-kind};
+  use types.{diagnostic, frame, profile, quantity, quantity-kind};
   use kernel.{body};
 
   // A numeric field; `default` is an expression (`20`, `1 mm`).
   record param-spec { name: string, title: string, kind: quantity-kind, default: string }
-  // What an input resolves to: a plane (a datum, a planar face, a world plane).
-  enum input-kind { plane }
+  // What an input resolves to: a plane (a datum, a planar face, a world
+  // plane), or a sketch region as a profile keyed by its entities.
+  enum input-kind { plane, region }
   record input-spec { name: string, title: string, kind: input-kind }
   enum slot-kind { body, plane }
   // An output slot; `name` is one lower-kebab word.
@@ -108,7 +113,7 @@ interface feature {
 
   // A parameter's expression, evaluated by the host to SI.
   record param-value { name: string, value: quantity }
-  variant input-value { plane(frame) }
+  variant input-value { plane(frame), region(profile) }
   record resolved-input { name: string, value: input-value }
   variant output-value { body(body), plane(frame) }
   record slot-output { name: string, value: output-value }

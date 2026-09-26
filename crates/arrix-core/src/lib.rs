@@ -20,5 +20,5 @@ pub use naming::{
     MAX_NAME_DEPTH, NameError, NameRoot, NameStep, PersistentName, SweepPartName, TopoKind,
 };
 pub use plugin::{InvalidPluginId, PluginId};
-pub use reference::{InvalidSlotName, Ref, SlotName};
+pub use reference::{InvalidSlotName, Ref, RegionKey, SlotName};
 pub use units::{LENGTH_TOLERANCE, Quantity, QuantityKind, Unit, UnitMismatch};

@@ -7,8 +7,9 @@
 //! one of `arrix-core`'s, it is re-exported rather than mirrored, so a plugin
 //! names it through this crate and the host passes it without conversion.
 //!
-//! Built so far (0.1.0): the `types`, `kernel` (extrude, names, face frames,
-//! mass properties) and `feature` interfaces.
+//! Built so far (0.2.0): the `types`, `kernel` (extrude, names, face frames,
+//! mass properties) and `feature` interfaces; 0.2 added region references
+//! and region inputs (ADR-0006).
 
 mod feature;
 mod kernel;
@@ -17,8 +18,8 @@ pub use arrix_core::geom::{FrameError, ProfileError};
 pub use arrix_core::{
     CurveKey, DVec2, DVec3, Diagnostic, DiagnosticCode, FeatureId, Frame, Id, InvalidCode,
     InvalidPluginId, InvalidSlotName, NameError, ParamId, PersistentName, PluginId, Profile,
-    ProfileLoop, ProfileSegment, Quantity, QuantityKind, RecordId, Ref, Severity, SketchEntityId,
-    SlotName, TopoKind, Unit,
+    ProfileLoop, ProfileSegment, Quantity, QuantityKind, RecordId, Ref, RegionKey, Severity,
+    SketchEntityId, SlotName, TopoKind, Unit,
 };
 pub use feature::{
     Feature, FeatureOutput, FeatureTypeSpec, InputKind, InputSpec, InputValue, OutputValue,

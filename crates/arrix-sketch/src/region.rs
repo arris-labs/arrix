@@ -15,7 +15,7 @@
 //! nests by the same rule. An *open* conic bounds nothing, as an unwalked
 //! curve must.
 
-use serde::{Deserialize, Serialize};
+pub use arrix_core::RegionKey;
 
 use crate::arrangement::RegionOutline;
 use crate::ids::EntityId;
@@ -79,17 +79,14 @@ pub struct Profile {
     pub holes: Vec<Loop>,
 }
 
-/// Which face of the arrangement a feature was given.
+/// Resolving a [`RegionKey`] (`arrix-core`'s, since a `Ref` carries it)
+/// against a sketch.
 ///
-/// Every entity bounding the face, its holes' included, sorted, plus a
-/// point inside it. The entity set alone does not name a face — a circle
-/// and its chord bound the cap and the D alike — so the sample is what
-/// tells two faces of the same curves apart. Holes are in the key: a plate
-/// whose bore is deleted is another region, the plain rectangle, and a key
-/// that resolved to it would be the nearest-region fallback
-/// docs/DATA-MODEL.md §Sketches forbids. The price is the other direction:
-/// a hole drawn inside a region later makes it another region too, and the
-/// feature holding the key is re-picked.
+/// Holes are in the key: a plate whose bore is deleted is another region,
+/// the plain rectangle, and a key that resolved to it would be the
+/// nearest-region fallback docs/DATA-MODEL.md §Sketches forbids. The price
+/// is the other direction: a hole drawn inside a region later makes it
+/// another region too, and the feature holding the key is re-picked.
 ///
 /// A key is geometric where it has to be, and that is its one residue: an
 /// edit that sweeps a boundary *across* the sample moves the key onto the
@@ -97,35 +94,24 @@ pub struct Profile {
 /// the boundary as the face allows, which is what keeps an ordinary
 /// dimension edit on the right side of it, but nothing here makes a
 /// coordinate into an identity.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct RegionKey {
-    /// Sorted and deduplicated, so two keys of one face compare equal
-    /// whichever order their loops were walked in.
-    pub entities: Vec<EntityId>,
-    /// A point inside the face, in the sketch's own `(u, v)`.
-    pub sample: [f64; 2],
-}
-
-impl RegionKey {
-    pub fn new(entities: impl IntoIterator<Item = EntityId>, sample: [f64; 2]) -> RegionKey {
-        let mut entities: Vec<EntityId> = entities.into_iter().collect();
-        entities.sort_unstable();
-        entities.dedup();
-        RegionKey { entities, sample }
-    }
-
-    /// The region this key names *now*, or `None` when the sketch no longer
-    /// has it: its entities are gone, they no longer bound one face
+pub trait ResolveRegion {
+    /// The region this key names *now*, or `None` when the sketch no
+    /// longer has it: its entities are gone, they no longer bound one face
     /// together, or the sample fell outside every face they do bound. A
     /// feature holding such a key fails soft with a diagnostic and is
     /// re-picked — never a silent fall back to another region.
     ///
     /// Exactly one region or none: a key that two faces answer to is as
     /// lost as one that none does (docs/DATA-MODEL.md §Sketches).
-    pub fn resolve(&self, sketch: &Sketch) -> Option<Region> {
-        let mut found = keyed_faces(sketch).into_iter().filter(|(region, rims)| {
-            region.key.entities == self.entities && rims.contains(self.sample)
-        });
+    fn resolve(&self, sketch: &Sketch) -> Option<Region>;
+}
+
+impl ResolveRegion for RegionKey {
+    fn resolve(&self, sketch: &Sketch) -> Option<Region> {
+        let sample = self.sample_m();
+        let mut found = keyed_faces(sketch)
+            .into_iter()
+            .filter(|(region, rims)| region.key.entities == self.entities && rims.contains(sample));
         let (region, _) = found.next()?;
         found.next().is_none().then_some(region)
     }

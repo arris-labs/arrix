@@ -7,7 +7,7 @@ the kernel's choke point, errors, testing and the gate. The charter is
 `docs/CONCURRENCY-WASM.md`. Built: the workspace with every crate
 (`arrix-core`'s units, ids, references, persistent names, frames and
 profiles, and `Diagnostic`, `arrix-kernel`'s first slice of §The kernel
-choke point, `arrix-plugin-api` 0.1.0, `arrix-doc`'s
+choke point, `arrix-plugin-api` 0.2.0, `arrix-doc`'s
 expressions, document, DAG, commands and undo, evaluator and cache, the
 directory form's save and open, and the `arrix eval` line,
 `arrix-plugin-host`'s Tier 0, `plugins/gears`, the empty shell in
@@ -52,7 +52,7 @@ hashes through the same code) has, `toml` (1, parsing and serde only) and
 "forbid"` is a workspace lint every crate inherits; `wit-bindgen`'s
 `generate!` compiles under it, its `export!` does not, which is why the
 equality test implements the guest traits without exporting them.
-`arrix-plugin-api` alone carries its own version (0.1.0); every other
+`arrix-plugin-api` alone carries its own version (0.2.0); every other
 crate is the workspace's 0.0.0.
 The binaries are `arrix` (`arrix-cli`) and `arrix-app`. No crate is
 published yet (`publish = false`); reserving names is the human's act.

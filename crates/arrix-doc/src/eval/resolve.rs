@@ -5,14 +5,14 @@
 use std::collections::BTreeMap;
 
 use arrix_core::{
-    Diagnostic, FeatureId, Frame, ParamId, PersistentName, Quantity, QuantityKind, Ref, Severity,
-    TopoKind,
+    Diagnostic, FeatureId, Frame, ParamId, PersistentName, Profile, Quantity, QuantityKind, Ref,
+    RegionKey, Severity, TopoKind,
 };
 use arrix_kernel::{Kernel, KernelBody};
-use arrix_sketch::Sketch;
+use arrix_sketch::{ResolveRegion, Sketch};
 
 use super::host::kernel_diagnostic;
-use super::{Failure, SlotOut, State};
+use super::{Failure, RegionView, SlotOut, State};
 use crate::dag::{Dag, Node, ref_features};
 use crate::document::Document;
 use crate::expr::Expr;
@@ -148,6 +148,77 @@ pub(super) fn plane(
         .with_refs([other.clone()])
         .into()),
     }
+}
+
+/// A region input: a sketch feature's region by its key, as a profile on
+/// the sketch's plane. A key its sketch no longer answers to exactly once
+/// is lost, with the regions it has now as candidates; it never falls back
+/// to the nearest one (docs/DATA-MODEL.md §Sketches).
+pub(super) fn region(
+    doc: &Document,
+    states: &BTreeMap<FeatureId, State>,
+    r: &Ref,
+) -> Result<Profile, Failure> {
+    let Ref::Region { feature, key } = r else {
+        return Err(
+            error("input.wrong-kind", "a region input takes a sketch's region")
+                .with_refs([r.clone()])
+                .into(),
+        );
+    };
+    let view = outputs(doc, states, *feature, r)?
+        .values()
+        .find_map(|slot| match slot {
+            SlotOut::Sketch(view) => Some(view),
+            _ => None,
+        })
+        .ok_or_else(|| {
+            error(
+                "input.wrong-kind",
+                format!("feature {feature} has no sketch to hold a region"),
+            )
+            .with_refs([r.clone()])
+        })?;
+    let Some(found) = key.resolve(&view.sketch) else {
+        return Err(error(
+            "ref.lost",
+            format!(
+                "no one region of feature {feature}'s sketch is bounded by the {} entities \
+                 the reference names around its sample",
+                key.entities.len()
+            ),
+        )
+        .with_refs([r.clone()])
+        .with_candidates(region_candidates(*feature, key, &view.regions))
+        .into());
+    };
+    found.to_profile(&view.sketch, view.plane).map_err(|e| {
+        error("sketch.profile", e.to_string())
+            .with_refs([r.clone()])
+            .into()
+    })
+}
+
+/// The regions a lost key might be re-picked as, best first: the most
+/// bounding entities shared with it, then the sketch's own order, largest
+/// first. Never applied here.
+fn region_candidates(feature: FeatureId, lost: &RegionKey, regions: &[RegionView]) -> Vec<Ref> {
+    let shared = |k: &RegionKey| {
+        k.entities
+            .iter()
+            .filter(|e| lost.entities.binary_search(e).is_ok())
+            .count()
+    };
+    let mut ranked: Vec<&RegionView> = regions.iter().collect();
+    ranked.sort_by_key(|v| std::cmp::Reverse(shared(&v.key)));
+    ranked
+        .into_iter()
+        .take(MAX_CANDIDATES)
+        .map(|v| Ref::Region {
+            feature,
+            key: v.key.clone(),
+        })
+        .collect()
 }
 
 fn face_frame(

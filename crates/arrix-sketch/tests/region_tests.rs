@@ -8,7 +8,7 @@
 use std::f64::consts::PI;
 
 use arrix_sketch::{
-    Draft, Entity, EntityId, Point, Profile, RegionKey, find_profiles, find_regions,
+    Draft, Entity, EntityId, Point, Profile, RegionKey, ResolveRegion, find_profiles, find_regions,
 };
 
 /// An axis-aligned CCW rectangle with one shared point per corner, so the
@@ -355,7 +355,8 @@ fn a_keys_sample_is_inside_the_face_and_outside_its_holes() {
     assert_eq!(regions.len(), 2, "{regions:#?}");
     let washer = &regions[0];
     assert_eq!(washer.profile.holes.len(), 1, "{washer:#?}");
-    let radius = washer.key.sample[0].hypot(washer.key.sample[1]);
+    let [x, y] = washer.key.sample_m();
+    let radius = x.hypot(y);
     assert!(
         (0.01..0.02).contains(&radius),
         "the sample is in the ring, not the bore: {:?}",

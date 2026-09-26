@@ -5,7 +5,9 @@
 use std::collections::BTreeMap;
 
 use arrix_core::{DVec3, FeatureId, Id, ParamId, PartId, QuantityKind, Ref, SlotName};
-use arrix_sketch::{Constraint, ConstraintId, Draft, Entity, EntityId, Point, PointId, Sketch};
+use arrix_sketch::{
+    Constraint, ConstraintId, Draft, Entity, EntityId, Point, PointId, ResolveRegion, Sketch,
+};
 
 use super::*;
 use crate::document::{FeatureTypeId, Param, Part};
@@ -293,4 +295,140 @@ fn a_sketch_on_no_input_stands_on_its_world_plane() {
     record.choices.insert("world".into(), "yz".into());
     let e = Evaluator::new(Registry::with_core_types()).evaluate(&doc);
     assert_eq!(view(&e).plane, arrix_core::Frame::WORLD_YZ);
+}
+
+const PAD: FeatureId = FeatureId(Id(4));
+
+/// `test.pad`: its `region` input extruded `height`, the feature that
+/// holds a region key here, as `core.extrude` will.
+struct Pad(arrix_plugin_api::FeatureTypeSpec);
+
+impl FeatureType for Pad {
+    fn spec(&self) -> &arrix_plugin_api::FeatureTypeSpec {
+        &self.0
+    }
+
+    fn evaluate(
+        &self,
+        kernel: &mut dyn arrix_plugin_api::Kernel,
+        args: &FeatureArgs,
+    ) -> Result<crate::registry::TypeOutput, Diagnostic> {
+        let Some(InputValue::Region(profile)) = args.input("region").map(|i| &i.value) else {
+            unreachable!("the evaluator resolves the region the spec asks for");
+        };
+        let body = kernel.extrude(profile, args.param("height").unwrap())?;
+        Ok(arrix_plugin_api::FeatureOutput {
+            slots: vec![arrix_plugin_api::SlotOutput {
+                name: SlotName::new("body").unwrap(),
+                value: OutputValue::Body(body),
+            }],
+        }
+        .into())
+    }
+}
+
+fn with_pad() -> Registry {
+    use arrix_plugin_api::{InputSpec, ParamSpec, SlotSpec};
+    let mut r = Registry::with_core_types();
+    r.register(std::sync::Arc::new(Pad(
+        arrix_plugin_api::FeatureTypeSpec {
+            id: "test.pad".into(),
+            version: 1,
+            title: "Pad".into(),
+            params: vec![ParamSpec {
+                name: "height".into(),
+                title: "Height".into(),
+                kind: QuantityKind::Length,
+                default: "5 mm".into(),
+            }],
+            inputs: vec![InputSpec {
+                name: "region".into(),
+                title: "Region".into(),
+                kind: InputKind::Region,
+            }],
+            outputs: vec![SlotSpec {
+                name: SlotName::new("body").unwrap(),
+                kind: SlotKind::Body,
+            }],
+        },
+    )))
+    .unwrap();
+    r
+}
+
+/// The plate document with a pad on the region `key` names.
+fn padded(sketch: Sketch, key: &RegionKey) -> Document {
+    let mut doc = document(sketch);
+    let part = doc.parts.get_mut(&PART).unwrap();
+    let pad = FeatureRecord {
+        id: PAD,
+        type_id: FeatureTypeId::new("test.pad").unwrap(),
+        name: "Pad".into(),
+        inputs: BTreeMap::from([(
+            "region".into(),
+            Ref::Region {
+                feature: SKETCH,
+                key: key.clone(),
+            },
+        )]),
+        sketch: None,
+        ..part.features[&SKETCH].clone()
+    };
+    part.history.push(PAD);
+    part.features.insert(PAD, pad);
+    doc
+}
+
+#[test]
+fn a_region_reference_resolves_to_its_region_or_is_lost_with_candidates() {
+    let plate = plate();
+    let mut ev = Evaluator::new(with_pad());
+    let first = ev.evaluate(&document(plate.sketch.clone()));
+    let holed = view(&first).regions[0].key.clone();
+
+    let e = ev.evaluate(&padded(plate.sketch.clone(), &holed));
+    let Some(SlotView::Body(body)) = e.slot(PAD, "body") else {
+        panic!("{:?}", e.outcome(PAD));
+    };
+    let want = (40.0 * 30.0 - std::f64::consts::PI * 25.0) * 5.0 * MM.powi(3);
+    assert!((body.volume - want).abs() <= 1e-9 * want, "{}", body.volume);
+
+    // The bore deleted: the sketch still evaluates, and the holed plate's
+    // key answers to nothing, never to the plain rectangle.
+    let mut bare = plate.sketch.clone();
+    bare.remove_entity(plate.bore);
+    let e = ev.evaluate(&padded(bare, &holed));
+    let rectangle = view(&e).regions[0].key.clone();
+    let lost = match e.outcome(PAD) {
+        Some(FeatureOutcome::Failed { diagnostic, .. }) => diagnostic,
+        other => panic!("{other:?}"),
+    };
+    assert_eq!(lost.code.as_str(), "ref.lost");
+    assert_eq!(
+        lost.refs,
+        [Ref::Region {
+            feature: SKETCH,
+            key: holed
+        }]
+    );
+    assert_eq!(
+        lost.candidates,
+        [Ref::Region {
+            feature: SKETCH,
+            key: rectangle
+        }],
+        "the plain rectangle, offered and not taken"
+    );
+}
+
+#[test]
+fn a_region_reference_reads_its_sketch_in_the_dag() {
+    let plate = plate();
+    let key = RegionKey::new([plate.bore], [0.0, 0.0]);
+    let doc = padded(plate.sketch, &key);
+    let dag = doc.validate().unwrap();
+    assert!(
+        dag.reads(Node::Feature(PAD))
+            .any(|n| n == Node::Feature(SKETCH))
+    );
 }

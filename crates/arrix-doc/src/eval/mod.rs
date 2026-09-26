@@ -14,12 +14,13 @@ mod tests;
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use arrix_core::RegionKey;
 use arrix_core::{
     Diagnostic, FeatureId, Frame, ParamId, Profile, Quantity, Ref, Severity, SlotName, TopoKind,
 };
 use arrix_kernel::{CallIndex, Kernel, KernelBody, KernelCall};
 use arrix_plugin_api::{InputKind, InputValue, OutputValue, ParamValue, ResolvedInput, SlotKind};
-use arrix_sketch::{ConstraintId, RegionKey, Sketch};
+use arrix_sketch::{ConstraintId, Sketch};
 use serde::{Deserialize, Serialize};
 
 pub use hash::InputHash;
@@ -428,6 +429,7 @@ impl Evaluator {
                 InputKind::Plane => {
                     InputValue::Plane(resolve::plane(&mut self.kernel, doc, states, r)?)
                 }
+                InputKind::Region => InputValue::Region(resolve::region(doc, states, r)?),
             };
             args.inputs.push(ResolvedInput {
                 name: i.name.clone(),

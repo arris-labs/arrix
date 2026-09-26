@@ -3,7 +3,7 @@
 [plugin]
 id = "gears"
 version = "0.1.0"
-api = "^0.1"
+api = "^0.2"
 tier = 0
 title = "Gears"
 licence = "MIT OR Apache-2.0"
