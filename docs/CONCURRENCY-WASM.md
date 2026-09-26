@@ -3,7 +3,8 @@
 Where work runs, how an edit supersedes an evaluation, what determinism
 promises, how many documents are evaluated at once, what the browser build
 is, and the performance budgets. Built: `arrix eval` on one document
-directory (§Batch evaluation). Each other section becomes true as its cycle lands (the native executor and batch evaluation
+directory (§Batch evaluation) and the evaluator's synchronous core with
+its cache (§The evaluator). Each other section becomes true as its cycle lands (the native executor and batch evaluation
 in C1, the browser in C4), and the commit that builds it keeps it true.
 
 ## Roles and threads
@@ -47,6 +48,11 @@ preclude (`SEED.md` §6.1). Locally all three are in one process.
   across generations. Outputs are Arris bodies in one long-lived model per
   evaluator; after each completed evaluation, `Model::retain` drops the
   bodies no cache entry holds.
+  Built: the cache and the long-lived kernel (`arrix_doc::Evaluator`),
+  bounded by entry count (`DEFAULT_CAPACITY`, 256) until a body's size is
+  known (body bytes, ask A2); an entry the latest evaluation used is never
+  evicted. The kernel's call records outlive the bodies they made, so a
+  later failure's operands still name them.
 - **Order.** C1 evaluates features one at a time in topological order.
   Parallel evaluation of independent branches (parts, patterns) is
   clone-evaluate-import across Arris models, which needs body bytes (ask
@@ -93,10 +99,11 @@ arrix eval <docs or dirs>… [--sweep <feature>.<param>=<from>..<to>:<n>]
 
   ```json
   {"doc":"bracket.arrx","sweep":null,"status":"failed",
+   "params":[{"id":"…","name":"w","value":0.012,"diagnostic":null}],
    "features":[{"id":"…","type":"core.fillet","status":"failed",
                 "category":"kernel.degenerate.blend-too-large",
                 "diagnostic":{"code":"…","message":"…","refs":["…"]}}],
-   "bodies":[{"part":"…","slot":"body","volume":1.2e-5,"area":4.1e-3,
+   "bodies":[{"part":"…","feature":"…","slot":"body","volume":1.2e-5,"area":4.1e-3,
               "faces":14,"edges":36,"vertices":24}]}
   ```
 
@@ -107,18 +114,21 @@ arrix eval <docs or dirs>… [--sweep <feature>.<param>=<from>..<to>:<n>]
   point).
 - `--jobs` evaluates documents in parallel, each with its own evaluator
   and Arris model: parallelism across documents, never inside one.
-- Exit status: 0 when every document evaluated without a failed feature,
-  1 otherwise, 2 on usage or I/O errors.
+- Exit status: 0 when every document evaluated without a failed
+  parameter or feature (suppressed and rolled-back ones are not
+  failures), 1 otherwise, 2 on usage or I/O errors.
 - **Built so far:** `arrix eval <dir>` on one document directory, no
   flags. It opens the document through `arrix-doc`, which reads no files:
   the CLI hands it a directory as a `DocumentSource`, and the line type,
   `EvalLine`, and `arrix_doc::eval` live in `arrix-doc`, so tests and the
-  CLI share one code path. An empty document prints
-  `{"doc":"<dir>","sweep":null,"status":"ok","features":[],"bodies":[]}`
+  CLI share one code path. The document is evaluated with the core
+  feature types registered (`Registry::with_core_types`). An empty
+  document prints
+  `{"doc":"<dir>","sweep":null,"status":"ok","params":[],"features":[],"bodies":[]}`
   (`doc` as the caller named it) and exits 0. A missing directory, a
   `document.json` that is absent or not JSON, a schema other than 1, or a
-  document with parts (read from M1) exits 2 with the reason on stderr and
-  nothing on stdout. The rest of the flags are M4's.
+  malformed document exits 2 with the reason on stderr and nothing on
+  stdout. The rest of the flags are M4's.
 
 ## The browser build
 

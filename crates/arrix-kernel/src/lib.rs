@@ -40,12 +40,14 @@ struct BodyEntry {
     names: BodyNames,
 }
 
-/// One evaluation's kernel context: an Arris model, the bodies made in
-/// it, and the record of every call, in order.
+/// A kernel context: an Arris model, the bodies made in it, and the
+/// record of every call, in order. The evaluator keeps one across
+/// evaluations and [`retain`](Kernel::retain)s what its cache holds.
 pub struct Kernel {
     model: Model,
     records: Vec<KernelCall>,
-    bodies: Vec<BodyEntry>,
+    /// By handle; `None` once released.
+    bodies: Vec<Option<BodyEntry>>,
 }
 
 impl Default for Kernel {
@@ -97,6 +99,7 @@ impl Kernel {
     fn entry(&self, body: KernelBody) -> Result<&BodyEntry, KernelError> {
         self.bodies
             .get(body.0 as usize)
+            .and_then(Option::as_ref)
             .ok_or(KernelError::UnknownBody(body))
     }
 
@@ -127,12 +130,29 @@ impl Kernel {
         let names = naming::extrude_names(&self.model, body, feature, profile, &provenance)
             .map_err(|message| KernelError::Naming { call, message })?;
         let handle = KernelBody(u32::try_from(self.bodies.len()).expect("under 2³² bodies"));
-        self.bodies.push(BodyEntry {
+        self.bodies.push(Some(BodyEntry {
             body,
             made_by: call,
             names,
-        });
+        }));
         Ok(handle)
+    }
+
+    /// Releases every body but `keep`, and the model's entities only they
+    /// used. A released handle is unknown from then on; handles are never
+    /// reused. Records are kept: a later failure's operands name them.
+    pub fn retain(&mut self, keep: &std::collections::BTreeSet<KernelBody>) {
+        let mut live = Vec::new();
+        for (i, slot) in self.bodies.iter_mut().enumerate() {
+            let handle = KernelBody(u32::try_from(i).expect("under 2³² bodies"));
+            match slot {
+                Some(entry) if keep.contains(&handle) => live.push(entry.body),
+                _ => *slot = None,
+            }
+        }
+        self.model
+            .retain(&live)
+            .expect("every live body is in the model");
     }
 
     /// Every face, edge and vertex of `body`, by name.

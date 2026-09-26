@@ -58,6 +58,7 @@ fn feature(
             .iter()
             .map(|(k, v)| (k.to_string(), Expr::parse(v).unwrap()))
             .collect(),
+        choices: BTreeMap::new(),
         inputs: inputs.into_iter().map(|(k, r)| (k.into(), r)).collect(),
         suppressed: false,
     }

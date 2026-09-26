@@ -40,9 +40,10 @@ Crates live in `crates/<name>/`, plugins in `plugins/<name>/` (package
 pinned once, in the root `Cargo.toml`'s `[workspace.dependencies]`:
 `arris` 0.2, and one egui minor for `egui`, `eframe`, `egui-wgpu` and the
 dev-only `egui_kittest` (0.36). The table's externals not yet in a
-manifest (`zip`, `blake3`, `wgpu` directly, `wasmtime`)
+manifest (`zip`, `wgpu` directly, `wasmtime`)
 join with the code that needs them; `glam` (0.33, f64 types, `serde`)
-has, and so have `wit-bindgen` (0.62, its `macros` feature alone) and
+has, `blake3` (1, its `pure` feature: no C or assembly, so every target
+hashes through the same code) has, and so have `wit-bindgen` (0.62, its `macros` feature alone) and
 `wit-parser` (0.259), dev-only in `arrix-plugin-api`. `unsafe_code =
 "forbid"` is a workspace lint every crate inherits; `wit-bindgen`'s
 `generate!` compiles under it, its `export!` does not, which is why the

@@ -213,6 +213,7 @@ fn edit_feature(record: &mut FeatureRecord, edit: &FeatureEdit) -> FeatureEdit {
         inverse.suppressed = Some(std::mem::replace(&mut record.suppressed, s));
     }
     inverse.params = swap_entries(&mut record.params, &edit.params);
+    inverse.choices = swap_entries(&mut record.choices, &edit.choices);
     inverse.inputs = swap_entries(&mut record.inputs, &edit.inputs);
     inverse
 }

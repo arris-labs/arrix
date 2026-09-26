@@ -60,6 +60,9 @@ serde = { version = "1", features = ["derive"] }
 # §File format), which the default parser does not promise.
 serde_json = { version = "1", features = ["float_roundtrip"] }
 thiserror = "2"
+# Feature input hashes (docs/DATA-MODEL.md §Evaluation). `pure`: no C or
+# assembly, so every target hashes through the same code.
+blake3 = { version = "1", default-features = false, features = ["std", "pure"] }
 
 # The plugin API's equality test (docs/PLUGINS.md §One interface): the
 # guest bindings generated from the WIT world, and its parser for the

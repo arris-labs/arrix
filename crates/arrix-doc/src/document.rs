@@ -53,8 +53,12 @@ pub struct FeatureRecord {
     pub type_version: u32,
     /// What the tree shows; unique within the part.
     pub name: String,
-    /// The form's fields, each an expression.
+    /// The form's numeric fields, each an expression.
     pub params: BTreeMap<String, Expr>,
+    /// The form's plain values: a word from a list the feature type
+    /// names, such as a datum plane's world plane (`xy`).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub choices: BTreeMap<String, String>,
     /// Named inputs: a plane, a profile, faces, a body.
     pub inputs: BTreeMap<String, Ref>,
     pub suppressed: bool,

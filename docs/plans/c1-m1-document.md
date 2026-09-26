@@ -142,7 +142,7 @@ gear extrudes; nothing is built directly).
   trailing newline), `params.json` and `parts/<id>.json`; `open` reads
   parts. Save twice identical; save, load, save identical; undo of each
   command restores the earlier bytes.
-- [ ] **[2]** Step 9 — the evaluator, synchronous core: resolve parameters
+- [x] **[2]** Step 9 — the evaluator, synchronous core: resolve parameters
   and inputs, the BLAKE3 input hash, the cache, fail soft (*input
   unavailable* downstream), `EvalEvent`s; `core.datum-plane`; `arrix_doc::
   eval` lines gain bodies and features. Tests: cache hit on an unchanged
@@ -256,5 +256,16 @@ gate green, the wasm build included.
   so the subset gains `AddPart` (a whole part: `DeletePart`'s inverse)
   and `DeletePart`. Stamps live in the authority, keyed by DAG node, and
   undo and redo restore them, since the file carries none.
+- Finding, step 9: the world plane is a plain value, not an expression,
+  so a record gains `choices` (a word the type lists; empty and omitted
+  in JSON for every record so far), and `FeatureEdit` with it. The
+  plugin world has no choice field: `core.datum-plane` validates its own,
+  and a plugin that wants one is an API change, taken when M3's forms
+  need the declaration. `FeatureType` is the plugin API's `evaluate` for
+  one type, so step 10's adapter is a wrapper. A type the registry lacks
+  fails as `feature.unknown-type` until plan 3's frozen results. The
+  cache is bounded by entry count until body bytes (A2) give sizes, and
+  the kernel keeps its call records for the evaluator's life. `EvalLine`
+  gains `params` and each body line its `feature`.
 - OPEN 5, closed 2026-09-26 by the human: `c1-m1-sketch` starts now in
   the second plan slot, beside this one.

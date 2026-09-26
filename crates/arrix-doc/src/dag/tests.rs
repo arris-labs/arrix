@@ -22,6 +22,7 @@ fn record(id: FeatureId, inputs: Vec<Ref>, exprs: &[&str]) -> FeatureRecord {
             .enumerate()
             .map(|(i, e)| (format!("p{i}"), Expr::parse(e).unwrap()))
             .collect(),
+        choices: BTreeMap::new(),
         inputs: inputs
             .into_iter()
             .enumerate()

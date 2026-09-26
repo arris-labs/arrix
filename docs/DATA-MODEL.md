@@ -9,8 +9,9 @@ the feature-type registry and the derived DAG (§The dependency DAG),
 commands, the authority and per-author undo (§Commands and undo, less
 sketch and plugin-data edits), saving and opening the directory form
 (§File format), names from an extrude's provenance in `arrix-kernel`
-(§Persistent naming), and expressions (`arrix_doc::expr`, §Parameters and
-expressions).
+(§Persistent naming), expressions (`arrix_doc::expr`, §Parameters and
+expressions), the evaluator's synchronous core with its cache
+(§Evaluation), and `core.datum-plane`.
 Each other section becomes true as C1 lands, and the commit that builds it
 keeps it true.
 
@@ -139,19 +140,28 @@ pub struct FeatureRecord {
     type_id: FeatureTypeId,        // "core.extrude", "gears.spur": namespaced, stable
     type_version: u32,             // the feature type's own schema version
     name: String,                  // what the tree shows; unique within the part
-    params: ParamValues,           // the Form's fields, each an expression or a plain value
-    inputs: BTreeMap<String, Ref>, // named inputs: a plane, a profile, faces, a body
+    params: BTreeMap<String, Expr>,     // the form's numeric fields, each an expression
+    choices: BTreeMap<String, String>,  // the form's plain values: a word the type lists
+    inputs: BTreeMap<String, Ref>,      // named inputs: a plane, a profile, faces, a body
     suppressed: bool,
     frozen: Option<FrozenResult>,  // §Frozen results; always present for a plugin feature
 }
 ```
 
+A form field the record leaves out takes the type's default; a field the
+type does not list is refused (`feature.unknown-field`), never ignored.
+`choices` is omitted from JSON when empty.
+
 The feature *type* (its parameters' form, its inputs, its `evaluate`) comes
 from a registry. Built-in types register under the reserved `core.`
 namespace through the same `FeatureType` shape a plugin's `Feature` is
 adapted onto (`docs/PLUGINS.md` §Features), so the evaluator has one code
-path for both. A `type_id` the registry does not know is not an error: the
-feature evaluates as frozen.
+path for both: `FeatureType` is the plugin API's `evaluate` for one type,
+taking the plugin API's `Kernel` and a `FeatureArgs` of SI parameters, the
+record's choices and resolved inputs. A `type_id` the registry does not
+know is not an error: the feature evaluates as frozen. Until frozen
+results land it fails as `feature.unknown-type`, and a `type_version`
+other than the registered one as `feature.type-version`.
 
 A feature's outputs are **slots**: named bodies, datums (plane, axis,
 point, frame) and sketches. `core.extrude` in new-body mode has one body
@@ -163,7 +173,7 @@ target's slot (§Bodies across features).
 | Type | Inputs | Kernel operation | Cycle |
 |---|---|---|---|
 | `core.sketch` | a plane: a datum, a planar face, or a frame | none in the kernel; `arrix-sketch` solves it; its closed regions are profiles | C1 |
-| `core.datum-plane` | offset from a plane or face, through three points, at an angle about an edge | none | C1 |
+| `core.datum-plane` | offset from a plane or face, or from a world plane; through three points, at an angle about an edge | none | C1 |
 | `core.extrude` | a profile (sketch regions), a direction, a mode: new body, join, cut | `ops::extrude`, then `fuse` or `cut` | C1 |
 | `core.revolve` | a profile, an axis, a mode | `ops::revolve`, then `fuse` or `cut` | C1 |
 | `core.fillet`, `core.chamfer` | edges of one body | `ops::fillet`, `ops::chamfer` | C1 |
@@ -171,6 +181,14 @@ target's slot (§Bodies across features).
 | `core.pattern-linear`, `core.pattern-circular` | features or a body, count, spacing | `ops::transform` of the tool or body, then `fuse`/`cut` | C1 |
 | `core.boolean` | a target body, tool bodies, an operation | `fuse`, `common`, `cut` | C1 |
 | `core.mirror` | features or a body, a plane | `ops::mirror` (Arris ask A11) | C1 once A11 is released, else the first cycle after |
+
+`core.datum-plane` is built in its offset form: `offset` (a length,
+default 0) along the normal of its `plane` input, a datum's `plane` slot
+or a planar face by persistent name (its outward normal). With no input
+it stands on the world plane its `world` choice names: `xy` (the
+default), `yz` or `zx`, `Frame::WORLD_*`'s planes. Both at once is
+`datum-plane.two-bases`. Its output slot is `plane`. No `core.origin`
+type: a world plane is a choice, not a feature.
 
 Sweep, loft, shell, draft and split wait for their Arris cycles
 (`SEED.md` §6.2). A type that is not in this table is not planned around.
@@ -266,6 +284,24 @@ with *input unavailable* naming it; features that do not depend on it
 evaluate as normal. No retry with a nudged tolerance, ever
 (`SEED.md` §8.2).
 
+**As built** (`arrix_doc::Evaluator`, synchronous; `LocalSession` runs it
+off the calling thread). Parameters evaluate in the DAG's order, then every
+feature. A feature at or after its part's rollback index is `rolled-back`,
+a suppressed one `suppressed`; neither has outputs. The input hash covers
+the Arris version, the feature's id (names are rooted at it, so two
+features never share a result), `type_id`, `type_version`, each parameter's
+SI value (not its text: `1 cm` and `10 mm` hash alike), the choices and
+each input as the geometry it resolved to (a plane as its frame); the
+feature's name is not an input. It is canonical JSON through BLAKE3,
+written as 64 hex digits. A failure's codes: `input.unavailable` (a read
+feature or parameter has no value; its `refs` name it), `ref.lost` (with
+candidates), `input.wrong-kind`, `feature.output` (a type filled its
+slots other than it declared), `expr.*`, `kernel.*`. A kernel failure
+keeps its `KernelCall` in the event. Each feature's outcome is an
+`EvalEvent { feature, outcome }`, the outcome tagged by `status` (`ok`
+with its hash, whether it was cached and its slots as plain data;
+`failed`; `suppressed`; `rolled-back`), and crosses as JSON.
+
 **Determinism.** Evaluating the same snapshot twice, on any machine,
 native or wasm, gives byte-identical outputs and names. Nothing in
 evaluation reads the clock, a random source or a `HashMap`'s iteration
@@ -348,7 +384,11 @@ A parse error names the byte it stopped at; `gen` nests at most 32 deep.
 exactly one entity or to a diagnostic. A name that matches nothing, or
 more than one entity, is a **lost reference**: the feature fails with a
 diagnostic that lists candidates, ranked by the longest shared chain
-prefix, and the user (or an agent) re-picks by command. It is **never
+prefix, and the user (or an agent) re-picks by command. As built: the
+pool is the bodies of the features the name reads; candidates are that
+pool's names of the same kind, the same root first, then the same
+feature's same kind of sweep part (another side face), then the same
+feature, then the longer shared chain, ties in name order, at most five. It is **never
 rebound silently** (`SEED.md` §8.2), and never matched by centroid,
 normal or area.
 
@@ -428,6 +468,7 @@ pub struct FeatureEdit {        // what it leaves out is kept
     name: Option<String>,
     suppressed: Option<bool>,
     params: BTreeMap<String, Option<Expr>>,   // null removes the field
+    choices: BTreeMap<String, Option<String>>,
     inputs: BTreeMap<String, Option<Ref>>,
 }
 ```

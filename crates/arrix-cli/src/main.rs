@@ -41,7 +41,8 @@ fn eval(doc: &std::path::Path) -> ExitCode {
         eprintln!("arrix eval: {name}: no such directory");
         return ExitCode::from(2);
     }
-    let line = match arrix_doc::eval(&name, &DirSource::new(doc)) {
+    let registry = arrix_doc::Registry::with_core_types();
+    let line = match arrix_doc::eval(&name, &DirSource::new(doc), &registry) {
         Ok(line) => line,
         Err(err) => {
             eprintln!("arrix eval: {name}: {err}");

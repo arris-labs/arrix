@@ -286,3 +286,20 @@ fn the_recorded_arris_version_is_the_locked_one() {
         .unwrap();
     assert_eq!(locked, format!("\"{ARRIS_VERSION}\""));
 }
+
+#[test]
+fn retain_releases_the_other_bodies_and_keeps_the_kept_ones_whole() {
+    let mut k = Kernel::new();
+    let kept = k.extrude(feature(), &plate(), 7.0 * MM).unwrap();
+    let dropped = k.extrude(FeatureId(Id(101)), &plate(), 3.0 * MM).unwrap();
+    let before = k.mass_properties(kept).unwrap();
+    k.retain(&BTreeSet::from([kept]));
+    assert_eq!(k.mass_properties(kept).unwrap(), before);
+    assert_eq!(
+        k.mass_properties(dropped),
+        Err(KernelError::UnknownBody(dropped))
+    );
+    let again = k.extrude(FeatureId(Id(101)), &plate(), 3.0 * MM).unwrap();
+    assert_ne!(again, dropped, "a released handle is never reused");
+    assert_eq!(k.names(kept).unwrap().count(TopoKind::Face), 7);
+}

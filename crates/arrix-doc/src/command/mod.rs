@@ -69,8 +69,8 @@ pub enum Command {
     },
 }
 
-/// What an `EditFeature` changes; a field it leaves out is kept. In `params`
-/// and `inputs`, `null` removes the entry.
+/// What an `EditFeature` changes; a field it leaves out is kept. In
+/// `params`, `choices` and `inputs`, `null` removes the entry.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct FeatureEdit {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -79,6 +79,8 @@ pub struct FeatureEdit {
     pub suppressed: Option<bool>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub params: BTreeMap<String, Option<Expr>>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub choices: BTreeMap<String, Option<String>>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub inputs: BTreeMap<String, Option<Ref>>,
 }

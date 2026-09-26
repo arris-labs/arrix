@@ -44,6 +44,7 @@ fn plane(id: u64, name: &str, inputs: &[(&str, Ref)]) -> FeatureRecord {
         type_version: 1,
         name: name.into(),
         params: BTreeMap::from([("offset".into(), expr("10 mm"))]),
+        choices: BTreeMap::new(),
         inputs: inputs
             .iter()
             .map(|(k, r)| (k.to_string(), r.clone()))
@@ -105,6 +106,7 @@ fn each_command_applies_and_its_inverse_restores() {
                     ("offset".into(), None),
                     ("angle".into(), Some(expr("5 deg"))),
                 ]),
+                choices: BTreeMap::from([("world".into(), Some("zx".into()))]),
                 inputs: BTreeMap::new(),
             },
         },
@@ -355,6 +357,7 @@ fn command_for(doc: &Document, minter: &mut IdMinter, op: (u8, u64, u64), depth:
                 name: (b % 3 == 0).then(|| format!("f{}", a % 5)),
                 suppressed: (b % 2 == 0).then_some(a % 2 == 0),
                 params: BTreeMap::from([("offset".into(), (b % 4 != 1).then(e))]),
+                choices: BTreeMap::from([("world".into(), (b % 5 == 0).then(|| "yz".into()))]),
                 inputs: BTreeMap::from([("plane".into(), None)]),
             },
         },
