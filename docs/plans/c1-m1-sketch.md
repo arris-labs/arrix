@@ -147,7 +147,7 @@ arrangement is used, the fallback `docs/ROADMAP.md` names.
   (plugin API 0.2, breaking). A region key that resolves to none is
   `ref.lost` with the current regions as candidates, each a
   `Ref::Region`.
-- [ ] **[1]** Step 10 — the acceptance test, and the docs it proves.
+- [x] **[1]** Step 10 — the acceptance test, and the docs it proves.
 
 ## Acceptance
 
@@ -274,3 +274,9 @@ empty.
   (clippy's large-variant lint). For step 9: the evaluator's input hash
   is over the feature type's resolved arguments, so `core.sketch` must
   put the sketch into them or a sketch edit would hit the cache.
+- Finding, step 10: the feature that holds the region key in acceptance
+  step 4 is a test-registered `test.pad` (a region input extruded), since
+  `core.extrude` is `c1-m1-slice`'s; it goes through the same region
+  input `core.extrude` will. The design docs were kept true step by step
+  (DATA-MODEL, PLUGINS, ARCHITECTURE's API version, ROADMAP's in-list);
+  what remains of *Docs to update* is retirement's.
