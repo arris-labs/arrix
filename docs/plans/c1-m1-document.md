@@ -156,7 +156,7 @@ gear extrudes; nothing is built directly).
   stated tolerance, checked against the true involute; evaluated twice
   from fresh state to identical names and volume; manifest
   `arrix-plugin.toml`.
-- [ ] **[2]** Step 12 — naming through a plugin feature: a datum plane
+- [x] **[2]** Step 12 — naming through a plugin feature: a datum plane
   offset from the gear's top face by persistent name follows width edits
   and survives a teeth edit; a reference to tooth 20's flank after teeth
   go to 18 is a lost reference with ranked candidates, never a rebind.
@@ -171,8 +171,9 @@ gear extrudes; nothing is built directly).
 
 ## Acceptance
 
-`cargo test -p arrix-doc --test gear_on_plane` (headless, through
-`LocalSession` with `gears` registered):
+`cargo test -p arrix-cli --test gear_on_plane` (headless, through
+`LocalSession` with `gears` registered; in `arrix-cli`, finding of step
+12):
 
 1. Commands alone build: parameters `teeth = 20`, `m = 1 mm`,
    `w = 8 mm`; a datum plane 10 mm above world XY; `gears.spur` on it with
@@ -280,5 +281,15 @@ gate green, the wasm build included.
   the kernel-backed checks of a first-party plugin live beside the
   registration list that names it, in `arrix-cli`'s tests, until C3's
   test kit.
+- Finding, step 12: the acceptance test lives in `arrix-cli`'s tests,
+  not `arrix-doc`'s: the layer lint counts dev-dependencies, and
+  `arrix-doc` reaching `arrix-gears` or `arrix-plugin-host` is not an
+  allowed edge (step 10's finding, for the same reason). The naming
+  checks are `crates/arrix-cli/tests/gear_naming.rs`. Tooth 20's "flank"
+  is its rising radial line's face (key `20001`), planar below the base
+  circle for any gear under 42 teeth, so a datum plane stands on it
+  before it is lost. A plane on the top face is a cache hit after a
+  teeth edit: its input hash is over the frame it resolved to, and a
+  teeth edit leaves the top face's frame where it was.
 - OPEN 5, closed 2026-09-26 by the human: `c1-m1-sketch` starts now in
   the second plan slot, beside this one.
