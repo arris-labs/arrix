@@ -327,6 +327,27 @@ impl Sketch {
         crate::measured_value(self, constraint)
     }
 
+    /// Curve endpoints joined to no other curve's (see
+    /// [`crate::SketchValidation`]).
+    pub fn detect_open_vertices(&self) -> Vec<crate::OpenVertex> {
+        crate::SketchValidation::new(self).detect_open_vertices()
+    }
+
+    /// Open vertices within `tol` metres of each other.
+    pub fn detect_open_gaps(&self, tol: f64) -> Vec<crate::OpenGap> {
+        crate::SketchValidation::new(self).detect_open_gaps(tol)
+    }
+
+    /// Collapsed and duplicate curves at tolerance `tol`.
+    pub fn detect_degenerate_geometries(&self, tol: f64) -> Vec<crate::DegenerateEntity> {
+        crate::SketchValidation::new(self).detect_degenerate_geometries(tol)
+    }
+
+    /// Removes the degenerate curves and what only they used.
+    pub fn purge_degenerate_geometries(&mut self, tol: f64) -> Vec<EntityId> {
+        crate::SketchValidation::purge_degenerate_geometries(self, tol)
+    }
+
     /// The nearest point to `(x, y)` within `tol`, for a pick.
     pub fn hit_point(&self, x: f64, y: f64, tol: f64) -> Option<PointId> {
         let mut best: Option<(PointId, f64)> = None;

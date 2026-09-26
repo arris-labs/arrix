@@ -18,6 +18,7 @@ mod ids;
 pub mod instrument;
 mod sketch;
 mod solver;
+mod validation;
 
 #[cfg(feature = "conics")]
 pub use constraint::AlignmentKind;
@@ -35,6 +36,7 @@ pub use solver::{
     constraint_residuals, matrix_rank, measured_value, row_space_basis, solve, solve_with_drag,
     solve_with_options,
 };
+pub use validation::{DegenerateEntity, DegenerateKind, OpenGap, OpenVertex, SketchValidation};
 
 // Test utilities for the gradient suite and the benchmarks, not public API.
 #[doc(hidden)]

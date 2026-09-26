@@ -105,16 +105,19 @@ arrangement is used, the fallback `docs/ROADMAP.md` names.
   side or an arc's sweep refused. The ported drag-policy tests. A
   200-entity drag solve measured against the 4 ms budget
   (`docs/CONCURRENCY-WASM.md` §Budgets), reported, not gated.
-- [ ] **[2]** Step 4 — validation: degenerate geometry and open gaps, the
+- [x] **[2]** Step 4 — validation: degenerate geometry and open gaps, the
   degenerate-geometry function split. Validation tests ported. (The
   diagnostics came with step 2; the prototype's `analysis_scenarios` test
-  auto-constrain, which is sketch mode's, M3.)
+  auto-constrain, which is sketch mode's, M3. Its gap closing adds
+  constraints through auto-constrain's one-by-one check, so it waits for
+  M3 too; the validation report counts regions, so it comes with step 5.)
 - [ ] **[3]** Step 5 — the arrangement and regions: pieces, loops, faces,
   `RegionKey` (bounding entity ids and an interior sample); a key resolves
   to one region or none. The same sketch twice gives the same regions in
   the same order; a key whose region was split, merged or removed resolves
   to none, never the nearest. Arrangement, region and construction-profile
-  tests ported.
+  tests ported, with the validation report (its region counts) and the
+  scenarios step 2 held back.
 - [ ] **[2]** Step 6 — trim, extend, offset, mirror, each a pure edit of
   the model with its constraint transfer. Their ported tests.
 - [ ] **[2]** Step 7 — ADR-0005 (who solves), then the sketch record and
