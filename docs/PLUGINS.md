@@ -4,7 +4,7 @@ The plugin model is ArriX's reason to exist (`SEED.md` §3, §6.3): one
 interface, versioned apart from the app, hosted three ways, and enough of it
 that first-party domains need nothing else. This document is the design of
 `arrix-plugin-api` and `arrix-plugin-host`. Built: the world and its Rust
-traits at 0.2.0 (§One interface), manifests (§The manifest), Tier 0
+traits at 0.3.0 (§One interface), manifests (§The manifest), Tier 0
 hosting (§Three tiers), and the first plugin, `plugins/gears` with
 `gears.spur` (its crate docs state its geometry and tolerance). Each other section becomes true as its
 cycle lands (Tier 0 in C1, Tiers 1 and 2 and the test kit in C3), and the
@@ -24,11 +24,11 @@ API's version. From it come:
 - the **Python SDK** (`python/arrix`): stubs generated from the world, and
   a thin runtime speaking the Tier 2 wire protocol (C3).
 
-The world as it stands at 0.2.0 (the file is the authority; comments and
+The world as it stands at 0.3.0 (the file is the authority; comments and
 field lists are elided here):
 
 ```wit
-package arrix:plugin@0.2.0;
+package arrix:plugin@0.3.0;
 
 interface types {                                    // SI; no Arris type anywhere
   type id = u64;                                     // arrix-core's typed ids
@@ -50,10 +50,14 @@ interface kernel {                                   // a host service; imported
   names: func(b: borrow<body>) -> result<list<persistent-ref>, diagnostic>;
   face-frame: func(b: borrow<body>, face: persistent-ref) -> result<frame, diagnostic>;
   measure: func(b: borrow<body>) -> result<mass-properties, diagnostic>;
+  fuse: func(target: borrow<body>, tool: borrow<body>) -> result<body, diagnostic>;
+  cut: func(target: borrow<body>, tool: borrow<body>) -> result<body, diagnostic>;
 }
 
 interface feature {                                  // exported by a plugin that adds features
   describe: func() -> list<feature-type-spec>;      // id, version, title, params, inputs, output slots
+  // input-kind { plane, region, body }; slot-spec { name, kind, modifies: option<string> }
+  // input-value { plane(frame), region(profile), body(body) }
   evaluate: func(type-id: string, params: list<param-value>, inputs: list<resolved-input>)
             -> result<feature-output, diagnostic>;
 }
@@ -73,7 +77,8 @@ world plugin {
   entities that bound it. Output slots hold a `body` or a `plane`; a
   sketch slot is a built-in's alone (`docs/DATA-MODEL.md` §Features).
 - **Bodies as inputs** (ADR-0007, 0.3.0): an input of kind `body` arrives
-  as a `borrow<body>` of its slot's version current at the feature, and
+  as a `body` handle of the feature's own to its slot's version current at
+  the feature (an owned handle, not a borrow, ADR-0008), and
   an output slot spec may name the body input it `modifies`, making its
   body that slot's next version rather than a slot of its own. A body
   input no slot modifies is a tool, and its slot ends there. The kernel
@@ -173,7 +178,7 @@ Every plugin, whatever its tier, has an `arrix-plugin.toml`:
 [plugin]
 id = "gears"                 # the namespace of everything it contributes; [a-z][a-z0-9-]*
 version = "0.1.0"            # the plugin's own semver
-api = "^0.2"                 # the arrix-plugin-api range it was built against
+api = "^0.3"                 # the arrix-plugin-api range it was built against
 tier = 0                     # 0, 1 or 2
 title = "Gears"
 licence = "MIT OR Apache-2.0"
@@ -309,7 +314,9 @@ only, whatever the manifest says, because determinism demands it.
 - `arrix-plugin-api` is versioned by **semver apart from the app**
   (`SEED.md` §6.3), and the WIT package version is the crate's version,
   which the equality test checks. The first release was 0.1.0; 0.2.0
-  added region references and region inputs (ADR-0006).
+  added region references and region inputs (ADR-0006); 0.3.0 body
+  inputs, slots that modify them, and the kernel's `fuse` and `cut`
+  (ADR-0007, ADR-0008).
   While it is `0.x`, a minor bump is breaking. Every change to it says its
   semver effect in the commit body (`.agents/rules/git.md`).
 - The host supports one API range at a time and says which in `arrix

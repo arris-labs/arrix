@@ -62,9 +62,11 @@ with a migration chain whose first link reads schema 1.
   extension like `sketch_slots`), because `core.extrude` evaluates through
   the plugin API's `Kernel` like everything else.
 - **`arrix-plugin-api` 0.3.0** (API: minor, adds `input-kind.body`,
-  `input-value.body(borrow<body>)`, `slot-spec.modifies: option<string>`,
-  `kernel.fuse` and `kernel.cut`; nothing removed). The WIT equality test
-  is extended. `plugins/gears` declares `api = "0.3"` with no other change.
+  `input-value.body(body)`, an owned handle since `wit-bindgen` 0.62
+  cannot generate the borrow inside a list (ADR-0008, found in step 4),
+  `slot-spec.modifies: option<string>`, `kernel.fuse` and `kernel.cut`;
+  nothing removed). The WIT equality test is extended. `plugins/gears`
+  declares `api = "^0.3"`, and its one `SlotSpec` gains `modifies: None`.
 - **`arrix-kernel`**: `fuse` and `cut` (target, tool) with call records;
   names through their provenance: a kept entity keeps its name, a piece
   is `mod.<feature>.<k>` of its origin with `k` its index in Arris's
@@ -78,7 +80,7 @@ with a migration chain whose first link reads schema 1.
   `core.boolean` for the join (OPEN 1), body-slot versions in resolution
   and the DAG, `FrozenResult` and the frozen states in the evaluator, the
   blob store, the zip, the migration chain.
-- **ADR-0008, where frozen results are written** (step 9), proposed: a
+- **ADR-0009, where frozen results are written** (step 9), proposed: a
   frozen result is evaluation output, not a command. The session keeps the
   latest live result per plugin feature, keyed by its input hash, beside
   the document, as it keeps generation stamps. `save` writes it into the
@@ -148,7 +150,7 @@ a given design; **[3]** unproven, behaviour to establish here.
   (the design delta above), with `docs/DATA-MODEL.md` §Bodies across
   features, §The dependency DAG and `docs/PLUGINS.md` §One interface
   brought to it. Docs only.
-- [ ] **[2]** Step 4: plugin API 0.3.0. The WIT world and Rust traits:
+- [x] **[2]** Step 4: plugin API 0.3.0. The WIT world and Rust traits:
   the body input kind and value, `slot-spec.modifies`, `kernel.fuse` and
   `kernel.cut`. The equality test is extended, the Tier 0 host adapts
   them, `gears` declares `api = "0.3"`, the wasm build is green.
@@ -182,7 +184,7 @@ a given design; **[3]** unproven, behaviour to establish here.
   is saved to `tests/docs/slice/` and checked as `gear-on-plane` is.
   `arrix eval tests/docs/slice` has a golden. Save twice gives identical
   bytes, and undo of every command restores each earlier save.
-- [ ] **[1]** Step 9: ADR-0008, where frozen results are written (the
+- [ ] **[1]** Step 9: ADR-0009, where frozen results are written (the
   design delta above, as OPEN 2 settles it), with `docs/DATA-MODEL.md`
   §Frozen results and §Commands and undo brought to it. Docs only.
 - [ ] **[2]** Step 10: schema 2 and the migration chain. `FrozenResult` on
@@ -211,7 +213,7 @@ a given design; **[3]** unproven, behaviour to establish here.
 - [ ] **[3]** Step 13, waits for A2: frozen results written. On each live
   success of a plugin feature, the evaluator hands out its `FrozenResult`
   (input hash, plugin version, a blob per body slot, the name table's
-  blob); the session keeps the latest (ADR-0008); `save` writes it; open
+  blob); the session keeps the latest (ADR-0009); `save` writes it; open
   and a fresh evaluator load it. Tests: the slice saved after
   evaluation carries the gear's blobs; saved twice, identical; the gear
   evaluated twice from fresh state gives identical blob bytes; undo of
@@ -261,7 +263,7 @@ its schema-2 bytes; the whole gate is green, the wasm build included.
   §Bodies across features (ADR-0007); §The dependency DAG (the implicit
   edges, no longer "joins with join and cut"); §Evaluation (frozen
   states, the new codes); §Persistent naming (`mod` and `gen` as built,
-  the split index); §Frozen results (ADR-0008, the name table's form);
+  the split index); §Frozen results (ADR-0009, the name table's form);
   §File format ("What opens today": schema 2, blobs, the zip, the
   migration chain and its fixture).
 - `docs/PLUGINS.md`: header; §One interface (the 0.3 world); §Versioning
@@ -273,7 +275,7 @@ its schema-2 bytes; the whole gate is green, the wasm build included.
 - `docs/CONCURRENCY-WASM.md` §Batch evaluation: `--without-plugin`,
   zips.
 - `docs/ROADMAP.md`: M1's status line (landed, with ADR-0007 and
-  ADR-0008), its in-list (primitives moved to the first feature needing
+  ADR-0009), its in-list (primitives moved to the first feature needing
   them; `core.boolean`'s M1 form), the risk register (A2 retired), and the
   C1 Arris dependencies table.
 - `AGENTS.md` current state: M1 landed, M2 next; §Commands (the
@@ -292,7 +294,7 @@ its schema-2 bytes; the whole gate is green, the wasm build included.
   would prove a plugin modifying a body. But every plugin would then
   re-implement join, which is the core's job.
 - ⚠ OPEN 2, the human confirms by step 9: **where frozen results are
-  written** (ADR-0008 as proposed above). The alternative is a
+  written** (ADR-0009 as proposed above). The alternative is a
   non-undoable `Freeze` command that the session issues after evaluation.
   It puts machine output into the command stream, moves generations on
   every evaluation, and makes "undo returns the earlier bytes" depend on
@@ -305,3 +307,10 @@ its schema-2 bytes; the whole gate is green, the wasm build included.
   wait on it, and releases are the human's. If this plan reaches step 12
   first, it stops there with steps 1–11 landed, and M1's status line
   names A2 as the one thing left.
+- Found in step 4: **a feature that sweeps twice names both sweeps' caps
+  alike** (`face:sweep.<feature>.end-cap` carries no curve key), so a
+  boolean over both can give two entities one name, refused as
+  `kernel.naming` (`crates/arrix-plugin-host/tests/tier0.rs` keeps to one
+  boolean per feature). No M1 feature sweeps twice; `core.hole` and the
+  patterns (M2) will. The fix is a naming change (a cap keyed, or a sweep
+  index in the root), for M2's naming plan, not this one.

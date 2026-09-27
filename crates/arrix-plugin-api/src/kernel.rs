@@ -45,4 +45,11 @@ pub trait Kernel {
 
     /// Volume, area and centroid of `body`.
     fn measure(&mut self, body: &Body) -> Result<MassProperties, Diagnostic>;
+
+    /// `target` joined with `tool`: a new body, the operands left as they
+    /// were. What the union left alone keeps its name.
+    fn fuse(&mut self, target: &Body, tool: &Body) -> Result<Body, Diagnostic>;
+
+    /// `target` less `tool`, as [`fuse`](Kernel::fuse).
+    fn cut(&mut self, target: &Body, tool: &Body) -> Result<Body, Diagnostic>;
 }

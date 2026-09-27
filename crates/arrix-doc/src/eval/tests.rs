@@ -50,6 +50,7 @@ impl Block {
             outputs: vec![SlotSpec {
                 name: slot("body"),
                 kind: SlotKind::Body,
+                modifies: None,
             }],
         })
     }

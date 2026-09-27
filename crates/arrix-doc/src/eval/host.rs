@@ -69,6 +69,13 @@ impl<'k> FeatureKernel<'k> {
         kernel_diagnostic(e)
     }
 
+    /// A new handle of this feature's to `body`.
+    fn hand_out(&mut self, body: KernelBody) -> Body {
+        let handle = u32::try_from(self.bodies.len()).expect("under 2³² bodies");
+        self.bodies.push(body);
+        Body::from_handle(handle)
+    }
+
     /// Unwraps a kernel result, keeping where a failure is recorded.
     fn take<T>(&mut self, r: Result<T, KernelError>) -> Result<T, Diagnostic> {
         r.map_err(|e| self.fail(&e))
@@ -79,9 +86,7 @@ impl arrix_plugin_api::Kernel for FeatureKernel<'_> {
     fn extrude(&mut self, profile: &Profile, distance: f64) -> Result<Body, Diagnostic> {
         let r = self.kernel.extrude(self.feature, profile, distance);
         let body = self.take(r)?;
-        let handle = u32::try_from(self.bodies.len()).expect("under 2³² bodies");
-        self.bodies.push(body);
-        Ok(Body::from_handle(handle))
+        Ok(self.hand_out(body))
     }
 
     fn names(&mut self, body: &Body) -> Result<Vec<PersistentName>, Diagnostic> {
@@ -105,5 +110,19 @@ impl arrix_plugin_api::Kernel for FeatureKernel<'_> {
             area: p.area,
             centroid: p.centroid,
         })
+    }
+
+    fn fuse(&mut self, target: &Body, tool: &Body) -> Result<Body, Diagnostic> {
+        let (a, b) = (self.resolve(target)?, self.resolve(tool)?);
+        let r = self.kernel.fuse(self.feature, a, b);
+        let body = self.take(r)?;
+        Ok(self.hand_out(body))
+    }
+
+    fn cut(&mut self, target: &Body, tool: &Body) -> Result<Body, Diagnostic> {
+        let (a, b) = (self.resolve(target)?, self.resolve(tool)?);
+        let r = self.kernel.cut(self.feature, a, b);
+        let body = self.take(r)?;
+        Ok(self.hand_out(body))
     }
 }

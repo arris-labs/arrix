@@ -7,9 +7,10 @@
 //! one of `arrix-core`'s, it is re-exported rather than mirrored, so a plugin
 //! names it through this crate and the host passes it without conversion.
 //!
-//! Built so far (0.2.0): the `types`, `kernel` (extrude, names, face frames,
-//! mass properties) and `feature` interfaces; 0.2 added region references
-//! and region inputs (ADR-0006).
+//! Built so far (0.3.0): the `types`, `kernel` (extrude, fuse, cut, names,
+//! face frames, mass properties) and `feature` interfaces; 0.2 added region
+//! references and region inputs (ADR-0006), 0.3 body inputs, slots that
+//! modify them, and `fuse` and `cut` (ADR-0007).
 
 mod feature;
 mod kernel;

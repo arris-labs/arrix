@@ -80,6 +80,7 @@ fn registry() -> Registry {
         outputs: vec![SlotSpec {
             name: slot("body"),
             kind: SlotKind::Body,
+            modifies: None,
         }],
     });
     r.register(Arc::new(pad)).unwrap();

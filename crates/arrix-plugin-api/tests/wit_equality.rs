@@ -431,12 +431,14 @@ impl Mirror for api::InputKind {
         match self {
             api::InputKind::Plane => wf::InputKind::Plane,
             api::InputKind::Region => wf::InputKind::Region,
+            api::InputKind::Body => wf::InputKind::Body,
         }
     }
     fn from_wit(w: wf::InputKind) -> Self {
         match w {
             wf::InputKind::Plane => api::InputKind::Plane,
             wf::InputKind::Region => api::InputKind::Region,
+            wf::InputKind::Body => api::InputKind::Body,
         }
     }
 }
@@ -480,17 +482,27 @@ impl Mirror for api::SlotKind {
 impl Mirror for api::SlotSpec {
     type Wit = wf::SlotSpec;
     fn to_wit(&self) -> wf::SlotSpec {
-        let api::SlotSpec { name, kind } = self;
+        let api::SlotSpec {
+            name,
+            kind,
+            modifies,
+        } = self;
         wf::SlotSpec {
             name: name.to_string(),
             kind: kind.to_wit(),
+            modifies: modifies.clone(),
         }
     }
     fn from_wit(w: wf::SlotSpec) -> Self {
-        let wf::SlotSpec { name, kind } = w;
+        let wf::SlotSpec {
+            name,
+            kind,
+            modifies,
+        } = w;
         api::SlotSpec {
             name: SlotName::new(name).unwrap(),
             kind: api::SlotKind::from_wit(kind),
+            modifies,
         }
     }
 }
@@ -553,27 +565,30 @@ impl Mirror for api::ParamValue {
     }
 }
 
-impl Mirror for api::ResolvedInput {
-    type Wit = wf::ResolvedInput;
-    fn to_wit(&self) -> wf::ResolvedInput {
-        let api::ResolvedInput { name, value } = self;
-        let value = match value {
-            api::InputValue::Plane(f) => wf::InputValue::Plane(f.to_wit()),
-            api::InputValue::Region(p) => wf::InputValue::Region(p.to_wit()),
-        };
-        wf::ResolvedInput {
-            name: name.clone(),
-            value,
-        }
+/// Inputs may hold bodies, which are resources: a body input is a handle
+/// of the feature's own (ADR-0008), so inputs convert through the body
+/// table of the evaluation, as outputs do.
+fn input_to_wit(input: &api::ResolvedInput, bodies: &mut WitKernel) -> wf::ResolvedInput {
+    let api::ResolvedInput { name, value } = input;
+    let value = match value {
+        api::InputValue::Plane(f) => wf::InputValue::Plane(f.to_wit()),
+        api::InputValue::Region(p) => wf::InputValue::Region(p.to_wit()),
+        api::InputValue::Body(b) => wf::InputValue::Body(bodies.take(b)),
+    };
+    wf::ResolvedInput {
+        name: name.clone(),
+        value,
     }
-    fn from_wit(w: wf::ResolvedInput) -> Self {
-        let wf::ResolvedInput { name, value } = w;
-        let value = match value {
-            wf::InputValue::Plane(f) => api::InputValue::Plane(Frame::from_wit(f)),
-            wf::InputValue::Region(p) => api::InputValue::Region(Profile::from_wit(p)),
-        };
-        api::ResolvedInput { name, value }
-    }
+}
+
+fn input_from_wit(w: wf::ResolvedInput, bodies: &mut WitKernel) -> api::ResolvedInput {
+    let wf::ResolvedInput { name, value } = w;
+    let value = match value {
+        wf::InputValue::Plane(f) => api::InputValue::Plane(Frame::from_wit(f)),
+        wf::InputValue::Region(p) => api::InputValue::Region(Profile::from_wit(p)),
+        wf::InputValue::Body(b) => api::InputValue::Body(bodies.put(b)),
+    };
+    api::ResolvedInput { name, value }
 }
 
 /// Outputs hold bodies, which are resources: they move, never copy, so
@@ -585,7 +600,7 @@ fn output_to_wit(out: api::FeatureOutput, bodies: &mut WitKernel) -> wf::Feature
         .map(|api::SlotOutput { name, value }| wf::SlotOutput {
             name: name.to_string(),
             value: match value {
-                api::OutputValue::Body(b) => wf::OutputValue::Body(bodies.take(b)),
+                api::OutputValue::Body(b) => wf::OutputValue::Body(bodies.take(&b)),
                 api::OutputValue::Plane(f) => wf::OutputValue::Plane(f.to_wit()),
             },
         })
@@ -629,7 +644,7 @@ impl WitKernel {
         self.bodies[body.handle() as usize].as_ref().unwrap()
     }
 
-    fn take(&mut self, body: Body) -> wit::kernel::Body {
+    fn take(&mut self, body: &Body) -> wit::kernel::Body {
         self.bodies[body.handle() as usize].take().unwrap()
     }
 }
@@ -659,6 +674,20 @@ impl api::Kernel for WitKernel {
             .map(api::MassProperties::from_wit)
             .map_err(Diagnostic::from_wit)
     }
+
+    fn fuse(&mut self, target: &Body, tool: &Body) -> Result<Body, Diagnostic> {
+        match wit::kernel::fuse(self.get(target), self.get(tool)) {
+            Ok(b) => Ok(self.put(b)),
+            Err(d) => Err(Diagnostic::from_wit(d)),
+        }
+    }
+
+    fn cut(&mut self, target: &Body, tool: &Body) -> Result<Body, Diagnostic> {
+        match wit::kernel::cut(self.get(target), self.get(tool)) {
+            Ok(b) => Ok(self.put(b)),
+            Err(d) => Err(Diagnostic::from_wit(d)),
+        }
+    }
 }
 
 /// A test plugin: one feature type, a plane offset from its input, so it
@@ -684,6 +713,7 @@ fn offset_type() -> api::FeatureTypeSpec {
         outputs: vec![api::SlotSpec {
             name: SlotName::new("plane").unwrap(),
             kind: api::SlotKind::Plane,
+            modifies: None,
         }],
     }
 }
@@ -736,12 +766,16 @@ impl wf::Guest for Exported {
         inputs: Vec<wf::ResolvedInput>,
     ) -> Result<wf::FeatureOutput, wt::Diagnostic> {
         let mut kernel = WitKernel::default();
+        let inputs: Vec<_> = inputs
+            .into_iter()
+            .map(|i| input_from_wit(i, &mut kernel))
+            .collect();
         let out = api::Feature::evaluate(
             &Offset,
             &mut kernel,
             &type_id,
             &Vec::from_wit(params),
-            &Vec::from_wit(inputs),
+            &inputs,
         );
         match out {
             Ok(out) => Ok(output_to_wit(out, &mut kernel)),
@@ -766,7 +800,11 @@ impl api::Feature for Imported {
         params: &[api::ParamValue],
         inputs: &[api::ResolvedInput],
     ) -> Result<api::FeatureOutput, Diagnostic> {
-        let (params, inputs) = (params.to_vec().to_wit(), inputs.to_vec().to_wit());
+        // The host's handles would enter the plugin's table here; natively
+        // no body exists to hand over, so this arm is held at compile time.
+        let mut bodies = WitKernel::default();
+        let inputs = inputs.iter().map(|i| input_to_wit(i, &mut bodies));
+        let (params, inputs) = (params.to_vec().to_wit(), inputs.collect());
         <Exported as wf::Guest>::evaluate(type_id.to_owned(), params, inputs)
             .map(output_from_wit)
             .map_err(Diagnostic::from_wit)
@@ -875,7 +913,9 @@ fn every_type_round_trips_through_the_world() {
     round_trip(&api::SlotSpec {
         name: SlotName::new("body").unwrap(),
         kind: api::SlotKind::Body,
+        modifies: Some("target".into()),
     });
+    round_trip(&api::InputKind::Body);
 }
 
 #[test]
@@ -935,7 +975,7 @@ const COVERED: &[(&str, &[&str], &[&str])] = &[
     (
         "kernel",
         &["body"],
-        &["extrude", "names", "face-frame", "measure"],
+        &["extrude", "names", "face-frame", "measure", "fuse", "cut"],
     ),
     (
         "feature",
@@ -990,11 +1030,11 @@ fn the_world_is_exactly_what_is_covered() {
     // `types` only through the `use`s.
     assert_eq!(
         names(&world.imports),
-        BTreeSet::from(["arrix:plugin/kernel@0.2.0", "arrix:plugin/types@0.2.0"].map(String::from))
+        BTreeSet::from(["arrix:plugin/kernel@0.3.0", "arrix:plugin/types@0.3.0"].map(String::from))
     );
     assert_eq!(
         names(&world.exports),
-        BTreeSet::from(["arrix:plugin/feature@0.2.0".to_owned()])
+        BTreeSet::from(["arrix:plugin/feature@0.3.0".to_owned()])
     );
 
     let mut found = BTreeSet::new();

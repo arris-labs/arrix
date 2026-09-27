@@ -170,7 +170,11 @@ slots of a kind the plugin API has no word for, which only a built-in
 declares (`sketch_slots`) and fills: a sketch's. A `type_id` the registry does not
 know is not an error: the feature evaluates as frozen. Until frozen
 results land it fails as `feature.unknown-type`, and a `type_version`
-other than the registered one as `feature.type-version`.
+other than the registered one as `feature.type-version`. The registry
+refuses a type whose slot `modifies` anything but one of its own body
+inputs, or is not a body slot (§Bodies across features). Until body
+inputs resolve (`plans/c1-m1-slice` step 5), a feature with one fails
+soft as `input.unsupported`.
 
 A feature's outputs are **slots**: named bodies, datums (plane, axis,
 point, frame) and sketches. `core.extrude` in new-body mode has one body

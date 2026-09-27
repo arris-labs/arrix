@@ -24,6 +24,10 @@ pub enum InputKind {
     /// `Profile` on the sketch's plane whose curves are keyed by the
     /// entities that bound it.
     Region,
+    /// A body slot, referenced by the feature that made it (`Ref::Slot`),
+    /// as a `Body` handle to the slot's version current at the feature
+    /// (ADR-0007, ADR-0008).
+    Body,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -39,11 +43,15 @@ pub enum SlotKind {
     Plane,
 }
 
-/// An output slot a feature type declares.
+/// An output slot a feature type declares. A body slot that `modifies`
+/// one of the type's body inputs, by the input's name, is that input's
+/// slot's next version, not a slot of its own; a body input no slot
+/// modifies is a tool, and its slot ends there (ADR-0007).
 #[derive(Clone, Debug, PartialEq)]
 pub struct SlotSpec {
     pub name: SlotName,
     pub kind: SlotKind,
+    pub modifies: Option<String>,
 }
 
 /// A feature type: its form, inputs and output slots.
@@ -66,13 +74,17 @@ pub struct ParamValue {
     pub value: Quantity,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+/// A resolved input. Not `Clone`, since a `Body` is not: a body input is a
+/// handle the host gives the feature for its evaluation (ADR-0008), read
+/// through `&[ResolvedInput]`.
+#[derive(Debug, PartialEq)]
 pub enum InputValue {
     Plane(Frame),
     Region(Profile),
+    Body(Body),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct ResolvedInput {
     pub name: String,
     pub value: InputValue,

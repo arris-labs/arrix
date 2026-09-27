@@ -140,7 +140,7 @@ mod tests {
 [plugin]
 id = "gears"
 version = "0.1.0"
-api = "^0.2"
+api = "^0.3"
 tier = 0
 title = "Gears"
 licence = "MIT OR Apache-2.0"
@@ -177,7 +177,7 @@ features = ["gears.spur"]
             Err(ManifestError::Version(_))
         ));
         assert!(matches!(
-            with("^0.2", "about 1"),
+            with("^0.3", "about 1"),
             Err(ManifestError::Api(_))
         ));
         assert!(matches!(
@@ -192,7 +192,8 @@ features = ["gears.spur"]
             with("kernel = true", "kernel = true\nclock = true"),
             Err(ManifestError::Toml(_))
         ));
-        // A plugin built for 0.1 does not load on 0.2 (ADR-0006).
-        assert!(!with("^0.2", "^0.1").unwrap().api_matches());
+        // A plugin built for 0.2 does not load on 0.3 (ADR-0007): 0.x
+        // minors break.
+        assert!(!with("^0.3", "^0.2").unwrap().api_matches());
     }
 }

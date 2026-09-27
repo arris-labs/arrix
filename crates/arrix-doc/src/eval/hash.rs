@@ -68,6 +68,9 @@ impl InputHash {
                     let value = match &i.value {
                         InputValue::Plane(f) => Input::Plane(*f),
                         InputValue::Region(p) => Input::Region(p),
+                        InputValue::Body(_) => {
+                            unreachable!("the evaluator resolves no body input yet")
+                        }
                     };
                     (i.name.as_str(), value)
                 })

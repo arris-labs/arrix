@@ -7,7 +7,9 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use arrix_core::{Diagnostic, FeatureId, SlotName};
-use arrix_plugin_api::{FeatureOutput, FeatureTypeSpec, Kernel, ParamValue, ResolvedInput};
+use arrix_plugin_api::{
+    FeatureOutput, FeatureTypeSpec, InputKind, Kernel, ParamValue, ResolvedInput, SlotKind,
+};
 use arrix_sketch::Sketch;
 
 use crate::core_types::{CoreSketch, DatumPlane};
@@ -50,7 +52,7 @@ pub trait FeatureType: Send + Sync {
 /// type's form in SI (the record's expression or the form's default), its
 /// plain choices as written, the inputs the record gives, in the form's
 /// order, and a `core.sketch` record's sketch.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 pub struct FeatureArgs {
     pub params: Vec<ParamValue>,
     pub choices: BTreeMap<String, String>,
@@ -105,6 +107,16 @@ pub enum RegistryError {
     Id(#[from] InvalidFeatureTypeId),
     #[error("feature type {0} is registered twice")]
     Duplicate(FeatureTypeId),
+    /// A slot that `modifies` something other than one of the type's body
+    /// inputs, or is not a body slot itself (ADR-0007).
+    #[error(
+        "feature type {id}'s slot `{slot}` modifies `{input}`, which is not a body input of it, or the slot is not a body"
+    )]
+    Modifies {
+        id: FeatureTypeId,
+        slot: SlotName,
+        input: String,
+    },
 }
 
 #[derive(Clone, Default)]
@@ -130,6 +142,23 @@ impl Registry {
         let id = FeatureTypeId::new(ty.spec().id.clone())?;
         if self.types.contains_key(&id) {
             return Err(RegistryError::Duplicate(id));
+        }
+        let spec = ty.spec();
+        for slot in &spec.outputs {
+            let Some(input) = &slot.modifies else {
+                continue;
+            };
+            let body_input = spec
+                .inputs
+                .iter()
+                .any(|i| &i.name == input && i.kind == InputKind::Body);
+            if !body_input || slot.kind != SlotKind::Body {
+                return Err(RegistryError::Modifies {
+                    id,
+                    slot: slot.name.clone(),
+                    input: input.clone(),
+                });
+            }
         }
         self.types.insert(id.clone(), ty);
         Ok(id)
@@ -226,5 +255,41 @@ mod tests {
             );
         }
         assert!(serde_json::from_str::<FeatureTypeId>("\"gears\"").is_err());
+    }
+
+    #[test]
+    fn a_modifying_slot_names_one_of_its_body_inputs() {
+        use arrix_plugin_api::{InputSpec, SlotSpec};
+        let spec = |input: InputKind, slot: SlotKind, modifies: &str| {
+            Arc::new(Ty(FeatureTypeSpec {
+                id: "test.join".into(),
+                version: 1,
+                title: "Join".into(),
+                params: vec![],
+                inputs: vec![InputSpec {
+                    name: "target".into(),
+                    title: "Target".into(),
+                    kind: input,
+                }],
+                outputs: vec![SlotSpec {
+                    name: SlotName::new("body").unwrap(),
+                    kind: slot,
+                    modifies: Some(modifies.into()),
+                }],
+            })) as Arc<dyn FeatureType>
+        };
+        let mut r = Registry::default();
+        for bad in [
+            spec(InputKind::Body, SlotKind::Body, "tool"),
+            spec(InputKind::Plane, SlotKind::Body, "target"),
+            spec(InputKind::Body, SlotKind::Plane, "target"),
+        ] {
+            assert!(matches!(
+                r.register(bad),
+                Err(RegistryError::Modifies { .. })
+            ));
+        }
+        r.register(spec(InputKind::Body, SlotKind::Body, "target"))
+            .unwrap();
     }
 }

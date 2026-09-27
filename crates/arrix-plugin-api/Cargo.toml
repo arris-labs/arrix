@@ -2,7 +2,7 @@
 name = "arrix-plugin-api"
 # Versioned apart from the app (docs/PLUGINS.md §Versioning): the WIT
 # package's version, which a test holds equal to this one.
-version = "0.2.0"
+version = "0.3.0"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

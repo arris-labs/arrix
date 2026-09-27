@@ -349,6 +349,7 @@ fn with_pad() -> Registry {
             outputs: vec![SlotSpec {
                 name: SlotName::new("body").unwrap(),
                 kind: SlotKind::Body,
+                modifies: None,
             }],
         },
     )))

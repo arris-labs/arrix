@@ -24,6 +24,10 @@ fn manifest(id: &str, version: &str, api: &str) -> String {
 }
 
 /// `demo.disc`: a disc of `radius` on its plane, extruded 1 mm.
+/// `demo.stack`: that disc with a disc of half the radius standing on it,
+/// fused. `demo.washer`: that disc less a bore of half the radius. (One
+/// boolean each: a feature's two sweeps name their caps alike, so a second
+/// boolean over both can give two entities one name, `kernel.naming`.)
 /// `demo.boom`: panics.
 struct Demo {
     prefix: &'static str,
@@ -34,6 +38,7 @@ impl Feature for Demo {
         let body = SlotSpec {
             name: SlotName::new("body").unwrap(),
             kind: SlotKind::Body,
+            modifies: None,
         };
         let spec = |name: &str| FeatureTypeSpec {
             id: format!("{}.{name}", self.prefix),
@@ -52,7 +57,7 @@ impl Feature for Demo {
             }],
             outputs: vec![body.clone()],
         };
-        vec![spec("disc"), spec("boom")]
+        vec![spec("disc"), spec("stack"), spec("washer"), spec("boom")]
     }
 
     fn evaluate(
@@ -68,12 +73,24 @@ impl Feature for Demo {
         let InputValue::Plane(plane) = inputs[0].value else {
             unreachable!("the demo's one input is a plane");
         };
-        let disc = ProfileLoop::Circle {
-            key: CurveKey(Id(1)),
-            center: DVec2::ZERO,
-            radius: params[0].value.si,
+        let r = params[0].value.si;
+        let mut disc = |key: u64, radius: f64, below: f64, height: f64| {
+            let circle = ProfileLoop::Circle {
+                key: CurveKey(Id(key)),
+                center: DVec2::ZERO,
+                radius,
+            };
+            let on = Profile::new(plane.offset(-below), circle, vec![]).unwrap();
+            kernel.extrude(&on, height)
         };
-        let body = kernel.extrude(&Profile::new(plane, disc, vec![]).unwrap(), 1e-3)?;
+        let mut body = disc(1, r, 0.0, 1e-3)?;
+        if type_id.ends_with(".stack") {
+            let top = disc(2, r / 2.0, -1e-3, 1e-3)?;
+            body = kernel.fuse(&body, &top)?;
+        } else if type_id.ends_with(".washer") {
+            let bore = disc(3, r / 2.0, 0.5e-3, 2e-3)?;
+            body = kernel.cut(&body, &bore)?;
+        }
         Ok(FeatureOutput {
             slots: vec![SlotOutput {
                 name: SlotName::new("body").unwrap(),
@@ -89,7 +106,7 @@ fn demo() -> Arc<dyn Feature> {
 
 fn registry(version: &str) -> Registry {
     let mut r = Registry::with_core_types();
-    register_tier0(&mut r, &manifest("demo", version, "^0.2"), demo()).unwrap();
+    register_tier0(&mut r, &manifest("demo", version, "^0.3"), demo()).unwrap();
     r
 }
 
@@ -149,13 +166,20 @@ fn hash(registry: Registry, d: &Document, feature: u64) -> InputHash {
 #[test]
 fn every_type_registers_under_the_plugins_namespace() {
     let mut r = Registry::with_core_types();
-    let ids = register_tier0(&mut r, &manifest("demo", "0.1.0", "^0.2"), demo()).unwrap();
+    let ids = register_tier0(&mut r, &manifest("demo", "0.1.0", "^0.3"), demo()).unwrap();
     let ids: Vec<_> = ids.iter().map(FeatureTypeId::as_str).collect();
-    assert_eq!(ids, ["demo.disc", "demo.boom"]);
+    assert_eq!(ids, ["demo.disc", "demo.stack", "demo.washer", "demo.boom"]);
     let all: Vec<_> = r.ids().map(FeatureTypeId::as_str).collect();
     assert_eq!(
         all,
-        ["core.datum-plane", "core.sketch", "demo.boom", "demo.disc"]
+        [
+            "core.datum-plane",
+            "core.sketch",
+            "demo.boom",
+            "demo.disc",
+            "demo.stack",
+            "demo.washer"
+        ]
     );
 }
 
@@ -165,15 +189,17 @@ fn a_plugin_that_does_not_fit_is_refused_whole() {
     let before: Vec<_> = r.ids().cloned().collect();
     let foreign = Arc::new(Demo { prefix: "other" });
     assert!(matches!(
-        register_tier0(&mut r, &manifest("demo", "0.1.0", "^0.2"), foreign),
+        register_tier0(&mut r, &manifest("demo", "0.1.0", "^0.3"), foreign),
         Err(HostError::Namespace { .. })
     ));
-    // Built against the plugin API before this host's (ADR-0006).
-    assert!(matches!(
-        register_tier0(&mut r, &manifest("demo", "0.1.0", "^0.1"), demo()),
-        Err(HostError::Api { .. })
-    ));
-    let tier1 = manifest("demo", "0.1.0", "^0.2").replace("tier = 0", "tier = 1");
+    // Built against a plugin API before this host's (ADR-0006, ADR-0007).
+    for old in ["^0.1", "^0.2"] {
+        assert!(matches!(
+            register_tier0(&mut r, &manifest("demo", "0.1.0", old), demo()),
+            Err(HostError::Api { .. })
+        ));
+    }
+    let tier1 = manifest("demo", "0.1.0", "^0.3").replace("tier = 0", "tier = 1");
     assert!(matches!(
         register_tier0(&mut r, &tier1, demo()),
         Err(HostError::NotTier0 { tier: 1, .. })
@@ -183,9 +209,9 @@ fn a_plugin_that_does_not_fit_is_refused_whole() {
         Err(HostError::Manifest(_))
     ));
     assert_eq!(r.ids().cloned().collect::<Vec<_>>(), before);
-    register_tier0(&mut r, &manifest("demo", "0.1.0", "^0.2"), demo()).unwrap();
+    register_tier0(&mut r, &manifest("demo", "0.1.0", "^0.3"), demo()).unwrap();
     assert!(matches!(
-        register_tier0(&mut r, &manifest("demo", "0.1.0", "^0.2"), demo()),
+        register_tier0(&mut r, &manifest("demo", "0.1.0", "^0.3"), demo()),
         Err(HostError::Registry(_))
     ));
 }
@@ -243,4 +269,31 @@ fn a_plugin_type_takes_no_choices() {
         panic!("{:?}", e.events)
     };
     assert_eq!(diagnostic.code.as_str(), "feature.unknown-choice");
+}
+
+#[test]
+fn a_plugin_fuses_and_cuts_through_the_hosts_kernel() {
+    let d = doc(vec![on_plane(2, "demo.stack"), on_plane(3, "demo.washer")]);
+    let e = Evaluator::new(registry("0.1.0")).evaluate(&d);
+    let body = |f| match e.slot(FeatureId(Id(f)), "body") {
+        Some(SlotView::Body(m)) => *m,
+        _ => panic!("{:?}", e.events),
+    };
+    let (r, t) = (2e-3, 1e-3);
+    let disc = |radius: f64, height: f64| std::f64::consts::PI * radius * radius * height;
+    let close = |a: f64, b: f64| (a - b).abs() < 1e-9 * b;
+    // The stub stands flush on the disc: the disc's wall, bottom and top
+    // ring, the stub's wall and top.
+    let stack = body(2);
+    assert!(
+        close(stack.volume, disc(r, t) + disc(r / 2.0, t)),
+        "{stack:?}"
+    );
+    assert_eq!(stack.faces, 5, "{stack:?}");
+    let washer = body(3);
+    assert!(
+        close(washer.volume, disc(r, t) - disc(r / 2.0, t)),
+        "{washer:?}"
+    );
+    assert_eq!(washer.faces, 4, "{washer:?}");
 }

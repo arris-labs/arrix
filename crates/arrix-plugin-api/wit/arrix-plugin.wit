@@ -5,7 +5,7 @@
 //
 // SI throughout: metres, radians, kilograms. No Arris type appears here.
 
-package arrix:plugin@0.2.0;
+package arrix:plugin@0.3.0;
 
 interface types {
   // An id: 64 bits, as `arrix-core`'s typed ids carry it.
@@ -85,6 +85,10 @@ interface kernel {
   face-frame: func(b: borrow<body>, face: persistent-ref) -> result<frame, diagnostic>;
   // Volume, area and centroid of `b`.
   measure: func(b: borrow<body>) -> result<mass-properties, diagnostic>;
+  // `target` joined with `tool`, and `target` less `tool`: new bodies,
+  // the operands left as they were.
+  fuse: func(target: borrow<body>, tool: borrow<body>) -> result<body, diagnostic>;
+  cut: func(target: borrow<body>, tool: borrow<body>) -> result<body, diagnostic>;
 }
 
 // Feature types (docs/PLUGINS.md §Contribution points, 1).
@@ -95,12 +99,16 @@ interface feature {
   // A numeric field; `default` is an expression (`20`, `1 mm`).
   record param-spec { name: string, title: string, kind: quantity-kind, default: string }
   // What an input resolves to: a plane (a datum, a planar face, a world
-  // plane), or a sketch region as a profile keyed by its entities.
-  enum input-kind { plane, region }
+  // plane), a sketch region as a profile keyed by its entities, or a body
+  // slot's version current at the feature (ADR-0007).
+  enum input-kind { plane, region, body }
   record input-spec { name: string, title: string, kind: input-kind }
   enum slot-kind { body, plane }
-  // An output slot; `name` is one lower-kebab word.
-  record slot-spec { name: string, kind: slot-kind }
+  // An output slot; `name` is one lower-kebab word. A body slot that
+  // `modifies` a body input is that input's slot's next version, not a
+  // slot of its own; a body input no slot modifies is a tool, and its
+  // slot ends (ADR-0007).
+  record slot-spec { name: string, kind: slot-kind, modifies: option<string> }
   // `id` is `<plugin-id>.<name>`; `version` the type's own schema version.
   record feature-type-spec {
     id: string,
@@ -113,7 +121,10 @@ interface feature {
 
   // A parameter's expression, evaluated by the host to SI.
   record param-value { name: string, value: quantity }
-  variant input-value { plane(frame), region(profile) }
+  // A body input is a handle of the plugin's own to the slot's version,
+  // dropped when it is done: an owned handle rather than a borrow, which
+  // wit-bindgen's Rust guests cannot take inside a list (ADR-0008).
+  variant input-value { plane(frame), region(profile), body(body) }
   record resolved-input { name: string, value: input-value }
   variant output-value { body(body), plane(frame) }
   record slot-output { name: string, value: output-value }

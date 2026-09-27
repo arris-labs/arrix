@@ -430,6 +430,15 @@ impl Evaluator {
                     InputValue::Plane(resolve::plane(&mut self.kernel, doc, states, r)?)
                 }
                 InputKind::Region => InputValue::Region(resolve::region(doc, states, r)?),
+                // Body slots' versions resolve with ADR-0007's evaluator;
+                // until then a body input fails soft, never guessed.
+                InputKind::Body => {
+                    return Err(error(
+                        "input.unsupported",
+                        format!("`{}`: body inputs are not resolved yet", i.name),
+                    )
+                    .into());
+                }
             };
             args.inputs.push(ResolvedInput {
                 name: i.name.clone(),

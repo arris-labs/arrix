@@ -52,6 +52,7 @@ pub fn spec() -> FeatureTypeSpec {
         outputs: vec![SlotSpec {
             name: body_slot(),
             kind: SlotKind::Body,
+            modifies: None,
         }],
     }
 }

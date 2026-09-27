@@ -56,6 +56,7 @@ impl DatumPlane {
                 outputs: vec![SlotSpec {
                     name: slot("plane"),
                     kind: SlotKind::Plane,
+                    modifies: None,
                 }],
             },
         }
@@ -83,6 +84,10 @@ fn stand_on(args: &FeatureArgs, ty: &str, what: &str) -> Result<Frame, Diagnosti
             InputValue::Region(_) => Err(error(
                 "input.wrong-kind",
                 format!("{what} stands on a plane, not a region"),
+            )),
+            InputValue::Body(_) => Err(error(
+                "input.wrong-kind",
+                format!("{what} stands on a plane, not a body"),
             )),
         },
         (None, world) => {

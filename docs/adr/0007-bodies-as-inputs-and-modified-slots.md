@@ -1,6 +1,6 @@
 # ADR-0007: Bodies as feature inputs, and output slots that modify them
 
-- Status: Accepted
+- Status: Accepted; decision 5's `borrow<body>` superseded by ADR-0008
 - Date: 2026-09-27
 
 ## Context

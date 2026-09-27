@@ -69,6 +69,26 @@ impl arrix_plugin_api::Kernel for Host {
             centroid: p.centroid,
         })
     }
+
+    fn fuse(&mut self, target: &Body, tool: &Body) -> Result<Body, Diagnostic> {
+        let (a, b) = (
+            self.bodies[target.handle() as usize],
+            self.bodies[tool.handle() as usize],
+        );
+        let body = self.kernel.fuse(FeatureId(Id(7)), a, b).map_err(diag)?;
+        self.bodies.push(body);
+        Ok(Body::from_handle(self.bodies.len() as u32 - 1))
+    }
+
+    fn cut(&mut self, target: &Body, tool: &Body) -> Result<Body, Diagnostic> {
+        let (a, b) = (
+            self.bodies[target.handle() as usize],
+            self.bodies[tool.handle() as usize],
+        );
+        let body = self.kernel.cut(FeatureId(Id(7)), a, b).map_err(diag)?;
+        self.bodies.push(body);
+        Ok(Body::from_handle(self.bodies.len() as u32 - 1))
+    }
 }
 
 fn params(teeth: f64, module: f64, width: f64) -> Vec<ParamValue> {
