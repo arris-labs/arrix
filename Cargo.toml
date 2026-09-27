@@ -47,7 +47,7 @@ arrix-gears = { path = "plugins/gears" }
 
 # The kernel: pinned minor, crates.io only (SEED.md §8.3). Named by
 # `arrix-kernel` alone (docs/ARCHITECTURE.md §Crates and the layer rule).
-arris = "0.2"
+arris = "0.3"
 
 # One egui minor for the whole workspace (docs/UI-RENDERING.md).
 egui = "0.36"

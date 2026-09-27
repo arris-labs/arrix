@@ -100,8 +100,13 @@ pub(crate) fn extrude_names(
     let mut by_name = BTreeMap::new();
     let mut by_entity = BTreeMap::new();
     for origin in provenance.origins_recorded() {
-        let Origin::Role(Role::Extrude(part)) = origin else {
-            return Err(format!("{origin} is not an extrude's role"));
+        let part = match origin {
+            Origin::Role(Role::Extrude(part)) => part,
+            // A file entity has no name root until C2's import gives it one.
+            Origin::Role(Role::File(_)) => {
+                return Err(format!("{origin} is a file entity, not yet nameable"));
+            }
+            _ => return Err(format!("{origin} is not an extrude's role")),
         };
         let generated = provenance.generated_from(origin);
         let Some(part) = sweep_part(part, &keys) else {
