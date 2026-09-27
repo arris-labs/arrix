@@ -45,3 +45,5 @@ Each rejected option and the one-line reason it lost.
 - [ADR-0004](0004-plugin-commands-undo-as-one-group.md): a plugin command's undo is its expansion, inverted by the core
 - [ADR-0005](0005-the-client-solves-a-sketch-edit.md): the client solves a sketch edit; the authority applies it without solving
 - [ADR-0006](0006-region-references-in-ref-and-the-plugin-api.md): a sketch region is a `Ref`, and a feature input; plugin API 0.2
+- [ADR-0007](0007-bodies-as-inputs-and-modified-slots.md): bodies as feature inputs, and output slots that modify them; plugin API 0.3 (decision 5's borrow superseded)
+- [ADR-0008](0008-a-body-input-is-an-owned-handle.md): a body input is an owned handle, not a borrow
