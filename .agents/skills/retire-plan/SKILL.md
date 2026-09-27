@@ -28,9 +28,15 @@ Deletion is the "done" signal. Anything worth keeping was moved first.
    is confirmed to exist in Arris's backlog or ideas.
 7. `git rm docs/plans/<slug>.md` and commit everything as `docs: retire plan
    <slug>`, with a body listing the docs updated.
-8. **Report the build cache** after the commit: `du -sh target`; if `cargo
-   sweep` is installed, run `cargo sweep --time 7` and report before and
-   after, otherwise leave it to the human.
+8. **Clean the build cache** after the commit, keeping only what the gate
+   uses now (a plan's worth of dependency bumps and rebuilds leaves tens of
+   gigabytes of dead artifacts; an age cutoff keeps them all). Note `du -sh
+   target`. With `cargo sweep` installed: `cargo sweep -s`, then rebuild
+   everything the gate builds without running it (`cargo test --workspace
+   --no-run`, the same with `--all-features`, `cargo clippy --workspace
+   --all-targets --all-features`, the wasm build), then `cargo sweep -f` and
+   `rm sweep.timestamp`; also `rm -rf target/release` if the gate built no
+   release. Without it, `cargo clean`. Report before and after.
 
 ## Don't
 
