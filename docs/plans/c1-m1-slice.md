@@ -133,7 +133,7 @@ a given design; **[3]** unproven, behaviour to establish here.
   naming (a file root is refused as `kernel.naming` until C2's import).
   Any golden whose last bits move is read, refreshed, and the commit says
   why (0.3's mass properties integrate about the body).
-- [ ] **[3]** Step 2: `arrix-kernel` probe and booleans. `Kernel::fuse` and
+- [x] **[3]** Step 2: `arrix-kernel` probe and booleans. `Kernel::fuse` and
   `cut` with `KernelOp` records, and names through their provenance.
   Probe tests in SI: a 40 × 30 × 5 mm plate with a boss fused, then a
   pocket cut through it, with counts and volumes computed by hand; a

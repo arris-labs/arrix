@@ -9,7 +9,8 @@ the feature-type registry and the derived DAG (§The dependency DAG),
 commands, the authority and per-author undo (§Commands and undo, less
 plugin-data edits), the sketch record and its `SketchEdit` (§Sketches),
 saving and opening the directory form (§File format), names from an
-extrude's provenance in `arrix-kernel` (§Persistent naming), expressions
+extrude's and the booleans' provenance in `arrix-kernel` (§Persistent
+naming), expressions
 (`arrix_doc::expr`, §Parameters and expressions), the evaluator with its
 cache (§Evaluation), `core.datum-plane`, `core.sketch`, and a plugin
 feature (`gears.spur`) on the built-ins' one path, referenced downstream
@@ -415,6 +416,19 @@ A parse error names the byte it stopped at; `gen` nests at most 32 deep.
   vertices, all from roots (`crates/arrix-kernel/tests/probe.rs`).
 - **Kept entities** keep their names across features; a kept id is not a
   step.
+- **Through a boolean** (`fuse`, `cut`, as built): a piece of an operand's
+  entity is its name with `mod.<feature>.<k>`, `k` its place in Arris's
+  split order, so `k` is the same after an edit that keeps which entities
+  bound each piece (`crates/arrix-kernel/tests/booleans.rs`); a face
+  holed but not split is `mod.<feature>.0`. Where a piece comes from both
+  operands (two faces flush), the target's origin names it. An entity the
+  boolean made is `gen.<feature>[…]` of its origins' names, sorted, after
+  the root and chain of the first of them, since every name has a root:
+  a pocket's wall is `face:sweep.<tool>.side.<k>/gen.<cut>[face:sweep.
+  <tool>.side.<k>]`, the edge where it meets the plate's bottom `edge:
+  sweep.<plate>.start-cap/gen.<cut>[face:sweep.<plate>.start-cap,face:
+  sweep.<tool>.side.<k>]`. An entity with no nameable origin, or two with
+  one name, fails the call as `kernel.naming`.
 - **Plugin features get naming for free** when they build through kernel
   operations. Topology a plugin builds directly is rooted at a consumer
   role with a key the plugin chooses (ask A1). `gears.spur` keys each

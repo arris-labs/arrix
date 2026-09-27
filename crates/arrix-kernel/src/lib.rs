@@ -2,9 +2,10 @@
 //! render meshes, body bytes and call records (docs/ARCHITECTURE.md §The
 //! kernel choke point).
 //!
-//! Built so far: the `Kernel` service's first slice (`extrude`,
-//! `face_frame`, `mass_properties`), names from the extrude's provenance,
-//! and a `KernelCall` record made before every call.
+//! Built so far: the `Kernel` service's first slice (`extrude`, `fuse`,
+//! `cut`, `face_frame`, `mass_properties`), names from the extrude's and
+//! the booleans' provenance, and a `KernelCall` record made before every
+//! call.
 
 mod convert;
 mod error;
@@ -130,13 +131,63 @@ impl Kernel {
         .map_err(|e| KernelError::op(call, &e))?;
         let names = naming::extrude_names(&self.model, body, feature, profile, &provenance)
             .map_err(|message| KernelError::Naming { call, message })?;
+        Ok(self.push(body, call, names))
+    }
+
+    /// `target` ∪ `tool`, named as `feature`'s: what the union left alone
+    /// keeps its name, a piece of an entity is `mod.<feature>.<k>` of it,
+    /// what it made is `gen.<feature>[…]` of its origins. The operands
+    /// stay valid.
+    pub fn fuse(
+        &mut self,
+        feature: FeatureId,
+        target: KernelBody,
+        tool: KernelBody,
+    ) -> Result<KernelBody, KernelError> {
+        self.boolean(KernelOp::Fuse { feature }, feature, target, tool)
+    }
+
+    /// `target` less `tool`, named as [`fuse`](Kernel::fuse)'s.
+    pub fn cut(
+        &mut self,
+        feature: FeatureId,
+        target: KernelBody,
+        tool: KernelBody,
+    ) -> Result<KernelBody, KernelError> {
+        self.boolean(KernelOp::Cut { feature }, feature, target, tool)
+    }
+
+    fn boolean(
+        &mut self,
+        op: KernelOp,
+        feature: FeatureId,
+        target: KernelBody,
+        tool: KernelBody,
+    ) -> Result<KernelBody, KernelError> {
+        let (a, a_call) = self.entry(target).map(|e| (e.body, e.made_by))?;
+        let (b, b_call) = self.entry(tool).map(|e| (e.body, e.made_by))?;
+        let run = match op {
+            KernelOp::Fuse { .. } => arris::ops::fuse,
+            KernelOp::Cut { .. } => arris::ops::cut,
+            _ => unreachable!("fuse and cut alone come here"),
+        };
+        let call = self.begin(op, vec![a_call, b_call]);
+        let (body, provenance) =
+            run(&mut self.model, a, b).map_err(|e| KernelError::op(call, &e))?;
+        let operands = [&self.entry(target)?.names, &self.entry(tool)?.names];
+        let names = naming::boolean_names(&self.model, body, feature, operands, &provenance)
+            .map_err(|message| KernelError::Naming { call, message })?;
+        Ok(self.push(body, call, names))
+    }
+
+    fn push(&mut self, body: Body, made_by: CallIndex, names: BodyNames) -> KernelBody {
         let handle = KernelBody(u32::try_from(self.bodies.len()).expect("under 2³² bodies"));
         self.bodies.push(Some(BodyEntry {
             body,
-            made_by: call,
+            made_by,
             names,
         }));
-        Ok(handle)
+        handle
     }
 
     /// Releases every body but `keep`, and the model's entities only they

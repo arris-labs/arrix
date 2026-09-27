@@ -38,6 +38,11 @@ pub enum KernelOp {
         profile: Profile,
         distance: f64,
     },
+    /// The union of the two operand bodies, target first; `feature` names
+    /// the pieces and what the union generated.
+    Fuse { feature: FeatureId },
+    /// The first operand less the second; `feature` as for `Fuse`.
+    Cut { feature: FeatureId },
     /// The outward frame of a planar face of the operand body.
     FaceFrame { face: PersistentName },
     /// Volume, area and centroid of the operand body.

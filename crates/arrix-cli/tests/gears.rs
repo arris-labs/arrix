@@ -244,3 +244,104 @@ fn the_registered_plugin_evaluates_on_a_datum_plane() {
     };
     assert_eq!(diagnostic.code.as_str(), "gears.teeth");
 }
+
+/// The kernel probe's gear case (plans/c1-m1-slice step 2): a 20-tooth,
+/// 1 mm, 8 mm gear standing flush on a 40 × 30 × 5 mm plate's top, fused
+/// (the touching case), then a 3 mm bore cut through both. Returns every
+/// name of the joined and the cut body, their volumes' bits, and the
+/// outline the gear was swept from.
+fn gear_on_plate() -> (Vec<String>, Vec<String>, [u64; 2], ProfileLoop) {
+    let [plate, gear, join, bore, cut] = [1, 2, 3, 4, 5].map(|n| FeatureId(Id(n)));
+    let mut k = Kernel::new();
+    let p = |x: f64, y: f64| DVec2::new(x * MM, y * MM);
+    let line = |n, to| ProfileSegment::Line {
+        key: arrix_core::CurveKey(Id(n)),
+        to,
+    };
+    let rectangle = ProfileLoop::Path {
+        start: p(0.0, 0.0),
+        segments: vec![
+            line(1, p(40.0, 0.0)),
+            line(2, p(40.0, 30.0)),
+            line(3, p(0.0, 30.0)),
+            line(4, p(0.0, 0.0)),
+        ],
+    };
+    let rectangle = Profile::new(Frame::WORLD_XY, rectangle, vec![]).unwrap();
+    let plate = k.extrude(plate, &rectangle, 5.0 * MM).unwrap();
+    let spur = Spur {
+        teeth: 20,
+        module: MM,
+        pressure_angle: 20.0_f64.to_radians(),
+    };
+    let outline = spur.outline().unwrap();
+    let at = |z: f64| {
+        Frame::new(
+            arrix_core::DVec3::new(20.0 * MM, 15.0 * MM, z * MM),
+            arrix_core::DVec3::X,
+            arrix_core::DVec3::Z,
+        )
+        .unwrap()
+    };
+    let profile = Profile::new(at(5.0), outline.clone(), vec![]).unwrap();
+    let gear = k.extrude(gear, &profile, 8.0 * MM).unwrap();
+    let joined = k.fuse(join, plate, gear).unwrap();
+    let circle = ProfileLoop::Circle {
+        key: arrix_core::CurveKey(Id(9)),
+        center: DVec2::ZERO,
+        radius: 3.0 * MM,
+    };
+    let tool = Profile::new(at(-1.0), circle, vec![]).unwrap();
+    let tool = k.extrude(bore, &tool, 15.0 * MM).unwrap();
+    let cut = k.cut(cut, joined, tool).unwrap();
+    let names = |b| {
+        k.names(b)
+            .unwrap()
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+    };
+    let (joined_names, cut_names) = (names(joined), names(cut));
+    let volumes = [joined, cut].map(|b| k.mass_properties(b).unwrap().volume.to_bits());
+    (joined_names, cut_names, volumes, outline)
+}
+
+#[test]
+fn a_gear_fused_flush_on_a_plate_and_bored_gives_its_hand_computed_body() {
+    let (joined, cut, [v_joined, v_cut], outline) = gear_on_plate();
+    let ProfileLoop::Path { segments, .. } = &outline else {
+        unreachable!()
+    };
+    let plate = 0.04 * 0.03 * 0.005;
+    let gear = area(&outline) * 8.0 * MM;
+    let bore = std::f64::consts::PI * (3.0 * MM).powi(2) * 13.0 * MM;
+    let close = |bits: u64, want: f64| (f64::from_bits(bits) - want).abs() < 1e-9 * want;
+    assert!(
+        close(v_joined, plate + gear),
+        "{}",
+        f64::from_bits(v_joined)
+    );
+    assert!(
+        close(v_cut, plate + gear - bore),
+        "{}",
+        f64::from_bits(v_cut)
+    );
+    let faces = |names: &[String]| names.iter().filter(|n| n.starts_with("face:")).count();
+    // The gear's bottom cap lay on the plate's top, opposed, and went; the
+    // top face is one piece of itself; the bore adds its wall.
+    assert_eq!(faces(&joined), 6 + segments.len() + 1);
+    assert_eq!(faces(&cut), 6 + segments.len() + 1 + 1);
+    let gear_bottom = format!("face:sweep.{}.start-cap", FeatureId(Id(2)));
+    assert!(!joined.contains(&gear_bottom));
+    let top = format!(
+        "face:sweep.{}.end-cap/mod.{}.0",
+        FeatureId(Id(1)),
+        FeatureId(Id(3))
+    );
+    assert!(joined.contains(&top), "{joined:#?}");
+}
+
+#[test]
+fn a_gear_fused_and_bored_twice_from_fresh_state_is_identical() {
+    assert_eq!(gear_on_plate(), gear_on_plate());
+}

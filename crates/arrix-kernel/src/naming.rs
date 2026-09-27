@@ -2,13 +2,17 @@
 //! §Persistent naming). A sweep records every entity it makes as
 //! `Generated` from a `Role` naming the part of the profile it came from,
 //! by `(loop_index, segment)`; here that index becomes the curve's key, so
-//! the name survives a re-ordered or re-drawn profile.
+//! the name survives a re-ordered or re-drawn profile. A boolean keeps
+//! its operands' names on what it leaves alone, and extends them with a
+//! `mod` or `gen` step on what it splits or makes.
 
 use std::collections::BTreeMap;
 
 use arris::topo::provenance::SweepPart;
 use arris::topo::{Body, EntityId, Model, Origin, Provenance, Role};
-use arrix_core::{CurveKey, FeatureId, NameRoot, PersistentName, Profile, SweepPartName, TopoKind};
+use arrix_core::{
+    CurveKey, FeatureId, NameRoot, NameStep, PersistentName, Profile, SweepPartName, TopoKind,
+};
 
 /// Every face, edge and vertex of one body, by name. Each entity has
 /// exactly one name and each name exactly one entity; a result that
@@ -132,20 +136,103 @@ pub(crate) fn extrude_names(
             }
         }
     }
+    let entities = entities(m, body)?;
+    for id in &entities {
+        if !by_entity.contains_key(id) {
+            return Err(format!("{id} has no name"));
+        }
+    }
+    if by_entity.len() != entities.len() {
+        return Err("a name was given to an entity outside the body".into());
+    }
+    Ok(BodyNames { by_name })
+}
+
+/// Every face, edge and vertex of `body`, each once.
+fn entities(m: &Model, body: Body) -> Result<Vec<EntityId>, String> {
     let closure = m.closure(body).map_err(|e| e.to_string())?;
-    let entities = closure
+    Ok(closure
         .faces
         .iter()
         .map(|&f| EntityId::Face(f))
         .chain(closure.edges.iter().map(|&e| EntityId::Edge(e)))
-        .chain(closure.vertices.iter().map(|&v| EntityId::Vertex(v)));
-    for id in entities {
-        if !by_entity.contains_key(&id) {
-            return Err(format!("{id} has no name"));
+        .chain(closure.vertices.iter().map(|&v| EntityId::Vertex(v)))
+        .collect())
+}
+
+/// The names of a boolean's output, from its operands' names and its
+/// provenance. An entity the boolean left alone keeps its name. A piece
+/// is its origin's name with `mod.<feature>.<k>`, `k` its place in
+/// Arris's split order (ADR-0009 there), the target's origin first where
+/// both operands give one (the flush case). An entity the boolean made
+/// is `gen.<feature>[…]` of its origins' names, sorted, after the root
+/// and chain of the first of them, since a name has a root. `Err` says
+/// what could not be placed: an entity with no nameable origin, or two
+/// entities with one name.
+pub(crate) fn boolean_names(
+    m: &Model,
+    body: Body,
+    feature: FeatureId,
+    operands: [&BodyNames; 2],
+    provenance: &Provenance,
+) -> Result<BodyNames, String> {
+    // Every operand entity's name, the target's first.
+    let mut old: BTreeMap<EntityId, (usize, &PersistentName)> = BTreeMap::new();
+    for (i, names) in operands.iter().enumerate() {
+        for (name, &id) in &names.by_name {
+            if old.insert(id, (i, name)).is_some() {
+                return Err(format!("{id} is in both operands"));
+            }
         }
     }
-    if by_entity.len() != closure.faces.len() + closure.edges.len() + closure.vertices.len() {
-        return Err("a name was given to an entity outside the body".into());
+    let mut pieces: BTreeMap<EntityId, Vec<(usize, PersistentName)>> = BTreeMap::new();
+    let mut made: BTreeMap<EntityId, Vec<PersistentName>> = BTreeMap::new();
+    for origin in provenance.origins_recorded() {
+        // A body's and a shell's records have no name to extend.
+        let Origin::Entity(from) = origin else {
+            return Err(format!("{origin} is a role, not an operand's entity"));
+        };
+        let Some(&(operand, from_name)) = old.get(&from.id) else {
+            continue;
+        };
+        for (k, shape) in provenance.modified_from(origin).iter().enumerate() {
+            let mut name = from_name.clone();
+            name.chain.push(NameStep::Modified {
+                feature,
+                split: u32::try_from(k).expect("under 2³² pieces"),
+            });
+            pieces.entry(shape.id).or_default().push((operand, name));
+        }
+        for shape in provenance.generated_from(origin) {
+            made.entry(shape.id).or_default().push(from_name.clone());
+        }
+    }
+    let mut by_name = BTreeMap::new();
+    for id in entities(m, body)? {
+        let kind = kind_of(id).expect("a closure's faces, edges and vertices");
+        let mut name = if let Some(list) = pieces.get(&id) {
+            let first = list.iter().map(|(operand, _)| *operand).min();
+            let mut from = list.iter().filter(|(operand, _)| Some(*operand) == first);
+            match (from.next(), from.next()) {
+                (Some((_, name)), None) => name.clone(),
+                _ => return Err(format!("{id} is a piece of more than one entity")),
+            }
+        } else if let Some(from) = made.get(&id) {
+            let mut from = from.clone();
+            from.sort();
+            from.dedup();
+            let mut name = from[0].clone();
+            name.chain.push(NameStep::Generated { feature, from });
+            name
+        } else if let Some((_, name)) = old.get(&id) {
+            (*name).clone()
+        } else {
+            return Err(format!("{id} has no nameable origin"));
+        };
+        name.kind = kind;
+        if let Some(other) = by_name.insert(name.clone(), id) {
+            return Err(format!("{name} names both {other} and {id}"));
+        }
     }
     Ok(BodyNames { by_name })
 }

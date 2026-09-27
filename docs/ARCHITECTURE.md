@@ -160,8 +160,10 @@ geometry from provenance, and to make every kernel call a record.
   it returns are opaque (`KernelBody`) and valid while a cache entry
   holds them; a plugin sees only its own evaluation's, by handle.
   Built: `extrude` (a keyed `Profile` along its plane's normal, a
-  negative distance against it), `face_frame` (outward, planar faces
-  only) and `mass_properties` (volume, area, centroid).
+  negative distance against it), `fuse` and `cut` (a target and a tool,
+  both left valid, named through their provenance, §Persistent naming in
+  `docs/DATA-MODEL.md`), `face_frame` (outward, planar faces only) and
+  `mass_properties` (volume, area, centroid).
 - **Units.** The model's `Precision` is set for metres at the micrometre
   scale, matching SI inside: `default_tolerance` 1e-6, Arris's defaults
   otherwise, as Arris's own `probe-*-m` fixtures carry.
