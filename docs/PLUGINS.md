@@ -72,6 +72,14 @@ world plugin {
   `Ref::Region`) is its `profile` on the sketch's plane, keyed by the
   entities that bound it. Output slots hold a `body` or a `plane`; a
   sketch slot is a built-in's alone (`docs/DATA-MODEL.md` §Features).
+- **Bodies as inputs** (ADR-0007, 0.3.0): an input of kind `body` arrives
+  as a `borrow<body>` of its slot's version current at the feature, and
+  an output slot spec may name the body input it `modifies`, making its
+  body that slot's next version rather than a slot of its own. A body
+  input no slot modifies is a tool, and its slot ends there. The kernel
+  service's `fuse` and `cut` (target, tool) are how a feature joins or
+  cuts, a built-in's or a plugin's alike
+  (`docs/DATA-MODEL.md` §Bodies across features).
 - **Profiles are plain records**, keyed curve by curve like
   `arrix_core::Profile`, since a key is what roots a side face's name.
 - **What grows it, by minor version** (breaking while 0.x): `migrate`

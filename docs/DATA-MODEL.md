@@ -219,12 +219,31 @@ Sweep, loft, shell, draft and split wait for their Arris cycles
 
 ### Bodies across features
 
-A part's bodies are named slots that features create, modify and consume.
-A body is referenced as *slot `s` as of feature `f`*: after an extrude in
-cut mode, the body it cut is a new version of the same slot. A reference
-to a body means the version current at the referencing feature's position
-in the history, so inserting a feature earlier moves every later reference
-with it. Deleting a body (a boolean's tools) ends its slot.
+A part's bodies are named slots that features create, modify and consume
+(ADR-0007). A body is referenced as *slot `s` as of feature `f`*: after an
+extrude in cut mode, the body it cut is a new version of the same slot.
+
+- **A body input** (input kind `body`) is written as `Ref::Slot` naming
+  the feature that *made* the slot, and resolves to the version current
+  at the reading feature's place in the history: the output of the last
+  feature before it that modifies the slot, else the maker's. Inserting a
+  modifier earlier moves every later reader with it, and no reader's
+  record changes.
+- **A modifying slot** is an output slot whose spec names one of the
+  type's body inputs as the one it `modifies`. Its body is the target
+  slot's next version, not a slot of its own: readers after it name the
+  target's slot, and `Ref::Slot` on the modifier's own slot names
+  nothing.
+- **A consumed slot**: a body input that no output slot modifies is a
+  tool, and ends its slot. A later feature reading it, by body input or
+  by a persistent name into it, fails as `slot.consumed`, naming the
+  consumer.
+- A `Topo` name resolves against the version of its slot current at the
+  reader, so a face kept through a join is found after it.
+
+Built-ins and plugins declare these the same way, through the plugin
+API's `input-kind.body` and `slot-spec.modifies` (`docs/PLUGINS.md` §One
+interface).
 
 ## References
 
@@ -265,9 +284,13 @@ feature its name's root and steps name. It is derived from the document,
 never stored (`arrix_doc::Dag`, rebuilt whole by every command for now;
 incremental when a measured budget asks). A reference whose target the
 document lacks is no edge: it is the evaluator's lost reference.
-Plugin-record nodes join with plugin data; the implicit edges of a body
-slot's versions (a feature reading the body a join or cut before it made)
-join with join and cut.
+Plugin-record nodes join with plugin data.
+
+**The implicit edges of a body slot's versions** (ADR-0007): a feature
+that reads slot `s`, by a body input or by a `Topo` name whose root or
+steps name a feature whose body is a version of `s`, reads every feature
+before it that modifies `s`. They are derived from the history like the
+rest, so the order check and the cycle refusal cover them.
 
 - **Within a part**, a feature references only features before it in
   `history`. Reordering is a command that is refused when it would break

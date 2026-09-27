@@ -144,7 +144,7 @@ a given design; **[3]** unproven, behaviour to establish here.
   Every entity has one name and every name one entity. A kernel refusal
   here becomes an Arris fixture and a line in its backlog; this plan
   waits, it does not route around.
-- [ ] **[1]** Step 3: ADR-0007, bodies as inputs and modified slots
+- [x] **[1]** Step 3: ADR-0007, bodies as inputs and modified slots
   (the design delta above), with `docs/DATA-MODEL.md` §Bodies across
   features, §The dependency DAG and `docs/PLUGINS.md` §One interface
   brought to it. Docs only.
