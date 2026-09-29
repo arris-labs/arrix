@@ -11,6 +11,8 @@ mod resolve;
 mod sketch_tests;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod version_tests;
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -19,7 +21,9 @@ use arrix_core::{
     Diagnostic, FeatureId, Frame, ParamId, Profile, Quantity, Ref, Severity, SlotName, TopoKind,
 };
 use arrix_kernel::{CallIndex, Kernel, KernelBody, KernelCall};
-use arrix_plugin_api::{InputKind, InputValue, OutputValue, ParamValue, ResolvedInput, SlotKind};
+use arrix_plugin_api::{
+    Body, InputKind, InputValue, OutputValue, ParamValue, ResolvedInput, SlotKind,
+};
 use arrix_sketch::{ConstraintId, Sketch};
 use serde::{Deserialize, Serialize};
 
@@ -31,7 +35,7 @@ use crate::document::{Document, FeatureRecord, Part};
 use crate::expr::Expr;
 use crate::registry::{FeatureArgs, FeatureType, Registry, SketchArgs};
 use host::FeatureKernel;
-use resolve::Params;
+use resolve::{Params, Scope};
 
 /// A body's measures, in SI, and its topology counts.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -159,9 +163,20 @@ type Slots = BTreeMap<SlotName, SlotOut>;
 
 /// What a later feature finds when it reads one.
 pub(crate) enum State {
-    Ok(Slots),
+    /// Its outputs, and the input hash they were evaluated under.
+    Ok { hash: InputHash, slots: Slots },
     /// Why it has no outputs: "failed", "is suppressed", "is rolled back".
     Unavailable(&'static str),
+}
+
+/// A body input as it resolved: the body of the version current at the
+/// reader, and the feature-and-slot that produced it, by the input hash of
+/// the feature (which is what the reader's own hash covers of it).
+#[derive(Clone, Debug)]
+pub(crate) struct BodyRead {
+    pub(crate) body: KernelBody,
+    pub(crate) hash: InputHash,
+    pub(crate) slot: SlotName,
 }
 
 /// A diagnostic, and the kernel call it came from, if one did.
@@ -240,7 +255,8 @@ impl Evaluator {
         mut go: impl FnMut(&EvalEvent) -> bool,
     ) -> Option<Evaluation> {
         self.run += 1;
-        let dag = Dag::build(doc).expect("a document is valid by construction");
+        let dag =
+            Dag::build_with(doc, &self.registry).expect("a document is valid by construction");
         let params = Params::evaluate(doc, &dag);
         let mut states = BTreeMap::new();
         let mut events = Vec::new();
@@ -288,7 +304,7 @@ impl Evaluator {
                 State::Unavailable("is suppressed"),
             );
         }
-        match self.compute(doc, record, params, states) {
+        match self.compute(doc, part, at, record, params, states) {
             Ok((hash, cached, slots)) => {
                 let views = slots.iter().map(|(n, s)| (n.clone(), s.view())).collect();
                 let outcome = FeatureOutcome::Ok {
@@ -296,7 +312,7 @@ impl Evaluator {
                     cached,
                     slots: views,
                 };
-                (outcome, State::Ok(slots))
+                (outcome, State::Ok { hash, slots })
             }
             Err(f) => {
                 let call = f
@@ -317,6 +333,8 @@ impl Evaluator {
     fn compute(
         &mut self,
         doc: &Document,
+        part: &Part,
+        at: usize,
         record: &FeatureRecord,
         params: &Params,
         states: &BTreeMap<FeatureId, State>,
@@ -340,13 +358,20 @@ impl Evaluator {
             )
             .into());
         }
-        let args = self.resolve(doc, &*ty, record, params, states)?;
-        let hash = InputHash::of(record, &*ty, &args);
+        let scope = Scope {
+            registry: &self.registry,
+            doc,
+            states,
+            part,
+            at,
+        };
+        let (args, reads) = Self::resolve(&mut self.kernel, &scope, &*ty, record, params)?;
+        let hash = InputHash::of(record, &*ty, &args, &reads);
         if let Some(entry) = self.cache.get_mut(&hash) {
             entry.used = self.run;
             return Ok((hash, true, entry.slots.clone()));
         }
-        let slots = self.run_type(&*ty, record.id, &args)?;
+        let slots = self.run_type(&*ty, record.id, &args, &reads)?;
         self.cache.insert(
             hash,
             CacheEntry {
@@ -360,13 +385,12 @@ impl Evaluator {
     /// The feature's arguments: its form's parameters in SI and its inputs
     /// resolved. A field the form does not list is refused, not ignored.
     fn resolve(
-        &mut self,
-        doc: &Document,
+        kernel: &mut Kernel,
+        scope: &Scope,
         ty: &dyn FeatureType,
         record: &FeatureRecord,
         params: &Params,
-        states: &BTreeMap<FeatureId, State>,
-    ) -> Result<FeatureArgs, Failure> {
+    ) -> Result<(FeatureArgs, Vec<BodyRead>), Failure> {
         let spec = ty.spec();
         let unknown = |what: &str, name: &str| {
             error(
@@ -388,6 +412,7 @@ impl Evaluator {
         {
             return Err(unknown("input", name).into());
         }
+        let mut reads = Vec::new();
         let mut args = FeatureArgs {
             choices: record.choices.clone(),
             sketch: record
@@ -426,18 +451,15 @@ impl Evaluator {
                 continue;
             };
             let value = match i.kind {
-                InputKind::Plane => {
-                    InputValue::Plane(resolve::plane(&mut self.kernel, doc, states, r)?)
+                InputKind::Plane => InputValue::Plane(resolve::plane(kernel, scope, r)?),
+                InputKind::Region => {
+                    InputValue::Region(resolve::region(scope.doc, scope.states, r)?)
                 }
-                InputKind::Region => InputValue::Region(resolve::region(doc, states, r)?),
-                // Body slots' versions resolve with ADR-0007's evaluator;
-                // until then a body input fails soft, never guessed.
                 InputKind::Body => {
-                    return Err(error(
-                        "input.unsupported",
-                        format!("`{}`: body inputs are not resolved yet", i.name),
-                    )
-                    .into());
+                    let read = resolve::body(scope, r)?;
+                    let handle = u32::try_from(reads.len()).expect("under 2³² inputs");
+                    reads.push(read);
+                    InputValue::Body(Body::from_handle(handle))
                 }
             };
             args.inputs.push(ResolvedInput {
@@ -445,7 +467,7 @@ impl Evaluator {
                 value,
             });
         }
-        Ok(args)
+        Ok((args, reads))
     }
 
     /// Calls the type's `evaluate` and checks its outputs against the
@@ -455,9 +477,11 @@ impl Evaluator {
         ty: &dyn FeatureType,
         feature: FeatureId,
         args: &FeatureArgs,
+        reads: &[BodyRead],
     ) -> Result<Slots, Failure> {
         let spec = ty.spec();
-        let mut k = FeatureKernel::new(&mut self.kernel, feature);
+        let inputs = reads.iter().map(|r| r.body).collect();
+        let mut k = FeatureKernel::new(&mut self.kernel, feature, inputs);
         let output = ty.evaluate(&mut k, args).map_err(|diagnostic| Failure {
             diagnostic,
             call: k.failed,

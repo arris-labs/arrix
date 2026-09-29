@@ -154,7 +154,7 @@ a given design; **[3]** unproven, behaviour to establish here.
   the body input kind and value, `slot-spec.modifies`, `kernel.fuse` and
   `kernel.cut`. The equality test is extended, the Tier 0 host adapts
   them, `gears` declares `api = "0.3"`, the wasm build is green.
-- [ ] **[2]** Step 5: body-slot versions in `arrix-doc`. A body input
+- [x] **[2]** Step 5: body-slot versions in `arrix-doc`. A body input
   resolves to the version current at the reading feature. A modifying
   slot is the target's next version. A consumed slot fails its later
   readers with `slot.consumed`. The DAG gains the implicit edges. Tests
@@ -307,6 +307,18 @@ its schema-2 bytes; the whole gate is green, the wasm build included.
   wait on it, and releases are the human's. If this plan reaches step 12
   first, it stops there with steps 1–11 landed, and M1's status line
   names A2 as the one thing left.
+- Found in step 5: **a body is read within its part.** `docs/DATA-MODEL.md`
+  §The dependency DAG lets a feature take a body from another part as a
+  tool. With versions, that reader would read the other part's modifiers,
+  and an implicit edge across parts can close a cycle that `Document::
+  validate` (registry-free) cannot see. Until assemblies, a body input or a
+  `Topo` name into another part's body is refused `input.cross-part`, and
+  every implicit edge stays inside a part. Recorded in §Bodies across
+  features. No M1 scenario has two parts.
+  Also: **a body input that nothing modifies is a tool** (ADR-0007), so a
+  feature that only looks at a body must modify it and pass it on; the test
+  reader does. `core.extrude`'s `target` input in cut and join modes
+  modifies; `core.boolean`'s `tool` consumes.
 - Found in step 4: **a feature that sweeps twice names both sweeps' caps
   alike** (`face:sweep.<feature>.end-cap` carries no curve key), so a
   boolean over both can give two entities one name, refused as

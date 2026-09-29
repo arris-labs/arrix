@@ -1,6 +1,7 @@
 //! The plugin API's `Kernel` over `arrix-kernel`, scoped to one evaluating
 //! feature: every body it builds is named as that feature's, and a feature
-//! sees only the bodies it built itself, by its own handles.
+//! sees only the bodies it built itself and its body inputs, by its own
+//! handles.
 
 use arrix_core::{Diagnostic, FeatureId, Frame, PersistentName, Profile, Ref, Severity};
 use arrix_kernel::{CallIndex, Kernel, KernelBody, KernelError};
@@ -34,11 +35,13 @@ pub(crate) struct FeatureKernel<'k> {
 }
 
 impl<'k> FeatureKernel<'k> {
-    pub(crate) fn new(kernel: &'k mut Kernel, feature: FeatureId) -> Self {
+    /// `inputs` are the bodies the feature's body inputs resolved to, the
+    /// handles it was given: handle `i` is `inputs[i]`.
+    pub(crate) fn new(kernel: &'k mut Kernel, feature: FeatureId, inputs: Vec<KernelBody>) -> Self {
         Self {
             kernel,
             feature,
-            bodies: Vec::new(),
+            bodies: inputs,
             failed: None,
         }
     }

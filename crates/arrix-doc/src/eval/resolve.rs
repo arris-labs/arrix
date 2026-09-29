@@ -6,16 +6,18 @@ use std::collections::BTreeMap;
 
 use arrix_core::{
     Diagnostic, FeatureId, Frame, ParamId, PersistentName, Profile, Quantity, QuantityKind, Ref,
-    RegionKey, Severity, TopoKind,
+    RegionKey, Severity, SlotName, TopoKind,
 };
 use arrix_kernel::{Kernel, KernelBody};
 use arrix_sketch::{ResolveRegion, Sketch};
 
 use super::host::kernel_diagnostic;
-use super::{Failure, RegionView, SlotOut, State};
+use super::{BodyRead, Failure, InputHash, RegionView, SlotOut, State};
+use crate::bodies::{self, Effect, SlotKey};
 use crate::dag::{Dag, Node, ref_features};
-use crate::document::Document;
+use crate::document::{Document, Part};
 use crate::expr::Expr;
+use crate::registry::Registry;
 
 /// How many candidates a lost reference lists.
 const MAX_CANDIDATES: usize = 5;
@@ -82,15 +84,37 @@ impl Params {
     }
 }
 
+/// Where a feature is read from: the document and what earlier features
+/// produced, and the reader's place in its part's history, which decides
+/// the version of a body it sees (ADR-0007).
+pub(super) struct Scope<'a> {
+    pub(super) registry: &'a Registry,
+    pub(super) doc: &'a Document,
+    pub(super) states: &'a BTreeMap<FeatureId, State>,
+    pub(super) part: &'a Part,
+    pub(super) at: usize,
+}
+
 /// The outputs of a feature a reference reads, or why there are none.
 fn outputs<'s>(
     doc: &Document,
     states: &'s BTreeMap<FeatureId, State>,
     feature: FeatureId,
     r: &Ref,
-) -> Result<&'s BTreeMap<arrix_core::SlotName, SlotOut>, Diagnostic> {
+) -> Result<&'s BTreeMap<SlotName, SlotOut>, Diagnostic> {
+    produced(doc, states, feature, r).map(|(_, slots)| slots)
+}
+
+/// The same with the input hash the feature was evaluated under, which
+/// identifies its outputs.
+fn produced<'s>(
+    doc: &Document,
+    states: &'s BTreeMap<FeatureId, State>,
+    feature: FeatureId,
+    r: &Ref,
+) -> Result<(InputHash, &'s BTreeMap<SlotName, SlotOut>), Diagnostic> {
     match states.get(&feature) {
-        Some(State::Ok(slots)) => Ok(slots),
+        Some(State::Ok { hash, slots }) => Ok((*hash, slots)),
         Some(State::Unavailable(why)) => Err(unavailable(
             Ref::Feature(feature),
             format!("feature {feature} {why}"),
@@ -109,13 +133,124 @@ fn outputs<'s>(
     }
 }
 
+/// A body input: the version of the slot it names that is current at the
+/// reader (ADR-0007). The last feature before the reader that modifies the
+/// slot gives it, else the feature that made it. A slot a feature before
+/// the reader consumed is `slot.consumed`, and a modifier that failed
+/// leaves the version unknown, so the reader is unavailable rather than
+/// given an earlier one.
+pub(super) fn body(scope: &Scope, r: &Ref) -> Result<BodyRead, Failure> {
+    let Ref::Slot { feature, slot } = r else {
+        return Err(error(
+            "input.wrong-kind",
+            "a body input takes a feature's body slot",
+        )
+        .with_refs([r.clone()])
+        .into());
+    };
+    let key = SlotKey {
+        feature: *feature,
+        slot: slot.clone(),
+    };
+    version(scope, &key, r)
+}
+
+fn version(scope: &Scope, key: &SlotKey, r: &Ref) -> Result<BodyRead, Failure> {
+    let Scope {
+        registry,
+        doc,
+        states,
+        part,
+        at,
+    } = *scope;
+    let Some((maker_part, _, maker)) = doc.feature(key.feature) else {
+        return Err(error(
+            "ref.lost",
+            format!("feature {} is not in the document", key.feature),
+        )
+        .with_refs([r.clone()])
+        .into());
+    };
+    if maker_part.id != part.id {
+        return Err(error(
+            "input.cross-part",
+            format!(
+                "slot `{}` of feature {} is in another part; bodies are read within their part",
+                key.slot, key.feature
+            ),
+        )
+        .with_refs([r.clone()])
+        .into());
+    }
+    let modifies = |ty: &std::sync::Arc<dyn crate::registry::FeatureType>| {
+        ty.spec()
+            .outputs
+            .iter()
+            .any(|s| s.name == key.slot && s.modifies.is_some())
+    };
+    if registry.get(&maker.type_id).is_some_and(modifies) {
+        return Err(error(
+            "ref.lost",
+            format!(
+                "slot `{}` of feature {} is a version of another slot; name the feature that made it",
+                key.slot, key.feature
+            ),
+        )
+        .with_refs([r.clone()])
+        .into());
+    }
+    let (hash, slots) = produced(doc, states, key.feature, r)?;
+    let mut current = (hash, slots, key.slot.clone());
+    for (record, effect) in bodies::touching(registry, part, at, key) {
+        if record.suppressed {
+            continue;
+        }
+        match effect {
+            Effect::Consumes => {
+                return Err(error(
+                    "slot.consumed",
+                    format!(
+                        "slot `{}` of feature {} was consumed by feature {}",
+                        key.slot, key.feature, record.id
+                    ),
+                )
+                .with_refs([r.clone(), Ref::Feature(record.id)])
+                .into());
+            }
+            Effect::Modifies(out) => {
+                let (hash, slots) = produced(doc, states, record.id, r)?;
+                current = (hash, slots, out);
+            }
+        }
+    }
+    let (hash, slots, name) = current;
+    match slots.get(&name) {
+        Some(SlotOut::Body { body, .. }) => Ok(BodyRead {
+            body: *body,
+            hash,
+            slot: name,
+        }),
+        Some(_) => Err(error(
+            "input.wrong-kind",
+            format!(
+                "slot `{}` of feature {} is not a body, where a body is wanted",
+                key.slot, key.feature
+            ),
+        )
+        .with_refs([r.clone()])
+        .into()),
+        None => Err(error(
+            "ref.lost",
+            format!("feature {} has no slot `{}`", key.feature, key.slot),
+        )
+        .with_refs([r.clone()])
+        .into()),
+    }
+}
+
 /// A plane input: a feature's plane slot, or a planar face by name.
-pub(super) fn plane(
-    kernel: &mut Kernel,
-    doc: &Document,
-    states: &BTreeMap<FeatureId, State>,
-    r: &Ref,
-) -> Result<Frame, Failure> {
+pub(super) fn plane(kernel: &mut Kernel, scope: &Scope, r: &Ref) -> Result<Frame, Failure> {
+    let (doc, states) = (scope.doc, scope.states);
     match r {
         Ref::Slot { feature, slot } => match outputs(doc, states, *feature, r)?.get(slot) {
             Some(SlotOut::Plane(frame)) => Ok(*frame),
@@ -140,7 +275,7 @@ pub(super) fn plane(
             .with_refs([r.clone()])
             .into()),
         },
-        Ref::Topo(name) if name.kind == TopoKind::Face => face_frame(kernel, doc, states, r, name),
+        Ref::Topo(name) if name.kind == TopoKind::Face => face_frame(kernel, scope, r, name),
         other => Err(error(
             "input.wrong-kind",
             "a plane input takes a feature's plane slot or a planar face",
@@ -223,17 +358,20 @@ fn region_candidates(feature: FeatureId, lost: &RegionKey, regions: &[RegionView
 
 fn face_frame(
     kernel: &mut Kernel,
-    doc: &Document,
-    states: &BTreeMap<FeatureId, State>,
+    scope: &Scope,
     r: &Ref,
     name: &PersistentName,
 ) -> Result<Frame, Failure> {
     let mut pool: Vec<KernelBody> = Vec::new();
+    let mut keys = std::collections::BTreeSet::new();
     for f in ref_features(r) {
-        for slot in outputs(doc, states, f, r)?.values() {
-            if let SlotOut::Body { body, .. } = slot {
-                pool.push(*body);
-            }
+        outputs(scope.doc, scope.states, f, r)?;
+        keys.extend(bodies::named_slots(scope.registry, scope.doc, f));
+    }
+    for key in keys {
+        let body = version(scope, &key, r)?.body;
+        if !pool.contains(&body) {
+            pool.push(body);
         }
     }
     let mut matches = Vec::new();

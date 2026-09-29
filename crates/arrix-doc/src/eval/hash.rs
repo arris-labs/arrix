@@ -5,11 +5,12 @@
 
 use std::fmt;
 
-use arrix_core::{FeatureId, Frame, Profile, Quantity};
+use arrix_core::{FeatureId, Frame, Profile, Quantity, SlotName};
 use arrix_kernel::ARRIS_VERSION;
 use arrix_plugin_api::InputValue;
 use serde::{Deserialize, Serialize};
 
+use super::BodyRead;
 use crate::document::FeatureRecord;
 use crate::registry::{FeatureArgs, FeatureType};
 
@@ -39,16 +40,28 @@ struct Canonical<'a> {
 }
 
 /// An input's geometry, written bare: a plane as its frame, as before
-/// regions were inputs, so no plane's hash moved when they came.
+/// regions were inputs, so no plane's hash moved when they came. A body is
+/// the feature that produced its version, by that feature's own input
+/// hash, and the slot: evaluation is deterministic, so that identifies it.
 #[derive(Serialize)]
 #[serde(untagged)]
 enum Input<'a> {
     Plane(Frame),
     Region(&'a Profile),
+    Body {
+        produced_by: InputHash,
+        slot: &'a SlotName,
+    },
 }
 
 impl InputHash {
-    pub(crate) fn of(record: &FeatureRecord, ty: &dyn FeatureType, args: &FeatureArgs) -> Self {
+    /// `bodies` is what the body inputs resolved to, by handle.
+    pub(crate) fn of(
+        record: &FeatureRecord,
+        ty: &dyn FeatureType,
+        args: &FeatureArgs,
+        bodies: &[BodyRead],
+    ) -> Self {
         let canonical = Canonical {
             arris: ARRIS_VERSION,
             feature: record.id,
@@ -68,8 +81,12 @@ impl InputHash {
                     let value = match &i.value {
                         InputValue::Plane(f) => Input::Plane(*f),
                         InputValue::Region(p) => Input::Region(p),
-                        InputValue::Body(_) => {
-                            unreachable!("the evaluator resolves no body input yet")
+                        InputValue::Body(b) => {
+                            let read = &bodies[b.handle() as usize];
+                            Input::Body {
+                                produced_by: read.hash,
+                                slot: &read.slot,
+                            }
                         }
                     };
                     (i.name.as_str(), value)

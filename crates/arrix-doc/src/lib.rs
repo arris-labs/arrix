@@ -2,6 +2,7 @@
 //! evaluator and the `.arrx` format (docs/DATA-MODEL.md).
 
 mod authority;
+mod bodies;
 mod command;
 mod core_types;
 mod dag;

@@ -15,7 +15,9 @@ use arrix_core::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::document::{Document, FeatureRecord, sketch_exprs};
+use crate::bodies;
+use crate::document::{Document, FeatureRecord, Part, sketch_exprs};
+use crate::registry::Registry;
 
 /// A node of the DAG: what a command touches and the evaluator orders.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -162,8 +164,40 @@ fn feature_reads(doc: &Document, record: &FeatureRecord) -> Vec<(String, Node)> 
     out
 }
 
+/// The features before `record` in `part` whose version of a body slot it
+/// reads. A slot of another part is no edge: the evaluator refuses it.
+fn version_reads(
+    doc: &Document,
+    registry: &Registry,
+    part: &Part,
+    at: usize,
+    record: &FeatureRecord,
+) -> BTreeSet<Node> {
+    let mut out = BTreeSet::new();
+    for key in bodies::reads(registry, doc, record) {
+        if part.features.contains_key(&key.feature) {
+            let touching = bodies::touching(registry, part, at, &key);
+            out.extend(touching.iter().map(|(r, _)| Node::Feature(r.id)));
+        }
+    }
+    out
+}
+
 impl Dag {
+    /// The DAG of the document's explicit edges, which is all its validity
+    /// asks of it (`Document::validate`).
     pub fn build(doc: &Document) -> Result<Dag, DagError> {
+        Self::derive(doc, None)
+    }
+
+    /// The DAG with the implicit edges of body versions (ADR-0007): a
+    /// feature that reads a body slot reads every feature before it in its
+    /// part that modifies or consumes it. `registry` says which do.
+    pub fn build_with(doc: &Document, registry: &Registry) -> Result<Dag, DagError> {
+        Self::derive(doc, Some(registry))
+    }
+
+    fn derive(doc: &Document, registry: Option<&Registry>) -> Result<Dag, DagError> {
         let mut reads: BTreeMap<Node, BTreeSet<Node>> = BTreeMap::new();
         let mut rank: BTreeMap<Node, (u8, u64, usize)> = BTreeMap::new();
         for (id, p) in &doc.params {
@@ -193,6 +227,9 @@ impl Dag {
                         });
                     }
                     set.insert(target);
+                }
+                if let Some(registry) = registry {
+                    set.extend(version_reads(doc, registry, part, at, &part.features[fid]));
                 }
                 reads.insert(node, set);
             }

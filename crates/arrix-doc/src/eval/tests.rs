@@ -15,22 +15,22 @@ use super::*;
 use crate::document::{FeatureTypeId, Param};
 use crate::registry::TypeOutput;
 
-const PART: PartId = PartId(Id(1));
+pub(super) const PART: PartId = PartId(Id(1));
 
-fn fid(n: u64) -> FeatureId {
+pub(super) fn fid(n: u64) -> FeatureId {
     FeatureId(Id(n))
 }
 
-fn slot(s: &str) -> SlotName {
+pub(super) fn slot(s: &str) -> SlotName {
     SlotName::new(s).unwrap()
 }
 
 /// `test.block`: a `width` square on its `plane`, extruded `height`. Its
 /// sides are keyed 1–4 from the plane's origin anticlockwise.
-struct Block(FeatureTypeSpec);
+pub(super) struct Block(FeatureTypeSpec);
 
 impl Block {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         let param = |name: &str, default: &str| ParamSpec {
             name: name.into(),
             title: name.into(),
@@ -102,7 +102,7 @@ fn registry() -> Registry {
     r
 }
 
-fn record(
+pub(super) fn record(
     id: u64,
     type_id: &str,
     params: &[(&str, &str)],
@@ -127,14 +127,14 @@ fn record(
     }
 }
 
-fn plane_slot(id: u64) -> Ref {
+pub(super) fn plane_slot(id: u64) -> Ref {
     Ref::Slot {
         feature: fid(id),
         slot: slot("plane"),
     }
 }
 
-fn face(feature: u64, part: SweepPartName) -> PersistentName {
+pub(super) fn face(feature: u64, part: SweepPartName) -> PersistentName {
     PersistentName {
         kind: TopoKind::Face,
         root: NameRoot::Sweep {
@@ -145,7 +145,7 @@ fn face(feature: u64, part: SweepPartName) -> PersistentName {
     }
 }
 
-fn doc(params: &[(u64, &str, &str)], features: Vec<FeatureRecord>) -> Document {
+pub(super) fn doc(params: &[(u64, &str, &str)], features: Vec<FeatureRecord>) -> Document {
     Document {
         params: params
             .iter()
@@ -205,14 +205,14 @@ fn origin(e: &Evaluation, feature: u64) -> DVec3 {
     }
 }
 
-fn failure(e: &Evaluation, feature: u64) -> &Diagnostic {
+pub(super) fn failure(e: &Evaluation, feature: u64) -> &Diagnostic {
     match e.outcome(fid(feature)) {
         Some(FeatureOutcome::Failed { diagnostic, .. }) => diagnostic,
         other => panic!("feature {feature}: {other:?}"),
     }
 }
 
-fn cached(e: &Evaluation, feature: u64) -> bool {
+pub(super) fn cached(e: &Evaluation, feature: u64) -> bool {
     match e.outcome(fid(feature)) {
         Some(FeatureOutcome::Ok { cached, .. }) => *cached,
         other => panic!("feature {feature}: {other:?}"),

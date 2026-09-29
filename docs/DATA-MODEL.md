@@ -172,9 +172,7 @@ know is not an error: the feature evaluates as frozen. Until frozen
 results land it fails as `feature.unknown-type`, and a `type_version`
 other than the registered one as `feature.type-version`. The registry
 refuses a type whose slot `modifies` anything but one of its own body
-inputs, or is not a body slot (§Bodies across features). Until body
-inputs resolve (`plans/c1-m1-slice` step 5), a feature with one fails
-soft as `input.unsupported`.
+inputs, or is not a body slot (§Bodies across features).
 
 A feature's outputs are **slots**: named bodies, datums (plane, axis,
 point, frame) and sketches. `core.extrude` in new-body mode has one body
@@ -244,6 +242,14 @@ extrude in cut mode, the body it cut is a new version of the same slot.
   consumer.
 - A `Topo` name resolves against the version of its slot current at the
   reader, so a face kept through a join is found after it.
+- **As built**: a reader's input hash covers the body it read as the
+  input hash of the feature that produced that version and the slot
+  (evaluation is deterministic, so that identifies it until bodies have
+  bytes, Arris ask A2). A modifier or consumer that is suppressed is not
+  there; one that failed leaves the reader unavailable
+  (`input.unavailable` naming it), never on an earlier version. A body is
+  read within its part: naming one of another part is `input.cross-part`
+  until assemblies say what a version across parts is.
 
 Built-ins and plugins declare these the same way, through the plugin
 API's `input-kind.body` and `slot-spec.modifies` (`docs/PLUGINS.md` §One
@@ -293,8 +299,13 @@ Plugin-record nodes join with plugin data.
 **The implicit edges of a body slot's versions** (ADR-0007): a feature
 that reads slot `s`, by a body input or by a `Topo` name whose root or
 steps name a feature whose body is a version of `s`, reads every feature
-before it that modifies `s`. They are derived from the history like the
-rest, so the order check and the cycle refusal cover them.
+before it in its part that modifies or consumes `s` (a consumer, since
+the reader's outcome, `slot.consumed`, depends on it). They are derived
+from the history like the rest, and point only backwards within a part,
+so they add no cycle and no order error. They need to know which feature
+types modify what, so `Dag::build_with(doc, registry)` adds them and the
+evaluator uses it; `Dag::build` and `Document::validate` stay
+registry-free and hold the explicit edges alone.
 
 - **Within a part**, a feature references only features before it in
   `history`. Reordering is a command that is refused when it would break
