@@ -533,7 +533,14 @@ pub struct FrozenResult {
 ```
 
 It is written whenever the feature evaluates successfully with its plugin
-present, so the file always carries the latest result.
+present, so the file always carries the latest result. It is evaluation
+output, not a command (ADR-0009): the session keeps the latest live result
+of each plugin feature with its input hash, beside the document, and
+`save` writes it into the feature's record and blobs when that hash is the
+feature's current one, and otherwise keeps what the document was opened
+with. It has no undo entry and no generation and is never stale-rejected;
+evaluation being deterministic, undo, re-evaluate and save gives the
+bytes of the earlier save.
 
 A plugin feature evaluates in one of four states:
 
@@ -604,6 +611,10 @@ pub struct FeatureEdit {        // what it leaves out is kept
     inputs: BTreeMap<String, Option<Ref>>,
 }
 ```
+
+A plugin feature's frozen result is not a command: it is evaluation
+output the session writes on save (§Frozen results, ADR-0009), with no
+generation and no undo entry.
 
 In JSON a command is an object with one key, the variant in snake case,
 and an `Expr` is its text: `{"set_param":{"param":"…","expr":"12 mm"}}`.

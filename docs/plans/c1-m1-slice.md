@@ -184,7 +184,7 @@ a given design; **[3]** unproven, behaviour to establish here.
   is saved to `tests/docs/slice/` and checked as `gear-on-plane` is.
   `arrix eval tests/docs/slice` has a golden. Save twice gives identical
   bytes, and undo of every command restores each earlier save.
-- [ ] **[1]** Step 9: ADR-0009, where frozen results are written (the
+- [x] **[1]** Step 9: ADR-0009, where frozen results are written (the
   design delta above, as OPEN 2 settles it), with `docs/DATA-MODEL.md`
   §Frozen results and §Commands and undo brought to it. Docs only.
 - [ ] **[2]** Step 10: schema 2 and the migration chain. `FrozenResult` on
@@ -293,7 +293,7 @@ its schema-2 bytes; the whole gate is green, the wasm build included.
   spur`. After step 4 it would be possible through the API alone, and it
   would prove a plugin modifying a body. But every plugin would then
   re-implement join, which is the core's job.
-- ⚠ OPEN 2, the human confirms by step 9: **where frozen results are
+- OPEN 2, settled at step 9 by the agent, on the recommendation (ADR-0009): **where frozen results are
   written** (ADR-0009 as proposed above). The alternative is a
   non-undoable `Freeze` command that the session issues after evaluation.
   It puts machine output into the command stream, moves generations on

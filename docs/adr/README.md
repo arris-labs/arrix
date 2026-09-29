@@ -47,3 +47,4 @@ Each rejected option and the one-line reason it lost.
 - [ADR-0006](0006-region-references-in-ref-and-the-plugin-api.md): a sketch region is a `Ref`, and a feature input; plugin API 0.2
 - [ADR-0007](0007-bodies-as-inputs-and-modified-slots.md): bodies as feature inputs, and output slots that modify them; plugin API 0.3 (decision 5's borrow superseded)
 - [ADR-0008](0008-a-body-input-is-an-owned-handle.md): a body input is an owned handle, not a borrow
+- [ADR-0009](0009-frozen-results-are-evaluation-output.md): a frozen result is evaluation output kept by the session and written on save, not a command
