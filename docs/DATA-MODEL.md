@@ -12,7 +12,8 @@ saving and opening the directory form (§File format), names from an
 extrude's and the booleans' provenance in `arrix-kernel` (§Persistent
 naming), expressions
 (`arrix_doc::expr`, §Parameters and expressions), the evaluator with its
-cache (§Evaluation), `core.datum-plane`, `core.sketch`, and a plugin
+cache (§Evaluation), body-slot versions and consumption (§Bodies across
+features), `core.datum-plane`, `core.sketch`, `core.extrude`, and a plugin
 feature (`gears.spur`) on the built-ins' one path, referenced downstream
 by persistent name.
 Each other section becomes true as C1 lands, and the commit that builds it
@@ -193,6 +194,19 @@ target's slot (§Bodies across features).
 | `core.boolean` | a target body, tool bodies, an operation | `fuse`, `common`, `cut` | C1 |
 | `core.mirror` | features or a body, a plane | `ops::mirror` (Arris ask A11) | C1 once A11 is released, else the first cycle after |
 
+`core.extrude` is built: a `region` input (a sketch's region by key), a
+signed `distance` (default 10 mm, along the profile plane's normal), a
+`mode` choice, `new` (the default), `join` or `cut`, and a `target` body
+input, set in the last two. `join` fuses the extruded solid into the
+target and `cut` removes it. Its one output slot, `body`, names `target`
+as the slot it modifies, so with `target` set it is the target slot's
+next version, and with `target` unset (mode `new`) it is a slot of its own
+(§Bodies across features). A `join` or `cut` without a target fails as
+`extrude.no-target`, a `new` with one as `extrude.stray-target`, a mode
+that is none of the three as `extrude.mode`, no region as
+`extrude.no-region`, and a target that is not a body as
+`input.wrong-kind`.
+
 `core.datum-plane` is built in its offset form: `offset` (a length,
 default 0) along the normal of its `plane` input, a datum's `plane` slot
 or a planar face by persistent name (its outward normal). With no input
@@ -242,6 +256,14 @@ extrude in cut mode, the body it cut is a new version of the same slot.
   consumer.
 - A `Topo` name resolves against the version of its slot current at the
   reader, so a face kept through a join is found after it.
+- **A modifying slot is a version only while its input is set.** A
+  type whose output `modifies` a body input, with that input unset in the
+  record, has the slot as its own: `core.extrude` in mode `new` makes a
+  body that later features name as `Ref::Slot` on the extrude. Set, it is
+  the target's next version and names nothing of its own. The record
+  decides, so a feature that fails with the input set still counts as a
+  modifier (its readers are unavailable), and one whose record names no
+  target does not.
 - **As built**: a reader's input hash covers the body it read as the
   input hash of the feature that produced that version and the slot
   (evaluation is deterministic, so that identifies it until bodies have

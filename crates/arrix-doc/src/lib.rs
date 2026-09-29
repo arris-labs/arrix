@@ -4,6 +4,7 @@
 mod authority;
 mod bodies;
 mod command;
+mod core_extrude;
 mod core_types;
 mod dag;
 mod document;
@@ -17,6 +18,7 @@ mod session;
 
 pub use authority::{AuthorId, Authority, Change, CommandEnvelope, Generation, Outcome, Rejected};
 pub use command::{Applied, Command, CommandError, FeatureEdit, apply};
+pub use core_extrude::CoreExtrude;
 pub use core_types::{CoreSketch, DatumPlane, WORLD_PLANES};
 pub use dag::{Dag, DagError, Node};
 pub use document::{

@@ -163,7 +163,7 @@ a given design; **[3]** unproven, behaviour to establish here.
   it would break the order; undo of each restores the earlier bytes.
   Proptest over random modifier insertions: the DAG is acyclic and each
   reader's version is the last modifier before it.
-- [ ] **[2]** Step 6: `core.extrude`. A `region` input, `distance`
+- [x] **[2]** Step 6: `core.extrude`. A `region` input, `distance`
   (signed, as the kernel's extrude), `mode` `new`/`join`/`cut`, and a
   `target` body input for join and cut (`extrude.no-target` without one,
   `input.wrong-kind` on a plane). It replaces `test.pad` in
@@ -319,6 +319,13 @@ its schema-2 bytes; the whole gate is green, the wasm build included.
   feature that only looks at a body must modify it and pass it on; the test
   reader does. `core.extrude`'s `target` input in cut and join modes
   modifies; `core.boolean`'s `tool` consumes.
+- Found in step 6: **a modifying slot is a version only while its input is
+  set** (ADR-0007 decision 2 is silent on the unset case). `core.extrude`
+  has one output slot, `body`, modifying `target`; in mode `new` it has no
+  target and the slot is its own. `bodies::is_version` decides by the
+  record, and `docs/DATA-MODEL.md` §Bodies across features says so. It
+  narrows nothing the ADR says; a short ADR is the human's call if it
+  wants the rule recorded there.
 - Found in step 4: **a feature that sweeps twice names both sweeps' caps
   alike** (`face:sweep.<feature>.end-cap` carries no curve key), so a
   boolean over both can give two entities one name, refused as

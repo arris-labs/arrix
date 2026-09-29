@@ -12,6 +12,7 @@ use arrix_plugin_api::{
 };
 use arrix_sketch::Sketch;
 
+use crate::core_extrude::CoreExtrude;
 use crate::core_types::{CoreSketch, DatumPlane};
 use crate::document::{FeatureTypeId, InvalidFeatureTypeId};
 use crate::eval::SketchView;
@@ -130,6 +131,7 @@ impl Registry {
         let mut r = Registry::default();
         for ty in [
             Arc::new(DatumPlane::new()) as Arc<dyn FeatureType>,
+            Arc::new(CoreExtrude::new()),
             Arc::new(CoreSketch::new()),
         ] {
             r.register(ty)
@@ -230,7 +232,7 @@ mod tests {
     fn the_core_types_are_registered_under_core() {
         let r = Registry::with_core_types();
         let ids: Vec<_> = r.ids().map(FeatureTypeId::as_str).collect();
-        assert_eq!(ids, ["core.datum-plane", "core.sketch"]);
+        assert_eq!(ids, ["core.datum-plane", "core.extrude", "core.sketch"]);
     }
 
     #[test]

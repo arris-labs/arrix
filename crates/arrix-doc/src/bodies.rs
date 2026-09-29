@@ -5,7 +5,7 @@
 use std::collections::BTreeSet;
 
 use arrix_core::{FeatureId, Ref, SlotName};
-use arrix_plugin_api::{InputKind, SlotKind};
+use arrix_plugin_api::{InputKind, SlotKind, SlotSpec};
 
 use crate::dag::ref_features;
 use crate::document::{Document, FeatureRecord, Part};
@@ -56,6 +56,16 @@ pub(crate) fn effects(registry: &Registry, record: &FeatureRecord) -> Vec<(SlotK
     out
 }
 
+/// Whether `slot` of a `record`'s type is a version of another feature's
+/// slot rather than one of its own: it names an input it modifies, and the
+/// record sets that input. With the input unset (a `core.extrude` making a
+/// new body) it is the feature's own slot.
+pub(crate) fn is_version(slot: &SlotSpec, record: &FeatureRecord) -> bool {
+    slot.modifies
+        .as_ref()
+        .is_some_and(|input| record.inputs.contains_key(input))
+}
+
 /// The body slots a persistent name into `feature` may be a face of: its
 /// own body slots when it made them, and the slots it modifies.
 pub(crate) fn named_slots(
@@ -74,7 +84,7 @@ pub(crate) fn named_slots(
     }
     if let Some(ty) = registry.get(&record.type_id) {
         for s in &ty.spec().outputs {
-            if s.kind == SlotKind::Body && s.modifies.is_none() {
+            if s.kind == SlotKind::Body && !is_version(s, record) {
                 out.insert(SlotKey {
                     feature,
                     slot: s.name.clone(),

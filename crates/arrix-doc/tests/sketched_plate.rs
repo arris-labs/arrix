@@ -3,88 +3,27 @@
 //! and `d`, evaluated, extruded through `arrix-kernel`, edited, its bore
 //! deleted, and every command undone to the byte.
 
-use std::f64::consts::PI;
-use std::sync::Arc;
-
 use arrix_core::{
-    CurveKey, Diagnostic, FeatureId, Frame, Id, IdMinter, NameRoot, ParamId, PartId,
-    PersistentName, QuantityKind, Ref, RegionKey, SlotName, SweepPartName, TopoKind,
+    CurveKey, FeatureId, Frame, Id, IdMinter, NameRoot, ParamId, PartId, PersistentName,
+    QuantityKind, Ref, RegionKey, SweepPartName, TopoKind,
 };
 use arrix_doc::{
-    AuthorId, Authority, Command, CommandEnvelope, Document, Evaluation, Evaluator, FeatureArgs,
-    FeatureOutcome, FeatureRecord, FeatureType, FeatureTypeId, Outcome, Param, Part, Registry,
-    SketchView, SlotView, TypeOutput, apply, save,
+    AuthorId, Authority, Command, CommandEnvelope, Document, Evaluation, Evaluator, FeatureOutcome,
+    FeatureRecord, FeatureTypeId, Outcome, Param, Part, Registry, SketchView, SlotView, apply,
+    expr::Expr, save,
 };
 use arrix_kernel::Kernel;
-use arrix_plugin_api::{
-    FeatureOutput, FeatureTypeSpec, InputKind, InputSpec, InputValue, OutputValue, ParamSpec,
-    SlotKind, SlotOutput, SlotSpec,
-};
 use arrix_sketch::{
     Constraint, Draft, Entity, EntityId, Point, ResolveRegion, Sketch, SketchEdit, curve_key,
 };
+use std::f64::consts::PI;
 
 const ME: AuthorId = AuthorId(Id(1));
 const MM: f64 = 1e-3;
 const THICKNESS: f64 = 5.0 * MM;
 
-/// `test.pad`: the feature that holds a region key here, its `region`
-/// input extruded `height`, as `core.extrude` will (`c1-m1-slice`).
-struct Pad(FeatureTypeSpec);
-
-impl FeatureType for Pad {
-    fn spec(&self) -> &FeatureTypeSpec {
-        &self.0
-    }
-
-    fn evaluate(
-        &self,
-        kernel: &mut dyn arrix_plugin_api::Kernel,
-        args: &FeatureArgs,
-    ) -> Result<TypeOutput, Diagnostic> {
-        let Some(InputValue::Region(profile)) = args.input("region").map(|i| &i.value) else {
-            unreachable!("the evaluator resolves the region the spec asks for");
-        };
-        let body = kernel.extrude(profile, args.param("height").unwrap())?;
-        Ok(FeatureOutput {
-            slots: vec![SlotOutput {
-                name: slot("body"),
-                value: OutputValue::Body(body),
-            }],
-        }
-        .into())
-    }
-}
-
-fn slot(s: &str) -> SlotName {
-    SlotName::new(s).unwrap()
-}
-
 fn registry() -> Registry {
-    let mut r = Registry::with_core_types();
-    let pad = Pad(FeatureTypeSpec {
-        id: "test.pad".into(),
-        version: 1,
-        title: "Pad".into(),
-        params: vec![ParamSpec {
-            name: "height".into(),
-            title: "Height".into(),
-            kind: QuantityKind::Length,
-            default: "5 mm".into(),
-        }],
-        inputs: vec![InputSpec {
-            name: "region".into(),
-            title: "Region".into(),
-            kind: InputKind::Region,
-        }],
-        outputs: vec![SlotSpec {
-            name: slot("body"),
-            kind: SlotKind::Body,
-            modifies: None,
-        }],
-    });
-    r.register(Arc::new(pad)).unwrap();
-    r
+    Registry::with_core_types()
 }
 
 /// The document as commands build it, every file saved after each.
@@ -347,8 +286,9 @@ fn a_sketched_plate() {
         at: 1,
         record: FeatureRecord {
             id: pad,
-            type_id: FeatureTypeId::new("test.pad").unwrap(),
+            type_id: FeatureTypeId::new("core.extrude").unwrap(),
             name: "Pad".into(),
+            params: [("distance".into(), Expr::parse("5 mm").unwrap())].into(),
             inputs: [(
                 "region".into(),
                 Ref::Region {

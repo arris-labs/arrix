@@ -182,13 +182,13 @@ fn version(scope: &Scope, key: &SlotKey, r: &Ref) -> Result<BodyRead, Failure> {
         .with_refs([r.clone()])
         .into());
     }
-    let modifies = |ty: &std::sync::Arc<dyn crate::registry::FeatureType>| {
+    let is_version = |ty: &std::sync::Arc<dyn crate::registry::FeatureType>| {
         ty.spec()
             .outputs
             .iter()
-            .any(|s| s.name == key.slot && s.modifies.is_some())
+            .any(|s| s.name == key.slot && bodies::is_version(s, maker))
     };
-    if registry.get(&maker.type_id).is_some_and(modifies) {
+    if registry.get(&maker.type_id).is_some_and(is_version) {
         return Err(error(
             "ref.lost",
             format!(
