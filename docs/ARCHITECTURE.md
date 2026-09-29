@@ -31,7 +31,7 @@ unless an ADR says otherwise.
 | `arrix-kernel` | the only crate naming Arris types: operations, naming from provenance, render meshes, body bytes, call records | core | `arris`, `serde`, `thiserror` |
 | `arrix-sketch` | the sketch model and `SketchEdit`, the constraint solver and diagnostics, regions and their keyed profiles, trim/extend/offset/mirror, inference (M3) (ported) | core | `serde`, `thiserror` |
 | `arrix-plugin-api` | the WIT world, its Rust traits and plain types; semver of its own | core | `wit-bindgen`, `wit-parser` (the equality test only, dev) |
-| `arrix-doc` | document, parameters and expressions, DAG, feature registry, commands, undo, evaluator, `.arrx`, the `arrix eval` line; reads no files (a `DocumentSource` hands it bytes) | core, kernel, sketch, plugin-api | `serde_json`, `zip`, `blake3` |
+| `arrix-doc` | document, parameters and expressions, DAG, feature registry, commands, undo, evaluator, `.arrx`, the `arrix eval` line; reads no files (a `DocumentSource` hands it bytes) | core, kernel, sketch, plugin-api | `serde_json`, `blake3`, `miniz_oxide`, `crc32fast` |
 | `arrix-plugin-host` | tier 0/1/2 hosting, manifests, capabilities, the frozen fallback | core, doc, plugin-api | `toml`, `semver`, `wasmtime` (native, C3) |
 | `arrix-viewport` | wgpu scene, ID-buffer picking, overlays, camera (ported) | core | `wgpu`, `egui-wgpu` |
 | `arrix-ui` | egui widgets over plain view types; the declarative-UI renderer | core, viewport, plugin-api (UI types only) | `egui` |
@@ -45,8 +45,13 @@ Crates live in `crates/<name>/`, plugins in `plugins/<name>/` (package
 pinned once, in the root `Cargo.toml`'s `[workspace.dependencies]`:
 `arris` 0.3, and one egui minor for `egui`, `eframe`, `egui-wgpu` and the
 dev-only `egui_kittest` (0.36). The table's externals not yet in a
-manifest (`zip`, `wgpu` directly, `wasmtime`)
-join with the code that needs them; `glam` (0.33, f64 types, `serde`)
+manifest (`wgpu` directly, `wasmtime`)
+join with the code that needs them; `miniz_oxide` (0.9, deflate, no default
+features but `with-alloc`) and `crc32fast` (1) have, for the `.arrx` zip,
+which `arrix-doc` writes and reads itself (`crates/arrix-doc/src/zip.rs`,
+a stored-and-deflate subset without zip64) instead of taking the `zip`
+crate: pure Rust, so wasm32 builds with no C, and one deflate
+implementation on every target gives identical bytes; `glam` (0.33, f64 types, `serde`)
 has, `blake3` (1, its `pure` feature: no C or assembly, so every target
 hashes through the same code) has, `toml` (1, parsing and serde only) and
 `semver` (1) have, for manifests, and so have `wit-bindgen` (0.62, its `macros` feature alone) and

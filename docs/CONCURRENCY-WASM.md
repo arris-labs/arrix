@@ -108,6 +108,8 @@ arrix eval <docs or dirs>… [--sweep <feature>.<param>=<from>..<to>:<n>]
            [--budget <kernel steps>] [--jobs <n>] [--summary] [--timings]
 ```
 
+- A document is a directory or an `.arrx` file (`arrix eval <path>` reads
+  either, telling them apart on disk).
 - One JSON line per document (per sweep point), deterministic unless
   `--timings` is given:
 

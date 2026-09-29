@@ -733,8 +733,15 @@ blobs/<blake3>.<ext>   frozen results (.arrisbody), name tables, imported files,
   trailing newline, floats in shortest round-trip form. Saving the same
   document twice gives identical bytes; so does saving, loading and saving
   again. A test holds both.
-- **Deterministic zip.** Entries in sorted path order, a fixed timestamp,
-  JSON deflated and blobs stored. The same document gives the same `.arrx`.
+- **Deterministic zip.** Entries in sorted path order, a fixed timestamp
+  (1980-01-01), no extra fields and no directory entries, JSON deflated and
+  blobs stored. The same document gives the same `.arrx`. As built
+  (`arrix_doc::to_zip`, `save_zip`; `from_zip`, `open_zip`): the reader
+  refuses the whole zip for a path outside the tree (not `document.json`,
+  `params.json` or a file under `parts/`, `plugins/` or `blobs/`, or with
+  an empty, `.`, `..` or backslash component), a path twice, a method
+  other than stored and deflate, or a size or CRC-32 that fails; a
+  directory entry of an ordinary zip tool is skipped. No zip64.
 - **Blobs are content-addressed**: the name is the BLAKE3 of the bytes, so
   identical results are stored once and a changed result is a new file.
   Blobs no record points at are dropped on save.

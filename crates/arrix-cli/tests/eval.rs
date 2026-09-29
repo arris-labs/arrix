@@ -2,6 +2,8 @@
 //! against the scenario documents in `tests/docs/`
 //! (docs/ARCHITECTURE.md §Testing).
 
+mod common;
+
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
@@ -93,4 +95,44 @@ fn malformed_json_exits_2() {
 fn a_newer_schema_exits_2() {
     let doc = scratch_doc("newer", "{\"schema\": 3}\n");
     assert_refused(&arrix_eval(&doc), "schema is 3, newer than this build's 2");
+}
+
+/// The scenario directory `dir` as an `.arrx` written to the scratch space.
+fn scratch_zip(dir: &str, name: &str) -> PathBuf {
+    let mut files = std::collections::BTreeMap::new();
+    common::read_tree(&workspace().join(dir), "", &mut files);
+    let zip = arrix_doc::to_zip(&arrix_doc::MemorySource(files)).expect("zip a scenario");
+    let path = Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!("{name}.arrx"));
+    std::fs::write(&path, zip).expect("write the zip");
+    path
+}
+
+/// The line `arrix eval` prints for a zip is the golden's, bar the
+/// document's name.
+#[test]
+fn a_zip_prints_the_directorys_line() {
+    let zip = scratch_zip("tests/docs/slice", "slice");
+    let out = arrix_eval(&zip);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let line = |bytes: &[u8]| -> serde_json::Value {
+        let mut v: serde_json::Value = serde_json::from_slice(bytes).unwrap();
+        v["doc"] = serde_json::Value::Null;
+        v
+    };
+    let golden =
+        std::fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/golden/eval_slice.jsonl"))
+            .unwrap();
+    assert_eq!(line(&out.stdout), line(&golden));
+}
+
+#[test]
+fn a_bad_zip_exits_2() {
+    let path = Path::new(env!("CARGO_TARGET_TMPDIR")).join("bad.arrx");
+    std::fs::write(&path, b"not a zip").unwrap();
+    assert_refused(&arrix_eval(&path), "not a zip file");
 }

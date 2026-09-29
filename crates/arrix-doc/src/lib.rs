@@ -18,6 +18,7 @@ mod open;
 mod registry;
 mod save;
 mod session;
+mod zip;
 
 pub use authority::{AuthorId, Authority, Change, CommandEnvelope, Generation, Outcome, Rejected};
 pub use command::{Applied, Command, CommandError, FeatureEdit, apply};
@@ -41,3 +42,4 @@ pub use session::{
     DocHash, EventStream, LocalSession, ParamValues, Replica, ReplicaError, Request, Session,
     SessionEvent,
 };
+pub use zip::{ZipError, from_zip, open_zip, save_zip, to_zip};

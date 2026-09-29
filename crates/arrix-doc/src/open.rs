@@ -77,6 +77,8 @@ pub enum OpenError {
     BlobMissing { blob: BlobRef, feature: FeatureId },
     #[error("{blob}, which {feature} points at, does not hash to its name")]
     BlobCorrupt { blob: BlobRef, feature: FeatureId },
+    #[error(transparent)]
+    Zip(#[from] crate::zip::ZipError),
     #[error("{path} is not a document file: {message}")]
     Unexpected { path: String, message: String },
     #[error("the document is malformed: {0}")]

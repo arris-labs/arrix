@@ -69,6 +69,11 @@ toml = { version = "1", default-features = false, features = ["std", "serde", "p
 semver = { version = "1", features = ["serde"] }
 # Feature input hashes (docs/DATA-MODEL.md §Evaluation). `pure`: no C or
 # assembly, so every target hashes through the same code.
+# The `.arrx` zip (docs/DATA-MODEL.md §File format): a writer and reader of
+# our own over pure-Rust deflate and CRC-32, so every target writes the same
+# bytes and nothing needs C.
+miniz_oxide = { version = "0.9", default-features = false, features = ["with-alloc"] }
+crc32fast = "1"
 blake3 = { version = "1", default-features = false, features = ["std", "pure"] }
 
 # The plugin API's equality test (docs/PLUGINS.md §One interface): the

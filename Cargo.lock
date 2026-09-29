@@ -437,6 +437,8 @@ dependencies = [
  "arrix-plugin-api",
  "arrix-sketch",
  "blake3",
+ "crc32fast",
+ "miniz_oxide 0.9.1",
  "proptest",
  "semver",
  "serde",

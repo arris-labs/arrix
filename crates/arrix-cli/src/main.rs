@@ -25,7 +25,8 @@ enum Command {
     /// when every feature evaluated, 1 when one failed, 2 when the document
     /// could not be read.
     Eval {
-        /// A document directory (the unzipped form of an `.arrx`).
+        /// A document directory (the unzipped form of an `.arrx`), or an
+        /// `.arrx` file.
         doc: PathBuf,
     },
 }
@@ -38,12 +39,19 @@ fn main() -> ExitCode {
 
 fn eval(doc: &std::path::Path) -> ExitCode {
     let name = doc.to_string_lossy();
-    if !doc.is_dir() {
-        eprintln!("arrix eval: {name}: no such directory");
-        return ExitCode::from(2);
-    }
     let registry = plugins::registry();
-    let line = match arrix_doc::eval(&name, &DirSource::new(doc), &registry) {
+    let line = if doc.is_file() {
+        std::fs::read(doc)
+            .map_err(|e| e.to_string())
+            .and_then(|bytes| arrix_doc::from_zip(&bytes).map_err(|e| e.to_string()))
+            .and_then(|files| arrix_doc::eval(&name, &files, &registry).map_err(|e| e.to_string()))
+    } else if doc.is_dir() {
+        arrix_doc::eval(&name, &DirSource::new(doc), &registry).map_err(|e| e.to_string())
+    } else {
+        eprintln!("arrix eval: {name}: no such directory or file");
+        return ExitCode::from(2);
+    };
+    let line = match line {
         Ok(line) => line,
         Err(err) => {
             eprintln!("arrix eval: {name}: {err}");

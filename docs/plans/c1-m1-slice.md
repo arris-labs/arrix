@@ -196,7 +196,7 @@ a given design; **[3]** unproven, behaviour to establish here.
   `tests/docs/migrations/schema-1/`. Every scenario directory is
   re-saved at schema 2, its diff read. Tests use a synthetic blob, since
   body bytes wait on A2.
-- [ ] **[2]** Step 11: the `.arrx` zip. A deterministic writer and a
+- [x] **[2]** Step 11: the `.arrx` zip. A deterministic writer and a
   reader, `open` taking either form, `arrix eval` on a zip. Save twice
   gives identical zip bytes; unzip then save gives the directory's bytes;
   a zip with an entry outside the tree, or a duplicate, is refused. The
@@ -299,8 +299,9 @@ its schema-2 bytes; the whole gate is green, the wasm build included.
   It puts machine output into the command stream, moves generations on
   every evaluation, and makes "undo returns the earlier bytes" depend on
   the evaluator's timing.
-- ⚠ OPEN 3, the agent decides in step 11: the zip crate (`zip` with
-  `deflate` on `miniz_oxide`, or a minimal writer of our own). The crate
+- OPEN 3, settled at step 11 by the agent: **a minimal writer and reader of our own**
+  over `miniz_oxide` and `crc32fast` (`crates/arrix-doc/src/zip.rs`), not the
+  `zip` crate. The candidates were `zip` with `deflate` on `miniz_oxide`, or this. The crate
   must build for wasm32 with no C and give byte-identical output across
   runs and platforms. The choice goes in `docs/ARCHITECTURE.md` §Crates.
 - ⚠ OPEN 4, the human, whenever: **Arris 0.4's release.** Steps 12–15
