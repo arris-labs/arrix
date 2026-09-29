@@ -173,6 +173,7 @@ fn every_type_registers_under_the_plugins_namespace() {
     assert_eq!(
         all,
         [
+            "core.boolean",
             "core.datum-plane",
             "core.extrude",
             "core.sketch",

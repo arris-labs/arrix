@@ -12,6 +12,7 @@ use arrix_plugin_api::{
 };
 use arrix_sketch::Sketch;
 
+use crate::core_boolean::CoreBoolean;
 use crate::core_extrude::CoreExtrude;
 use crate::core_types::{CoreSketch, DatumPlane};
 use crate::document::{FeatureTypeId, InvalidFeatureTypeId};
@@ -130,7 +131,8 @@ impl Registry {
     pub fn with_core_types() -> Self {
         let mut r = Registry::default();
         for ty in [
-            Arc::new(DatumPlane::new()) as Arc<dyn FeatureType>,
+            Arc::new(CoreBoolean::new()) as Arc<dyn FeatureType>,
+            Arc::new(DatumPlane::new()),
             Arc::new(CoreExtrude::new()),
             Arc::new(CoreSketch::new()),
         ] {
@@ -232,7 +234,15 @@ mod tests {
     fn the_core_types_are_registered_under_core() {
         let r = Registry::with_core_types();
         let ids: Vec<_> = r.ids().map(FeatureTypeId::as_str).collect();
-        assert_eq!(ids, ["core.datum-plane", "core.extrude", "core.sketch"]);
+        assert_eq!(
+            ids,
+            [
+                "core.boolean",
+                "core.datum-plane",
+                "core.extrude",
+                "core.sketch"
+            ]
+        );
     }
 
     #[test]

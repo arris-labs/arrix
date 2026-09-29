@@ -13,7 +13,7 @@ extrude's and the booleans' provenance in `arrix-kernel` (§Persistent
 naming), expressions
 (`arrix_doc::expr`, §Parameters and expressions), the evaluator with its
 cache (§Evaluation), body-slot versions and consumption (§Bodies across
-features), `core.datum-plane`, `core.sketch`, `core.extrude`, and a plugin
+features), `core.datum-plane`, `core.sketch`, `core.extrude`, `core.boolean`, and a plugin
 feature (`gears.spur`) on the built-ins' one path, referenced downstream
 by persistent name.
 Each other section becomes true as C1 lands, and the commit that builds it
@@ -191,7 +191,7 @@ target's slot (§Bodies across features).
 | `core.fillet`, `core.chamfer` | edges of one body | `ops::fillet`, `ops::chamfer` | C1 |
 | `core.hole` | points on a planar face (sketch points), diameter, depth or through, counterbore / countersink | a revolved tool profile, then `cut` | C1 |
 | `core.pattern-linear`, `core.pattern-circular` | features or a body, count, spacing | `ops::transform` of the tool or body, then `fuse`/`cut` | C1 |
-| `core.boolean` | a target body, tool bodies, an operation | `fuse`, `common`, `cut` | C1 |
+| `core.boolean` | a target body, tool bodies, an operation | `fuse`, `common`, `cut` | C1 (M1: one tool, `fuse` and `cut`) |
 | `core.mirror` | features or a body, a plane | `ops::mirror` (Arris ask A11) | C1 once A11 is released, else the first cycle after |
 
 `core.extrude` is built: a `region` input (a sketch's region by key), a
@@ -206,6 +206,15 @@ next version, and with `target` unset (mode `new`) it is a slot of its own
 that is none of the three as `extrude.mode`, no region as
 `extrude.no-region`, and a target that is not a body as
 `input.wrong-kind`.
+
+`core.boolean` is built in its M1 form: a `target` and a `tool` body input
+and an `op` choice, `fuse` (the default) or `cut`. Its one output slot,
+`body`, modifies `target`, so it is the target slot's next version; the
+`tool` input modifies nothing, so the tool's slot ends there (a later
+reader gets `slot.consumed`). A missing body input fails as
+`boolean.no-body`, an `op` that is neither as `boolean.op`, and an input
+that is not a body as `input.wrong-kind`. `common`, several tools and the
+plugin-body join of the gear are M2's extension.
 
 `core.datum-plane` is built in its offset form: `offset` (a length,
 default 0) along the normal of its `plane` input, a datum's `plane` slot

@@ -23,6 +23,6 @@ mod tests {
             .ids()
             .map(|id| id.as_str().to_owned())
             .collect();
-        assert_eq!(ids[0], "core.datum-plane");
+        assert_eq!(ids[0], "core.boolean");
     }
 }

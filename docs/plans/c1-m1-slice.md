@@ -170,7 +170,7 @@ a given design; **[3]** unproven, behaviour to establish here.
   `crates/arrix-doc/tests/sketched_plate.rs`. Tests: a plate extruded, a
   boss joined, a pocket cut, volumes by hand, and a cache hit when nothing
   upstream changed.
-- [ ] **[2]** Step 7: `core.boolean` in M1's form (OPEN 1): `target` and
+- [x] **[2]** Step 7: `core.boolean` in M1's form (OPEN 1): `target` and
   `tool` body inputs, `op` `fuse`/`cut`. The target's slot is modified and
   the tool's consumed. Tests: a plate and a separate extruded boss fused
   to the plate's volume plus the boss's; reading the boss's slot after is
@@ -283,7 +283,7 @@ its schema-2 bytes; the whole gate is green, the wasm build included.
 
 ## Open questions
 
-- ⚠ OPEN 1, the human decides by step 7: **how the gear joins the
+- OPEN 1, decided by the human at step 7 (`core.boolean`, as recommended): **how the gear joins the
   plate.** The accept joins a plugin's body to a sketched one, and
   `core.extrude` can only join its own profile. Recommended: `core.
   boolean` (fuse and cut, one target, one tool) moves forward from M2 in
