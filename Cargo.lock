@@ -412,6 +412,7 @@ dependencies = [
  "arrix-kernel",
  "arrix-plugin-api",
  "arrix-plugin-host",
+ "arrix-sketch",
  "clap",
  "serde_json",
 ]

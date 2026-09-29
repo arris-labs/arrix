@@ -175,7 +175,7 @@ a given design; **[3]** unproven, behaviour to establish here.
   the tool's consumed. Tests: a plate and a separate extruded boss fused
   to the plate's volume plus the boss's; reading the boss's slot after is
   `slot.consumed`.
-- [ ] **[2]** Step 8: the live slice. `crates/arrix-cli/tests/slice.rs`
+- [x] **[2]** Step 8: the live slice. `crates/arrix-cli/tests/slice.rs`
   builds the accept's part by commands with `gears` registered: the
   sketched plate, a datum plane on its top face, the gear on it, the join,
   and a pocket sketched on the joined top face (a `face:…/mod.…` name) and
@@ -333,3 +333,13 @@ its schema-2 bytes; the whole gate is green, the wasm build included.
   boolean per feature). No M1 feature sweeps twice; `core.hole` and the
   patterns (M2) will. The fix is a naming change (a cap keyed, or a sweep
   index in the root), for M2's naming plan, not this one.
+- Found in step 8: **the accept's pocket cuts the plate, not the gear.**
+  It is sketched on the plate's top face as the join names it
+  (`face:sweep.<plate>.end-cap/mod.<join>.0`, the holed face) and cut
+  down through the plate, clear of the gear's footprint; a cut is one
+  signed distance from its sketch plane, so one pocket cannot pass through
+  the gear above that plane and the plate below it. The reference to prove
+  is the `mod` name through the join, and it resolves through an edit of
+  `w`. Also: a plate-width edit re-evaluates the plate, the join and the
+  pocket but not the gear, whose plane (the plate top's frame) does not
+  move with `w`; the test asserts what changed, not the gear.

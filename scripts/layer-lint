@@ -50,10 +50,12 @@ ALLOWED = {
         "arrix-viewport",
         "arrix-ui",
     },
-    # The CLI's Tier 0 registration list names each compiled-in plugin.
+    # The CLI's Tier 0 registration list names each compiled-in plugin; its
+    # scenario tests draw sketches (`arrix-sketch`, dev only).
     "arrix-cli": {
         "arrix-core",
         "arrix-doc",
+        "arrix-sketch",
         "arrix-plugin-host",
         "arrix-kernel",
         "arrix-plugin-api",

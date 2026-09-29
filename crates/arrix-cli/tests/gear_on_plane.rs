@@ -6,28 +6,19 @@
 //! directory, otherwise the directory must equal what the commands save.
 
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::time::Duration;
 
 use arrix_core::{
     CurveKey, DVec3, FeatureId, Id, IdMinter, NameRoot, ParamId, PartId, PersistentName,
     QuantityKind, Ref, SlotName, SweepPartName, TopoKind,
 };
 use arrix_doc::{
-    AuthorId, Command, CommandEnvelope, Document, Evaluator, EventStream, FeatureOutcome,
-    FeatureRecord, FeatureTypeId, Generation, LocalSession, MemorySource, Outcome, Param, Part,
-    Registry, Replica, Request, Session, SessionEvent, SlotView, expr::Expr, open, save,
+    AuthorId, Command, Evaluator, FeatureOutcome, FeatureRecord, FeatureTypeId, Param, Part,
+    Request, SessionEvent, expr::Expr, open, save,
 };
-use arrix_plugin_host::register_tier0;
+mod common;
+use common::{Client, registry, scenario_directory};
 
 const MM: f64 = 1e-3;
-
-fn registry() -> Registry {
-    let mut r = Registry::with_core_types();
-    register_tier0(&mut r, arrix_gears::MANIFEST, Arc::new(arrix_gears::Gears)).unwrap();
-    r
-}
 
 /// Every id the scenario's commands create, from the test's fixed seed.
 struct Ids {
@@ -98,99 +89,6 @@ fn record(
     }
 }
 
-/// A client of the session: its replica, every event it heard, the
-/// requests it made, and the saved files at each generation.
-struct Client {
-    session: LocalSession,
-    events: EventStream,
-    replica: Replica,
-    author: AuthorId,
-    heard: Vec<SessionEvent>,
-    requests: Vec<Request>,
-    saves: Vec<MemorySource>,
-}
-
-impl Client {
-    fn new(author: AuthorId) -> Self {
-        let session = LocalSession::open(Document::default(), registry()).unwrap();
-        let events = session.subscribe();
-        let mut c = Client {
-            session,
-            events,
-            replica: Replica::default(),
-            author,
-            heard: Vec::new(),
-            requests: Vec::new(),
-            saves: Vec::new(),
-        };
-        c.hear_until(|r| r.finished().is_some());
-        c.saves.push(save(c.replica.document()));
-        c
-    }
-
-    fn hear_until(&mut self, done: impl Fn(&Replica) -> bool) {
-        while !done(&self.replica) {
-            let e = self
-                .events
-                .recv_timeout(Duration::from_secs(60))
-                .expect("the session publishes within the timeout");
-            self.replica.receive(&e).unwrap();
-            self.heard.push(e);
-        }
-    }
-
-    /// Makes `request`, then follows the stream until its generation is
-    /// evaluated.
-    fn request(&mut self, request: Request) -> Generation {
-        self.requests.push(request.clone());
-        let Ok(Outcome::Applied(change)) = self.session.request(request) else {
-            panic!("the request applies")
-        };
-        let g = change.generation;
-        self.hear_until(|r| r.finished().is_some_and(|(f, _)| f >= g));
-        g
-    }
-
-    fn submit(&mut self, command: Command) -> Generation {
-        let g = self.request(Request::Submit(CommandEnvelope {
-            author: self.author,
-            base: self.replica.generation(),
-            command,
-        }));
-        self.saves.push(save(self.replica.document()));
-        assert_eq!(self.saves.len() as u64, g.0 + 1);
-        g
-    }
-
-    fn set(&mut self, param: ParamId, expr: &str) -> Generation {
-        let expr = Expr::parse(expr).unwrap();
-        self.submit(Command::SetParam { param, expr })
-    }
-
-    fn outcome(&self, feature: FeatureId) -> &FeatureOutcome {
-        let (g, o) = self.replica.outcome(feature).expect("evaluated");
-        assert_eq!(g, self.replica.generation(), "of the latest generation");
-        o
-    }
-
-    fn cached(&self, feature: FeatureId) -> bool {
-        match self.outcome(feature) {
-            FeatureOutcome::Ok { cached, .. } => *cached,
-            other => panic!("feature {feature}: {other:?}"),
-        }
-    }
-
-    fn plane(&self, feature: FeatureId) -> arrix_core::Frame {
-        match self.outcome(feature) {
-            FeatureOutcome::Ok { slots, .. } => match slots.values().next() {
-                Some(SlotView::Plane(f)) => *f,
-                other => panic!("feature {feature}: {other:?}"),
-            },
-            other => panic!("feature {feature}: {other:?}"),
-        }
-    }
-}
-
 /// Criterion 1: parameters, a datum plane, the gear on it, and a datum
 /// plane on the gear's top face by persistent name.
 fn build(c: &mut Client, i: &Ids) {
@@ -250,43 +148,6 @@ fn build(c: &mut Client, i: &Ids) {
             record,
         });
     }
-}
-
-fn workspace() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
-
-/// Every file under `dir`, by `/`-separated path relative to it.
-fn read_tree(dir: &Path, prefix: &str, out: &mut BTreeMap<String, Vec<u8>>) {
-    for entry in std::fs::read_dir(dir).unwrap() {
-        let entry = entry.unwrap();
-        let name = format!("{prefix}{}", entry.file_name().to_string_lossy());
-        if entry.file_type().unwrap().is_dir() {
-            read_tree(&entry.path(), &format!("{name}/"), out);
-        } else {
-            out.insert(name, std::fs::read(entry.path()).unwrap());
-        }
-    }
-}
-
-/// `tests/docs/gear-on-plane/` holds exactly `files`, or is rewritten to.
-fn scenario_directory(files: &MemorySource) {
-    let dir = workspace().join("tests/docs/gear-on-plane");
-    if std::env::var_os("UPDATE_SNAPSHOTS").is_some() {
-        let _ = std::fs::remove_dir_all(&dir);
-        for (path, bytes) in &files.0 {
-            let to = dir.join(path);
-            std::fs::create_dir_all(to.parent().unwrap()).unwrap();
-            std::fs::write(to, bytes).unwrap();
-        }
-    }
-    let mut on_disk = BTreeMap::new();
-    read_tree(&dir, "", &mut on_disk);
-    assert!(
-        on_disk == files.0,
-        "tests/docs/gear-on-plane differs from what the commands save; \
-         rerun with UPDATE_SNAPSHOTS=1 and read the diff"
-    );
 }
 
 #[test]
@@ -398,5 +259,5 @@ fn gear_on_plane() {
         .count() as u64;
     assert_eq!(applied, 3 * last.0, "built, undone and redone");
 
-    scenario_directory(&scenario);
+    scenario_directory("gear-on-plane", &scenario);
 }

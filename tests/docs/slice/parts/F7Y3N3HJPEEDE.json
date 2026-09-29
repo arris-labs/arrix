@@ -1,0 +1,372 @@
+{
+  "features": {
+    "3NSBRZMAEGHT2": {
+      "id": "3NSBRZMAEGHT2",
+      "inputs": {
+        "plane": {
+          "topo": "face:sweep.5BE3HE4D204QM.end-cap"
+        }
+      },
+      "name": "Plate top",
+      "params": {
+        "offset": "0 mm"
+      },
+      "suppressed": false,
+      "type_id": "core.datum-plane",
+      "type_version": 1
+    },
+    "4FPVPAG4ED5V5": {
+      "choices": {
+        "mode": "cut"
+      },
+      "id": "4FPVPAG4ED5V5",
+      "inputs": {
+        "region": {
+          "region": {
+            "feature": "535B2GGCACYRR",
+            "key": {
+              "entities": [
+                "3ZPNYGV5VXAGH",
+                "57Z6PA4YG5FQY",
+                "77MSVCSN1W8ET",
+                "7FJY4M4SW5M7P"
+              ],
+              "sample": [
+                3000000,
+                3000000
+              ]
+            }
+          }
+        },
+        "target": {
+          "slot": {
+            "feature": "5BE3HE4D204QM",
+            "slot": "body"
+          }
+        }
+      },
+      "name": "Pocket",
+      "params": {
+        "distance": "-6 mm"
+      },
+      "suppressed": false,
+      "type_id": "core.extrude",
+      "type_version": 1
+    },
+    "535B2GGCACYRR": {
+      "id": "535B2GGCACYRR",
+      "inputs": {
+        "plane": {
+          "topo": "face:sweep.5BE3HE4D204QM.end-cap/mod.EDR6PVVF7Z9Z0.0"
+        }
+      },
+      "name": "Sketch 5",
+      "params": {},
+      "sketch": {
+        "constraints": {
+          "1N0Q7KC2VBYQB": {
+            "constraint": {
+              "horizontal": {
+                "line": "7FJY4M4SW5M7P"
+              }
+            },
+            "id": "1N0Q7KC2VBYQB"
+          },
+          "24QP0FACN0SV1": {
+            "constraint": {
+              "horizontal": {
+                "line": "77MSVCSN1W8ET"
+              }
+            },
+            "id": "24QP0FACN0SV1"
+          },
+          "6KGX2ET47JMV9": {
+            "constraint": {
+              "vertical": {
+                "line": "3ZPNYGV5VXAGH"
+              }
+            },
+            "id": "6KGX2ET47JMV9"
+          },
+          "DY3WS4JHG2S1G": {
+            "constraint": {
+              "distance": {
+                "a": "08K1WTZT3RSGW",
+                "b": "ED620G2XB2AG2",
+                "value": 0.006
+              }
+            },
+            "id": "DY3WS4JHG2S1G"
+          },
+          "EP0TMVX54BCTE": {
+            "constraint": {
+              "distance": {
+                "a": "67JZ1WHCK43EQ",
+                "b": "08K1WTZT3RSGW",
+                "value": 0.006
+              }
+            },
+            "id": "EP0TMVX54BCTE"
+          },
+          "FBEJEPWMDTRSC": {
+            "constraint": {
+              "vertical": {
+                "line": "57Z6PA4YG5FQY"
+              }
+            },
+            "id": "FBEJEPWMDTRSC"
+          }
+        },
+        "entities": {
+          "3ZPNYGV5VXAGH": {
+            "line": {
+              "end": "ED620G2XB2AG2",
+              "start": "08K1WTZT3RSGW"
+            }
+          },
+          "57Z6PA4YG5FQY": {
+            "line": {
+              "end": "67JZ1WHCK43EQ",
+              "start": "9AEQBE1KKWAEB"
+            }
+          },
+          "77MSVCSN1W8ET": {
+            "line": {
+              "end": "08K1WTZT3RSGW",
+              "start": "67JZ1WHCK43EQ"
+            }
+          },
+          "7FJY4M4SW5M7P": {
+            "line": {
+              "end": "9AEQBE1KKWAEB",
+              "start": "ED620G2XB2AG2"
+            }
+          }
+        },
+        "points": {
+          "08K1WTZT3RSGW": {
+            "x": 0.006,
+            "y": 0.0
+          },
+          "67JZ1WHCK43EQ": {
+            "fixed": true,
+            "x": 0.0,
+            "y": 0.0
+          },
+          "9AEQBE1KKWAEB": {
+            "x": 0.0,
+            "y": 0.006
+          },
+          "ED620G2XB2AG2": {
+            "x": 0.006,
+            "y": 0.006
+          }
+        }
+      },
+      "suppressed": false,
+      "type_id": "core.sketch",
+      "type_version": 1
+    },
+    "5BE3HE4D204QM": {
+      "choices": {
+        "mode": "new"
+      },
+      "id": "5BE3HE4D204QM",
+      "inputs": {
+        "region": {
+          "region": {
+            "feature": "CVXP4WNHXHRHD",
+            "key": {
+              "entities": [
+                "3ZPNYGV5VXAGH",
+                "57Z6PA4YG5FQY",
+                "77MSVCSN1W8ET",
+                "7FJY4M4SW5M7P"
+              ],
+              "sample": [
+                0,
+                0
+              ]
+            }
+          }
+        }
+      },
+      "name": "Plate",
+      "params": {
+        "distance": "t"
+      },
+      "suppressed": false,
+      "type_id": "core.extrude",
+      "type_version": 1
+    },
+    "5BJX8TTST7RVD": {
+      "id": "5BJX8TTST7RVD",
+      "inputs": {
+        "plane": {
+          "slot": {
+            "feature": "3NSBRZMAEGHT2",
+            "slot": "plane"
+          }
+        }
+      },
+      "name": "Spur gear",
+      "params": {
+        "module": "m",
+        "teeth": "teeth",
+        "width": "8 mm"
+      },
+      "suppressed": false,
+      "type_id": "gears.spur",
+      "type_version": 1
+    },
+    "CVXP4WNHXHRHD": {
+      "id": "CVXP4WNHXHRHD",
+      "inputs": {},
+      "name": "Sketch 0",
+      "params": {},
+      "sketch": {
+        "constraints": {
+          "1N0Q7KC2VBYQB": {
+            "constraint": {
+              "horizontal": {
+                "line": "7FJY4M4SW5M7P"
+              }
+            },
+            "id": "1N0Q7KC2VBYQB"
+          },
+          "24QP0FACN0SV1": {
+            "constraint": {
+              "horizontal": {
+                "line": "77MSVCSN1W8ET"
+              }
+            },
+            "id": "24QP0FACN0SV1"
+          },
+          "6KGX2ET47JMV9": {
+            "constraint": {
+              "vertical": {
+                "line": "3ZPNYGV5VXAGH"
+              }
+            },
+            "id": "6KGX2ET47JMV9"
+          },
+          "DY3WS4JHG2S1G": {
+            "constraint": {
+              "distance": {
+                "a": "08K1WTZT3RSGW",
+                "b": "ED620G2XB2AG2",
+                "value": 0.03
+              }
+            },
+            "expr": "h",
+            "id": "DY3WS4JHG2S1G"
+          },
+          "EP0TMVX54BCTE": {
+            "constraint": {
+              "distance": {
+                "a": "67JZ1WHCK43EQ",
+                "b": "08K1WTZT3RSGW",
+                "value": 0.04
+              }
+            },
+            "expr": "w",
+            "id": "EP0TMVX54BCTE"
+          },
+          "FBEJEPWMDTRSC": {
+            "constraint": {
+              "vertical": {
+                "line": "57Z6PA4YG5FQY"
+              }
+            },
+            "id": "FBEJEPWMDTRSC"
+          }
+        },
+        "entities": {
+          "3ZPNYGV5VXAGH": {
+            "line": {
+              "end": "ED620G2XB2AG2",
+              "start": "08K1WTZT3RSGW"
+            }
+          },
+          "57Z6PA4YG5FQY": {
+            "line": {
+              "end": "67JZ1WHCK43EQ",
+              "start": "9AEQBE1KKWAEB"
+            }
+          },
+          "77MSVCSN1W8ET": {
+            "line": {
+              "end": "08K1WTZT3RSGW",
+              "start": "67JZ1WHCK43EQ"
+            }
+          },
+          "7FJY4M4SW5M7P": {
+            "line": {
+              "end": "9AEQBE1KKWAEB",
+              "start": "ED620G2XB2AG2"
+            }
+          }
+        },
+        "points": {
+          "08K1WTZT3RSGW": {
+            "x": 0.02,
+            "y": -0.015
+          },
+          "67JZ1WHCK43EQ": {
+            "fixed": true,
+            "x": -0.02,
+            "y": -0.015
+          },
+          "9AEQBE1KKWAEB": {
+            "x": -0.02,
+            "y": 0.015
+          },
+          "ED620G2XB2AG2": {
+            "x": 0.02,
+            "y": 0.015
+          }
+        }
+      },
+      "suppressed": false,
+      "type_id": "core.sketch",
+      "type_version": 1
+    },
+    "EDR6PVVF7Z9Z0": {
+      "choices": {
+        "op": "fuse"
+      },
+      "id": "EDR6PVVF7Z9Z0",
+      "inputs": {
+        "target": {
+          "slot": {
+            "feature": "5BE3HE4D204QM",
+            "slot": "body"
+          }
+        },
+        "tool": {
+          "slot": {
+            "feature": "5BJX8TTST7RVD",
+            "slot": "body"
+          }
+        }
+      },
+      "name": "Join",
+      "params": {},
+      "suppressed": false,
+      "type_id": "core.boolean",
+      "type_version": 1
+    }
+  },
+  "history": [
+    "CVXP4WNHXHRHD",
+    "5BE3HE4D204QM",
+    "3NSBRZMAEGHT2",
+    "5BJX8TTST7RVD",
+    "EDR6PVVF7Z9Z0",
+    "535B2GGCACYRR",
+    "4FPVPAG4ED5V5"
+  ],
+  "id": "F7Y3N3HJPEEDE",
+  "name": "Plate and gear",
+  "rollback": null
+}

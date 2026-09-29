@@ -61,6 +61,12 @@ fn the_gear_on_plane_document_prints_its_golden_line() {
     );
 }
 
+/// The document tests/slice.rs builds by commands and saves.
+#[test]
+fn the_slice_document_prints_its_golden_line() {
+    assert_golden("tests/docs/slice", "tests/golden/eval_slice.jsonl");
+}
+
 /// Exit 2, nothing on stdout, and a message on stderr that says why.
 fn assert_refused(out: &Output, says: &str) {
     let stderr = String::from_utf8_lossy(&out.stderr);

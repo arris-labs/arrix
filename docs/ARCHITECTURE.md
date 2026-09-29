@@ -36,7 +36,7 @@ unless an ADR says otherwise.
 | `arrix-viewport` | wgpu scene, ID-buffer picking, overlays, camera (ported) | core | `wgpu`, `egui-wgpu` |
 | `arrix-ui` | egui widgets over plain view types; the declarative-UI renderer | core, viewport, plugin-api (UI types only) | `egui` |
 | `arrix-app` | the binary: the shell, the command registry, translation between document and view types | all of the above | `eframe` |
-| `arrix-cli` | headless open / eval / export / run / test; its Tier 0 registration list | core, doc, plugin-host, kernel, plugin-api (its tests), and each compiled-in plugin (`arrix-gears`) | `clap` |
+| `arrix-cli` | headless open / eval / export / run / test; its Tier 0 registration list | core, doc, plugin-host, kernel, plugin-api and sketch (its tests), and each compiled-in plugin (`arrix-gears`) | `clap` |
 | `plugins/*` | first-party plugins: `gears` (C1), `robotics` (by C3) | plugin-api **only** | — |
 | `python/arrix` | the Tier 2 SDK (C3), not a Cargo crate | — | — |
 

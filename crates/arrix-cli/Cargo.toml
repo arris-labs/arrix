@@ -21,6 +21,7 @@ serde_json.workspace = true
 [dev-dependencies]
 # The kernel-backed checks of the compiled-in plugins (tests/gears.rs).
 arrix-plugin-api.workspace = true
+arrix-sketch.workspace = true
 
 [[bin]]
 name = "arrix"

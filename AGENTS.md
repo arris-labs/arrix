@@ -92,7 +92,8 @@ it before ticking a step:
   `UPDATE_SNAPSHOTS=1`.
 - `cargo run -p arrix-cli -- eval <dir>` evaluates a document directory
   and prints its JSON line (`tests/docs/empty` is the M0 scenario,
-  `tests/docs/gear-on-plane` M1's first, each with a golden in
+  `tests/docs/gear-on-plane` M1's first, `tests/docs/slice` its
+  accept's part, each with a golden in
   `crates/arrix-cli/tests/golden/`).
 - Either hook runs by hand as `.githooks/pre-commit` or
   `.githooks/pre-push`. `scripts/size-lint --list` shows offenders past
