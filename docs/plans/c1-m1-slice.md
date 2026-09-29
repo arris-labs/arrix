@@ -187,7 +187,7 @@ a given design; **[3]** unproven, behaviour to establish here.
 - [x] **[1]** Step 9: ADR-0009, where frozen results are written (the
   design delta above, as OPEN 2 settles it), with `docs/DATA-MODEL.md`
   §Frozen results and §Commands and undo brought to it. Docs only.
-- [ ] **[2]** Step 10: schema 2 and the migration chain. `FrozenResult` on
+- [x] **[2]** Step 10: schema 2 and the migration chain. `FrozenResult` on
   `FeatureRecord` (omitted when absent), `BlobRef` and `blobs/`
   (content-addressed; unreferenced blobs dropped on save; `blob.missing`
   and `blob.corrupt` on open). Migrations are pure functions over the JSON

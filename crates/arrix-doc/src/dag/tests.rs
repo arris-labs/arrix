@@ -31,6 +31,7 @@ fn record(id: FeatureId, inputs: Vec<Ref>, exprs: &[&str]) -> FeatureRecord {
             .collect(),
         suppressed: false,
         sketch: None,
+        frozen: None,
     }
 }
 

@@ -66,7 +66,7 @@ thiserror = "2"
 # Plugin manifests (docs/PLUGINS.md §The manifest): `arrix-plugin.toml`,
 # its versions and its `api` range.
 toml = { version = "1", default-features = false, features = ["std", "serde", "parse"] }
-semver = "1"
+semver = { version = "1", features = ["serde"] }
 # Feature input hashes (docs/DATA-MODEL.md §Evaluation). `pure`: no C or
 # assembly, so every target hashes through the same code.
 blake3 = { version = "1", default-features = false, features = ["std", "pure"] }

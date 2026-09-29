@@ -124,6 +124,7 @@ fn record(id: u64, type_id: &str, inputs: &[(&str, Ref)]) -> FeatureRecord {
             .collect(),
         suppressed: false,
         sketch: None,
+        frozen: None,
     }
 }
 

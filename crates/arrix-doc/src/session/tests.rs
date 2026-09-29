@@ -49,6 +49,7 @@ fn plane(id: FeatureId, offset: &str, on: Option<FeatureId>) -> FeatureRecord {
             .collect(),
         suppressed: false,
         sketch: None,
+        frozen: None,
     }
 }
 

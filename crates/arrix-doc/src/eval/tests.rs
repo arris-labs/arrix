@@ -124,6 +124,7 @@ pub(super) fn record(
             .collect(),
         suppressed: false,
         sketch: None,
+        frozen: None,
     }
 }
 
@@ -168,6 +169,7 @@ pub(super) fn doc(params: &[(u64, &str, &str)], features: Vec<FeatureRecord>) ->
                 rollback: None,
             },
         )]),
+        ..Document::default()
     }
 }
 

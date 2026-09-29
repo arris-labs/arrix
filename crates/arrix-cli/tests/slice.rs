@@ -99,6 +99,7 @@ fn record(id: FeatureId, ty: &str, name: &str) -> FeatureRecord {
         inputs: BTreeMap::new(),
         suppressed: false,
         sketch: None,
+        frozen: None,
     }
 }
 

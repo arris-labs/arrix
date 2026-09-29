@@ -229,6 +229,7 @@ fn the_registered_plugin_evaluates_on_a_datum_plane() {
             inputs: inputs.into_iter().map(|(k, r)| (k.into(), r)).collect(),
             suppressed: false,
             sketch: None,
+            frozen: None,
         };
     let plane = Ref::Slot {
         feature: FeatureId(Id(1)),

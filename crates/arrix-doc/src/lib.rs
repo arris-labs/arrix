@@ -12,6 +12,8 @@ mod document;
 mod eval;
 mod executor;
 pub mod expr;
+mod frozen;
+mod migrate;
 mod open;
 mod registry;
 mod save;
@@ -31,6 +33,7 @@ pub use eval::{
     BodyLine, BodyMeasures, EvalEvent, EvalLine, EvalStatus, Evaluation, Evaluator, FeatureLine,
     FeatureOutcome, InputHash, ParamLine, RegionView, SketchView, SlotView, SweepPoint, eval,
 };
+pub use frozen::{BlobRef, FrozenResult, InvalidBlobRef};
 pub use open::{DOCUMENT_JSON, DocumentSource, MemorySource, OpenError, PARAMS_JSON, SCHEMA, open};
 pub use registry::{FeatureArgs, FeatureType, Registry, RegistryError, SketchArgs, TypeOutput};
 pub use save::{save, to_json};

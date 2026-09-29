@@ -738,30 +738,43 @@ blobs/<blake3>.<ext>   frozen results (.arrisbody), name tables, imported files,
 - **Blobs are content-addressed**: the name is the BLAKE3 of the bytes, so
   identical results are stored once and a changed result is a new file.
   Blobs no record points at are dropped on save.
-- **Versioning.** `document.json` carries `schema` (an integer, 1 at C1).
+- **Versioning.** `document.json` carries `schema` (an integer, 2 since C1 M1).
   Opening an older schema runs forward migrations in order, each a pure
   function over the JSON tree with its own fixture document. A newer
   schema than the build knows is refused with a message naming both. A
   feature record's `type_version` is migrated by its feature type (a
   plugin's own migration, or kept frozen if the plugin is absent).
 - **What opens and saves today** (`arrix_doc::open`, `arrix_doc::save`):
-  the directory form, as `document.json` (`schema` 1; nothing else in the
+  the directory form, as `document.json` (`schema` 2; nothing else in the
   header is interpreted yet), `params.json` (the parameters by id; absent
-  reads as none) and `parts/<part-id>.json` (one part, its id matching the
-  file's name). `arrix_doc::to_json` is the writer: it goes through
-  `serde_json::Value`, whose map is ordered, for sorted keys. A record
-  with a field this build does not know is refused, never dropped on the
-  next save. The opened document is checked as a command's result is
-  (`Document::validate`). A newer schema is refused with a message naming
-  both (`the document's schema is 2, newer than this build's 1`), a
-  schema below 1 as one no ArriX wrote. `save` returns the files by
-  path; the caller writes them and removes what an earlier save left.
+  reads as none), `parts/<part-id>.json` (one part, its id matching the
+  file's name) and `blobs/<blake3>.<ext>`. `arrix_doc::to_json` is the
+  writer: it goes through `serde_json::Value`, whose map is ordered, for
+  sorted keys. A record with a field this build does not know is refused,
+  never dropped on the next save. The opened document is checked as a
+  command's result is (`Document::validate`). A newer schema is refused
+  with a message naming both (`the document's schema is 3, newer than this
+  build's 2`), a schema below 1 as one no ArriX wrote. `save` returns the
+  files by path; the caller writes them and removes what an earlier save
+  left.
   Every command undone restores the earlier save's bytes, and redone the
   later one's (`crates/arrix-doc/src/save/tests.rs`).
   `tests/docs/empty/` is the empty document; `tests/docs/gear-on-plane/`
   is M1's first scenario, written by the commands of
   `crates/arrix-cli/tests/gear_on_plane.rs` and checked against them on
   every run (`UPDATE_SNAPSHOTS=1` rewrites it).
+- **Schema 2 and the migration chain.** Schema 2 adds
+  `FeatureRecord.frozen` (omitted when absent) and `blobs/`. `open` parses
+  the JSON files into a tree, runs the links of `arrix_doc`'s `migrate`
+  chain from the document's schema up (each a pure function over the tree,
+  `doc.migration` naming the link that failed), and only then reads
+  records. 1 → 2 is the identity bar the header; its fixture is
+  `tests/docs/migrations/schema-1/`, opened and re-saved by
+  `crates/arrix-cli/tests/migration.rs` to the bytes of
+  `tests/docs/gear-on-plane/`. A blob is read only when a frozen result
+  points at it: a missing one is `blob.missing`, one whose bytes do not
+  hash to its name `blob.corrupt`, and one nothing points at is dropped on
+  the next save.
 - **Plugin sections** carry their plugin's schema version and are opaque
   to the core (§Frozen results).
 - **Units** in the file are SI; `meta` records the display units.

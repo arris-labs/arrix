@@ -47,7 +47,7 @@ pub struct Change {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Outcome {
-    Applied(Change),
+    Applied(Box<Change>),
     /// The command's effect equals the current state: nothing applied, no
     /// undo entry.
     NoOp,
@@ -123,7 +123,7 @@ impl Authority {
         let stacks = self.authors.entry(envelope.author).or_default();
         stacks.undo.push(entry);
         stacks.redo.clear();
-        Ok(Outcome::Applied(change))
+        Ok(Outcome::Applied(Box::new(change)))
     }
 
     /// Applies `author`'s newest inverse, unless another author has since
@@ -169,7 +169,7 @@ impl Authority {
             Direction::Undo => stacks.redo.push(reverse),
             Direction::Redo => stacks.undo.push(reverse),
         }
-        Ok(Outcome::Applied(change))
+        Ok(Outcome::Applied(Box::new(change)))
     }
 
     fn check_fresh(&self, touched: &BTreeSet<Node>, base: Generation) -> Result<(), Rejected> {

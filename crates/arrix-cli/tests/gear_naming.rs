@@ -61,6 +61,7 @@ fn record(id: FeatureId, ty: &str, params: &[(&str, &str)], input: Option<Ref>) 
         inputs: input.into_iter().map(|r| ("plane".into(), r)).collect(),
         suppressed: false,
         sketch: None,
+        frozen: None,
     }
 }
 

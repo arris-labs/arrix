@@ -86,6 +86,7 @@ fn record(
         inputs: plane.into_iter().map(|r| ("plane".into(), r)).collect(),
         suppressed: false,
         sketch: None,
+        frozen: None,
     }
 }
 

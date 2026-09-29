@@ -1,0 +1,58 @@
+{
+  "features": {
+    "BKXD0E5V68PG3": {
+      "id": "BKXD0E5V68PG3",
+      "inputs": {},
+      "name": "Base plane",
+      "params": {
+        "offset": "10 mm"
+      },
+      "suppressed": false,
+      "type_id": "core.datum-plane",
+      "type_version": 1
+    },
+    "CVXP4WNHXHRHD": {
+      "id": "CVXP4WNHXHRHD",
+      "inputs": {
+        "plane": {
+          "topo": "face:sweep.F7Y3N3HJPEEDE.end-cap"
+        }
+      },
+      "name": "Top plane",
+      "params": {
+        "offset": "2 mm"
+      },
+      "suppressed": false,
+      "type_id": "core.datum-plane",
+      "type_version": 1
+    },
+    "F7Y3N3HJPEEDE": {
+      "id": "F7Y3N3HJPEEDE",
+      "inputs": {
+        "plane": {
+          "slot": {
+            "feature": "BKXD0E5V68PG3",
+            "slot": "plane"
+          }
+        }
+      },
+      "name": "Spur gear",
+      "params": {
+        "module": "m",
+        "teeth": "teeth",
+        "width": "w"
+      },
+      "suppressed": false,
+      "type_id": "gears.spur",
+      "type_version": 1
+    }
+  },
+  "history": [
+    "BKXD0E5V68PG3",
+    "F7Y3N3HJPEEDE",
+    "CVXP4WNHXHRHD"
+  ],
+  "id": "CN9MW3R3SHZT9",
+  "name": "Gear on a plane",
+  "rollback": null
+}

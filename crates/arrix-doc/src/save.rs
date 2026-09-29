@@ -27,6 +27,19 @@ pub fn save(doc: &Document) -> MemorySource {
     files.0.insert(PARAMS_JSON.into(), to_json(&doc.params));
     for (id, part) in &doc.parts {
         files.0.insert(format!("parts/{id}.json"), to_json(part));
+        // Only the blobs a record points at: the rest are dropped.
+        for blob in part
+            .features
+            .values()
+            .filter_map(|r| r.frozen.as_ref())
+            .flat_map(|f| f.blobs())
+        {
+            let bytes = doc
+                .blobs
+                .get(blob)
+                .expect("open and commands keep every referenced blob");
+            files.0.insert(blob.path(), bytes.clone());
+        }
     }
     files
 }

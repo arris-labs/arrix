@@ -103,7 +103,7 @@ fn serve(
                 if let Ok(Outcome::Applied(change)) = &result {
                     let hash = cfg!(debug_assertions).then(|| DocHash::of(authority.document()));
                     let event = SessionEvent::Applied {
-                        change: change.clone(),
+                        change: (**change).clone(),
                         hash,
                     };
                     subscribers.retain(|s| s.send(event.clone()).is_ok());

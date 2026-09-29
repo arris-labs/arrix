@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::dag::{Dag, DagError};
 use crate::expr::Expr;
+use crate::frozen::{BlobRef, FrozenResult};
 
 /// A document: everything needed to regenerate its geometry, and nothing
 /// that can be regenerated. Generations are the authority's, not the
@@ -22,6 +23,9 @@ use crate::expr::Expr;
 pub struct Document {
     pub(crate) params: BTreeMap<ParamId, Param>,
     pub(crate) parts: BTreeMap<PartId, Part>,
+    /// The bytes of every blob a feature's frozen result points at, by
+    /// name (docs/DATA-MODEL.md §File format).
+    pub(crate) blobs: BTreeMap<BlobRef, Vec<u8>>,
 }
 
 /// A named, typed parameter.
@@ -71,6 +75,10 @@ pub struct FeatureRecord {
     /// Boxed: most features hold none, and a command carries records.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sketch: Option<Box<Sketch>>,
+    /// A plugin feature's last result (docs/DATA-MODEL.md §Frozen
+    /// results); omitted when there is none. Boxed, as `sketch` is.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub frozen: Option<Box<FrozenResult>>,
 }
 
 /// `core.<name>` for a built-in, `<plugin>.<name>` for a plugin's; the
@@ -188,6 +196,11 @@ impl Document {
 
     pub fn parts(&self) -> &BTreeMap<PartId, Part> {
         &self.parts
+    }
+
+    /// The bytes of a blob a frozen result points at.
+    pub fn blob(&self, blob: &BlobRef) -> Option<&[u8]> {
+        self.blobs.get(blob).map(Vec::as_slice)
     }
 
     pub fn param_by_name(&self, name: &str) -> Option<(ParamId, &Param)> {

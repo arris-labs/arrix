@@ -63,6 +63,7 @@ fn feature(
         inputs: inputs.into_iter().map(|(k, r)| (k.into(), r)).collect(),
         suppressed: false,
         sketch: None,
+        frozen: None,
     }
 }
 
@@ -217,7 +218,7 @@ fn writes_the_documented_layout() {
             format!("parts/{part}.json")
         ]
     );
-    assert_eq!(text(&files, DOCUMENT_JSON), "{\n  \"schema\": 1\n}\n");
+    assert_eq!(text(&files, DOCUMENT_JSON), "{\n  \"schema\": 2\n}\n");
     let params = text(&files, PARAMS_JSON);
     assert!(
         params.contains("\"expr\": \"1 mm\",\n    \"kind\": \"length\",\n    \"name\": \"m\""),
@@ -317,6 +318,7 @@ fn sketch_scenario() -> Vec<Command> {
             at: 0,
             record: FeatureRecord {
                 sketch: Some(Box::default()),
+                frozen: None,
                 ..feature(sketch, "core.sketch", "Sketch", &[], vec![])
             },
         },

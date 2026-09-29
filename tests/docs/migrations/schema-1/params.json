@@ -1,0 +1,17 @@
+{
+  "6504KHBAT217J": {
+    "expr": "8 mm",
+    "kind": "length",
+    "name": "w"
+  },
+  "7HF4JFQPKAHAX": {
+    "expr": "20",
+    "kind": "count",
+    "name": "teeth"
+  },
+  "ANNRYEQ6Y5E4E": {
+    "expr": "1 mm",
+    "kind": "length",
+    "name": "m"
+  }
+}
