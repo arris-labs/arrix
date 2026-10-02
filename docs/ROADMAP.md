@@ -7,7 +7,7 @@ before its plan starts. One section per cycle; a finished cycle compresses
 to its status line (`/close-cycle`), and the next is detailed below it.
 
 Spine: **C1** M0 → M1 → M2 → M3 → M4 (the vertical slice with a plugin
-feature in it; M0 landed, M1 next), then **C2** (the mechanical core), **C3** (the
+feature in it; M0 and M1 landed, M2 next), then **C2** (the mechanical core), **C3** (the
 boundary crossed), **C4** (the web). Beyond C4, the named cycles are
 unordered.
 
@@ -30,7 +30,12 @@ Tier 0 and `gears.spur` referenced downstream by persistent name
 (ADR-0004). M1 plan 2 of 3 landed 2026-09-27: `arrix-sketch` ported
 headless less inference, `core.sketch` solved by the evaluator from
 stored positions (ADR-0005), regions as keyed profiles referenced by
-`Ref::Region`, plugin API 0.2 (ADR-0006); `c1-m1-slice` next. Seeded
+`Ref::Region`, plugin API 0.2 (ADR-0006). M1 plan 3 of 3 landed 2026-10-02: bodies as inputs and
+modified slots (ADR-0007, ADR-0008), `core.extrude` in its three modes and
+`core.boolean` in its minimal form, plugin API 0.3, names through `fuse`
+and `cut`, frozen results written on save by the session (ADR-0009), the
+frozen states, schema 2 with its migration chain, the deterministic `.arrx`
+zip, `arris` 0.4 (A2), and the accept scenario green; M2 next. Seeded
 2026-09-26.**
 
 Milestones are ordered by risk after the harness: the document and the
@@ -71,9 +76,13 @@ Headless throughout; no viewport yet.
 - `arrix-doc`: ids, parameters and expressions, parts and feature records,
   the DAG, commands with generations and per-author undo, `LocalSession`
   with replicas, the evaluator on its worker thread, the cache.
-- `arrix-kernel`: the `Kernel` service for primitives, extrude and the
-  booleans; naming from provenance for them; call records.
-- `core.sketch`, `core.datum-plane`, `core.extrude` (new body, join, cut).
+- `arrix-kernel`: the `Kernel` service for extrude, `fuse` and `cut` and
+  body bytes; naming from provenance for them; call records. Primitives
+  join with the first feature that calls one (M2).
+- `core.sketch`, `core.datum-plane`, `core.extrude` (new body, join, cut)
+  and `core.boolean` in its minimal form (one target, one tool, `fuse` or
+  `cut`; M2 extends it to `common` and several tools), which is how the
+  accept joins a plugin's body to a sketched one.
 - `arrix-plugin-api` 0.1, and 0.2 with region references (ADR-0006):
   the WIT world's `types`, `kernel` (the subset above) and `feature`
   interfaces, and the Rust traits a test holds equal to what
@@ -94,8 +103,9 @@ extruded, a spur gear on a datum plane above it joined to it, a pocket cut
 through both. Editing the plate's width re-evaluates everything after it
 and every reference resolves. Save, save again: identical bytes. `arrix
 eval --without-plugin gears`: the gear frozen with reason *missing*, the
-pocket still cut, volumes identical to the live run. Edit the width
-without the plugin: the gear frozen-stale, the pocket re-evaluated against
+pocket still cut, volumes identical to the live run. Edit the plate's
+thickness (which moves the gear's plane; the width does not) without the
+plugin: the gear frozen-stale, the pocket re-evaluated against
 its stored result. Reopen with the plugin: re-frozen, not stale. The gear
 evaluated twice gives identical bytes. Undo of every command in reverse
 returns the document, byte for byte, to each earlier state.
@@ -204,7 +214,7 @@ and names it; nothing is worked around.
 
 | Ask | Needed by | If it has not landed |
 |---|---|---|
-| A2 body bytes | M1 frozen results; M2 fixture operands that are bodies | released in `arris` 0.4.0; the kernel side landed in M1's step 12, frozen results follow |
+| A2 body bytes | M1 frozen results; M2 fixture operands that are bodies | landed: `arris` 0.4.0, taken in M1 |
 | A11 `ops::mirror` | M2 `core.mirror` | `core.mirror` moves to the backlog; C1 closes without it |
 | A3 cancellation | M4 cancellation latency, `--budget` | cancellation between kernel calls only; the gap named in the status line |
 | A1 consumer roles | a plugin building topology directly | the gear extrudes and does not need it; the builder service waits |
@@ -214,8 +224,8 @@ and names it; nothing is worked around.
 
 | Risk | Retired or watched by |
 |---|---|
-| A plugin feature cannot be first-class: frozen results, naming or memoisation need a special path | M1's accept, before any other feature is built |
-| Body bytes (A2) arrive late | M1 ordered so the frozen steps come last; the ask is on record |
+| A plugin feature cannot be first-class: frozen results, naming or memoisation need a special path | retired by M1's accept (`crates/arrix-cli/tests/slice.rs`), before any other feature was built |
+| Body bytes (A2) arrive late | retired: A2 landed in `arris` 0.4.0 and M1's frozen results use it |
 | Names do not hold through booleans and patterns | M2's naming scenarios, each with its opposite case |
 | The sketcher port drags in scope | only UI-reachable constraint kinds enabled; the size lint's allowlist watched |
 | The WIT world and the Tier 0 traits drift apart before C3 builds Tier 1 | a test in M1 holding the traits equal to the generated bindings |

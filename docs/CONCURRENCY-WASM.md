@@ -3,7 +3,7 @@
 Where work runs, how an edit supersedes an evaluation, what determinism
 promises, how many documents are evaluated at once, what the browser build
 is, and the performance budgets. Built: `arrix eval` on one document
-directory (§Batch evaluation), the evaluator with its cache (§The
+directory or `.arrx` zip, with `--without-plugin` (§Batch evaluation), the evaluator with its cache (§The
 evaluator), and `LocalSession`'s session thread and evaluator worker
 with the clients' replicas (§Roles and threads). Each other section becomes true as its cycle lands (the native executor and batch evaluation
 in C1, the browser in C4), and the commit that builds it keeps it true.
@@ -63,14 +63,14 @@ preclude (`SEED.md` §6.1). Locally all three are in one process.
   evaluator; after each completed evaluation, `Model::retain` drops the
   bodies no cache entry holds.
   Built: the cache and the long-lived kernel (`arrix_doc::Evaluator`),
-  bounded by entry count (`DEFAULT_CAPACITY`, 256) until a body's size is
-  known (body bytes, ask A2); an entry the latest evaluation used is never
+  bounded by entry count (`DEFAULT_CAPACITY`, 256) until a measurement
+  asks for a bound in bytes; an entry the latest evaluation used is never
   evicted. The kernel's call records outlive the bodies they made, so a
   later failure's operands still name them.
 - **Order.** C1 evaluates features one at a time in topological order.
   Parallel evaluation of independent branches (parts, patterns) is
-  clone-evaluate-import across Arris models, which needs body bytes (ask
-  A2) and a measurement that says it pays; it is not built before both.
+  clone-evaluate-import across Arris models, through body bytes (ask A2,
+  available) once a measurement says it pays; it is not built before.
 - **Tessellation** runs on the evaluator after each body: a coarse mesh
   first, then a refined one, each its own event.
 

@@ -28,13 +28,13 @@ skills for the idea → plan → work → retire → close-cycle pipeline live i
 design docs of `SEED.md` §10.2 are written, with C1 in full in
 `docs/ROADMAP.md` (M0 gate and harness → M1 the document and a plugin
 feature → M2 part features and naming → M3 the app → M4 exchange and batch).
-**C1 M0 landed 2026-09-26:** the workspace, the gate (hooks, lints, CI,
-self-test), the headless visual harness on an empty shell, and `arrix
-eval` on an empty document. **C1 M1 plan 1 of 3 landed 2026-09-26:** the
-document, the evaluator and `LocalSession`, and `gears.spur` as a Tier 0
-plugin feature named downstream. **C1 M1 plan 2 of 3 landed 2026-09-27:**
-the ported sketcher, `core.sketch` and region references (plugin API
-0.2). **Now:** `c1-m1-slice`, to be planned.
+**C1 M0 landed 2026-09-26:** the workspace, the gate, the headless visual
+harness on an empty shell, `arrix eval` on an empty document. **C1 M1
+landed 2026-10-02**, in three plans: the document, evaluator and
+`LocalSession`, `gears.spur` as a Tier 0 plugin feature; the ported
+sketcher and region references; bodies as inputs, extrude and boolean,
+frozen results and states, schema 2 and the `.arrx` zip, plugin API 0.3,
+`arris` 0.4. The accept is green. **Now:** M2, to be planned.
 
 ## Rules that are not derivable from the code
 
@@ -91,10 +91,12 @@ it before ticking a step:
   before, after and diff images into `target/snapshots/`, read before any
   `UPDATE_SNAPSHOTS=1`.
 - `cargo run -p arrix-cli -- eval <dir>` evaluates a document directory
-  and prints its JSON line (`tests/docs/empty` is the M0 scenario,
-  `tests/docs/gear-on-plane` M1's first, `tests/docs/slice` its
-  accept's part, each with a golden in
-  `crates/arrix-cli/tests/golden/`).
+  or an `.arrx` and prints its JSON line (`--without-plugin <id>`,
+  repeatable, leaves a plugin out; `tests/docs/empty` is the M0 scenario,
+  `tests/docs/gear-on-plane` M1's first, `tests/docs/slice` its accept's
+  document, each with a golden in `crates/arrix-cli/tests/golden/`).
+  `cargo test -p arrix-cli --test slice` is M1's accept, frozen goldens
+  included.
 - Either hook runs by hand as `.githooks/pre-commit` or
   `.githooks/pre-push`. `scripts/size-lint --list` shows offenders past
   the allowlist.

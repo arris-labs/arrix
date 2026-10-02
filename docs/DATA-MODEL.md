@@ -8,7 +8,10 @@ types and their text form (§Persistent naming), the document's types,
 the feature-type registry and the derived DAG (§The dependency DAG),
 commands, the authority and per-author undo (§Commands and undo, less
 plugin-data edits), the sketch record and its `SketchEdit` (§Sketches),
-saving and opening the directory form (§File format), names from an
+saving and opening the directory form and the deterministic `.arrx` zip,
+schema 2 with its migration chain and blobs (§File format), frozen
+results written on save and the frozen states of the evaluator (§Frozen
+results, §Evaluation), names from an
 extrude's and the booleans' provenance in `arrix-kernel` (§Persistent
 naming), expressions
 (`arrix_doc::expr`, §Parameters and expressions), the evaluator with its
@@ -16,7 +19,8 @@ cache (§Evaluation), body-slot versions and consumption (§Bodies across
 features), `core.datum-plane`, `core.sketch`, `core.extrude`, `core.boolean`, and a plugin
 feature (`gears.spur`) on the built-ins' one path, referenced downstream
 by persistent name.
-Each other section becomes true as C1 lands, and the commit that builds it
+`arrix eval` reads either form and takes `--without-plugin`. Each other
+section becomes true as C1 lands, and the commit that builds it
 keeps it true.
 
 Types live in `arrix-doc` unless named otherwise. Persistent-reference types
@@ -275,8 +279,7 @@ extrude in cut mode, the body it cut is a new version of the same slot.
   target does not.
 - **As built**: a reader's input hash covers the body it read as the
   input hash of the feature that produced that version and the slot
-  (evaluation is deterministic, so that identifies it until bodies have
-  bytes, Arris ask A2). A modifier or consumer that is suppressed is not
+  (evaluation is deterministic, so that identifies it). A modifier or consumer that is suppressed is not
   there; one that failed leaves the reader unavailable
   (`input.unavailable` naming it), never on an earlier version. A body is
   read within its part: naming one of another part is `input.cross-part`

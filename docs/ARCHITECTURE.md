@@ -9,7 +9,8 @@ the kernel's choke point, errors, testing and the gate. The charter is
 profiles, and `Diagnostic`, `arrix-kernel`'s first slice of §The kernel
 choke point, `arrix-plugin-api` 0.3.0, `arrix-doc`'s
 expressions, document, DAG, commands and undo, evaluator and cache, the
-directory form's save and open, and the `arrix eval` line,
+directory form's and the zip's save and open with the migration chain,
+frozen results, and the `arrix eval` line (`--without-plugin`),
 `arrix-sketch` less inference (the model, solver, diagnostics,
 validation, regions and their profiles, trim, extend, offset, mirror,
 `SketchEdit`), `arrix-plugin-host`'s Tier 0, `plugins/gears`, the empty shell in
@@ -266,6 +267,7 @@ Everything is checkable without a human looking at a screen (`SEED.md`
 | Plugins | the in-tree test kit: determinism (evaluate twice), round trip, frozen open, migration (`docs/PLUGINS.md` §The test kit) |
 | Protocol | every command and event serialised through JSON and back |
 | UI | headless `egui_kittest` snapshots on wgpu, each a text golden: the `debug_state()` JSON and a coarse frame; images rendered on demand, never committed (`docs/UI-RENDERING.md` §Visual debugging, ADR-0001) |
+| Slice | M1's accept, `crates/arrix-cli/tests/slice.rs`: a plate, a gear and a pocket built by commands through `LocalSession`; every acceptance criterion (edit, saves in both forms, frozen without the plugin, stale, re-frozen, undo byte for byte); the frozen goldens are the lines `arrix eval` prints for the session's save, the blobs never committed (ADR-0001) |
 | CLI | golden JSON of `arrix eval` over the scenario documents: the binary run from the workspace root by `crates/arrix-cli/tests/eval.rs`, compared byte for byte with `crates/arrix-cli/tests/golden/<name>.jsonl` |
 
 A wanted behaviour that does not work yet is not an `#[ignore]`d test. If
