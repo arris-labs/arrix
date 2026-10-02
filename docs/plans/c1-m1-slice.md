@@ -215,7 +215,7 @@ a given design; **[3]** unproven, behaviour to establish here.
   golden is never committed (ADR-0001), so a pinned BLAKE3 of one known
   body's bytes (`booleans.rs`) catches a wire or geometry change on a bump
   instead.
-- [ ] **[3]** Step 13: frozen results written. On each live
+- [x] **[3]** Step 13: frozen results written. On each live
   success of a plugin feature, the evaluator hands out its `FrozenResult`
   (input hash, plugin version, a blob per body slot, the name table's
   blob); the session keeps the latest (ADR-0009); `save` writes it; open
@@ -223,6 +223,14 @@ a given design; **[3]** unproven, behaviour to establish here.
   evaluation carries the gear's blobs; saved twice, identical; the gear
   evaluated twice from fresh state gives identical blob bytes; undo of
   every command, re-evaluated and saved, restores each earlier save.
+  Done as `Evaluator::frozen()` (the latest run's results, cached with the
+  entry), a `Freeze` message from the worker before `Finished`, and
+  `Session::save`, which merges a kept result when its input hash is the
+  feature's hash in the current generation. `open` already loaded blobs.
+  Found: step 15's `tests/docs/slice/` goldens would hold `.arrisbody`
+  blobs, which ADR-0001 forbids committing; step 15 must golden the
+  frozen records (hashes, versions, blob names) and not the bytes, or
+  take an ADR.
 - [ ] **[3]** Step 14: the frozen states. A plugin feature
   whose type the registry lacks, or whose plugin version is outside the
   record's range, evaluates **frozen** from its stored result, with

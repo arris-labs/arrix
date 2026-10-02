@@ -36,6 +36,8 @@ pub struct Client {
     pub heard: Vec<SessionEvent>,
     pub requests: Vec<Request>,
     pub saves: Vec<MemorySource>,
+    /// The session's save at each generation, frozen results included.
+    pub frozen_saves: Vec<MemorySource>,
 }
 
 impl Client {
@@ -50,9 +52,11 @@ impl Client {
             heard: Vec::new(),
             requests: Vec::new(),
             saves: Vec::new(),
+            frozen_saves: Vec::new(),
         };
         c.hear_until(|r| r.finished().is_some());
         c.saves.push(save(c.replica.document()));
+        c.frozen_saves.push(c.session.save());
         c
     }
 
@@ -87,6 +91,7 @@ impl Client {
             command,
         }));
         self.saves.push(save(self.replica.document()));
+        self.frozen_saves.push(self.session.save());
         assert_eq!(self.saves.len() as u64, g.0 + 1);
         g
     }

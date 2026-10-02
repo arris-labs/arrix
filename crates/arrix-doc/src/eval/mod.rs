@@ -15,12 +15,13 @@ mod tests;
 mod version_tests;
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 use arrix_core::RegionKey;
 use arrix_core::{
     Diagnostic, FeatureId, Frame, ParamId, Profile, Quantity, Ref, Severity, SlotName, TopoKind,
 };
-use arrix_kernel::{CallIndex, Kernel, KernelBody, KernelCall};
+use arrix_kernel::{CallIndex, Kernel, KernelBody, KernelCall, KernelError};
 use arrix_plugin_api::{
     Body, InputKind, InputValue, OutputValue, ParamValue, ResolvedInput, SlotKind,
 };
@@ -33,7 +34,9 @@ pub use line::{BodyLine, EvalLine, EvalStatus, FeatureLine, ParamLine, SweepPoin
 use crate::dag::{Dag, Node};
 use crate::document::{Document, FeatureRecord, Part};
 use crate::expr::Expr;
+use crate::frozen::{BlobRef, Frozen, FrozenResult};
 use crate::registry::{FeatureArgs, FeatureType, Registry, SketchArgs};
+use crate::save::to_json;
 use host::FeatureKernel;
 use resolve::{Params, Scope};
 
@@ -200,6 +203,8 @@ fn error(code: &str, message: impl Into<String>) -> Diagnostic {
 
 struct CacheEntry {
     slots: Slots,
+    /// A plugin feature's result as the file stores it, made on first use.
+    frozen: Option<Arc<Frozen>>,
     /// The evaluation that last used it.
     used: u64,
 }
@@ -210,6 +215,8 @@ pub struct Evaluator {
     registry: Registry,
     kernel: Kernel,
     cache: BTreeMap<InputHash, CacheEntry>,
+    /// The plugin features' results of the latest evaluation, by feature.
+    frozen: BTreeMap<FeatureId, Arc<Frozen>>,
     run: u64,
     capacity: usize,
 }
@@ -224,6 +231,7 @@ impl Evaluator {
             registry,
             kernel: Kernel::new(),
             cache: BTreeMap::new(),
+            frozen: BTreeMap::new(),
             run: 0,
             capacity: Self::DEFAULT_CAPACITY,
         }
@@ -236,6 +244,13 @@ impl Evaluator {
     /// Every kernel call made so far, in call order.
     pub fn kernel_calls(&self) -> &[KernelCall] {
         self.kernel.records()
+    }
+
+    /// The frozen result of every plugin feature the latest evaluation
+    /// computed live, stopped or finished (ADR-0009): the session keeps
+    /// them, and a save writes the ones that are current.
+    pub fn frozen(&self) -> &BTreeMap<FeatureId, Arc<Frozen>> {
+        &self.frozen
     }
 
     /// Evaluates `doc`: parameters, then every feature in the DAG's order.
@@ -255,6 +270,7 @@ impl Evaluator {
         mut go: impl FnMut(&EvalEvent) -> bool,
     ) -> Option<Evaluation> {
         self.run += 1;
+        self.frozen.clear();
         let dag =
             Dag::build_with(doc, &self.registry).expect("a document is valid by construction");
         let params = Params::evaluate(doc, &dag);
@@ -367,19 +383,80 @@ impl Evaluator {
         };
         let (args, reads) = Self::resolve(&mut self.kernel, &scope, &*ty, record, params)?;
         let hash = InputHash::of(record, &*ty, &args, &reads);
-        if let Some(entry) = self.cache.get_mut(&hash) {
+        let (cached, slots) = if let Some(entry) = self.cache.get_mut(&hash) {
             entry.used = self.run;
-            return Ok((hash, true, entry.slots.clone()));
+            (true, entry.slots.clone())
+        } else {
+            let slots = self.run_type(&*ty, record.id, &args, &reads)?;
+            self.cache.insert(
+                hash,
+                CacheEntry {
+                    slots: slots.clone(),
+                    frozen: None,
+                    used: self.run,
+                },
+            );
+            (false, slots)
+        };
+        if let Some(version) = ty.plugin_version() {
+            self.freeze(record.id, hash, version, &slots)?;
         }
-        let slots = self.run_type(&*ty, record.id, &args, &reads)?;
-        self.cache.insert(
-            hash,
-            CacheEntry {
-                slots: slots.clone(),
-                used: self.run,
+        Ok((hash, cached, slots))
+    }
+
+    /// Keeps `feature`'s result as the file stores it: a blob of body
+    /// bytes per body slot and one of the slots' name tables.
+    fn freeze(
+        &mut self,
+        feature: FeatureId,
+        hash: InputHash,
+        version: &str,
+        slots: &Slots,
+    ) -> Result<(), Failure> {
+        let entry = self.cache.get(&hash).expect("a computed feature is cached");
+        if let Some(frozen) = &entry.frozen {
+            self.frozen.insert(feature, frozen.clone());
+            return Ok(());
+        }
+        let plugin_version = semver::Version::parse(version).map_err(|e| {
+            error(
+                "plugin.version",
+                format!("plugin version {version:?} is not semver: {e}"),
+            )
+        })?;
+        let fail = |e: KernelError| Failure {
+            diagnostic: host::kernel_diagnostic(&e),
+            call: e.call(),
+        };
+        let mut blobs = BTreeMap::new();
+        let mut refs = BTreeMap::new();
+        let mut tables = BTreeMap::new();
+        for (name, slot) in slots {
+            if let SlotOut::Body { body, .. } = slot {
+                let written = self.kernel.to_bytes(*body).map_err(fail)?;
+                let blob = BlobRef::of(&written.bytes, "arrisbody");
+                blobs.insert(blob.clone(), written.bytes);
+                refs.insert(name.clone(), blob);
+                tables.insert(name.clone(), written.names);
+            }
+        }
+        let table_bytes = to_json(&tables);
+        let names = BlobRef::of(&table_bytes, "json");
+        blobs.insert(names.clone(), table_bytes);
+        let frozen = Arc::new(Frozen {
+            result: FrozenResult {
+                input_hash: hash,
+                plugin_version,
+                slots: refs,
+                names,
             },
-        );
-        Ok((hash, false, slots))
+            blobs,
+        });
+        if let Some(entry) = self.cache.get_mut(&hash) {
+            entry.frozen = Some(frozen.clone());
+        }
+        self.frozen.insert(feature, frozen);
+        Ok(())
     }
 
     /// The feature's arguments: its form's parameters in SI and its inputs

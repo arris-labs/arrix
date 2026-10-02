@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::dag::{Dag, DagError};
 use crate::expr::Expr;
-use crate::frozen::{BlobRef, FrozenResult};
+use crate::frozen::{BlobRef, Frozen, FrozenResult};
 
 /// A document: everything needed to regenerate its geometry, and nothing
 /// that can be regenerated. Generations are the authority's, not the
@@ -196,6 +196,22 @@ impl Document {
 
     pub fn parts(&self) -> &BTreeMap<PartId, Part> {
         &self.parts
+    }
+
+    /// Sets `feature`'s frozen result and holds its blobs. `false` when no
+    /// feature has that id. Not a command: a frozen result is evaluation
+    /// output (ADR-0009), so this is for a save to merge one in, never for
+    /// the authority's document.
+    pub fn freeze(&mut self, feature: FeatureId, frozen: &Frozen) -> bool {
+        for part in self.parts.values_mut() {
+            if let Some(record) = part.features.get_mut(&feature) {
+                record.frozen = Some(Box::new(frozen.result.clone()));
+                self.blobs
+                    .extend(frozen.blobs.iter().map(|(r, b)| (r.clone(), b.clone())));
+                return true;
+            }
+        }
+        false
     }
 
     /// The bytes of a blob a frozen result points at.

@@ -103,6 +103,11 @@ pub trait Session {
     /// Applies a request, or says why nothing was applied.
     fn request(&self, request: Request) -> Result<Outcome, Rejected>;
 
+    /// The document as it saves: its directory form, carrying each
+    /// plugin feature's latest frozen result that is current for the
+    /// generation (docs/DATA-MODEL.md §Frozen results, ADR-0009).
+    fn save(&self) -> MemorySource;
+
     /// A new subscription: `Opened` first, then everything after it.
     fn subscribe(&self) -> EventStream;
 

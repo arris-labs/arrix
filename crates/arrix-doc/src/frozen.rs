@@ -23,6 +23,15 @@ pub struct FrozenResult {
     pub names: BlobRef,
 }
 
+/// A frozen result with the bytes of its blobs: what the evaluator hands
+/// out on a live success and a save writes (docs/DATA-MODEL.md §Frozen
+/// results).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Frozen {
+    pub result: FrozenResult,
+    pub blobs: std::collections::BTreeMap<BlobRef, Vec<u8>>,
+}
+
 /// A blob's file name under `blobs/`: 64 lower-case hex digits of the
 /// BLAKE3 of its bytes, a dot, and an extension of lower-case letters
 /// and digits (`arrisbody`, `json`).

@@ -15,7 +15,7 @@ use arrix_core::{
 };
 use arrix_doc::{
     AuthorId, Command, Document, FeatureOutcome, FeatureRecord, FeatureTypeId, Param, Part,
-    Request, SketchView, SlotView, expr::Expr, open, save,
+    Request, Session, SketchView, SlotView, expr::Expr, open, save,
 };
 use arrix_sketch::{Constraint, Draft, Entity, EntityId, Point, SketchEdit};
 use common::{Client, scenario_directory};
@@ -389,4 +389,76 @@ fn the_slice_live() {
     }
 
     scenario_directory("slice", &scenario);
+}
+
+/// The files of a save that are blobs, by path.
+fn blobs(files: &arrix_doc::MemorySource) -> BTreeMap<&String, &Vec<u8>> {
+    files
+        .0
+        .iter()
+        .filter(|(p, _)| p.starts_with("blobs/"))
+        .collect()
+}
+
+#[test]
+fn a_saved_slice_carries_the_gears_frozen_result() {
+    let i = Ids::new();
+    let mut c = Client::new(i.author);
+    build(&mut c, &i);
+    let saved = c.session.save();
+
+    // The document's own save has none: a frozen result is not authored.
+    assert!(blobs(&c.saves[c.replica.generation().0 as usize]).is_empty());
+    let doc: Document = open(&saved).unwrap();
+    let (_, _, gear) = doc.feature(i.gear).unwrap();
+    let frozen = gear.frozen.as_ref().expect("the plugin feature is frozen");
+    assert_eq!(frozen.plugin_version.to_string(), "0.1.0");
+    let body = &frozen.slots[&SlotName::new("body").unwrap()];
+    assert!(body.as_str().ends_with(".arrisbody"));
+    assert!(doc.blob(body).unwrap().starts_with(b"ARRISBDY"));
+    // The name table is JSON of slot to names; the body's are all there.
+    let table: BTreeMap<String, Vec<serde_json::Value>> =
+        serde_json::from_slice(doc.blob(&frozen.names).unwrap()).unwrap();
+    assert!(table["body"].len() > 100, "{}", table["body"].len());
+    // Core features carry none, and the save holds those blobs and no others.
+    for core in [i.plate_sketch, i.plate, i.base, i.join, i.pocket] {
+        assert!(doc.feature(core).unwrap().2.frozen.is_none());
+    }
+    assert_eq!(blobs(&saved).len(), 2);
+
+    // Saved twice, identical; and it round-trips through open and save.
+    assert_eq!(saved.0, c.session.save().0);
+    assert_eq!(save(&doc).0, saved.0);
+}
+
+#[test]
+fn the_gear_evaluated_twice_from_fresh_state_gives_identical_blobs() {
+    let i = Ids::new();
+    let (mut first, mut second) = (Client::new(i.author), Client::new(i.author));
+    build(&mut first, &i);
+    build(&mut second, &i);
+    let (a, b) = (first.session.save(), second.session.save());
+    assert_eq!(blobs(&a).len(), 2);
+    assert_eq!(a.0, b.0);
+}
+
+#[test]
+fn undo_re_evaluated_and_saved_restores_each_earlier_save() {
+    let i = Ids::new();
+    let mut c = Client::new(i.author);
+    build(&mut c, &i);
+    c.set(i.teeth, "13");
+    let last = c.replica.generation().0;
+    assert_ne!(
+        blobs(&c.frozen_saves[last as usize]),
+        blobs(&c.frozen_saves[last as usize - 1]),
+        "the tooth count changes the gear's blob"
+    );
+    for back in (0..last).rev() {
+        c.request(Request::Undo { author: i.author });
+        assert!(
+            c.session.save().0 == c.frozen_saves[back as usize].0,
+            "undone to generation {back}"
+        );
+    }
 }

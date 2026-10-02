@@ -527,8 +527,8 @@ Every plugin feature stores its last successful result in the document:
 pub struct FrozenResult {
     input_hash: Hash,                   // §Evaluation step 2, at the time it was stored
     plugin_version: semver::Version,
-    slots: BTreeMap<SlotName, BlobRef>, // Arris body bytes (ask A2), one blob per body
-    names: BlobRef,                     // the persistent-name table of every stored entity
+    slots: BTreeMap<SlotName, BlobRef>, // Arris body bytes (`.arrisbody`), one blob per body
+    names: BlobRef,                     // `.json`: slot name to its body's name table, each name to the entity's index in the written body
 }
 ```
 
@@ -540,7 +540,9 @@ of each plugin feature with its input hash, beside the document, and
 feature's current one, and otherwise keeps what the document was opened
 with. It has no undo entry and no generation and is never stale-rejected;
 evaluation being deterministic, undo, re-evaluate and save gives the
-bytes of the earlier save.
+bytes of the earlier save. The bytes are canonical (a body copied into a
+fresh model, written with an empty record), so another evaluation of the
+same feature writes the same blobs.
 
 A plugin feature evaluates in one of four states:
 

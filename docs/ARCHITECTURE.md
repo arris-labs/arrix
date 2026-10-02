@@ -128,7 +128,12 @@ or an author's undo or redo) and `subscribe() -> EventStream`, whose
 directory form's files), each `applied` change (from which each client
 keeps its own `Replica` of the document, `docs/CONCURRENCY-WASM.md`
 §Roles and threads), each feature's `evaluated` outcome and each
-`finished` evaluation, the last two with their generation. Local mode is
+`finished` evaluation, the last two with their generation, and
+`save() -> MemorySource`, the directory form with each plugin feature's
+latest frozen result merged in when it is current (ADR-0009): the
+evaluator hands those out beside its events, never inside them, and the
+session keeps them with the input hash each feature last evaluated
+under. Local mode is
 `LocalSession`, an in-process transport over channels, and it is the only
 one that exists. A round-trip test serialises every request and event
 through JSON and back on every run, so nothing unserialisable can creep

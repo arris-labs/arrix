@@ -3,15 +3,22 @@
 //! channels (docs/CONCURRENCY-WASM.md §Roles and threads). The kernel never
 //! runs on the caller's thread.
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError, channel};
 
 use super::{DocHash, EventStream, Request, Session, SessionEvent, files};
 use crate::authority::{Authority, Generation, Outcome, Rejected};
+use crate::eval::EvalEvent;
+use arrix_core::FeatureId;
+
 use crate::document::Document;
-use crate::eval::Evaluator;
+use crate::eval::{Evaluator, FeatureOutcome, InputHash};
 use crate::executor::{self, Worker};
+use crate::frozen::Frozen;
+use crate::open::MemorySource;
 use crate::registry::Registry;
+use crate::save::save;
 
 type Reply = Sender<Result<Outcome, Rejected>>;
 
@@ -21,6 +28,11 @@ enum Msg {
     Subscribe(Sender<SessionEvent>),
     /// An evaluation event from the worker, to publish.
     Publish(SessionEvent),
+    /// The plugin features' results of an evaluation, from the worker,
+    /// sent before that evaluation's `Finished`.
+    Freeze(BTreeMap<FeatureId, Arc<Frozen>>),
+    /// The document as it saves, with the current frozen results.
+    Save(Sender<MemorySource>),
     Stop,
 }
 
@@ -65,6 +77,16 @@ impl Session for LocalSession {
             .expect("the session thread answers every request")
     }
 
+    fn save(&self) -> MemorySource {
+        let (reply, answer) = channel();
+        self.inbox
+            .send(Msg::Save(reply))
+            .expect("the session thread runs until the session is dropped");
+        answer
+            .recv()
+            .expect("the session thread answers every request")
+    }
+
     fn subscribe(&self) -> EventStream {
         let (tx, rx) = channel();
         self.inbox
@@ -90,6 +112,10 @@ fn serve(
     worker: Worker,
 ) {
     let mut subscribers: Vec<Sender<SessionEvent>> = Vec::new();
+    // ADR-0009: the latest result of each plugin feature, and the input
+    // hash each feature last evaluated under, with its generation.
+    let mut kept: BTreeMap<FeatureId, Arc<Frozen>> = BTreeMap::new();
+    let mut hashes: BTreeMap<FeatureId, (Generation, InputHash)> = BTreeMap::new();
     let snapshot = |a: &Authority| (a.generation(), Arc::new(a.document().clone()));
     let _ = snapshots.send(snapshot(&authority));
     while let Ok(msg) = inbox.recv() {
@@ -120,7 +146,34 @@ fn serve(
                     subscribers.push(tx);
                 }
             }
-            Msg::Publish(event) => subscribers.retain(|s| s.send(event.clone()).is_ok()),
+            Msg::Publish(event) => {
+                if let SessionEvent::Evaluated {
+                    generation,
+                    event:
+                        EvalEvent {
+                            feature,
+                            outcome: FeatureOutcome::Ok { hash, .. },
+                        },
+                } = &event
+                {
+                    hashes.insert(*feature, (*generation, *hash));
+                }
+                subscribers.retain(|s| s.send(event.clone()).is_ok());
+            }
+            Msg::Freeze(results) => kept.extend(results),
+            Msg::Save(reply) => {
+                // A kept result is written when it is of the input hash the
+                // feature has now; otherwise the document keeps what it
+                // was opened with.
+                let mut doc = authority.document().clone();
+                let now = authority.generation();
+                for (id, frozen) in &kept {
+                    if hashes.get(id) == Some(&(now, frozen.result.input_hash)) {
+                        doc.freeze(*id, frozen);
+                    }
+                }
+                let _ = reply.send(save(&doc));
+            }
             Msg::Stop => break,
         }
     }
@@ -174,6 +227,7 @@ fn evaluate(mut evaluator: Evaluator, snapshots: &Receiver<Snapshot>, publish: &
         if gone {
             return;
         }
+        let _ = publish.send(Msg::Freeze(evaluator.frozen().clone()));
         if let Some(evaluation) = done {
             let finished = SessionEvent::Finished {
                 generation,
