@@ -8,21 +8,37 @@ use serde::{Deserialize, Serialize};
 
 /// The Arris release this crate is built against, as `Cargo.lock` pins it.
 /// A record carries it so a fixture says which kernel failed.
-pub const ARRIS_VERSION: &str = "0.3.0";
+pub const ARRIS_VERSION: &str = "0.4.0";
 
 /// The index of a record in its evaluation's list, in call order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct CallIndex(pub u32);
 
-/// One kernel call. `operands` are the calls whose output bodies this one
-/// reads, by index: until body bytes (Arris ask A2) give a body a content
-/// hash, a body operand is named by the call that made it.
+/// A body's content hash: the BLAKE3 of its canonical Arris body bytes, as
+/// 64 lower-case hex digits. Two bodies of the same shape and names hash
+/// alike whichever evaluation made them.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct BodyHash(String);
+
+impl BodyHash {
+    pub fn of(bytes: &[u8]) -> Self {
+        Self(blake3::hash(bytes).to_hex().to_string())
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// One kernel call. `operands` are the bodies this one reads, by content
+/// hash, in operand order.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct KernelCall {
     pub op: KernelOp,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub operands: Vec<CallIndex>,
+    pub operands: Vec<BodyHash>,
     pub precision: CallPrecision,
     pub arris_version: String,
 }
@@ -47,6 +63,11 @@ pub enum KernelOp {
     FaceFrame { face: PersistentName },
     /// Volume, area and centroid of the operand body.
     MassProperties,
+    /// The operand body as Arris body bytes and a name table.
+    ToBytes,
+    /// Body bytes read into the model; `bytes` is their hash. The operand
+    /// list is empty: the bytes are the input.
+    FromBytes { bytes: BodyHash },
 }
 
 /// The model tolerances a call ran under, in the fields an Arris fixture

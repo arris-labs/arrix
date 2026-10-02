@@ -10,7 +10,7 @@ use arrix_core::{
     CurveKey, DVec2, DVec3, FeatureId, Frame, Id, NameRoot, NameStep, PersistentName, Profile,
     ProfileLoop, ProfileSegment, SweepPartName, TopoKind,
 };
-use arrix_kernel::{CallIndex, Kernel, KernelBody, KernelOp};
+use arrix_kernel::{BodyHash, Kernel, KernelBody, KernelError, KernelOp, NameEntry, NameTable};
 
 const MM: f64 = 1e-3;
 
@@ -170,14 +170,23 @@ fn a_boss_fused_and_a_pocket_cut_give_their_hand_computed_bodies() {
 #[test]
 fn the_booleans_are_recorded_with_their_operands() {
     let mut k = Kernel::new();
-    plate_boss_pocket(&mut k);
+    let (joined, _) = plate_boss_pocket(&mut k);
     let records = k.records();
     // plate, boss, fuse, pocket, cut.
     assert_eq!(records.len(), 5);
     assert_eq!(records[2].op, KernelOp::Fuse { feature: JOIN });
-    assert_eq!(records[2].operands, [CallIndex(0), CallIndex(1)]);
+    let (fuse_operands, cut_operands) = (records[2].operands.clone(), records[4].operands.clone());
     assert_eq!(records[4].op, KernelOp::Cut { feature: CUT });
-    assert_eq!(records[4].operands, [CallIndex(2), CallIndex(3)]);
+    assert_eq!(fuse_operands.len(), 2);
+    assert_ne!(fuse_operands[0], fuse_operands[1]);
+    // The operands are bodies by content: the fuse's result, the pocket.
+    assert_eq!(cut_operands[0], hash_of(&mut k, joined));
+    assert_ne!(cut_operands[0], fuse_operands[0]);
+    assert_ne!(cut_operands[1], cut_operands[0]);
+}
+
+fn hash_of(k: &mut Kernel, body: KernelBody) -> BodyHash {
+    BodyHash::of(&k.to_bytes(body).unwrap().bytes)
 }
 
 #[test]
@@ -248,4 +257,110 @@ fn a_split_face_s_pieces_keep_their_index_across_a_width_edit() {
     assert_eq!(narrow.len(), 2, "{narrow:?}");
     assert_eq!(narrow.iter().filter(|(_, holed)| *holed).count(), 1);
     assert_eq!(narrow, left_piece(50.0), "{narrow:?}");
+}
+
+/// The cut body, round-tripped into a kernel that has made other things.
+fn round_trip() -> (Kernel, KernelBody, Kernel, KernelBody) {
+    let mut k = Kernel::new();
+    let (_, cut) = plate_boss_pocket(&mut k);
+    let written = k.to_bytes(cut).unwrap();
+    let mut other = Kernel::new();
+    plate(&mut other, 7.0); // so its ids are not the writer's
+    let read = other.from_bytes(&written.bytes, &written.names).unwrap();
+    (k, cut, other, read)
+}
+
+#[test]
+fn a_body_round_trips_through_bytes_with_its_names_and_volume() {
+    let (mut k, cut, mut other, read) = round_trip();
+    assert_eq!(all_names(&k, cut), all_names(&other, read));
+    let (a, b) = (
+        k.mass_properties(cut).unwrap(),
+        other.mass_properties(read).unwrap(),
+    );
+    assert_eq!(a.volume.to_bits(), b.volume.to_bits());
+    assert_eq!(a.area.to_bits(), b.area.to_bits());
+    // Each name still leads to the same face: the planar ones' frames match.
+    let faces: Vec<_> = k
+        .names(cut)
+        .unwrap()
+        .of_kind(TopoKind::Face)
+        .cloned()
+        .collect();
+    let mut planar = 0;
+    for face in faces {
+        let (x, y) = (k.face_frame(cut, &face), other.face_frame(read, &face));
+        assert_eq!(x.is_ok(), y.is_ok(), "{face}");
+        if let (Ok(x), Ok(y)) = (x, y) {
+            assert_eq!(x, y, "{face}");
+            planar += 1;
+        }
+    }
+    assert!(planar >= 8, "the plate's faces are planar, {planar}");
+}
+
+#[test]
+fn a_body_written_twice_or_in_another_kernel_gives_the_same_bytes() {
+    let (mut k, cut, mut other, read) = round_trip();
+    let first = k.to_bytes(cut).unwrap();
+    assert_eq!(first, k.to_bytes(cut).unwrap());
+    assert_eq!(first, other.to_bytes(read).unwrap());
+    // Pinned: a change here is Arris's wire or its geometry having changed,
+    // and is taken on purpose with an Arris bump, never by accident.
+    assert_eq!(
+        BodyHash::of(&first.bytes).as_str(),
+        "875c52e75ea7eed5f75a6295f06082d6910117a55e537427e65fbb1463b09d6d",
+        "{} bytes",
+        first.bytes.len()
+    );
+}
+
+#[test]
+fn a_table_that_does_not_cover_the_body_one_to_one_is_refused() {
+    let mut k = Kernel::new();
+    let body = plate(&mut k, 40.0);
+    let written = k.to_bytes(body).unwrap();
+    let refused = |table: NameTable| {
+        let err = Kernel::new()
+            .from_bytes(&written.bytes, &table)
+            .unwrap_err();
+        assert_eq!(err.code().as_str(), "kernel.naming", "{err}");
+        assert!(matches!(err, KernelError::Naming { .. }));
+    };
+    let entries = written.names.0.clone();
+    assert_eq!(entries.len(), 6 + 12 + 8);
+    // One entity short.
+    refused(NameTable(entries[1..].to_vec()));
+    // One entry past the body.
+    let mut extra = entries.clone();
+    extra.push(NameEntry {
+        index: 999,
+        ..entries[0].clone()
+    });
+    refused(NameTable(extra));
+    // Two names for one entity, and so another with none.
+    let mut doubled = entries.clone();
+    doubled[1].index = doubled[0].index;
+    doubled[1].name.kind = doubled[0].name.kind;
+    refused(NameTable(doubled));
+    // The same name twice.
+    let mut twice = entries.clone();
+    twice[1] = twice[0].clone();
+    refused(NameTable(twice));
+    // And the table as written is taken.
+    Kernel::new()
+        .from_bytes(&written.bytes, &written.names)
+        .unwrap();
+}
+
+#[test]
+fn bytes_that_are_not_a_body_fail_as_a_record_with_a_category() {
+    let mut k = Kernel::new();
+    let err = k
+        .from_bytes(b"not a body", &NameTable::default())
+        .unwrap_err();
+    assert_eq!(err.code().as_str(), "kernel.body.magic");
+    assert_eq!(err.call().map(|c| c.0), Some(0));
+    assert!(matches!(k.records()[0].op, KernelOp::FromBytes { .. }));
+    assert!(k.records()[0].operands.is_empty());
 }

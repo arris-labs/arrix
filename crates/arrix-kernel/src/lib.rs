@@ -3,22 +3,26 @@
 //! kernel choke point).
 //!
 //! Built so far: the `Kernel` service's first slice (`extrude`, `fuse`,
-//! `cut`, `face_frame`, `mass_properties`), names from the extrude's and
-//! the booleans' provenance, and a `KernelCall` record made before every
-//! call.
+//! `cut`, `face_frame`, `mass_properties`, `to_bytes`, `from_bytes`), names
+//! from the extrude's and the booleans' provenance, and a `KernelCall`
+//! record made before every call.
 
+mod bytes;
 mod convert;
 mod error;
 mod naming;
 mod record;
 
+use arris::Control;
+use arris::io::body::BodyError;
 use arris::math::Precision;
 use arris::topo::{Body, EntityId, Model};
 use arrix_core::{DVec3, FeatureId, Frame, PersistentName, Profile, TopoKind};
 
+pub use bytes::{BodyBytes, NameEntry, NameTable};
 pub use error::KernelError;
 pub use naming::BodyNames;
-pub use record::{ARRIS_VERSION, CallIndex, CallPrecision, KernelCall, KernelOp};
+pub use record::{ARRIS_VERSION, BodyHash, CallIndex, CallPrecision, KernelCall, KernelOp};
 
 /// A body made during one evaluation, opaque outside this crate and valid
 /// only in the `Kernel` that returned it.
@@ -37,8 +41,10 @@ pub struct MassProperties {
 
 struct BodyEntry {
     body: Body,
-    made_by: CallIndex,
     names: BodyNames,
+    /// Of its canonical bytes, once an operand needed it; a body never
+    /// changes, so it is made once.
+    hash: Option<BodyHash>,
 }
 
 /// A kernel context: an Arris model, the bodies made in it, and the
@@ -84,18 +90,40 @@ impl Kernel {
         self.records.get(call.0 as usize)
     }
 
-    /// Records a call before it runs.
-    fn begin(&mut self, op: KernelOp, operands: Vec<CallIndex>) -> CallIndex {
+    /// Records a call before it runs, its operands by content hash.
+    fn begin(&mut self, op: KernelOp, operands: &[KernelBody]) -> Result<CallIndex, KernelError> {
+        for &operand in operands {
+            self.entry(operand)?;
+        }
         let call = CallIndex(u32::try_from(self.records.len()).expect("under 2³² calls"));
         self.records.push(KernelCall {
             op,
-            operands,
+            operands: Vec::new(),
             precision: CallPrecision {
                 default_tolerance: self.model.precision().default_tolerance,
             },
             arris_version: ARRIS_VERSION.to_owned(),
         });
-        call
+        for &operand in operands {
+            let hash = self
+                .content_hash(operand)
+                .map_err(|e| KernelError::bytes(call, &e))?;
+            self.records[call.0 as usize].operands.push(hash);
+        }
+        Ok(call)
+    }
+
+    /// `body`'s hash, made on first use. The handle is known.
+    fn content_hash(&mut self, body: KernelBody) -> Result<BodyHash, BodyError> {
+        let entry = self.entry(body).expect("a known operand");
+        if let Some(hash) = &entry.hash {
+            return Ok(hash.clone());
+        }
+        let hash = BodyHash::of(&bytes::encode(&self.model, entry.body, &entry.names)?.bytes);
+        if let Some(Some(entry)) = self.bodies.get_mut(body.0 as usize) {
+            entry.hash = Some(hash.clone());
+        }
+        Ok(hash)
     }
 
     fn entry(&self, body: KernelBody) -> Result<&BodyEntry, KernelError> {
@@ -119,19 +147,20 @@ impl Kernel {
                 profile: profile.clone(),
                 distance,
             },
-            Vec::new(),
-        );
+            &[],
+        )?;
         let direction = convert::vec3(profile.plane().z_axis() * distance.signum());
         let (body, provenance) = arris::ops::extrude(
             &mut self.model,
             &convert::profile(profile),
             direction,
             distance.abs(),
+            &Control::NONE,
         )
         .map_err(|e| KernelError::op(call, &e))?;
         let names = naming::extrude_names(&self.model, body, feature, profile, &provenance)
             .map_err(|message| KernelError::Naming { call, message })?;
-        Ok(self.push(body, call, names))
+        Ok(self.push(body, names))
     }
 
     /// `target` ∪ `tool`, named as `feature`'s: what the union left alone
@@ -164,28 +193,28 @@ impl Kernel {
         target: KernelBody,
         tool: KernelBody,
     ) -> Result<KernelBody, KernelError> {
-        let (a, a_call) = self.entry(target).map(|e| (e.body, e.made_by))?;
-        let (b, b_call) = self.entry(tool).map(|e| (e.body, e.made_by))?;
+        let a = self.entry(target)?.body;
+        let b = self.entry(tool)?.body;
         let run = match op {
             KernelOp::Fuse { .. } => arris::ops::fuse,
             KernelOp::Cut { .. } => arris::ops::cut,
             _ => unreachable!("fuse and cut alone come here"),
         };
-        let call = self.begin(op, vec![a_call, b_call]);
+        let call = self.begin(op, &[target, tool])?;
         let (body, provenance) =
-            run(&mut self.model, a, b).map_err(|e| KernelError::op(call, &e))?;
+            run(&mut self.model, a, b, &Control::NONE).map_err(|e| KernelError::op(call, &e))?;
         let operands = [&self.entry(target)?.names, &self.entry(tool)?.names];
         let names = naming::boolean_names(&self.model, body, feature, operands, &provenance)
             .map_err(|message| KernelError::Naming { call, message })?;
-        Ok(self.push(body, call, names))
+        Ok(self.push(body, names))
     }
 
-    fn push(&mut self, body: Body, made_by: CallIndex, names: BodyNames) -> KernelBody {
+    fn push(&mut self, body: Body, names: BodyNames) -> KernelBody {
         let handle = KernelBody(u32::try_from(self.bodies.len()).expect("under 2³² bodies"));
         self.bodies.push(Some(BodyEntry {
             body,
-            made_by,
             names,
+            hash: None,
         }));
         handle
     }
@@ -220,7 +249,7 @@ impl Kernel {
         face: &PersistentName,
     ) -> Result<Frame, KernelError> {
         let entry = self.entry(body)?;
-        let (target, made_by) = (entry.body, entry.made_by);
+        let target = entry.body;
         let id = match entry.names.entity(face) {
             Some(EntityId::Face(id)) => id,
             Some(_) => {
@@ -232,7 +261,7 @@ impl Kernel {
             }
             None => return Err(KernelError::UnknownName { name: face.clone() }),
         };
-        let call = self.begin(KernelOp::FaceFrame { face: face.clone() }, vec![made_by]);
+        let call = self.begin(KernelOp::FaceFrame { face: face.clone() }, &[body])?;
         // The face as the body uses it, so the frame is outward.
         let used = self
             .model
@@ -250,15 +279,44 @@ impl Kernel {
     }
 
     pub fn mass_properties(&mut self, body: KernelBody) -> Result<MassProperties, KernelError> {
-        let entry = self.entry(body)?;
-        let (target, made_by) = (entry.body, entry.made_by);
-        let call = self.begin(KernelOp::MassProperties, vec![made_by]);
-        let p = arris::ops::measure::mass_properties(&self.model, target)
+        let target = self.entry(body)?.body;
+        let call = self.begin(KernelOp::MassProperties, &[body])?;
+        let p = arris::ops::measure::mass_properties(&self.model, target, &Control::NONE)
             .map_err(|e| KernelError::op(call, &e))?;
         Ok(MassProperties {
             volume: p.volume,
             area: p.area,
             centroid: convert::dpoint3(p.centroid),
         })
+    }
+
+    /// `body` as Arris body bytes, the same for the same body in any
+    /// evaluation, and the table of its names (each to its entity's index
+    /// in the written body).
+    pub fn to_bytes(&mut self, body: KernelBody) -> Result<BodyBytes, KernelError> {
+        let call = self.begin(KernelOp::ToBytes, &[body])?;
+        let entry = self.entry(body)?;
+        bytes::encode(&self.model, entry.body, &entry.names)
+            .map_err(|e| KernelError::bytes(call, &e))
+    }
+
+    /// The body in `bytes` ([`to_bytes`](Kernel::to_bytes)'s), a new body
+    /// of this kernel named by `table`. A table that does not cover the
+    /// body exactly, one name to one entity, is refused as `kernel.naming`.
+    pub fn from_bytes(
+        &mut self,
+        bytes: &[u8],
+        table: &NameTable,
+    ) -> Result<KernelBody, KernelError> {
+        let call = self.begin(
+            KernelOp::FromBytes {
+                bytes: BodyHash::of(bytes),
+            },
+            &[],
+        )?;
+        let (body, names) = bytes::decode(&mut self.model, bytes, table)
+            .map_err(|e| KernelError::bytes(call, &e))?;
+        let names = names.map_err(|message| KernelError::Naming { call, message })?;
+        Ok(self.push(body, names))
     }
 }

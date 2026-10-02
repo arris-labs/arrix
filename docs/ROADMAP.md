@@ -204,7 +204,7 @@ and names it; nothing is worked around.
 
 | Ask | Needed by | If it has not landed |
 |---|---|---|
-| A2 body bytes | M1 frozen results; M2 fixture operands that are bodies | M1's frozen steps wait; the rest of M1 proceeds. It blocks the cycle's accept |
+| A2 body bytes | M1 frozen results; M2 fixture operands that are bodies | released in `arris` 0.4.0; the kernel side landed in M1's step 12, frozen results follow |
 | A11 `ops::mirror` | M2 `core.mirror` | `core.mirror` moves to the backlog; C1 closes without it |
 | A3 cancellation | M4 cancellation latency, `--budget` | cancellation between kernel calls only; the gap named in the status line |
 | A1 consumer roles | a plugin building topology directly | the gear extrudes and does not need it; the builder service waits |

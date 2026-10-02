@@ -28,7 +28,7 @@ unless an ADR says otherwise.
 | Crate | Holds | May depend on (workspace) | Notable external |
 |---|---|---|---|
 | `arrix-core` | units and quantities, the length tolerance, ids, plugin ids, plain math over `glam` (f64), persistent-reference types, `Diagnostic` | — | `glam`, `serde`, `thiserror` |
-| `arrix-kernel` | the only crate naming Arris types: operations, naming from provenance, render meshes, body bytes, call records | core | `arris`, `serde`, `thiserror` |
+| `arrix-kernel` | the only crate naming Arris types: operations, naming from provenance, render meshes, body bytes, call records | core | `arris`, `blake3`, `serde`, `thiserror` |
 | `arrix-sketch` | the sketch model and `SketchEdit`, the constraint solver and diagnostics, regions and their keyed profiles, trim/extend/offset/mirror, inference (M3) (ported) | core | `serde`, `thiserror` |
 | `arrix-plugin-api` | the WIT world, its Rust traits and plain types; semver of its own | core | `wit-bindgen`, `wit-parser` (the equality test only, dev) |
 | `arrix-doc` | document, parameters and expressions, DAG, feature registry, commands, undo, evaluator, `.arrx`, the `arrix eval` line; reads no files (a `DocumentSource` hands it bytes) | core, kernel, sketch, plugin-api | `serde_json`, `blake3`, `miniz_oxide`, `crc32fast` |
@@ -43,7 +43,7 @@ unless an ADR says otherwise.
 Crates live in `crates/<name>/`, plugins in `plugins/<name>/` (package
 `arrix-<name>`: `plugins/gears` is `arrix-gears`). External versions are
 pinned once, in the root `Cargo.toml`'s `[workspace.dependencies]`:
-`arris` 0.3, and one egui minor for `egui`, `eframe`, `egui-wgpu` and the
+`arris` 0.4, and one egui minor for `egui`, `eframe`, `egui-wgpu` and the
 dev-only `egui_kittest` (0.36). The table's externals not yet in a
 manifest (`wgpu` directly, `wasmtime`)
 join with the code that needs them; `miniz_oxide` (0.9, deflate, no default
@@ -161,14 +161,21 @@ geometry from provenance, and to make every kernel call a record.
   ArriX-signature operations: `extrude`, `revolve`, `boolean`, `fillet`,
   `chamfer`, `transform`, `mirror`, primitives, `project_to_plane`,
   `face_frame`, `mass_properties`, `tessellate`, `export_step`,
-  `export_stl`, `export_obj`, `to_bytes`/`from_bytes` (ask A2). Handles
+  `export_stl`, `export_obj`. Handles
   it returns are opaque (`KernelBody`) and valid while a cache entry
   holds them; a plugin sees only its own evaluation's, by handle.
   Built: `extrude` (a keyed `Profile` along its plane's normal, a
   negative distance against it), `fuse` and `cut` (a target and a tool,
   both left valid, named through their provenance, §Persistent naming in
   `docs/DATA-MODEL.md`), `face_frame` (outward, planar faces only) and
-  `mass_properties` (volume, area, centroid).
+  `mass_properties` (volume, area, centroid), and `to_bytes`/`from_bytes`
+  (ask A2, `arris` 0.4): a body as canonical Arris body bytes with a
+  `NameTable`, each persistent name to its entity's index in the written
+  body, and back. The bytes come from a copy of the body in a fresh model
+  written with an empty record, so they hold none of the long-lived
+  model's ids and the same body gives the same bytes in any evaluation.
+  `from_bytes` refuses a table that does not cover the body one name to
+  one entity (`kernel.naming`) and never names by position.
 - **Units.** The model's `Precision` is set for metres at the micrometre
   scale, matching SI inside: `default_tolerance` 1e-6, Arris's defaults
   otherwise, as Arris's own `probe-*-m` fixtures carry.
@@ -185,28 +192,29 @@ geometry from provenance, and to make every kernel call a record.
   `op` carrying its arguments in ArriX's own types (`KernelOp::Extrude {
   feature, profile, distance }`), `precision` the recipe's
   `default_tolerance`, `arris_version` the locked release (a test holds it
-  to `Cargo.lock`). Operands are bodies by content hash once body bytes
-  land (ask A2); until then an operand names the call that made it, by
-  its `CallIndex`. The `Kernel` keeps every record it made, failed calls
+  to `Cargo.lock`). Operands are bodies by content hash (`BodyHash`, the BLAKE3 of the
+  body's canonical bytes, made on first use and kept with the body). The `Kernel` keeps every record it made, failed calls
   included, and a failure names its record's index. On failure the
   failing record is kept beside the diagnostic, in the feature's
-  `failed` event; its operands' body bytes join with ask A2.
+  `failed` event.
 - **Fixture export** (M4, not built). A kept record serialises as a self-contained Arris
   fixture recipe (Arris's `fixture.json`): the operands' closures as body
   bytes, the operation and its arguments, the precision, and nothing else
   of the document. "Save as kernel fixture" is a command in the app and
-  `--save-fixtures <dir>` in `arrix eval`. Until body bytes land (ask A2),
-  a record whose operands are primitives or sweeps of profiles serialises
-  in Arris's existing recipe vocabulary; one that needs a body operand
-  names A2 as its blocker rather than approximating.
+  `--save-fixtures <dir>` in `arrix eval`. An operand's body bytes
+  are the canonical bytes its record's hash names.
 - **Failure categories.** Every failure maps to a stable, countable key:
   the kernel's typed error with its reason (`OpError::Degenerate(
   TangentContact)`), the feature type, and the plugin id when a plugin
   called it. The kernel's part is a `DiagnosticCode`,
   `kernel.<error>[.<reason>]` in lower-kebab words
   (`kernel.degenerate.not-positive`, `kernel.internal.checker`,
-  `kernel.profile`), and `kernel.naming`, `kernel.unknown-body`,
-  `kernel.unknown-name`, `kernel.wrong-kind` for ArriX's own refusals. The same failure across a thousand documents is one row with
+  `kernel.profile`), and `kernel.unkeyed`, `kernel.rejected`, `kernel.interrupted` for Arris's
+  consumer-topology and cancellation errors, `kernel.body.<error>`
+  (`magic`, `version`, `encode`, `decode`, `topo`, `precision`,
+  `rejected`, `interrupted`) for body bytes, and `kernel.naming`,
+  `kernel.unknown-body`, `kernel.unknown-name`, `kernel.wrong-kind` for
+  ArriX's own refusals. The same failure across a thousand documents is one row with
   a count in `arrix eval`'s summary.
 - **Nothing leaves the machine unasked.** No code in this crate, or any
   crate, sends a record anywhere. Reporting upstream is a backlog item
@@ -338,7 +346,7 @@ A step blocked on an ask names it and waits.
 | Ask | What | Needed by | State |
 |---|---|---|---|
 | A1 | consumer roles: `Role::Consumer { namespace, key }` | C1: plugin topology built directly | asked |
-| A2 | body bytes with a compatibility policy | C1: frozen results, fixture operands; C3: the Tier 2 boundary | asked |
+| A2 | body bytes with a compatibility policy | C1: frozen results, fixture operands; C3: the Tier 2 boundary | released in 0.4.0, taken in C1 M1 |
 | A3 | cancellation: an interrupt token, optionally a step budget | C1: superseded evaluations; C4: the browser | asked |
 | A11 | `ops::mirror` | C1: the mirror feature | asked |
 | A5 | `region2` as public API | C1–C2: sketch regions | asked |

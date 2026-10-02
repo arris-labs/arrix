@@ -117,14 +117,13 @@ with a migration chain whose first link reads schema 1.
 - **Released in `arris` 0.3.0, taken in step 1**: nothing this plan needs.
   Its breaks (`Role::File`, a mass-properties integration that moves the
   last bits) are taken early, so the A2 bump later carries only A2's.
-- **Ask A2, body bytes: not released.** Arris's plan `body-bytes` (its
-  ADR-0029) has steps 1–3 of 8 done in `arris` 0.4.0-dev:
-  `arris_io::body::write(&Model, Body, &Provenance) -> Vec<u8>` and
-  `read(&mut Model, &[u8]) -> Imported`, deterministic, with a v1 guard
-  per version. Steps 12–15 wait for a released `arris` carrying it. 0.4
-  also breaks `Role` (`Consumer`) and `OpError` (`Unkeyed`, `Rejected`),
-  taken in step 12. Nothing is worked around meanwhile: no body bytes of
-  ArriX's own and no re-evaluation standing in for a frozen result.
+- **Ask A2, body bytes: released in `arris` 0.4.0, taken in step 12.**
+  `arris_io::body::write(&Model, Body, &Provenance) -> Result<Vec<u8>,
+  BodyError>` and `read(&mut Model, &[u8], &Control) -> Result<Imported,
+  BodyError>`, deterministic, with a guard per version. 0.4 also adds a
+  `Control` argument to every operation (cancellation, A3; ArriX passes
+  `Control::NONE` until M4) and breaks `Role` (`Consumer`) and `OpError`
+  (`Unkeyed`, `Rejected`, `Interrupted`).
 
 ## Steps
 
@@ -201,16 +200,22 @@ a given design; **[3]** unproven, behaviour to establish here.
   gives identical zip bytes; unzip then save gives the directory's bytes;
   a zip with an entry outside the tree, or a duplicate, is refused. The
   wasm build is green.
-- [ ] **[2]** Step 12, waits for A2: `arris` 0.3 → 0.4. The `Role::
+- [x] **[2]** Step 12: `arris` 0.3 → 0.4. The `Role::
   Consumer` and `OpError` arms. `Kernel::to_bytes(body)` gives Arris body
   bytes and a name table (each name to the entity's index in the written
   body). `from_bytes` loads them into the model as a `KernelBody` whose
   names are the table's, refusing a table that does not cover the body
   exactly one to one (`kernel.naming`). Call-record operands become body
   content hashes. Tests: the gear's body round-trips to the same names and
-  bit-identical volumes; written twice, identical bytes; a body from 0.4's
-  guard fixture reads.
-- [ ] **[3]** Step 13, waits for A2: frozen results written. On each live
+  bit-identical volumes; written twice, or from another kernel, identical
+  bytes. Done as: the bytes are written from a fresh copy of the body with
+  an empty record, so no id of the long-lived model is in them; the table
+  indexes the copy; operands are `BodyHash`es cached per body. Not done as
+  planned: Arris's guard fixtures live in its source tree and a binary
+  golden is never committed (ADR-0001), so a pinned BLAKE3 of one known
+  body's bytes (`booleans.rs`) catches a wire or geometry change on a bump
+  instead.
+- [ ] **[3]** Step 13: frozen results written. On each live
   success of a plugin feature, the evaluator hands out its `FrozenResult`
   (input hash, plugin version, a blob per body slot, the name table's
   blob); the session keeps the latest (ADR-0009); `save` writes it; open
@@ -218,7 +223,7 @@ a given design; **[3]** unproven, behaviour to establish here.
   evaluation carries the gear's blobs; saved twice, identical; the gear
   evaluated twice from fresh state gives identical blob bytes; undo of
   every command, re-evaluated and saved, restores each earlier save.
-- [ ] **[3]** Step 14, waits for A2: the frozen states. A plugin feature
+- [ ] **[3]** Step 14: the frozen states. A plugin feature
   whose type the registry lacks, or whose plugin version is outside the
   record's range, evaluates **frozen** from its stored result, with
   `plugin.frozen.missing` or `.version`. Its current input hash (under
@@ -304,10 +309,8 @@ its schema-2 bytes; the whole gate is green, the wasm build included.
   `zip` crate. The candidates were `zip` with `deflate` on `miniz_oxide`, or this. The crate
   must build for wasm32 with no C and give byte-identical output across
   runs and platforms. The choice goes in `docs/ARCHITECTURE.md` §Crates.
-- ⚠ OPEN 4, the human, whenever: **Arris 0.4's release.** Steps 12–15
-  wait on it, and releases are the human's. If this plan reaches step 12
-  first, it stops there with steps 1–11 landed, and M1's status line
-  names A2 as the one thing left.
+- OPEN 4, settled 2026-10-02: **Arris 0.4.0 is released** and taken in
+  step 12; steps 13–15 proceed.
 - Found in step 5: **a body is read within its part.** `docs/DATA-MODEL.md`
   §The dependency DAG lets a feature take a body from another part as a
   tool. With versions, that reader would read the other part's modifiers,

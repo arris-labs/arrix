@@ -9,7 +9,7 @@ use arrix_core::{
     CurveKey, DVec2, DVec3, FeatureId, Frame, Id, NameRoot, PersistentName, Profile, ProfileLoop,
     ProfileSegment, SweepPartName, TopoKind,
 };
-use arrix_kernel::{ARRIS_VERSION, CallIndex, Kernel, KernelCall, KernelError, KernelOp};
+use arrix_kernel::{ARRIS_VERSION, BodyHash, CallIndex, Kernel, KernelCall, KernelError, KernelOp};
 
 const MM: f64 = 1e-3;
 
@@ -263,12 +263,13 @@ fn records_name_their_operands_and_cross_as_json() {
     k.mass_properties(body).unwrap();
     k.face_frame(body, &name(TopoKind::Face, SweepPartName::EndCap))
         .unwrap();
-    let records = k.records();
+    let records = k.records().to_vec();
     assert_eq!(records.len(), 3);
     assert!(records[0].operands.is_empty());
-    assert_eq!(records[1].operands, [CallIndex(0)]);
-    assert_eq!(records[2].operands, [CallIndex(0)]);
-    for r in records {
+    let hash = BodyHash::of(&k.to_bytes(body).unwrap().bytes);
+    assert_eq!(records[1].operands, std::slice::from_ref(&hash));
+    assert_eq!(records[2].operands, [hash]);
+    for r in &records {
         assert_eq!(r.precision.default_tolerance, Kernel::DEFAULT_TOLERANCE);
         let json = serde_json::to_string(r).unwrap();
         assert_eq!(&serde_json::from_str::<KernelCall>(&json).unwrap(), r);

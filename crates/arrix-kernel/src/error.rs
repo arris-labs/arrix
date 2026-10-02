@@ -2,6 +2,7 @@
 //! failure counts under (docs/ARCHITECTURE.md §The kernel choke point,
 //! "Failure categories").
 
+use arris::io::body::BodyError;
 use arris::ops::{Fault, OpError, Reason};
 use arrix_core::{DiagnosticCode, PersistentName, TopoKind};
 
@@ -63,6 +64,30 @@ impl KernelError {
             message: e.to_string(),
         }
     }
+
+    pub(crate) fn bytes(call: CallIndex, e: &BodyError) -> Self {
+        let code = DiagnosticCode::new(body_category(e)).expect("every category is well-formed");
+        KernelError::Op {
+            call,
+            code,
+            message: e.to_string(),
+        }
+    }
+}
+
+/// `kernel.body.<error>`: why body bytes could not be written or read.
+fn body_category(e: &BodyError) -> String {
+    let word = match e {
+        BodyError::Magic => "magic",
+        BodyError::Version { .. } => "version",
+        BodyError::Encode(_) => "encode",
+        BodyError::Decode(_) => "decode",
+        BodyError::Topo(_) => "topo",
+        BodyError::Precision { .. } => "precision",
+        BodyError::Rejected(_) => "rejected",
+        BodyError::Interrupted(_) => "interrupted",
+    };
+    format!("kernel.body.{word}")
 }
 
 /// `kernel.<error>[.<reason>]`: Arris's typed error and, where it has one,
@@ -76,6 +101,9 @@ fn category(e: &OpError) -> String {
         OpError::Tolerance { .. } => "kernel.tolerance".into(),
         OpError::NotFound(_) => "kernel.not-found".into(),
         OpError::Internal(fault) => format!("kernel.internal.{}", fault_word(fault)),
+        OpError::Unkeyed { .. } => "kernel.unkeyed".into(),
+        OpError::Rejected(_) => "kernel.rejected".into(),
+        OpError::Interrupted(_) => "kernel.interrupted".into(),
     }
 }
 

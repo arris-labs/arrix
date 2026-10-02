@@ -44,9 +44,18 @@ impl BodyNames {
     pub(crate) fn entity(&self, name: &PersistentName) -> Option<EntityId> {
         self.by_name.get(name).copied()
     }
+
+    /// Every name with its entity, in the names' order.
+    pub(crate) fn pairs(&self) -> impl Iterator<Item = (&PersistentName, EntityId)> {
+        self.by_name.iter().map(|(name, &id)| (name, id))
+    }
+
+    pub(crate) fn from_map(by_name: BTreeMap<PersistentName, EntityId>) -> Self {
+        Self { by_name }
+    }
 }
 
-fn kind_of(id: EntityId) -> Option<TopoKind> {
+pub(crate) fn kind_of(id: EntityId) -> Option<TopoKind> {
     match id {
         EntityId::Face(_) => Some(TopoKind::Face),
         EntityId::Edge(_) => Some(TopoKind::Edge),
@@ -110,6 +119,10 @@ pub(crate) fn extrude_names(
             Origin::Role(Role::File(_)) => {
                 return Err(format!("{origin} is a file entity, not yet nameable"));
             }
+            // A consumer key is ours to give, and an extrude never does.
+            Origin::Role(Role::Consumer(_)) => {
+                return Err(format!("{origin} is a consumer entity, not an extrude's"));
+            }
             _ => return Err(format!("{origin} is not an extrude's role")),
         };
         let generated = provenance.generated_from(origin);
@@ -149,7 +162,7 @@ pub(crate) fn extrude_names(
 }
 
 /// Every face, edge and vertex of `body`, each once.
-fn entities(m: &Model, body: Body) -> Result<Vec<EntityId>, String> {
+pub(crate) fn entities(m: &Model, body: Body) -> Result<Vec<EntityId>, String> {
     let closure = m.closure(body).map_err(|e| e.to_string())?;
     Ok(closure
         .faces
