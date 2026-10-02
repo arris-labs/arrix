@@ -67,7 +67,8 @@ pub(crate) fn is_version(slot: &SlotSpec, record: &FeatureRecord) -> bool {
 }
 
 /// The body slots a persistent name into `feature` may be a face of: its
-/// own body slots when it made them, and the slots it modifies.
+/// own body slots when it made them, and the slots it modifies; a frozen
+/// feature whose type is absent, the body slots of its stored result.
 pub(crate) fn named_slots(
     registry: &Registry,
     doc: &Document,
@@ -91,6 +92,13 @@ pub(crate) fn named_slots(
                 });
             }
         }
+    } else if let Some(frozen) = &record.frozen {
+        // Without its type, the slots its stored result holds are all
+        // there is to know of its bodies.
+        out.extend(frozen.slots.keys().map(|slot| SlotKey {
+            feature,
+            slot: slot.clone(),
+        }));
     }
     out
 }

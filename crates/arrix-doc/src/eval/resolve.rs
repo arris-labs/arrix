@@ -11,6 +11,7 @@ use arrix_core::{
 use arrix_kernel::{Kernel, KernelBody};
 use arrix_sketch::{ResolveRegion, Sketch};
 
+use super::hash::Resolved;
 use super::host::kernel_diagnostic;
 use super::{BodyRead, Failure, InputHash, RegionView, SlotOut, State};
 use crate::bodies::{self, Effect, SlotKey};
@@ -61,9 +62,9 @@ impl Params {
         out
     }
 
-    /// `expr` as a quantity of `kind`: a failed parameter it reads makes
-    /// it unavailable, naming that parameter.
-    pub(super) fn quantity(&self, expr: &Expr, kind: QuantityKind) -> Result<Quantity, Diagnostic> {
+    /// A failed parameter `expr` reads makes it unavailable, naming that
+    /// parameter.
+    fn readable(&self, expr: &Expr) -> Result<(), Diagnostic> {
         for name in expr.names() {
             if let Some((id, _)) = self.by_name.get(name)
                 && matches!(self.values.get(id), Some(Err(_)))
@@ -74,12 +75,33 @@ impl Params {
                 ));
             }
         }
-        let kinds = |n: &str| self.by_name.get(n).map(|(_, k)| *k);
-        let values = |n: &str| {
-            let (id, _) = self.by_name.get(n)?;
-            self.values.get(id)?.as_ref().ok().map(|q| q.si)
-        };
-        expr.quantity(kind, &kinds, &values)
+        Ok(())
+    }
+
+    fn kind_of(&self, name: &str) -> Option<QuantityKind> {
+        self.by_name.get(name).map(|(_, k)| *k)
+    }
+
+    fn value_of(&self, name: &str) -> Option<f64> {
+        let (id, _) = self.by_name.get(name)?;
+        self.values.get(id)?.as_ref().ok().map(|q| q.si)
+    }
+
+    /// `expr` as a quantity of `kind`: a failed parameter it reads makes
+    /// it unavailable, naming that parameter.
+    pub(super) fn quantity(&self, expr: &Expr, kind: QuantityKind) -> Result<Quantity, Diagnostic> {
+        self.readable(expr)?;
+        expr.quantity(kind, &|n| self.kind_of(n), &|n| self.value_of(n))
+            .map_err(|e| e.diagnostic())
+    }
+
+    /// `expr` in SI, of whatever kind it is: what a feature whose form is
+    /// not at hand reads of its parameters.
+    pub(super) fn si(&self, expr: &Expr) -> Result<f64, Diagnostic> {
+        self.readable(expr)?;
+        expr.check(&|n| self.kind_of(n))
+            .map_err(|e| e.diagnostic())?;
+        expr.evaluate(&|n| self.value_of(n))
             .map_err(|e| e.diagnostic())
     }
 }
@@ -114,7 +136,7 @@ fn produced<'s>(
     r: &Ref,
 ) -> Result<(InputHash, &'s BTreeMap<SlotName, SlotOut>), Diagnostic> {
     match states.get(&feature) {
-        Some(State::Ok { hash, slots }) => Ok((*hash, slots)),
+        Some(State::Ok { hash, slots, .. }) => Ok((*hash, slots)),
         Some(State::Unavailable(why)) => Err(unavailable(
             Ref::Feature(feature),
             format!("feature {feature} {why}"),
@@ -245,6 +267,24 @@ fn version(scope: &Scope, key: &SlotKey, r: &Ref) -> Result<BodyRead, Failure> {
         )
         .with_refs([r.clone()])
         .into()),
+    }
+}
+
+/// An input by the shape of its reference alone, for a feature whose form
+/// is not at hand: a body slot is a body, any other slot or a face a plane,
+/// a region a region.
+pub(super) fn blind(kernel: &mut Kernel, scope: &Scope, r: &Ref) -> Result<Resolved, Failure> {
+    match r {
+        Ref::Slot { feature, slot }
+            if matches!(
+                outputs(scope.doc, scope.states, *feature, r)?.get(slot),
+                Some(SlotOut::Body { .. })
+            ) =>
+        {
+            body(scope, r).map(Resolved::Body)
+        }
+        Ref::Region { .. } => region(scope.doc, scope.states, r).map(Resolved::Region),
+        _ => plane(kernel, scope, r).map(Resolved::Plane),
     }
 }
 

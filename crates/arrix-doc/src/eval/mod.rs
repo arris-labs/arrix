@@ -3,6 +3,9 @@
 //! failing soft. `LocalSession` runs it on its worker, stopping between
 //! features for a newer snapshot (docs/CONCURRENCY-WASM.md §The evaluator).
 
+mod frozen;
+#[cfg(test)]
+mod frozen_tests;
 mod hash;
 mod host;
 mod line;
@@ -95,6 +98,14 @@ pub enum FeatureOutcome {
         /// Reused from the cache: nothing it reads changed.
         cached: bool,
         slots: BTreeMap<SlotName, SlotView>,
+        /// Set when the outputs are a stored result (docs/DATA-MODEL.md
+        /// §Frozen results).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        frozen: Option<FrozenInfo>,
+        /// What is worth knowing and did not stop it: why it is frozen,
+        /// and that it reads a stale stored result.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        diagnostics: Vec<Diagnostic>,
     },
     /// No outputs; the feature keeps its parameters and says why.
     Failed {
@@ -106,6 +117,35 @@ pub enum FeatureOutcome {
     Suppressed,
     /// At or after its part's rollback index.
     RolledBack,
+}
+
+/// Why a plugin feature evaluates from its stored result.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum FrozenReason {
+    /// The registry has no such feature type.
+    Missing,
+    /// The type's version, or its plugin's, is outside what the stored
+    /// result was made under.
+    Version,
+}
+
+impl FrozenReason {
+    /// The code of its diagnostic.
+    pub fn code(self) -> &'static str {
+        match self {
+            FrozenReason::Missing => "plugin.frozen.missing",
+            FrozenReason::Version => "plugin.frozen.version",
+        }
+    }
+}
+
+/// A frozen feature's state: stale when its inputs now differ from the
+/// ones its stored result was made from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FrozenInfo {
+    pub reason: FrozenReason,
+    pub stale: bool,
 }
 
 /// One feature's outcome, as the evaluator publishes it.
@@ -166,8 +206,14 @@ type Slots = BTreeMap<SlotName, SlotOut>;
 
 /// What a later feature finds when it reads one.
 pub(crate) enum State {
-    /// Its outputs, and the input hash they were evaluated under.
-    Ok { hash: InputHash, slots: Slots },
+    /// Its outputs, the input hash they were evaluated under (a frozen
+    /// feature's, the stored one) and the stale frozen features its
+    /// outputs come from, itself included.
+    Ok {
+        hash: InputHash,
+        slots: Slots,
+        stale: BTreeSet<FeatureId>,
+    },
     /// Why it has no outputs: "failed", "is suppressed", "is rolled back".
     Unavailable(&'static str),
 }
@@ -180,6 +226,14 @@ pub(crate) struct BodyRead {
     pub(crate) body: KernelBody,
     pub(crate) hash: InputHash,
     pub(crate) slot: SlotName,
+}
+
+/// What computing one feature gave.
+struct Computed {
+    hash: InputHash,
+    cached: bool,
+    slots: Slots,
+    frozen: Option<FrozenInfo>,
 }
 
 /// A diagnostic, and the kernel call it came from, if one did.
@@ -278,8 +332,8 @@ impl Evaluator {
         let mut events = Vec::new();
         for node in dag.order() {
             let Node::Feature(id) = node else { continue };
-            let (part, at, record) = doc.feature(*id).expect("the DAG's features are the doc's");
-            let (outcome, state) = self.feature(doc, part, at, record, &params, &states);
+            let place = doc.feature(*id).expect("the DAG's features are the doc's");
+            let (outcome, state) = self.feature(doc, &dag, place, &params, &states);
             states.insert(*id, state);
             let event = EvalEvent {
                 feature: *id,
@@ -302,9 +356,8 @@ impl Evaluator {
     fn feature(
         &mut self,
         doc: &Document,
-        part: &Part,
-        at: usize,
-        record: &FeatureRecord,
+        dag: &Dag,
+        (part, at, record): (&Part, usize, &FeatureRecord),
         params: &Params,
         states: &BTreeMap<FeatureId, State>,
     ) -> (FeatureOutcome, State) {
@@ -321,14 +374,26 @@ impl Evaluator {
             );
         }
         match self.compute(doc, part, at, record, params, states) {
-            Ok((hash, cached, slots)) => {
+            Ok(Computed {
+                hash,
+                cached,
+                slots,
+                frozen,
+            }) => {
                 let views = slots.iter().map(|(n, s)| (n.clone(), s.view())).collect();
+                let mut stale = frozen::stale_upstream(dag, states, record.id);
+                if frozen.is_some_and(|f| f.stale) {
+                    stale.insert(record.id);
+                }
+                let diagnostics = frozen::diagnostics(record, frozen, &stale);
                 let outcome = FeatureOutcome::Ok {
                     hash,
                     cached,
                     slots: views,
+                    frozen,
+                    diagnostics,
                 };
-                (outcome, State::Ok { hash, slots })
+                (outcome, State::Ok { hash, slots, stale })
             }
             Err(f) => {
                 let call = f
@@ -354,10 +419,20 @@ impl Evaluator {
         record: &FeatureRecord,
         params: &Params,
         states: &BTreeMap<FeatureId, State>,
-    ) -> Result<(InputHash, bool, Slots), Failure> {
-        let ty = self.registry.get(&record.type_id).cloned().ok_or_else(|| {
-            // Frozen results (docs/DATA-MODEL.md §Frozen results) replace
-            // this failure when they land.
+    ) -> Result<Computed, Failure> {
+        let found = self.registry.get(&record.type_id).cloned();
+        if let Some(reason) = frozen::reason(record, found.as_deref()) {
+            let registry = self.registry.clone();
+            let scope = Scope {
+                registry: &registry,
+                doc,
+                states,
+                part,
+                at,
+            };
+            return self.compute_frozen(&scope, record, params, reason);
+        }
+        let ty = found.ok_or_else(|| {
             error(
                 "feature.unknown-type",
                 format!("no feature type {} is registered", record.type_id),
@@ -401,7 +476,12 @@ impl Evaluator {
         if let Some(version) = ty.plugin_version() {
             self.freeze(record.id, hash, version, &slots)?;
         }
-        Ok((hash, cached, slots))
+        Ok(Computed {
+            hash,
+            cached,
+            slots,
+            frozen: None,
+        })
     }
 
     /// Keeps `feature`'s result as the file stores it: a blob of body

@@ -53,12 +53,17 @@ pub struct FeatureLine {
     pub id: FeatureId,
     #[serde(rename = "type")]
     pub feature_type: String,
-    /// `ok`, `failed`, `suppressed` or `rolled-back`.
+    /// `ok`, `frozen`, `frozen-stale`, `failed`, `suppressed` or
+    /// `rolled-back`.
     pub status: String,
     /// The failure category, a stable key (docs/ARCHITECTURE.md §The kernel
     /// choke point).
     pub category: Option<String>,
     pub diagnostic: Option<Diagnostic>,
+    /// What an evaluated feature has to say that did not stop it: why it is
+    /// frozen, that it reads a stale result.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub diagnostics: Vec<Diagnostic>,
 }
 
 /// One body's measures, in SI.
@@ -106,8 +111,15 @@ impl Evaluation {
             let (part, _, record) = doc
                 .feature(e.feature)
                 .expect("evaluated from this document");
+            let mut notes = Vec::new();
             let (status, diagnostic) = match &e.outcome {
-                FeatureOutcome::Ok { slots, .. } => {
+                FeatureOutcome::Ok {
+                    slots,
+                    frozen,
+                    diagnostics,
+                    ..
+                } => {
+                    notes = diagnostics.clone();
                     for (slot, view) in slots {
                         if let SlotView::Body(m) = view {
                             bodies.push(BodyLine {
@@ -122,7 +134,18 @@ impl Evaluation {
                             });
                         }
                     }
-                    ("ok", None)
+                    let status = match frozen {
+                        None => "ok",
+                        Some(f) if f.stale => "frozen-stale",
+                        Some(_) => "frozen",
+                    };
+                    let reason = frozen.and_then(|f| {
+                        notes
+                            .iter()
+                            .find(|d| d.code.as_str() == f.reason.code())
+                            .cloned()
+                    });
+                    (status, reason)
                 }
                 FeatureOutcome::Failed { diagnostic, .. } => ("failed", Some(diagnostic.clone())),
                 FeatureOutcome::Suppressed => ("suppressed", None),
@@ -134,6 +157,7 @@ impl Evaluation {
                 status: status.into(),
                 category: diagnostic.as_ref().map(|d| d.code.to_string()),
                 diagnostic,
+                diagnostics: notes,
             });
         }
         let failed = params.iter().any(|p| p.diagnostic.is_some())

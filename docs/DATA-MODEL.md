@@ -392,9 +392,12 @@ feature. A feature at or after its part's rollback index is `rolled-back`,
 a suppressed one `suppressed`; neither has outputs. The input hash covers
 the Arris version, the feature's id (names are rooted at it, so two
 features never share a result), `type_id`, `type_version`, the plugin's
-version (none for a built-in), each parameter's
-SI value (not its text: `1 cm` and `10 mm` hash alike), the choices and
-each input as the geometry it resolved to (a plane as its frame), and a
+version (none for a built-in), the SI value of each
+parameter the record sets (not its text: `1 cm` and `10 mm` hash alike; a
+default is the type's, which `type_version` covers), the choices and
+each input as the geometry it resolved to (a plane as its frame), by name,
+so the hash is computable from the record alone, without the type's form
+(a frozen feature's staleness needs that), and a
 sketch as its solve reads it (stored positions, resolved dimensions); the
 feature's name is not an input. It is canonical JSON through BLAKE3,
 written as 64 hex digits. A failure's codes: `input.unavailable` (a read
@@ -562,6 +565,28 @@ failure.
 
 A frozen result's names come from its stored name table, so references
 into it resolve exactly as they did when it was stored.
+
+**As built** (`arrix_doc::eval`, `frozen.rs`). A feature is frozen when
+its type is a plugin's and the registry lacks it (*missing*), its record is
+a newer `type_version` than the plugin has, or the plugin's version is not
+caret-compatible with the one that stored the result (both *version*). A
+core type the registry lacks is `feature.unknown-type`, not frozen. With no
+stored result a frozen feature fails as `plugin.frozen.missing` or
+`.version`, with no outputs. Otherwise its inputs are resolved by the shape
+of their references alone (a body slot is a body, another slot or a face a
+plane, a region a region) and hashed under the stored plugin version; a
+hash unequal to the stored one is *stale*. Its outputs are the stored
+bodies, loaded from their blobs (`blob.missing`, `blob.corrupt`) and named by
+the table, under the **stored** hash, so what reads them hashes as it did
+live. The event carries `frozen: {reason, stale}` and an informational
+diagnostic with the reason; `plugin.frozen.stale` is a warning on a stale
+feature and on every feature that reads one, directly or through the DAG.
+A slot kind the stored result lacks (a plane slot) is not restored; only
+body slots are stored. Without its type a frozen feature's body slots are
+those of its stored result, which is what a name into it is looked up in;
+it can modify no body input, the type's `modifies` being unknown.
+`arrix eval --without-plugin <id>` evaluates with the plugin's types
+left out of the registry.
 
 **Plugin document data without its plugin** is kept byte for byte and
 written back unchanged. The core never parses a section it has no plugin

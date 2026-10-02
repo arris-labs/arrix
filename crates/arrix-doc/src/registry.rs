@@ -168,6 +168,15 @@ impl Registry {
         Ok(id)
     }
 
+    /// Leaves out every feature type `plugin` contributes, as a build
+    /// without it would. `false` when it contributed none.
+    pub fn remove_plugin(&mut self, plugin: &arrix_core::PluginId) -> bool {
+        let before = self.types.len();
+        self.types
+            .retain(|id, _| id.plugin().as_ref() != Some(plugin));
+        self.types.len() != before
+    }
+
     pub fn get(&self, id: &FeatureTypeId) -> Option<&Arc<dyn FeatureType>> {
         self.types.get(id)
     }

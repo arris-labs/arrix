@@ -448,7 +448,7 @@ fn unknown_types_fields_and_versions_are_refused_not_ignored() {
     let e = Evaluator::new(registry()).evaluate(&doc(
         &[],
         vec![
-            record(1, "gears.spur", &[], &[]),
+            record(1, "core.nothing", &[], &[]),
             record(2, "core.datum-plane", &[("angle", "5 deg")], &[]),
             newer,
         ],

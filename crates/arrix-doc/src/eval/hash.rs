@@ -5,7 +5,7 @@
 
 use std::fmt;
 
-use arrix_core::{FeatureId, Frame, Profile, Quantity, SlotName};
+use arrix_core::{FeatureId, Frame, Profile, SlotName};
 use arrix_kernel::ARRIS_VERSION;
 use arrix_plugin_api::InputValue;
 use serde::{Deserialize, Serialize};
@@ -19,6 +19,12 @@ pub struct InputHash([u8; 32]);
 
 /// What is hashed, in a fixed field order. Floats are written in their
 /// shortest round-trip form, so equal values give equal bytes.
+///
+/// It is built from the record, not the type's form, so a feature whose
+/// plugin is absent hashes as it did when its plugin was there: that is how
+/// a frozen result's staleness is decided (docs/DATA-MODEL.md §Frozen
+/// results). Parameters are the record's own expressions' values, by name,
+/// since a default is the type's and the type's version is hashed.
 #[derive(Serialize)]
 struct Canonical<'a> {
     /// The Arris release: every kernel result depends on it.
@@ -29,9 +35,10 @@ struct Canonical<'a> {
     type_id: &'a str,
     type_version: u32,
     plugin_version: Option<&'a str>,
-    params: Vec<(&'a str, Quantity)>,
+    /// In SI, sorted by name.
+    params: Vec<(&'a str, f64)>,
     choices: &'a std::collections::BTreeMap<String, String>,
-    /// Each input as the geometry it resolved to.
+    /// Each input as the geometry it resolved to, sorted by name.
     inputs: Vec<(&'a str, Input<'a>)>,
     /// A sketch as its solve reads it: stored positions and resolved
     /// dimensions. Left out when there is none, so no other hash moves.
@@ -54,6 +61,15 @@ enum Input<'a> {
     },
 }
 
+/// An input as resolved without its type's form, by the shape of its
+/// reference (a frozen feature's plugin may be absent).
+#[derive(Clone, Debug)]
+pub(crate) enum Resolved {
+    Plane(Frame),
+    Region(Profile),
+    Body(BodyRead),
+}
+
 impl InputHash {
     /// `bodies` is what the body inputs resolved to, by handle.
     pub(crate) fn of(
@@ -62,39 +78,86 @@ impl InputHash {
         args: &FeatureArgs,
         bodies: &[BodyRead],
     ) -> Self {
-        let canonical = Canonical {
+        let mut params: Vec<(&str, f64)> = args
+            .params
+            .iter()
+            .filter(|p| record.params.contains_key(&p.name))
+            .map(|p| (p.name.as_str(), p.value.si))
+            .collect();
+        params.sort_by(|a, b| a.0.cmp(b.0));
+        let mut inputs: Vec<(&str, Input)> = args
+            .inputs
+            .iter()
+            .map(|i| {
+                let value = match &i.value {
+                    InputValue::Plane(f) => Input::Plane(*f),
+                    InputValue::Region(p) => Input::Region(p),
+                    InputValue::Body(b) => {
+                        let read = &bodies[b.handle() as usize];
+                        Input::Body {
+                            produced_by: read.hash,
+                            slot: &read.slot,
+                        }
+                    }
+                };
+                (i.name.as_str(), value)
+            })
+            .collect();
+        inputs.sort_by(|a, b| a.0.cmp(b.0));
+        Self::canonical(&Canonical {
             arris: ARRIS_VERSION,
             feature: record.id,
             type_id: &ty.spec().id,
             type_version: ty.spec().version,
             plugin_version: ty.plugin_version(),
-            params: args
-                .params
-                .iter()
-                .map(|p| (p.name.as_str(), p.value))
-                .collect(),
+            params,
             choices: &args.choices,
-            inputs: args
-                .inputs
-                .iter()
-                .map(|i| {
-                    let value = match &i.value {
-                        InputValue::Plane(f) => Input::Plane(*f),
-                        InputValue::Region(p) => Input::Region(p),
-                        InputValue::Body(b) => {
-                            let read = &bodies[b.handle() as usize];
-                            Input::Body {
-                                produced_by: read.hash,
-                                slot: &read.slot,
-                            }
-                        }
-                    };
-                    (i.name.as_str(), value)
-                })
-                .collect(),
+            inputs,
             sketch: args.sketch.as_ref().map(|s| &s.sketch),
-        };
-        let bytes = serde_json::to_vec(&canonical).expect("the canonical form serialises");
+        })
+    }
+
+    /// The hash `of` gives a plugin feature that evaluated under
+    /// `plugin_version`, from its record and what its parameters and inputs
+    /// resolve to now, without the plugin's form.
+    pub(crate) fn of_record(
+        record: &FeatureRecord,
+        plugin_version: &str,
+        params: &[(&str, f64)],
+        inputs: &[(String, Resolved)],
+    ) -> Self {
+        let mut params = params.to_vec();
+        params.sort_by(|a, b| a.0.cmp(b.0));
+        let mut inputs: Vec<(&str, Input)> = inputs
+            .iter()
+            .map(|(name, r)| {
+                let value = match r {
+                    Resolved::Plane(f) => Input::Plane(*f),
+                    Resolved::Region(p) => Input::Region(p),
+                    Resolved::Body(read) => Input::Body {
+                        produced_by: read.hash,
+                        slot: &read.slot,
+                    },
+                };
+                (name.as_str(), value)
+            })
+            .collect();
+        inputs.sort_by(|a, b| a.0.cmp(b.0));
+        Self::canonical(&Canonical {
+            arris: ARRIS_VERSION,
+            feature: record.id,
+            type_id: record.type_id.as_str(),
+            type_version: record.type_version,
+            plugin_version: Some(plugin_version),
+            params,
+            choices: &record.choices,
+            inputs,
+            sketch: None,
+        })
+    }
+
+    fn canonical(canonical: &Canonical) -> Self {
+        let bytes = serde_json::to_vec(canonical).expect("the canonical form serialises");
         Self(*blake3::hash(&bytes).as_bytes())
     }
 

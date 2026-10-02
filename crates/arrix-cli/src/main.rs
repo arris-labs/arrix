@@ -28,18 +28,31 @@ enum Command {
         /// A document directory (the unzipped form of an `.arrx`), or an
         /// `.arrx` file.
         doc: PathBuf,
+        /// Evaluate as a build without this plugin would (repeatable): its
+        /// features evaluate frozen.
+        #[arg(long = "without-plugin", value_name = "ID")]
+        without: Vec<String>,
     },
 }
 
 fn main() -> ExitCode {
     match Cli::parse().command {
-        Command::Eval { doc } => eval(&doc),
+        Command::Eval { doc, without } => eval(&doc, &without),
     }
 }
 
-fn eval(doc: &std::path::Path) -> ExitCode {
+fn eval(doc: &std::path::Path, without: &[String]) -> ExitCode {
     let name = doc.to_string_lossy();
-    let registry = plugins::registry();
+    let mut registry = plugins::registry();
+    for id in without {
+        let removed = arrix_core::PluginId::new(id.as_str())
+            .map(|plugin| registry.remove_plugin(&plugin))
+            .unwrap_or(false);
+        if !removed {
+            eprintln!("arrix eval: --without-plugin {id}: no such plugin in this build");
+            return ExitCode::from(2);
+        }
+    }
     let line = if doc.is_file() {
         std::fs::read(doc)
             .map_err(|e| e.to_string())

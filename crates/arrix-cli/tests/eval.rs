@@ -136,3 +136,38 @@ fn a_bad_zip_exits_2() {
     std::fs::write(&path, b"not a zip").unwrap();
     assert_refused(&arrix_eval(&path), "not a zip file");
 }
+
+/// `--without-plugin` leaves a plugin out as a build without it would:
+/// its feature has no stored result in this scenario, so it fails as
+/// missing, with no outputs.
+#[test]
+fn without_a_plugin_its_feature_without_a_stored_result_fails_as_missing() {
+    let out = Command::new(env!("CARGO_BIN_EXE_arrix"))
+        .current_dir(workspace())
+        .args([
+            "eval",
+            "--without-plugin",
+            "gears",
+            "tests/docs/gear-on-plane",
+        ])
+        .output()
+        .expect("run arrix");
+    assert_eq!(out.status.code(), Some(1));
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains(r#""category":"plugin.frozen.missing""#),
+        "{stdout}"
+    );
+    assert!(stdout.contains(r#""bodies":[]"#), "{stdout}");
+}
+
+#[test]
+fn without_a_plugin_this_build_lacks_is_a_usage_error() {
+    let out = Command::new(env!("CARGO_BIN_EXE_arrix"))
+        .current_dir(workspace())
+        .args(["eval", "--without-plugin", "nonesuch", "tests/docs/empty"])
+        .output()
+        .expect("run arrix");
+    assert_eq!(out.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("no such plugin"));
+}

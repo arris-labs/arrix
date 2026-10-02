@@ -231,7 +231,7 @@ a given design; **[3]** unproven, behaviour to establish here.
   blobs, which ADR-0001 forbids committing; step 15 must golden the
   frozen records (hashes, versions, blob names) and not the bytes, or
   take an ADR.
-- [ ] **[3]** Step 14: the frozen states. A plugin feature
+- [x] **[3]** Step 14: the frozen states. A plugin feature
   whose type the registry lacks, or whose plugin version is outside the
   record's range, evaluates **frozen** from its stored result, with
   `plugin.frozen.missing` or `.version`. Its current input hash (under
@@ -242,6 +242,18 @@ a given design; **[3]** unproven, behaviour to establish here.
   `arrix eval --without-plugin <id>`. Tests: each state and each
   transition, and a frozen feature with no stored result failing as
   `plugin.frozen.missing` with no outputs.
+  Done as: the input hash is now computed from the record alone (the SI
+  value of each parameter the record sets, by name; inputs by name), so a
+  feature without its type's form hashes as it did live: the one hash
+  formula both paths share (`InputHash::of` and `of_record`). The
+  version range is the semver caret of the stored plugin version. A
+  frozen feature's outputs are cached and hashed under the stored hash, so
+  readers are identical to live. Found: a width edit does not stale the
+  gear (its plane, the plate's top, is the same frame), so acceptance 5 is
+  tested with the plate's thickness `t`, which moves the plane; step 15
+  and the roadmap's accept wording follow. Not done: a frozen feature that
+  modified a body input (its `modifies` is unknown without its type); none
+  exists in M1.
 - [ ] **[1]** Step 15: the acceptance below, with `tests/docs/slice/`'s
   goldens: live, `--without-plugin gears`, and edited without it.
 

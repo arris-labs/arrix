@@ -15,7 +15,7 @@ use arrix_core::{
 };
 use arrix_doc::{
     AuthorId, Command, Document, FeatureOutcome, FeatureRecord, FeatureTypeId, Param, Part,
-    Request, Session, SketchView, SlotView, expr::Expr, open, save,
+    Registry, Request, Session, SketchView, SlotView, apply, expr::Expr, open, save,
 };
 use arrix_sketch::{Constraint, Draft, Entity, EntityId, Point, SketchEdit};
 use common::{Client, scenario_directory};
@@ -461,4 +461,75 @@ fn undo_re_evaluated_and_saved_restores_each_earlier_save() {
             "undone to generation {back}"
         );
     }
+}
+
+/// A body line's measures of `feature`'s body slot.
+fn body_line(line: &arrix_doc::EvalLine, feature: FeatureId) -> (f64, usize) {
+    let b = line
+        .bodies
+        .iter()
+        .find(|b| b.feature == feature)
+        .unwrap_or_else(|| panic!("no body line for {feature}"));
+    (b.volume, b.faces)
+}
+
+fn status(line: &arrix_doc::EvalLine, feature: FeatureId) -> &str {
+    &line
+        .features
+        .iter()
+        .find(|f| f.id == feature)
+        .unwrap()
+        .status
+}
+
+#[test]
+fn the_saved_slice_evaluates_without_the_plugin_to_the_same_volumes() {
+    let i = Ids::new();
+    let mut c = Client::new(i.author);
+    build(&mut c, &i);
+    let saved = c.session.save();
+    let with = arrix_doc::eval("with", &saved, &common::registry()).unwrap();
+    let core = Registry::with_core_types();
+    let without = arrix_doc::eval("without", &saved, &core).unwrap();
+
+    // Criterion 4: the gear frozen, missing; the pocket still cut.
+    assert_eq!(status(&with, i.gear), "ok");
+    assert_eq!(status(&without, i.gear), "frozen");
+    let gear = without.features.iter().find(|f| f.id == i.gear).unwrap();
+    assert_eq!(gear.category.as_deref(), Some("plugin.frozen.missing"));
+    assert_eq!(without.status, arrix_doc::EvalStatus::Ok);
+    for f in [i.gear, i.join, i.pocket] {
+        assert_eq!(body_line(&without, f), body_line(&with, f), "{f}");
+    }
+
+    // Criterion 5: an input of the gear edited without the plugin, as a
+    // file: the plate's thickness moves the plane the gear stands on (the
+    // width does not, the plane being the same), so the gear is stale and
+    // the pocket re-evaluated against its stored result.
+    let doc: Document = open(&saved).unwrap();
+    let command = Command::SetParam {
+        param: i.t,
+        expr: Expr::parse("6 mm").unwrap(),
+    };
+    let doc = apply(&doc, &command).unwrap().document;
+    let edit = arrix_doc::Evaluator::new(core.clone())
+        .evaluate(&doc)
+        .line("edited", &doc);
+    assert_eq!(status(&edit, i.gear), "frozen-stale");
+    assert_eq!(status(&edit, i.pocket), "ok");
+    assert!(body_line(&edit, i.pocket).0 > body_line(&without, i.pocket).0);
+    // Criterion 6: with the plugin back, the gear is live again.
+    let back = arrix_doc::Evaluator::new(common::registry())
+        .evaluate(&doc)
+        .line("back", &doc);
+    assert_eq!(status(&back, i.gear), "ok");
+    assert!(
+        edit.features
+            .iter()
+            .find(|f| f.id == i.pocket)
+            .unwrap()
+            .diagnostics
+            .iter()
+            .any(|d| d.code.as_str() == "plugin.frozen.stale")
+    );
 }
