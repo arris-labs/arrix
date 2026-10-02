@@ -518,11 +518,17 @@ fn the_saved_slice_evaluates_without_the_plugin_to_the_same_volumes() {
     assert_eq!(status(&edit, i.gear), "frozen-stale");
     assert_eq!(status(&edit, i.pocket), "ok");
     assert!(body_line(&edit, i.pocket).0 > body_line(&without, i.pocket).0);
-    // Criterion 6: with the plugin back, the gear is live again.
-    let back = arrix_doc::Evaluator::new(common::registry())
-        .evaluate(&doc)
-        .line("back", &doc);
+    // Criterion 6: with the plugin back, the gear is live again, frozen
+    // anew, and nothing is stale.
+    let mut evaluator = arrix_doc::Evaluator::new(common::registry());
+    let back = evaluator.evaluate(&doc).line("back", &doc);
     assert_eq!(status(&back, i.gear), "ok");
+    assert!(evaluator.frozen().contains_key(&i.gear));
+    assert!(back.features.iter().all(|f| {
+        f.diagnostics
+            .iter()
+            .all(|d| d.code.as_str() != "plugin.frozen.stale")
+    }));
     assert!(
         edit.features
             .iter()
@@ -532,4 +538,93 @@ fn the_saved_slice_evaluates_without_the_plugin_to_the_same_volumes() {
             .iter()
             .any(|d| d.code.as_str() == "plugin.frozen.stale")
     );
+}
+
+#[test]
+fn the_saved_slice_zips_deterministically_with_its_blobs() {
+    let i = Ids::new();
+    let mut c = Client::new(i.author);
+    build(&mut c, &i);
+    let doc: Document = open(&c.session.save()).unwrap();
+    // Criterion 3, the zip form: saved twice, identical, and the directory
+    // form is what unzipping gives.
+    let zip = arrix_doc::save_zip(&doc).unwrap();
+    assert_eq!(zip, arrix_doc::save_zip(&doc).unwrap());
+    let reopened = arrix_doc::open_zip(&zip).unwrap();
+    assert_eq!(arrix_doc::save_zip(&reopened).unwrap(), zip);
+    assert_eq!(arrix_doc::from_zip(&zip).unwrap().0, save(&doc).0);
+    assert_eq!(blobs(&save(&reopened)).len(), 2);
+}
+
+/// `arrix eval` of `files` written to a scratch directory, as `name`
+/// relative to the scratch space (so the line's `doc` is machine-free),
+/// with `args` before it. Returns the exit code and stdout.
+fn arrix_eval(name: &str, files: &arrix_doc::MemorySource, args: &[&str]) -> (Option<i32>, String) {
+    let scratch = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join("slice-frozen");
+    let dir = scratch.join(name);
+    let _ = std::fs::remove_dir_all(&dir);
+    for (path, bytes) in &files.0 {
+        let to = dir.join(path);
+        std::fs::create_dir_all(to.parent().unwrap()).unwrap();
+        std::fs::write(to, bytes).unwrap();
+    }
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_arrix"))
+        .current_dir(&scratch)
+        .arg("eval")
+        .args(args)
+        .arg(name)
+        .output()
+        .expect("run arrix");
+    assert!(
+        out.stderr.is_empty(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    (out.status.code(), String::from_utf8(out.stdout).unwrap())
+}
+
+/// `stdout` is the golden's, or the golden is rewritten to it. The frozen
+/// bytes themselves are never committed (ADR-0001): a golden is the line
+/// `arrix eval` prints for them.
+fn golden(file: &str, stdout: &str) {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/golden")
+        .join(file);
+    if std::env::var_os("UPDATE_SNAPSHOTS").is_some() {
+        std::fs::write(&path, stdout).unwrap();
+    }
+    let want = std::fs::read_to_string(&path).expect("read the golden");
+    assert_eq!(
+        stdout, want,
+        "{file}: rerun with UPDATE_SNAPSHOTS=1 and read the diff"
+    );
+}
+
+#[test]
+fn arrix_eval_of_the_frozen_slice_equals_its_goldens() {
+    let i = Ids::new();
+    let mut c = Client::new(i.author);
+    build(&mut c, &i);
+    let saved = c.session.save();
+
+    let (code, live) = arrix_eval("slice-live", &saved, &[]);
+    assert_eq!(code, Some(0));
+    golden("eval_slice_frozen_live.jsonl", &live);
+
+    // Criterion 4 through the binary.
+    let (code, without) = arrix_eval("slice-without", &saved, &["--without-plugin", "gears"]);
+    assert_eq!(code, Some(0));
+    golden("eval_slice_without_gears.jsonl", &without);
+
+    // Criterion 5 through the binary: the thickness edited in the file.
+    let doc: Document = open(&saved).unwrap();
+    let command = Command::SetParam {
+        param: i.t,
+        expr: Expr::parse("6 mm").unwrap(),
+    };
+    let edited = save(&apply(&doc, &command).unwrap().document);
+    let (code, stale) = arrix_eval("slice-edited", &edited, &["--without-plugin", "gears"]);
+    assert_eq!(code, Some(0));
+    golden("eval_slice_edited_without_gears.jsonl", &stale);
+    assert!(stale.contains(r#""status":"frozen-stale""#), "{stale}");
 }

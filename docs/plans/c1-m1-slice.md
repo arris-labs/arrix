@@ -254,8 +254,15 @@ a given design; **[3]** unproven, behaviour to establish here.
   and the roadmap's accept wording follow. Not done: a frozen feature that
   modified a body input (its `modifies` is unknown without its type); none
   exists in M1.
-- [ ] **[1]** Step 15: the acceptance below, with `tests/docs/slice/`'s
+- [x] **[1]** Step 15: the acceptance below, with `tests/docs/slice/`'s
   goldens: live, `--without-plugin gears`, and edited without it.
+  Done as: the committed `tests/docs/slice/` is the unfrozen document
+  (ADR-0001 forbids its blobs), so the frozen goldens are the lines
+  `arrix eval` prints for the session's save, built in `slice.rs` and run
+  through the binary: `eval_slice_frozen_live`, `eval_slice_without_gears`
+  and `eval_slice_edited_without_gears` (thickness 6 mm: the gear
+  frozen-stale, the pocket re-cut). Also the zip form of criterion 3 and
+  criterion 6's re-freeze.
 
 ## Acceptance
 
