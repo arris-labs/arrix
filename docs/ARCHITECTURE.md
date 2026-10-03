@@ -355,7 +355,7 @@ A step blocked on an ask names it and waits.
 | A1 | consumer roles: `Role::Consumer { namespace, key }` | C1: plugin topology built directly | asked |
 | A2 | body bytes with a compatibility policy | C1: frozen results, fixture operands; C3: the Tier 2 boundary | released in 0.4.0, taken in C1 M1 |
 | A3 | cancellation: an interrupt token, optionally a step budget | C1: superseded evaluations; C4: the browser | asked |
-| A11 | `ops::mirror` | C1: the mirror feature | asked |
+| A11 | `ops::mirror` | C1: the mirror feature | released in 0.4.0, taken in C1 M2 |
 | A5 | `region2` as public API | C1–C2: sketch regions | asked |
 | A4 | STEP product structure | C2 | asked |
 | A8, A9, A6, A7, A10 | multi-tool booleans, per-face tessellation, the query cycle, the sweep and healing cycles, the Python binding | C2 and later | asked |

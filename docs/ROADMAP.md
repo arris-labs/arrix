@@ -114,8 +114,8 @@ returns the document, byte for byte, to each earlier state.
 
 - `core.revolve`, `core.fillet`, `core.chamfer`, `core.hole` (simple,
   counterbore, countersink; blind or through), `core.pattern-linear`,
-  `core.pattern-circular`, `core.boolean`, and `core.mirror` once A11 is
-  released (`docs/DATA-MODEL.md` §The core feature types).
+  `core.pattern-circular`, `core.boolean`, and `core.mirror` (A11 is
+  released in `arris` 0.4.0) (`docs/DATA-MODEL.md` §The core feature types).
 - Persistent naming through every one of them, sketch entity ids carried
   into sweep roots; lost references as diagnostics with ranked candidates,
   never a rebind.
@@ -215,7 +215,7 @@ and names it; nothing is worked around.
 | Ask | Needed by | If it has not landed |
 |---|---|---|
 | A2 body bytes | M1 frozen results; M2 fixture operands that are bodies | landed: `arris` 0.4.0, taken in M1 |
-| A11 `ops::mirror` | M2 `core.mirror` | `core.mirror` moves to the backlog; C1 closes without it |
+| A11 `ops::mirror` | M2 `core.mirror` | landed: `arris` 0.4.0, taken in M2 (`core.mirror` in `plans/c1-m2-features`) |
 | A3 cancellation | M4 cancellation latency, `--budget` | cancellation between kernel calls only; the gap named in the status line |
 | A1 consumer roles | a plugin building topology directly | the gear extrudes and does not need it; the builder service waits |
 | A5 `region2` | sketch regions shared with the kernel | the ported arrangement is used |
