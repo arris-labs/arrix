@@ -219,6 +219,7 @@ and names it; nothing is worked around.
 | A3 cancellation | M4 cancellation latency, `--budget` | cancellation between kernel calls only; the gap named in the status line |
 | A1 consumer roles | a plugin building topology directly | the gear extrudes and does not need it; the builder service waits |
 | A5 `region2` | sketch regions shared with the kernel | the ported arrangement is used |
+| (to file) a split's piece order by a consumer-given key, not input ids | a reference to one piece of a split face surviving a redraw of the curves that bound it (`plans/c1-m2-naming`, step 2's finding) | a split piece's name follows Arris's id order, as `docs/DATA-MODEL.md` §Persistent naming states |
 
 ### C1 risk register
 
