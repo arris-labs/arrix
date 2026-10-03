@@ -72,19 +72,29 @@ All present in the pinned `arris` 0.4.0; none is an ask.
   pair outside that table fails soft as `kernel.degenerate.*` or
   `kernel.unsupported.*`. Arris's own C6 widens the table; ArriX takes it
   with a version bump, not a workaround.
+- A gap met by the probe (step 2): a 2 mm hole at (39, 15) mm through a
+  plate whose top edge at x = 40 mm is filleted at 3 mm, crossing the
+  fillet face and the side face below it, fails in `arris` 0.4.0's `cut`
+  as `Internal(Split(Dangling))`, on an extrude and on a primitive box
+  alike; at x = 38.5 and 41 it succeeds. Pinned by
+  `a_hole_dragged_across_a_fillet_leaves_the_top_face_one_piece`; it goes
+  to Arris as a fixture from step 8's export and a backlog line there,
+  which the human files (the Arris checkout is read-only here).
 
 ## Steps
 
 - [x] **[1]** Step 1 — ADR-0010: the single-piece rule, the Instance step and
   the revolve root, with the scenario above. Update `docs/ROADMAP.md`'s A11
   line (landed in `arris` 0.4.0, `core.mirror` in M2) in the same commit.
-- [ ] **[3]** Step 2 — probe tests in `arrix-kernel/tests/` (the scenario's
+- [x] **[3]** Step 2 — probe tests in `arrix-kernel/tests/` (the scenario's
   own units, metres): what Arris records for `revolve` (a stepped profile, a
   full turn and a partial one), `fillet` and `chamfer` (one edge, a chain, a
   corner of three), `transform` and `mirror`; and how piece `0` behaves under
   the edits of the accept (a hole dragged toward and across a face boundary,
   a pattern's count raised and lowered). If piece `0` flips under a plausible
   edit, stop: the idea's option C is back on the table and the human decides.
+  *Done: `crates/arrix-kernel/tests/probe_m2.rs`. Piece `0` flips: see the
+  first open question. Steps 3 onward wait on it.*
 - [ ] **[2]** Step 3 — the B rule in `boolean_names`: piece `0` keeps the
   origin's name; pieces `k > 0` take `mod`. M1's expectations in
   `booleans.rs` and `gear_naming.rs` and the slice's goldens change; their diff
@@ -157,6 +167,31 @@ Written at planning time; executed before the plan is deleted.
 
 ## Open questions
 
+- ⚠ OPEN (step 2's finding, blocks step 3): **piece `0` of a split face
+  flips under a plausible edit.** The probe holds every single-piece case
+  ADR-0010 is for: a blend, a copy and a mirror split nothing, a hole
+  dragged across a fillet leaves the top face one piece, a pattern's holes
+  come each from its own copy at any count. But when a face is split in
+  two, Arris orders the pieces by the ids of the entities bounding them
+  (its ADR-0009), an extrude numbers a profile's sides in walk order, and
+  the sketcher starts a loop's walk at its oldest entity: the same plate
+  walked from corner 2 or 3 instead of 0 or 1 swaps the pieces
+  (`piece_0_of_a_split_follows_the_profile_s_walk`), so redrawing the two
+  oldest sides of a rectangle moves the bare name to the other piece.
+  Widths, an unrelated body, an earlier hole or boss, and the tool made
+  first do not move it. M1's `mod.<F>.0` flips the same way, so the B rule
+  makes this no worse; it was unseen until now. Options: (a) keep B and
+  accept it for split faces, stated in `docs/DATA-MODEL.md`: a reference to
+  one piece of a split face follows Arris's order, which a redraw of the
+  curves that bound the pieces can change (starting each loop at its
+  lowest `CurveKey` would not help: the oldest entity is already the
+  lowest key); the acceptance's "curve redrawn between two kept ones" then
+  redraws no side that bounds one piece alone; (b) the idea's option C, a
+  forward-closure resolver; (c) an Arris ask, the boundary key compared by
+  a consumer-given order (its `ConsumerKey`, ADR-0028 there) instead of
+  input ids, which with keys from the sketch makes a redraw flip only the
+  pieces it really re-bounds. Preferred: (a) now, (c) as a line in Arris's
+  asks. Who: human, before step 3.
 - ⚠ OPEN: M1's scenario documents (`tests/docs/slice`) and the goldens
   contain `mod.<F>.0` names. Preferred: no schema bump, because C1 is
   unreleased; the documents and goldens are regenerated in step 3 and the
