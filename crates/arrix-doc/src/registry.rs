@@ -15,6 +15,7 @@ use arrix_sketch::Sketch;
 use crate::core_blend::CoreBlend;
 use crate::core_boolean::CoreBoolean;
 use crate::core_extrude::CoreExtrude;
+use crate::core_hole::CoreHole;
 use crate::core_revolve::CoreRevolve;
 use crate::core_types::{CoreSketch, DatumPlane};
 use crate::document::{FeatureTypeId, InvalidFeatureTypeId};
@@ -145,6 +146,7 @@ impl Registry {
             Arc::new(DatumPlane::new()),
             Arc::new(CoreExtrude::new()),
             Arc::new(CoreBlend::fillet()),
+            Arc::new(CoreHole::new()),
             Arc::new(CoreRevolve::new()),
             Arc::new(CoreSketch::new()),
         ] {
@@ -263,6 +265,7 @@ mod tests {
                 "core.datum-plane",
                 "core.extrude",
                 "core.fillet",
+                "core.hole",
                 "core.revolve",
                 "core.sketch"
             ]

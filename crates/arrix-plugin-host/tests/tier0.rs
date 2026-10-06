@@ -181,6 +181,7 @@ fn every_type_registers_under_the_plugins_namespace() {
             "core.datum-plane",
             "core.extrude",
             "core.fillet",
+            "core.hole",
             "core.revolve",
             "core.sketch",
             "demo.boom",

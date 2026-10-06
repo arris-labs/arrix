@@ -238,6 +238,24 @@ keeping (ADR-0013) and codes under `revolve.`: `revolve.no-region`,
 the kernel refuses, fails as the kernel's own `kernel.*` code with the call
 kept. Its turn counts in the feature's sweep numbering (ADR-0011).
 
+`core.hole` is built: a `target` body input and a `points` list of
+sketch points (a vertex has no plane to drill from: `hole.no-normal`),
+a `diameter`, the `extent` choice, `blind` (the default, to `depth`) or
+`through`, and the `kind` choice, `simple` (the default), `counterbore`
+(`cb-diameter`, `cb-depth`) or `countersink` (`cs-diameter`, the included
+`cs-angle`). Each hole is one tool revolved about the inward normal of its
+point's sketch plane, starting 1 mm outside it; a through hole's tool is
+1 m long, the kernel having no extent query for a body to ask. The tools
+are cut in the list's order, one boolean each (ADR-0014), so a hole's
+faces are named by its place in the list: moving a point renames
+nothing, adding one at the end renames no other hole, removing one
+renames the later holes' roots. The tools are then fused and kept for a
+pattern or a mirror to copy (ADR-0013). A hole that removes nothing is
+`hole.misses`; the other codes are `hole.no-target`, `hole.no-points`,
+`hole.diameter`, `hole.depth`, `hole.extent`, `hole.kind`,
+`hole.counterbore` and `hole.countersink`. A hole across a fillet is the
+Arris gap in `docs/BACKLOG.md`.
+
 `core.boolean` is built (type version 2): a `target` body input, a `tools`
 list of body inputs and an `op` choice, `fuse` (the default), `cut` or
 `common`. Each tool is one kernel call on the result of the one before,

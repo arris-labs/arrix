@@ -247,7 +247,7 @@ All in `arris` 0.5.0, already pinned; no ask is needed.
   locate, no step), to the kernel's own `oversize-fillet` golden, which
   the vendored grammar reads. An edge not on the body is `ref.lost` with
   candidates from the resolver, as every name. `zero-plate` is gone.*
-- [ ] **[2]** Step 10 — `core.hole`: a `target`, a list of `points` (sketch
+- [x] **[2]** Step 10 — `core.hole`: a `target`, a list of `points` (sketch
   points), `diameter`, `extent` choice `blind` (with `depth`) or
   `through`, `kind` choice `simple`, `counterbore` (`cb-diameter`,
   `cb-depth`) or `countersink` (`cs-diameter`, `cs-angle`); one revolved
@@ -255,6 +255,14 @@ All in `arris` 0.5.0, already pinned; no ask is needed.
   Tests: each kind and extent; volumes against the analytic value; a point
   moved keeps every hole's wall and rim names; a point off the body cuts
   nothing and says so (`hole.misses`).
+  *Done: not as the design delta had it. A `point` input carries no entity
+  id, so the profile's curve keys are the section's segment numbers and the
+  hole's place in the list is its sweep index; and the tools are cut one by
+  one, not fused and cut once, because a single cut's boolean number would
+  be 0 for one hole and 1 for two (the fuse takes 0), renaming the first
+  hole's faces when a second is added. The fused tools are kept after the
+  cuts for step 11. A through hole's tool is 1 m long: the kernel offers no
+  extent of a body.*
 - [ ] **[2]** Step 11 — `core.pattern-linear` and `core.pattern-circular`
   over a body or over features, per ADR-0013: `count`, `spacing` along a
   `direction` (an `axis`), or `count` and `angle` about an `axis`; copies
