@@ -223,11 +223,17 @@ All in `arris` 0.5.0, already pinned; no ask is needed.
   diff is the one record) and `migrations/schema-2` stays at version 1 as
   its fixture. `bodies::effects` now reads every element of a list body
   input, so each tool is consumed.*
-- [ ] **[2]** Step 8 — `core.revolve`: a `region`, an `axis`, an `angle`
+- [x] **[2]** Step 8 — `core.revolve`: a `region`, an `axis`, an `angle`
   (default a full turn), `mode` and `target` as `core.extrude` has them,
   the same failure codes under `revolve.*`. Tests: a full and a partial
   turn, join and cut, an axis through the region (`kernel.*`, record
   kept).
+  *Done: `place` in `core_extrude.rs` is the shared new/join/cut step of
+  both types, so the codes differ only by prefix. A full-turn cylinder
+  fused across a plate fails `kernel.naming` (two vertices where a plane
+  cuts the end cap's circle name alike); the tests stand it on the plate
+  or pocket it, and the gap is a backlog line for Arris, no recipe saved
+  yet.*
 - [ ] **[2]** Step 9 — `core.fillet` and `core.chamfer` (`core_blend.rs`):
   a `target` body and a list of `edges`; `radius`, or `distance`; the
   slot modifies `target`. Tests: four edges of a plate; a chain named by

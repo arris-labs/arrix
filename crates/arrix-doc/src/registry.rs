@@ -14,6 +14,7 @@ use arrix_sketch::Sketch;
 
 use crate::core_boolean::CoreBoolean;
 use crate::core_extrude::CoreExtrude;
+use crate::core_revolve::CoreRevolve;
 use crate::core_types::{CoreSketch, DatumPlane};
 use crate::document::{FeatureTypeId, InvalidFeatureTypeId};
 use crate::eval::SketchView;
@@ -141,6 +142,7 @@ impl Registry {
             Arc::new(CoreBoolean::new()) as Arc<dyn FeatureType>,
             Arc::new(DatumPlane::new()),
             Arc::new(CoreExtrude::new()),
+            Arc::new(CoreRevolve::new()),
             Arc::new(CoreSketch::new()),
         ] {
             r.register(ty)
@@ -256,6 +258,7 @@ mod tests {
                 "core.boolean",
                 "core.datum-plane",
                 "core.extrude",
+                "core.revolve",
                 "core.sketch"
             ]
         );

@@ -6,6 +6,7 @@ mod bodies;
 mod command;
 mod core_boolean;
 mod core_extrude;
+mod core_revolve;
 mod core_types;
 mod dag;
 mod document;
@@ -24,6 +25,7 @@ pub use authority::{AuthorId, Authority, Change, CommandEnvelope, Generation, Ou
 pub use command::{Applied, Command, CommandError, FeatureEdit, apply};
 pub use core_boolean::CoreBoolean;
 pub use core_extrude::CoreExtrude;
+pub use core_revolve::CoreRevolve;
 pub use core_types::{CoreSketch, DatumPlane, WORLD_PLANES};
 pub use dag::{Dag, DagError, Node};
 pub use document::{

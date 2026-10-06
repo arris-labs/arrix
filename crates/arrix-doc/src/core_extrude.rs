@@ -4,7 +4,7 @@
 
 use arrix_core::{Diagnostic, QuantityKind, Severity, SlotName};
 use arrix_plugin_api::{
-    FeatureOutput, FeatureTypeSpec, InputKind, InputSpec, InputValue, Kernel, OutputValue,
+    Body, FeatureOutput, FeatureTypeSpec, InputKind, InputSpec, InputValue, Kernel, OutputValue,
     ParamSpec, SlotKind, SlotOutput, SlotSpec, Tool, ToolOp,
 };
 
@@ -21,6 +21,56 @@ pub struct CoreExtrude {
 
 fn error(code: &str, message: impl Into<String>) -> Diagnostic {
     Diagnostic::new(Severity::Error, code, message).expect("a literal code is well-formed")
+}
+
+/// Which type is placing its sweep: its code prefix and what its
+/// messages call it.
+#[derive(Clone, Copy)]
+pub(crate) struct Sweep {
+    pub ty: &'static str,
+    pub what: &'static str,
+}
+
+/// A swept solid by a `mode` choice, `new`, `join` or `cut`, with the
+/// body the type's `target` input names (`None` when unset): `make` builds
+/// the solid, which `new` returns as it is and `join` and `cut` fuse into
+/// or cut from the target. A join or a cut also returns its tool, kept for
+/// a pattern or a mirror to copy (ADR-0013). Shared by `core.extrude` and
+/// `core.revolve`, whose codes differ by `ty`.
+pub(crate) fn place(
+    kernel: &mut dyn Kernel,
+    Sweep { ty, what }: Sweep,
+    mode: &str,
+    target: Option<&Body>,
+    make: impl FnOnce(&mut dyn Kernel) -> Result<Body, Diagnostic>,
+) -> Result<(Body, Option<Tool>), Diagnostic> {
+    match (mode, target) {
+        ("new", None) => Ok((make(kernel)?, None)),
+        ("new", Some(_)) => Err(error(
+            &format!("{ty}.stray-target"),
+            "a new body has no target to join to or cut; clear the target or choose join or cut",
+        )),
+        ("join" | "cut", None) => Err(error(
+            &format!("{ty}.no-target"),
+            format!("{what} in {mode} mode needs the body to {mode}"),
+        )),
+        ("join", Some(target)) => {
+            let tool = make(kernel)?;
+            let joined = kernel.fuse(target, &tool)?;
+            let op = ToolOp::Fuse;
+            Ok((joined, Some(Tool { body: tool, op })))
+        }
+        ("cut", Some(target)) => {
+            let tool = make(kernel)?;
+            let cut = kernel.cut(target, &tool)?;
+            let op = ToolOp::Cut;
+            Ok((cut, Some(Tool { body: tool, op })))
+        }
+        (other, _) => Err(error(
+            &format!("{ty}.mode"),
+            format!("`{other}` is not {what} mode: new, join or cut"),
+        )),
+    }
 }
 
 impl CoreExtrude {
@@ -94,46 +144,16 @@ impl FeatureType for CoreExtrude {
             _ => None,
         };
         let distance = args.param("distance").unwrap_or(0.0);
-        let mut kept = None;
-        let body = match (mode, target) {
-            ("new", None) => kernel.extrude(profile, distance)?,
-            ("new", Some(_)) => {
-                return Err(error(
-                    "extrude.stray-target",
-                    "a new body has no target to join to or cut; clear the target or choose join or cut",
-                ));
-            }
-            ("join" | "cut", None) => {
-                return Err(error(
-                    "extrude.no-target",
-                    format!("an extrude in {mode} mode needs the body to {mode}"),
-                ));
-            }
-            ("join", Some(target)) => {
-                let tool = kernel.extrude(profile, distance)?;
-                let joined = kernel.fuse(target, &tool)?;
-                kept = Some(Tool {
-                    body: tool,
-                    op: ToolOp::Fuse,
-                });
-                joined
-            }
-            ("cut", Some(target)) => {
-                let tool = kernel.extrude(profile, distance)?;
-                let cut = kernel.cut(target, &tool)?;
-                kept = Some(Tool {
-                    body: tool,
-                    op: ToolOp::Cut,
-                });
-                cut
-            }
-            (other, _) => {
-                return Err(error(
-                    "extrude.mode",
-                    format!("`{other}` is not an extrude mode: new, join or cut"),
-                ));
-            }
-        };
+        let (body, kept) = place(
+            kernel,
+            Sweep {
+                ty: "extrude",
+                what: "an extrude",
+            },
+            mode,
+            target,
+            |k| k.extrude(profile, distance),
+        )?;
         Ok(FeatureOutput {
             slots: vec![SlotOutput {
                 name: self.spec.outputs[0].name.clone(),

@@ -214,6 +214,17 @@ that is none of the three as `extrude.mode`, no region as
 `extrude.no-region`, and a target that is not a body as
 `input.wrong-kind`.
 
+`core.revolve` is built: a `region` input, an `axis` input (a sketch line,
+from its start along its length, or a straight edge, ADR-0012), an `angle`
+(default 360 deg, positive and at most a full turn; a full turn has no end
+caps), the `mode` choice, `new` (the default), `join` or `cut`, and the
+`target` body input of `core.extrude`, with the same slot rule, tool
+keeping (ADR-0013) and codes under `revolve.`: `revolve.no-region`,
+`revolve.no-axis`, `revolve.angle`, `revolve.no-target`,
+`revolve.stray-target`, `revolve.mode`. An axis through the region, or one
+the kernel refuses, fails as the kernel's own `kernel.*` code with the call
+kept. Its turn counts in the feature's sweep numbering (ADR-0011).
+
 `core.boolean` is built (type version 2): a `target` body input, a `tools`
 list of body inputs and an `op` choice, `fuse` (the default), `cut` or
 `common`. Each tool is one kernel call on the result of the one before,
