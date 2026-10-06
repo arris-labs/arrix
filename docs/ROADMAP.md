@@ -7,7 +7,7 @@ before its plan starts. One section per cycle; a finished cycle compresses
 to its status line (`/close-cycle`), and the next is detailed below it.
 
 Spine: **C1** M0 → M1 → M2 → M3 → M4 (the vertical slice with a plugin
-feature in it; M0 and M1 landed, M2 next), then **C2** (the mechanical core), **C3** (the
+feature in it; M0 and M1 landed, M2 half done), then **C2** (the mechanical core), **C3** (the
 boundary crossed), **C4** (the web). Beyond C4, the named cycles are
 unordered.
 
@@ -35,8 +35,13 @@ modified slots (ADR-0007, ADR-0008), `core.extrude` in its three modes and
 `core.boolean` in its minimal form, plugin API 0.3, names through `fuse`
 and `cut`, frozen results written on save by the session (ADR-0009), the
 frozen states, schema 2 with its migration chain, the deterministic `.arrx`
-zip, `arris` 0.4 (A2), and the accept scenario green; M2 next. Seeded
-2026-09-26.**
+zip, `arris` 0.4 (A2), and the accept scenario green. M2 plan 1 of 2
+(`c1-m2-naming`) landed 2026-10-06: the single-piece rule, the instance step
+and the revolve root (ADR-0010), a sweep index in the sweep root (ADR-0011),
+`revolve`, `fillet`, `chamfer`, `copy` and `mirror` named at the kernel, the
+fixture export and `eval --save-fixtures`, `arris` 0.5, and the kernel naming
+scenarios green; the part features and projection (`c1-m2-features`) next.
+Seeded 2026-09-26.**
 
 Milestones are ordered by risk after the harness: the document and the
 plugin feature are proven headless (M1) before the part features (M2), the
@@ -227,7 +232,7 @@ and names it; nothing is worked around.
 |---|---|
 | A plugin feature cannot be first-class: frozen results, naming or memoisation need a special path | retired by M1's accept (`crates/arrix-cli/tests/slice.rs`), before any other feature was built |
 | Body bytes (A2) arrive late | retired: A2 landed in `arris` 0.4.0 and M1's frozen results use it |
-| Names do not hold through booleans and patterns | M2's naming scenarios, each with its opposite case |
+| Names do not hold through booleans and patterns | kernel half retired by `crates/arrix-kernel/tests/naming_scenarios.rs`, each scenario with its opposite case; the document half by M2's accept |
 | The sketcher port drags in scope | only UI-reachable constraint kinds enabled; the size lint's allowlist watched |
 | The WIT world and the Tier 0 traits drift apart before C3 builds Tier 1 | a test in M1 holding the traits equal to the generated bindings |
 | Replicas and serialised commands cost too much | the command-apply budget, measured in M4 |

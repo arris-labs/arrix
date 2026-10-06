@@ -384,7 +384,7 @@ A step blocked on an ask names it and waits.
 | Ask | What | Needed by | State |
 |---|---|---|---|
 | A1 | consumer roles: `Role::Consumer { namespace, key }` | C1: plugin topology built directly | asked |
-| A2 | body bytes with a compatibility policy | C1: frozen results, fixture operands; C3: the Tier 2 boundary | released in 0.4.0, taken in C1 M1 |
+| A2 | body bytes with a compatibility policy | C1: frozen results (fixture recipes replay the calls: Arris's recipe has no body-bytes operand); C3: the Tier 2 boundary | released in 0.4.0, taken in C1 M1 |
 | A3 | cancellation: an interrupt token, optionally a step budget | C1: superseded evaluations; C4: the browser | asked |
 | A11 | `ops::mirror` | C1: the mirror feature | released in 0.4.0, taken in C1 M2 |
 | A5 | `region2` as public API | C1–C2: sketch regions | asked |

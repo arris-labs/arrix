@@ -34,7 +34,9 @@ landed 2026-10-02**, in three plans: the document, evaluator and
 `LocalSession`, `gears.spur` as a Tier 0 plugin feature; the ported
 sketcher and region references; bodies as inputs, extrude and boolean,
 frozen results and states, schema 2 and the `.arrx` zip, plugin API 0.3,
-`arris` 0.4. The accept is green. **Now:** M2, to be planned.
+`arris` 0.4. The accept is green. **C1 M2** plan 1 of 2 landed 2026-10-06:
+naming at the kernel (revolve, blends, copies), the fixture export,
+`arris` 0.5. **Now:** `c1-m2-features`, to be planned.
 
 ## Rules that are not derivable from the code
 

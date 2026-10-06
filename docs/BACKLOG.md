@@ -15,5 +15,6 @@ idea is not brainstormed twice.
 - The sketch drag over its 4 ms frame budget (34 ms measured, `docs/CONCURRENCY-WASM.md` §Budgets): profile the null-space basis and retract before the budget gates, in M3's sketch-mode plan (plans/c1-m1-sketch step 3)
 - A frozen feature that modified a body input: its `modifies` is unknown without its type, so it cannot be a version; none exists in M1, and a plugin that modifies bodies needs the stored slot's target recorded (plans/c1-m1-slice step 14)
 - A short ADR recording that a modifying slot is a version only while its input is set, if the rule should live in ADR-0007 and not only in `docs/DATA-MODEL.md` §Bodies across features (plans/c1-m1-slice step 6)
+- File with Arris (human): a hole across a fillet fails `cut` as `Internal(Split(Dangling))`, and a stadium fillet of 1 mm or less fails as `Internal(Invariant)`; recipes in `crates/arrix-kernel/tests/recipes/` (plans/c1-m2-naming steps 2, 7, 9)
 
 ## Rejected
