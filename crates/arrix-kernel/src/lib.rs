@@ -2,10 +2,10 @@
 //! render meshes, body bytes and call records (docs/ARCHITECTURE.md §The
 //! kernel choke point).
 //!
-//! Built so far: the `Kernel` service's first slice (`extrude`, `fuse`,
-//! `cut`, `face_frame`, `mass_properties`, `to_bytes`, `from_bytes`), names
-//! from the extrude's and the booleans' provenance, and a `KernelCall`
-//! record made before every call.
+//! Built so far: the `Kernel` service's first slice (`extrude`, `revolve`,
+//! `fuse`, `cut`, `face_frame`, `mass_properties`, `to_bytes`,
+//! `from_bytes`), names from the sweeps' and the booleans' provenance, and
+//! a `KernelCall` record made before every call.
 
 mod bytes;
 mod convert;
@@ -161,9 +161,64 @@ impl Kernel {
             &Control::NONE,
         )
         .map_err(|e| KernelError::op(call, &e))?;
-        let names =
-            naming::extrude_names(&self.model, body, (feature, index), profile, &provenance)
-                .map_err(|message| KernelError::Naming { call, message })?;
+        let names = naming::sweep_names(
+            &self.model,
+            body,
+            naming::Sweep::Extrude,
+            (feature, index),
+            profile,
+            &provenance,
+        )
+        .map_err(|message| KernelError::Naming { call, message })?;
+        Ok(self.push(body, names))
+    }
+
+    /// `profile` revolved `angle` radians (at most a full turn) about the
+    /// axis through `axis_origin` along `axis_direction`, both in the
+    /// world; its entities named as `feature`'s revolve number `index`,
+    /// counted with the extrudes (ADR-0011). A full turn has no end cap
+    /// and its seams are start edges.
+    pub fn revolve(
+        &mut self,
+        feature: FeatureId,
+        index: u32,
+        profile: &Profile,
+        (axis_origin, axis_direction): (DVec3, DVec3),
+        angle: f64,
+    ) -> Result<KernelBody, KernelError> {
+        let call = self.begin(
+            KernelOp::Revolve {
+                feature,
+                index,
+                profile: profile.clone(),
+                axis_origin,
+                axis_direction,
+                angle,
+            },
+            &[],
+        )?;
+        let axis = arris::math::Axis::new(
+            arris::math::Point3::from(convert::vec3(axis_origin)),
+            convert::vec3(axis_direction),
+        )
+        .map_err(|e| KernelError::invalid_input(call, e.to_string()))?;
+        let (body, provenance) = arris::ops::revolve(
+            &mut self.model,
+            &convert::profile(profile),
+            axis,
+            angle,
+            &Control::NONE,
+        )
+        .map_err(|e| KernelError::op(call, &e))?;
+        let names = naming::sweep_names(
+            &self.model,
+            body,
+            naming::Sweep::Revolve,
+            (feature, index),
+            profile,
+            &provenance,
+        )
+        .map_err(|message| KernelError::Naming { call, message })?;
         Ok(self.push(body, names))
     }
 

@@ -3,7 +3,7 @@
 //! data with no Arris type in it, so the evaluator can keep them beside a
 //! diagnostic and a later step can export one as an Arris fixture recipe.
 
-use arrix_core::{FeatureId, PersistentName, Profile};
+use arrix_core::{DVec3, FeatureId, PersistentName, Profile};
 use serde::{Deserialize, Serialize};
 
 /// The Arris release this crate is built against, as `Cargo.lock` pins it.
@@ -56,6 +56,17 @@ pub enum KernelOp {
         index: u32,
         profile: Profile,
         distance: f64,
+    },
+    /// `profile` revolved `angle` radians about the world axis through
+    /// `axis_origin` along `axis_direction`; `feature` and `index` root the
+    /// names as for `Extrude`.
+    Revolve {
+        feature: FeatureId,
+        index: u32,
+        profile: Profile,
+        axis_origin: DVec3,
+        axis_direction: DVec3,
+        angle: f64,
     },
     /// The union of the two operand bodies, target first; `feature` names
     /// the pieces and what the union generated.

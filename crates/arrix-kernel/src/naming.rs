@@ -99,12 +99,38 @@ fn sweep_part(part: SweepPart, keys: &[Vec<CurveKey>]) -> Option<SweepPartName> 
     })
 }
 
-/// The names of an extrude's output. `Err` says what could not be placed:
-/// an origin that is not the extrude's own role, an index the profile
+/// Which sweep made a body: its names are rooted at `sweep.` or
+/// `revolve.` and read the matching role of Arris's provenance.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Sweep {
+    Extrude,
+    Revolve,
+}
+
+impl Sweep {
+    fn root(self, feature: FeatureId, index: u32, part: SweepPartName) -> NameRoot {
+        match self {
+            Sweep::Extrude => NameRoot::Sweep {
+                feature,
+                index,
+                part,
+            },
+            Sweep::Revolve => NameRoot::Revolve {
+                feature,
+                index,
+                part,
+            },
+        }
+    }
+}
+
+/// The names of a sweep's output. `Err` says what could not be placed:
+/// an origin that is not the sweep's own role, an index the profile
 /// lacks, an entity named twice or not at all, a name given twice.
-pub(crate) fn extrude_names(
+pub(crate) fn sweep_names(
     m: &Model,
     body: Body,
+    sweep: Sweep,
     (feature, index): (FeatureId, u32),
     profile: &Profile,
     provenance: &Provenance,
@@ -114,16 +140,17 @@ pub(crate) fn extrude_names(
     let mut by_entity = BTreeMap::new();
     for origin in provenance.origins_recorded() {
         let part = match origin {
-            Origin::Role(Role::Extrude(part)) => part,
+            Origin::Role(Role::Extrude(part)) if sweep == Sweep::Extrude => part,
+            Origin::Role(Role::Revolve(part)) if sweep == Sweep::Revolve => part,
             // A file entity has no name root until C2's import gives it one.
             Origin::Role(Role::File(_)) => {
                 return Err(format!("{origin} is a file entity, not yet nameable"));
             }
-            // A consumer key is ours to give, and an extrude never does.
+            // A consumer key is ours to give, and a sweep never does.
             Origin::Role(Role::Consumer(_)) => {
-                return Err(format!("{origin} is a consumer entity, not an extrude's"));
+                return Err(format!("{origin} is a consumer entity, not a sweep's"));
             }
-            _ => return Err(format!("{origin} is not an extrude's role")),
+            _ => return Err(format!("{origin} is not {sweep:?}'s role")),
         };
         let generated = provenance.generated_from(origin);
         let Some(part) = sweep_part(part, &keys) else {
@@ -133,16 +160,17 @@ pub(crate) fn extrude_names(
             return Err(format!("{origin} names a curve the profile lacks"));
         };
         for shape in generated {
+            // A void's shell (`Cavity`) is made by the role but has no name:
+            // only its faces, edges and vertices do, from their own roles.
+            if matches!(shape.id, EntityId::Shell(_) | EntityId::Body(_)) {
+                continue;
+            }
             let Some(kind) = kind_of(shape.id) else {
                 return Err(format!("{origin} generated {shape}, which is not topology"));
             };
             let name = PersistentName {
                 kind,
-                root: NameRoot::Sweep {
-                    feature,
-                    index,
-                    part,
-                },
+                root: sweep.root(feature, index, part),
                 chain: Vec::new(),
             };
             if let Some(other) = by_entity.insert(shape.id, name.clone()) {

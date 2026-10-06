@@ -65,6 +65,16 @@ impl KernelError {
         }
     }
 
+    /// A call whose arguments Arris was never given because they are not
+    /// a valid input (an axis with no direction).
+    pub(crate) fn invalid_input(call: CallIndex, message: String) -> Self {
+        KernelError::Op {
+            call,
+            code: DiagnosticCode::new("kernel.invalid-input").expect("a literal code"),
+            message,
+        }
+    }
+
     pub(crate) fn bytes(call: CallIndex, e: &BodyError) -> Self {
         let code = DiagnosticCode::new(body_category(e)).expect("every category is well-formed");
         KernelError::Op {

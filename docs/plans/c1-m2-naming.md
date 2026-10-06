@@ -120,7 +120,7 @@ against the same list at step 2.
 - [x] **[2]** Step 5 — `NameStep::Instance` and `NameRoot::Revolve` in
   `arrix-core`: text form, parse errors naming the byte, serde, `proptest`
   round trip of the grammar, the DAG's reads.
-- [ ] **[2]** Step 6 — `revolve` in `arrix-kernel`: the call record, the
+- [x] **[2]** Step 6 — `revolve` in `arrix-kernel`: the call record, the
   names from `Role::Revolve` through the profile's curve keys, a full turn
   (no end cap, seams as start edges) and a cavity, each exactly one name per
   entity.
@@ -216,6 +216,13 @@ Written at planning time; executed before the plan is deleted.
   reference lost its `/mod.<join>.0`; before the edit `arrix eval` said
   `ref.lost` and offered the bare face) and the tests; the `eval` goldens
   hold unchanged, since they carry no names.
+- Found in step 6: a void's `Cavity` role generates a *shell*, which is no
+  face, edge or vertex and has no name; `sweep_names` skips it, and the
+  void's walls are named by their own `Side`, `Rise` and edge roles
+  through the cavity loop's keys (`crates/arrix-kernel/tests/revolve.rs`).
+  `Kernel::revolve` takes the axis as a world point and direction; the
+  host does not offer it to plugins yet (plugin API: step of
+  `c1-m2-features`, with `core.revolve`).
 - Found in step 4: with piece `0` bare, a feature that sweeps twice and
   fuses the sweeps gave two entities one name (`demo.stack` in
   `arrix-plugin-host/tests/tier0.rs`, `kernel.naming`). The human chose a

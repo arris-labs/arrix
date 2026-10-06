@@ -171,7 +171,10 @@ geometry from provenance, and to make every kernel call a record.
   it returns are opaque (`KernelBody`) and valid while a cache entry
   holds them; a plugin sees only its own evaluation's, by handle.
   Built: `extrude` (a keyed `Profile` along its plane's normal, a
-  negative distance against it), `fuse` and `cut` (a target and a tool,
+  negative distance against it), `revolve` (a keyed `Profile` about a world
+  axis, a full turn without an end cap, named as a `revolve` root, a void's
+  shell unnamed; neither sweep is offered to plugins as `revolve` yet),
+  `fuse` and `cut` (a target and a tool,
   both left valid, named through their provenance, §Persistent naming in
   `docs/DATA-MODEL.md`), `face_frame` (outward, planar faces only) and
   `mass_properties` (volume, area, centroid), and `to_bytes`/`from_bytes`
@@ -196,7 +199,8 @@ geometry from provenance, and to make every kernel call a record.
 - **Call records.** Before an operation or query runs, it is described
   by a value: `KernelCall { op, operands, precision, arris_version }`,
   `op` carrying its arguments in ArriX's own types (`KernelOp::Extrude {
-  feature, profile, distance }`), `precision` the recipe's
+  feature, index, profile, distance }`, `index` the feature's sweep number,
+  ADR-0011), `precision` the recipe's
   `default_tolerance`, `arris_version` the locked release (a test holds it
   to `Cargo.lock`). Operands are bodies by content hash (`BodyHash`, the BLAKE3 of the
   body's canonical bytes, made on first use and kept with the body). The `Kernel` keeps every record it made, failed calls
