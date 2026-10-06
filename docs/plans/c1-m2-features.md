@@ -285,7 +285,7 @@ All in `arris` 0.5.0, already pinned; no ask is needed.
   *Done: `apply` in `core_pattern.rs` now takes the copy as a closure, so
   the pattern's `Kernel::copy` and the mirror's `Kernel::mirror` share
   the one boolean-per-copy loop and the `misses` check.*
-- [ ] **[2]** Step 13 — the document-level naming scenarios,
+- [x] **[2]** Step 13 — the document-level naming scenarios,
   `crates/arrix-cli/tests/naming_scenarios.rs`, over one document saved to
   `tests/docs/naming/` (a plate, a pocket, a counterbored hole patterned
   linearly, a boss, a fillet on a top edge, a sketch projecting the
@@ -297,6 +297,14 @@ All in `arris` 0.5.0, already pinned; no ask is needed.
   name. The opposite cases (the referenced edge removed) end in `ref.lost`
   with candidates, and the features that do not read it evaluate. Undo of
   every command returns each earlier save's bytes.
+  *Done: one test, `the_naming_scenarios_by_command`, over a part of 20
+  features; the probes are datum planes on the right side face, copies 1
+  and 2 of the counterbore floor and the boss top. The count goes 3, 4, 2,
+  3, not 5: copy 4 of a 14 mm hole at 9 mm falls centred on the plate's
+  edge, the Arris gap step 11 filed. The opposite cases are copy 2 lost
+  at count 2 and the projection of the redrawn bottom edge lost, each
+  with candidates. `tests/docs/naming/` is new, written with
+  `UPDATE_SNAPSHOTS=1`.*
 
 Each step is one commit. Steps 2 and 6 begin as probes and may rewrite the
 steps after them.

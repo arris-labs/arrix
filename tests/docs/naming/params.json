@@ -1,0 +1,17 @@
+{
+  "3KB37HHSMBZTH": {
+    "expr": "5 mm",
+    "kind": "length",
+    "name": "t"
+  },
+  "E2PTGP209DD49": {
+    "expr": "50 mm",
+    "kind": "length",
+    "name": "w"
+  },
+  "EVQ7AMJVZ35T2": {
+    "expr": "3",
+    "kind": "count",
+    "name": "n"
+  }
+}
