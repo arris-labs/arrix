@@ -18,7 +18,7 @@
 //!   another corner swaps the pieces. Widths, earlier features and the
 //!   tool made first do not move it.
 //! - A hole that crosses a fillet face and the side face below it fails in
-//!   Arris 0.4.0 as `Internal(Split(Dangling))`.
+//!   Arris 0.4.0 and 0.5.0 as `Internal(Split(Dangling))`.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::f64::consts::{FRAC_PI_2, TAU};
@@ -520,18 +520,19 @@ fn second_fillet(second: SweepPart) -> Result<(BTreeMap<EntityId, Fate>, EntityI
 }
 
 #[test]
-fn a_second_fillet_leaves_the_first_alone_or_meets_it_as_a_tangent_chain() {
+fn a_second_fillet_leaves_the_first_alone_or_is_too_large_for_it() {
     // The opposite edge: the first blend face is not in its record.
     let (f, blend) = second_fillet(top(3)).unwrap();
     assert_eq!(census(&f), (0, [21, 8, 9]));
     assert_eq!(f[&blend], Fate::Kept);
-    // An edge the first shortened, ending on its contact: refused.
+    // An edge the first shortened, ending on its contact: refused, as
+    // `TangentChain` by Arris 0.4.0 and as a run-off by 0.5.0.
     let err = second_fillet(top(0)).err().unwrap();
     assert!(
         matches!(
             err,
             OpError::Degenerate {
-                reason: Reason::TangentChain,
+                reason: Reason::BlendTooLarge,
                 ..
             }
         ),

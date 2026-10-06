@@ -44,7 +44,7 @@ unless an ADR says otherwise.
 Crates live in `crates/<name>/`, plugins in `plugins/<name>/` (package
 `arrix-<name>`: `plugins/gears` is `arrix-gears`). External versions are
 pinned once, in the root `Cargo.toml`'s `[workspace.dependencies]`:
-`arris` 0.4, and one egui minor for `egui`, `eframe`, `egui-wgpu` and the
+`arris` 0.5, and one egui minor for `egui`, `eframe`, `egui-wgpu` and the
 dev-only `egui_kittest` (0.36). The table's externals not yet in a
 manifest (`wgpu` directly, `wasmtime`)
 join with the code that needs them; `miniz_oxide` (0.9, deflate, no default

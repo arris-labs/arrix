@@ -106,7 +106,7 @@ against the same list at step 2.
   edit, stop: the idea's option C is back on the table and the human decides.
   *Done: `crates/arrix-kernel/tests/probe_m2.rs`. Piece `0` flips: see the
   first open question. Steps 3 onward wait on it.*
-- [ ] **[1]** Step 3 — take `arris` 0.5: the workspace requirement,
+- [x] **[1]** Step 3 — take `arris` 0.5: the workspace requirement,
   `ARRIS_VERSION`, the lock; the second fillet's probe expects
   `BlendTooLarge` where 0.4.0 said `TangentChain`; `docs/ARCHITECTURE.md`'s
   pin line. Nothing else moves (checked 2026-10-06 in a scratch worktree:
