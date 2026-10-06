@@ -199,7 +199,7 @@ target's slot (§Bodies across features).
 | `core.hole` | points on a planar face (sketch points), diameter, depth or through, counterbore / countersink | a revolved tool profile, then `cut` | C1 |
 | `core.pattern-linear`, `core.pattern-circular` | features or a body, count, spacing | `ops::transform` of the tool or body, then `fuse`/`cut` | C1 |
 | `core.boolean` | a target body, tool bodies, an operation | `fuse`, `common`, `cut` | C1 |
-| `core.mirror` | features or a body, a plane | `ops::mirror` (Arris ask A11) | C1 once A11 is released, else the first cycle after |
+| `core.mirror` | features or a body, a plane | `ops::mirror`, then `fuse`/`cut` | C1 |
 
 `core.extrude` is built: a `region` input (a sketch's region by key), a
 signed `distance` (default 10 mm, along the profile plane's normal), a
@@ -274,6 +274,15 @@ renames none, and a copy's wall is
 `…/inst.<F>.<i>/gen.<F>.<i-1>[<wall>/inst.<F>.<i>]`. A copy that
 cuts nothing, or fuses to nothing it touches, fails as `pattern.misses`.
 A pattern keeps no tool.
+
+`core.mirror` is built: a `target` body input, a `tools` list of tool
+inputs (ADR-0013) and a `plane` input (a datum plane, a sketch plane or a
+planar face, as a frame; its origin and normal are the mirror's). It is a
+pattern of one copy, through `Kernel::mirror` (instance 1 of the feature):
+each tool's reflection is applied to the target with the tool's own
+operation, or, with no tools, the target's reflection is fused into it.
+The codes are `mirror.no-target`, `mirror.no-plane` and `mirror.misses`
+(a reflection that cuts nothing, or fuses to nothing it touches).
 
 `core.boolean` is built (type version 2): a `target` body input, a `tools`
 list of body inputs and an `op` choice, `fuse` (the default), `cut` or

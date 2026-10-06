@@ -42,21 +42,26 @@ pub(crate) fn sources<'a>(args: &'a FeatureArgs, target: &'a Body) -> Vec<(&'a B
     }
 }
 
-/// `target` with every source copied to each placement and applied, one
-/// boolean per copy in the order source by source, copy by copy, so a
-/// copy added at the end renames none that stays (ADR-0014). A copy that
-/// does not meet the body is `<ty>.misses`.
+/// Makes copy `i` of a source: `(kernel, i, source)`.
+pub(crate) type Copier<'a> = dyn Fn(&mut dyn Kernel, u32, &Body) -> Result<Body, Diagnostic> + 'a;
+
+/// `target` with every source copied `copies` times (`make(kernel, i,
+/// source)` is copy `i` from 1) and applied, one boolean per copy in the
+/// order source by source, copy by copy, so a copy added at the end
+/// renames none that stays (ADR-0014). A copy that does not meet the body
+/// is `<ty>.misses`.
 pub(crate) fn apply(
     kernel: &mut dyn Kernel,
     ty: &str,
     target: &Body,
     sources: &[(&Body, ToolOp)],
-    placements: &[Motion],
+    copies: u32,
+    make: &Copier<'_>,
 ) -> Result<Body, Diagnostic> {
     let mut result: Option<Body> = None;
     for (source, op) in sources {
-        for (at, placement) in (1u32..).zip(placements) {
-            let copy = kernel.copy(at, source, placement)?;
+        for at in 1..=copies {
+            let copy = make(kernel, at, source)?;
             let from = result.as_ref().unwrap_or(target);
             let (was, tool) = (kernel.measure(from)?, kernel.measure(&copy)?);
             let next = match op {
@@ -259,7 +264,15 @@ impl FeatureType for CorePattern {
             ));
         }
         let sources = sources(args, target);
-        let body = apply(kernel, "pattern", target, &sources, &placements)?;
+        let copies = u32::try_from(placements.len()).expect("bounded by `MOST`");
+        let body = apply(
+            kernel,
+            "pattern",
+            target,
+            &sources,
+            copies,
+            &|k, at, source| k.copy(at, source, &placements[at as usize - 1]),
+        )?;
         Ok(FeatureOutput {
             slots: vec![SlotOutput {
                 name: self.spec.outputs[0].name.clone(),

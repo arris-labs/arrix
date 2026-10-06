@@ -279,9 +279,12 @@ All in `arris` 0.5.0, already pinned; no ask is needed.
   to file with Arris: a counterbored hole's copy turned by 30 or 45
   degrees fails `cut` as `kernel.naming` (90 and 180 are fine), and a
   counterbored hole's copy centred on the plate's edge fails the same way.*
-- [ ] **[1]** Step 12 — `core.mirror` over a body or features about a
+- [x] **[1]** Step 12 — `core.mirror` over a body or features about a
   `plane` input, through `Kernel::mirror` and ADR-0013's path. Tests: a
   boss mirrored and joined; the mirror plane moved.
+  *Done: `apply` in `core_pattern.rs` now takes the copy as a closure, so
+  the pattern's `Kernel::copy` and the mirror's `Kernel::mirror` share
+  the one boolean-per-copy loop and the `misses` check.*
 - [ ] **[2]** Step 13 — the document-level naming scenarios,
   `crates/arrix-cli/tests/naming_scenarios.rs`, over one document saved to
   `tests/docs/naming/` (a plate, a pocket, a counterbored hole patterned
