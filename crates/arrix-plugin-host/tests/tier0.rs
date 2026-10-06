@@ -182,6 +182,8 @@ fn every_type_registers_under_the_plugins_namespace() {
             "core.extrude",
             "core.fillet",
             "core.hole",
+            "core.pattern-circular",
+            "core.pattern-linear",
             "core.revolve",
             "core.sketch",
             "demo.boom",

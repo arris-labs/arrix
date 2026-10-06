@@ -256,6 +256,25 @@ pattern or a mirror to copy (ADR-0013). A hole that removes nothing is
 `hole.counterbore` and `hole.countersink`. A hole across a fillet is the
 Arris gap in `docs/BACKLOG.md`.
 
+`core.pattern-linear` and `core.pattern-circular` are built: a `target`
+body input, a `tools` list of tool inputs (ADR-0013), a `count` (whole,
+2 to 1000: the source's own work is instance 0, so a count of 1 copies
+nothing, `pattern.count`) and, linear, a `spacing` along its `direction`
+(an axis input: a sketch line or a straight edge, `pattern.no-direction`,
+`pattern.spacing` for zero), circular, an `angle` about its `axis`
+(`pattern.no-axis`, `pattern.angle`). A full turn is shared out among the
+instances; a part of one runs from the first instance to the last. Each
+tool's copies, instances 1 up, are applied to the target one at a time
+with the tool's own operation, tool by tool, copy by copy, one boolean
+each (ADR-0014); with no tools the target's own copies are fused into it,
+a pattern of a body. Fusing a source's copies into one tool and applying it
+once would number that boolean by the count, and raising the count would
+rename every copy that stays; applied one by one, a copy added at the end
+renames none, and a copy's wall is
+`…/inst.<F>.<i>/gen.<F>.<i-1>[<wall>/inst.<F>.<i>]`. A copy that
+cuts nothing, or fuses to nothing it touches, fails as `pattern.misses`.
+A pattern keeps no tool.
+
 `core.boolean` is built (type version 2): a `target` body input, a `tools`
 list of body inputs and an `op` choice, `fuse` (the default), `cut` or
 `common`. Each tool is one kernel call on the result of the one before,

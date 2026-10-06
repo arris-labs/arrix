@@ -263,12 +263,22 @@ All in `arris` 0.5.0, already pinned; no ask is needed.
   hole's faces when a second is added. The fused tools are kept after the
   cuts for step 11. A through hole's tool is 1 m long: the kernel offers no
   extent of a body.*
-- [ ] **[2]** Step 11 — `core.pattern-linear` and `core.pattern-circular`
+- [x] **[2]** Step 11 — `core.pattern-linear` and `core.pattern-circular`
   over a body or over features, per ADR-0013: `count`, `spacing` along a
   `direction` (an `axis`), or `count` and `angle` about an `axis`; copies
   through `Kernel::copy`, fused, applied. Tests: a hole patterned 3, then
   5, then 2: the surviving holes' names unchanged; a pattern of a body
   joined; a copy that misses the target says so.
+  *Done: one `CorePattern` type for both, with `apply` in `core_pattern.rs`
+  for step 12's mirror. The ADR-0013 shape changes once more, for the
+  reason step 10 found: a pattern's copies are applied one by one, not
+  fused into one tool, since the cut's boolean number would be the
+  count's and raising the count would rename every surviving copy. A body
+  pattern is the `target`'s own copies fused into it (no `tools`), not a
+  separate `body` input. Two gaps met and steered around, for the human
+  to file with Arris: a counterbored hole's copy turned by 30 or 45
+  degrees fails `cut` as `kernel.naming` (90 and 180 are fine), and a
+  counterbored hole's copy centred on the plate's edge fails the same way.*
 - [ ] **[1]** Step 12 — `core.mirror` over a body or features about a
   `plane` input, through `Kernel::mirror` and ADR-0013's path. Tests: a
   boss mirrored and joined; the mirror plane moved.

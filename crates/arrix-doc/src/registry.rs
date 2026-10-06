@@ -16,6 +16,7 @@ use crate::core_blend::CoreBlend;
 use crate::core_boolean::CoreBoolean;
 use crate::core_extrude::CoreExtrude;
 use crate::core_hole::CoreHole;
+use crate::core_pattern::CorePattern;
 use crate::core_revolve::CoreRevolve;
 use crate::core_types::{CoreSketch, DatumPlane};
 use crate::document::{FeatureTypeId, InvalidFeatureTypeId};
@@ -147,6 +148,8 @@ impl Registry {
             Arc::new(CoreExtrude::new()),
             Arc::new(CoreBlend::fillet()),
             Arc::new(CoreHole::new()),
+            Arc::new(CorePattern::linear()),
+            Arc::new(CorePattern::circular()),
             Arc::new(CoreRevolve::new()),
             Arc::new(CoreSketch::new()),
         ] {
@@ -266,6 +269,8 @@ mod tests {
                 "core.extrude",
                 "core.fillet",
                 "core.hole",
+                "core.pattern-circular",
+                "core.pattern-linear",
                 "core.revolve",
                 "core.sketch"
             ]
