@@ -177,10 +177,18 @@ geometry from provenance, and to make every kernel call a record.
   `fillet` and `chamfer` (a body and edges by name, `kernel.degenerate.
   blend-too-large` and its siblings with the record kept), `copy` (a
   body moved by a turn and a translation, `Motion`) and `mirror` (both
-  named with an `inst` step), `fuse` and `cut`
+  named with an `inst` step), `fuse`, `cut` and `common`
   (a target and a tool,
   both left valid, named through their provenance, §Persistent naming in
-  `docs/DATA-MODEL.md`), `face_frame` (outward, planar faces only) and
+  `docs/DATA-MODEL.md`; ⚠ OPEN: two of one feature that split the same
+  entity twice clash on a `mod` name and are refused as `kernel.naming`,
+  which a call number in the step would settle, an ADR before a feature
+  makes several booleans on one target), `project` (edges and
+  vertices of a body by name onto a frame, as a `Projected` point, line,
+  anticlockwise arc or circle in the frame's `(u, v)`; an edge seen
+  end-on is `kernel.degenerate.projection-collapses`, an ellipse or a
+  NURBS `kernel.unsupported.projection`, both with the record kept),
+  `face_frame` (outward, planar faces only) and
   `mass_properties` (volume, area, centroid), and `to_bytes`/`from_bytes`
   (ask A2, `arris` 0.4): a body as canonical Arris body bytes with a
   `NameTable`, each persistent name to its entity's index in the written

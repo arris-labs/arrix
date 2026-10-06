@@ -62,7 +62,7 @@ recipe.
   copies their tools, fuses the copies and applies them with each source's
   own mode: the `c1-m2-naming` shape (`inst` steps, raising the count
   renames no copy that stays).
-- **Schema 3** (step 3): list inputs and a sketch entity's projection
+- **Schema 3** (step 4): list inputs and a sketch entity's projection
   source. Migration 2 → 3 is the identity bar the header, with
   `tests/docs/migrations/schema-2/` as its fixture (a copy of
   `tests/docs/slice/`, re-saved to the slice's bytes but the header). An
@@ -85,7 +85,7 @@ recipe.
   sketch's projected entities before the solve (like dimensions, so
   `core.sketch` needs no kernel call of its own) and keeps join/cut tools
   per ADR-0013.
-- **`arrix-plugin-api` 0.4** (step 4). API: minor (breaking under 0.x):
+- **`arrix-plugin-api` 0.4** (step 5). API: minor (breaking under 0.x):
   `Kernel` gains `revolve`, `fillet`, `chamfer`, `common`, `copy`,
   `mirror`; `input-kind` gains `edge`, `point`, `axis`, `tool`;
   `input-spec` gains `list`; `input-value` gains the matching values. The
@@ -124,7 +124,7 @@ All in `arris` 0.5.0, already pinned; no ask is needed.
   (`kernel.unknown-name`), not by the resolver; a frozen source has no
   tool (`input.no-tool`); a type returns its tool as `tool-output` beside
   its slots.*
-- [ ] **[3]** Step 2 — probe tests in `arrix-kernel/tests/probe_m2_features.rs`
+- [x] **[3]** Step 2 — probe tests in `arrix-kernel/tests/probe_m2_features.rs`
   (metres): `common` of a plate and a box (what each piece is named); two
   `cut`s and a `fuse` in one feature (do any two entities share a `gen` or
   `mod` name across the calls?); a counterbored hole tool revolved and
@@ -132,12 +132,30 @@ All in `arris` 0.5.0, already pinned; no ask is needed.
   plate's top edges, a hole's rim and a vertex onto the top face and onto
   a tilted plane. Then `Kernel::common` and `Kernel::project`, recorded,
   with their fixture-recipe steps. If calls in one feature clash, stop:
-  the naming fix is an ADR the human reviews before step 5.
-- [ ] **[2]** Step 3 — schema 3 in `arrix-core` and `arrix-doc`: `Input`,
+  the naming fix is an ADR the human reviews (now step 3).
+  *Done: they clash. A second cut of one feature splits piece `0` of the
+  top face again and names its piece `1` `mod.<F>.1` a second time
+  (`kernel.naming`); under two features, or with the tools fused first
+  and cut once (disjoint or crossing), the names are clean. `common`
+  names as `fuse` does; the counterbored tool moved keeps every name;
+  `project` returns `Projected` (a point, a line, an anticlockwise arc in
+  the plane's `(u, v)`, a circle), end-on edges and revolve seams
+  `projection-collapses`, ellipses `kernel.unsupported.projection`.
+  Step 3 is new, for the human's decision under the open questions.*
+- [ ] **[2]** Step 3 — ADR-0014, several booleans in one feature, as the
+  human decides it under the open questions; then built: as recommended,
+  `fuse`, `cut`, `common`, `fillet` and `chamfer` take the feature's
+  boolean number `n`, written `mod.<F>.<n>.<k>` and `gen.<F>.<n>[…]` with
+  `n` 0 unwritten (as ADR-0011's sweep index), the name grammar in
+  `arrix-core` and its round-trip tests, `probe_m2_features.rs`'s clash
+  test turned to the clean case, `docs/DATA-MODEL.md` §Persistent naming
+  and the ⚠ OPEN in `docs/ARCHITECTURE.md` §The kernel choke point
+  resolved. Blocks steps 5 (the API carries `n`), 7, 11 and 12.
+- [ ] **[2]** Step 4 — schema 3 in `arrix-core` and `arrix-doc`: `Input`,
   the list form in JSON, `FeatureEdit` of a list input with its inverse,
   a sketch entity's `source`, the 2 → 3 link and its fixture, every save
   and undo byte test still green.
-- [ ] **[2]** Step 4 — plugin API 0.4: the WIT world, the Rust traits, the
+- [ ] **[2]** Step 5 — plugin API 0.4: the WIT world, the Rust traits, the
   equality test; the evaluator's host implements the new `Kernel`
   methods over `arrix-kernel` and resolves the new input kinds (a list
   input as its elements in order; an `edge` not on the body is the
@@ -145,7 +163,7 @@ All in `arris` 0.5.0, already pinned; no ask is needed.
   as today; `feature-output.tool` held by the evaluator, ADR-0013).
   `gears` on 0.4; `docs/PLUGINS.md` §One interface and §Versioning in the
   same commit.
-- [ ] **[3]** Step 5 — projection: the evaluator projects each sourced
+- [ ] **[3]** Step 6 — projection: the evaluator projects each sourced
   sketch entity before the solve, `arrix-sketch` holds it fixed, a lost
   source fails the sketch as `ref.lost` naming the entity, an edge-on or
   elliptic projection as its `kernel.*` code. Tests: a sketch on a
@@ -155,24 +173,24 @@ All in `arris` 0.5.0, already pinned; no ask is needed.
   whether `arrix-sketch`'s datum handling already fixes points, and stops
   for the human if fixing them changes the solver's rank or the drag
   policy.
-- [ ] **[1]** Step 6 — `core.boolean` in full: `op` `common`; `tools` a
+- [ ] **[1]** Step 7 — `core.boolean` in full: `op` `common`; `tools` a
   list body input (each consumed), several tools applied one call each.
   `core.boolean`'s `type_version` becomes 2, migrated from 1's single
   `tool` (third open question). Tests beside
   `crates/arrix-doc/tests/core_boolean.rs`.
-- [ ] **[2]** Step 7 — `core.revolve`: a `region`, an `axis`, an `angle`
+- [ ] **[2]** Step 8 — `core.revolve`: a `region`, an `axis`, an `angle`
   (default a full turn), `mode` and `target` as `core.extrude` has them,
   the same failure codes under `revolve.*`. Tests: a full and a partial
   turn, join and cut, an axis through the region (`kernel.*`, record
   kept).
-- [ ] **[2]** Step 8 — `core.fillet` and `core.chamfer` (`core_blend.rs`):
+- [ ] **[2]** Step 9 — `core.fillet` and `core.chamfer` (`core_blend.rs`):
   a `target` body and a list of `edges`; `radius`, or `distance`; the
   slot modifies `target`. Tests: four edges of a plate; a chain named by
   one edge; a blend of a blended edge; an oversize fillet failing as
   `kernel.degenerate.blend-too-large` with its record. `tests/docs/oversize-fillet/`
   replaces `zero-plate` in `crates/arrix-cli/tests/save_fixtures.rs`, and
   its recipe golden parses under the vendored grammar.
-- [ ] **[2]** Step 9 — `core.hole`: a `target`, a list of `points` (sketch
+- [ ] **[2]** Step 10 — `core.hole`: a `target`, a list of `points` (sketch
   points), `diameter`, `extent` choice `blind` (with `depth`) or
   `through`, `kind` choice `simple`, `counterbore` (`cb-diameter`,
   `cb-depth`) or `countersink` (`cs-diameter`, `cs-angle`); one revolved
@@ -180,16 +198,16 @@ All in `arris` 0.5.0, already pinned; no ask is needed.
   Tests: each kind and extent; volumes against the analytic value; a point
   moved keeps every hole's wall and rim names; a point off the body cuts
   nothing and says so (`hole.misses`).
-- [ ] **[2]** Step 10 — `core.pattern-linear` and `core.pattern-circular`
+- [ ] **[2]** Step 11 — `core.pattern-linear` and `core.pattern-circular`
   over a body or over features, per ADR-0013: `count`, `spacing` along a
   `direction` (an `axis`), or `count` and `angle` about an `axis`; copies
   through `Kernel::copy`, fused, applied. Tests: a hole patterned 3, then
   5, then 2: the surviving holes' names unchanged; a pattern of a body
   joined; a copy that misses the target says so.
-- [ ] **[1]** Step 11 — `core.mirror` over a body or features about a
+- [ ] **[1]** Step 12 — `core.mirror` over a body or features about a
   `plane` input, through `Kernel::mirror` and ADR-0013's path. Tests: a
   boss mirrored and joined; the mirror plane moved.
-- [ ] **[2]** Step 12 — the document-level naming scenarios,
+- [ ] **[2]** Step 13 — the document-level naming scenarios,
   `crates/arrix-cli/tests/naming_scenarios.rs`, over one document saved to
   `tests/docs/naming/` (a plate, a pocket, a counterbored hole patterned
   linearly, a boss, a fillet on a top edge, a sketch projecting the
@@ -202,7 +220,7 @@ All in `arris` 0.5.0, already pinned; no ask is needed.
   with candidates, and the features that do not read it evaluate. Undo of
   every command returns each earlier save's bytes.
 
-Each step is one commit. Steps 2 and 5 begin as probes and may rewrite the
+Each step is one commit. Steps 2 and 6 begin as probes and may rewrite the
 steps after them.
 
 ## Acceptance
@@ -252,9 +270,34 @@ Written at planning time; executed before the plan is deleted.
   a hole's point renames the later holes' tools.** Points are taken in id
   order and the sweep index is call order (ADR-0011), so a removal shifts
   the `revolve.<F>.<n>` root of every later hole; moving a point renames
-  nothing. Step 9 states this in `docs/DATA-MODEL.md` §Persistent naming;
+  nothing. Step 10 states this in `docs/DATA-MODEL.md` §Persistent naming;
   a feature giving a sweep its own index is a backlog line, an ADR when a
   scenario needs it.
+- ⚠ OPEN (human, before step 3): **how a feature names several booleans
+  on one target.** Step 2 found that the second of two cuts by one
+  feature splits piece `0` of what the first split and names its piece
+  `1` as the first did, so the result is refused as `kernel.naming`.
+  It concerns `core.boolean` with several tools (step 7: `common` cannot
+  fuse its tools first), a pattern or mirror of features whose sources
+  join and cut (steps 11 and 12, each source applied with its own mode),
+  and any tool-side combination of three or more overlapping tools.
+  `core.hole` (fuse the tools, cut once) is clean either way.
+  (a) *Recommended:* a boolean number in the step, `mod.<F>.<n>.<k>` and
+  `gen.<F>.<n>[…]`, `n` the feature's boolean in call order, 0 not
+  written. It is ADR-0011's answer for sweeps, every existing name and
+  document reads unchanged, and any feature may make any number of
+  booleans. Its cost is a grammar change in `arrix-core`, an `index`
+  argument on five `Kernel` methods and on the 0.4 API, and that a tool
+  inserted earlier renames the later booleans' pieces. That is the trade
+  already accepted for a hole's points.
+  (b) one boolean per target per feature: the tools are combined first
+  (fused for `fuse` and `cut`, intersected for `common`), and a pattern
+  of features is refused when its sources' modes differ. No grammar
+  change, but it restricts ADR-0013, and combining three overlapping
+  tools can still split one entity twice.
+  (c) the split number `k` continued across a feature's calls: rejected
+  in the probe's reading, since `k` would then depend on how many pieces
+  earlier calls made, and an upstream edit would rename.
 - ⚠ OPEN: whether the M1 single-`tool` form of `core.boolean` becomes
-  `type_version` 2 with a migration (planned, step 6) or reads both
-  shapes forever. Agent, at step 6; a type migration is the default.
+  `type_version` 2 with a migration (planned, step 7) or reads both
+  shapes forever. Agent, at step 7; a type migration is the default.

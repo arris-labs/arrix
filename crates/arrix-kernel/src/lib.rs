@@ -3,9 +3,9 @@
 //! kernel choke point).
 //!
 //! Built so far: the `Kernel` service's first slice (`extrude`, `revolve`,
-//! `fuse`, `cut`, `fillet`, `chamfer`, `copy`, `mirror`, `face_frame`,
-//! `mass_properties`, `to_bytes`,
-//! `from_bytes`), names from the sweeps' and the booleans' provenance, a
+//! `fuse`, `cut`, `common`, `fillet`, `chamfer`, `copy`, `mirror`,
+//! `project`, `face_frame`, `mass_properties`, `to_bytes`, `from_bytes`),
+//! names from the sweeps' and the booleans' provenance, a
 //! `KernelCall` record made before every call, and a record's export as
 //! an Arris fixture recipe (`FixtureRecipe`).
 
@@ -14,6 +14,7 @@ mod convert;
 mod error;
 mod fixture;
 mod naming;
+mod project;
 mod record;
 
 use arris::Control;
@@ -26,6 +27,7 @@ pub use bytes::{BodyBytes, NameEntry, NameTable};
 pub use error::KernelError;
 pub use fixture::{FixtureError, FixtureRecipe};
 pub use naming::BodyNames;
+pub use project::Projected;
 pub use record::{ARRIS_VERSION, BodyHash, CallIndex, CallPrecision, KernelCall, KernelOp, Motion};
 
 /// Arris's `fillet` and `chamfer`, one signature.
@@ -263,6 +265,16 @@ impl Kernel {
         self.boolean(KernelOp::Cut { feature }, feature, target, tool)
     }
 
+    /// `target` ∩ `tool`, named as [`fuse`](Kernel::fuse)'s.
+    pub fn common(
+        &mut self,
+        feature: FeatureId,
+        target: KernelBody,
+        tool: KernelBody,
+    ) -> Result<KernelBody, KernelError> {
+        self.boolean(KernelOp::Common { feature }, feature, target, tool)
+    }
+
     fn boolean(
         &mut self,
         op: KernelOp,
@@ -275,7 +287,8 @@ impl Kernel {
         let run = match op {
             KernelOp::Fuse { .. } => arris::ops::fuse,
             KernelOp::Cut { .. } => arris::ops::cut,
-            _ => unreachable!("fuse and cut alone come here"),
+            KernelOp::Common { .. } => arris::ops::common,
+            _ => unreachable!("fuse, cut and common alone come here"),
         };
         let call = self.begin(op, &[target, tool])?;
         let (body, provenance) =
@@ -530,6 +543,65 @@ impl Kernel {
         let frame = arris::ops::query::face_frame(&self.model, used)
             .map_err(|e| KernelError::op(call, &e))?;
         Ok(convert::frame_back(&frame))
+    }
+
+    /// The edges and vertices `names` of `body` projected orthogonally
+    /// onto `plane`, in the order given, in the plane's `(u, v)`. An edge
+    /// seen end-on is `kernel.degenerate.projection-collapses`; one whose
+    /// image is neither a line nor a circle's arc is
+    /// `kernel.unsupported.projection`, since a sketch has no entity for
+    /// it. Both are recorded failures, naming the edge.
+    pub fn project(
+        &mut self,
+        body: KernelBody,
+        names: &[PersistentName],
+        plane: &Frame,
+    ) -> Result<Vec<Projected>, KernelError> {
+        let entry = self.entry(body)?;
+        let mut shapes = Vec::with_capacity(names.len());
+        for name in names {
+            let id = match entry.names.entity(name) {
+                Some(id @ (EntityId::Edge(_) | EntityId::Vertex(_))) => id,
+                Some(_) => {
+                    return Err(KernelError::WrongKind {
+                        name: name.clone(),
+                        wanted: TopoKind::Edge,
+                        found: name.kind,
+                    });
+                }
+                None => return Err(KernelError::UnknownName { name: name.clone() }),
+            };
+            shapes.push(arris::topo::Shape {
+                id,
+                orientation: arris::topo::Orientation::Forward,
+            });
+        }
+        let call = self.begin(
+            KernelOp::Project {
+                names: names.to_vec(),
+                plane: *plane,
+            },
+            &[body],
+        )?;
+        let projections =
+            arris::ops::query::project_to_plane(&self.model, &shapes, &convert::frame(plane))
+                .map_err(|e| KernelError::op(call, &e))?;
+        let mut out = Vec::with_capacity(names.len());
+        for (name, (projection, shape)) in names.iter().zip(projections.iter().zip(&shapes)) {
+            let closed = match shape.id {
+                EntityId::Edge(id) => self
+                    .model
+                    .edge(id)
+                    .map_err(|e| KernelError::op(call, &e.into()))?
+                    .is_closed(),
+                _ => false,
+            };
+            let projected = project::projected(projection, closed).map_err(|what| {
+                KernelError::unsupported(call, "projection", format!("{name} projects to {what}"))
+            })?;
+            out.push(projected);
+        }
+        Ok(out)
     }
 
     pub fn mass_properties(&mut self, body: KernelBody) -> Result<MassProperties, KernelError> {

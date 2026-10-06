@@ -271,6 +271,56 @@ fn a_failed_query_exports_the_body_it_was_asked_of() {
 }
 
 #[test]
+fn a_common_exports_as_arris_s_common_step() {
+    let mut k = Kernel::new();
+    let body = plate(&mut k);
+    // A pin clear of the plate: the two share no material.
+    let tool = pin(&mut k, (60.0, 15.0), 2.0);
+    let err = k.common(HOLE, body, tool).unwrap_err();
+    assert_eq!(err.code().as_str(), "kernel.degenerate.empty");
+    let recipe = arris_fixture::parse(&export(&k, &err).unwrap());
+    assert_eq!(
+        ops(&recipe),
+        [
+            ("c0.profile", "profile"),
+            ("c0", "extrude"),
+            ("c1.profile", "profile"),
+            ("c1", "extrude"),
+            ("c2", "common"),
+        ]
+    );
+    let Step::Common { a, b, .. } = &recipe.steps[4] else {
+        panic!("{:?}", recipe.steps[4])
+    };
+    assert_eq!([a.as_str(), b.as_str()], ["c0", "c1"]);
+    assert_eq!(recipe.result, "c2");
+}
+
+#[test]
+fn a_failed_projection_exports_the_body_it_was_asked_of() {
+    let mut k = Kernel::new();
+    let body = plate(&mut k);
+    let rise = PersistentName {
+        kind: TopoKind::Edge,
+        root: NameRoot::Sweep {
+            feature: PLATE,
+            index: 0,
+            part: SweepPartName::Rise(key(1)),
+        },
+        chain: vec![],
+    };
+    let err = k.project(body, &[rise], &Frame::WORLD_XY).unwrap_err();
+    assert_eq!(
+        err.code().as_str(),
+        "kernel.degenerate.projection-collapses"
+    );
+    let recipe = arris_fixture::parse(&export(&k, &err).unwrap());
+    assert_eq!(ops(&recipe), [("c0.profile", "profile"), ("c0", "extrude")]);
+    assert_eq!(recipe.result, "c0");
+    assert_eq!(recipe.analytic.expect_error, None);
+}
+
+#[test]
 fn a_body_read_from_bytes_has_no_recipe_step() {
     let mut k = Kernel::new();
     let body = plate(&mut k);

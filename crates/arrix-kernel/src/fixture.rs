@@ -99,6 +99,11 @@ enum Step {
         a: String,
         b: String,
     },
+    Common {
+        name: String,
+        a: String,
+        b: String,
+    },
     Cut {
         name: String,
         target: String,
@@ -173,8 +178,8 @@ impl FixtureRecipe {
     /// The recipe of `call` in `records` (a `Kernel`'s, in call order),
     /// which failed as `code`. Its steps are the calls that made the
     /// operands, transitively, named `c<call>`; its result is the call's
-    /// own step, or for a query (a face frame, mass properties, body
-    /// bytes) the body it was asked of. A failure Arris's runner asserts
+    /// own step, or for a query (a projection, a face frame, mass
+    /// properties, body bytes) the body it was asked of. A failure Arris's runner asserts
     /// by type (`blend-too-large`, `unsupported`, …) is its
     /// `analytic.expect_error`; any other is left for the runner to meet.
     pub fn of(
@@ -199,9 +204,10 @@ impl FixtureRecipe {
             push_steps(&mut steps, c, get(records, c)?)?;
         }
         let result = match failed.op {
-            KernelOp::FaceFrame { .. } | KernelOp::MassProperties | KernelOp::ToBytes => {
-                name(failed.sources[0])
-            }
+            KernelOp::Project { .. }
+            | KernelOp::FaceFrame { .. }
+            | KernelOp::MassProperties
+            | KernelOp::ToBytes => name(failed.sources[0]),
             _ => name(call),
         };
         Ok(Self {
@@ -292,6 +298,11 @@ fn push_steps(
             a: operand(0),
             b: operand(1),
         },
+        KernelOp::Common { .. } => Step::Common {
+            name,
+            a: operand(0),
+            b: operand(1),
+        },
         KernelOp::Cut { .. } => Step::Cut {
             name,
             target: operand(0),
@@ -336,7 +347,10 @@ fn push_steps(
                 normal: normal.to_array(),
             },
         },
-        KernelOp::FaceFrame { .. } | KernelOp::MassProperties | KernelOp::ToBytes => return Ok(()),
+        KernelOp::Project { .. }
+        | KernelOp::FaceFrame { .. }
+        | KernelOp::MassProperties
+        | KernelOp::ToBytes => return Ok(()),
         KernelOp::FromBytes { .. } => {
             return Err(FixtureError::NoStep {
                 call,
@@ -393,6 +407,8 @@ fn op_word(op: &KernelOp) -> &'static str {
         KernelOp::Revolve { .. } => "revolve",
         KernelOp::Fuse { .. } => "fuse",
         KernelOp::Cut { .. } => "cut",
+        KernelOp::Common { .. } => "common",
+        KernelOp::Project { .. } => "project",
         KernelOp::Fillet { .. } => "fillet",
         KernelOp::Chamfer { .. } => "chamfer",
         KernelOp::Copy { .. } => "copy",

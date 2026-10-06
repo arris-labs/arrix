@@ -4,7 +4,7 @@
 //! diagnostic and [`fixture`](crate::fixture) can export one as an Arris
 //! fixture recipe.
 
-use arrix_core::{DVec3, FeatureId, PersistentName, Profile};
+use arrix_core::{DVec3, FeatureId, Frame, PersistentName, Profile};
 use serde::{Deserialize, Serialize};
 
 /// The Arris release this crate is built against, as `Cargo.lock` pins it.
@@ -77,6 +77,8 @@ pub enum KernelOp {
     Fuse { feature: FeatureId },
     /// The first operand less the second; `feature` as for `Fuse`.
     Cut { feature: FeatureId },
+    /// The intersection of the two operands; `feature` as for `Fuse`.
+    Common { feature: FeatureId },
     /// The operand body with `edges` rounded at `radius` metres; `feature`
     /// names the blend's entities. `at` holds a point on each edge, in the
     /// same order (its curve at mid-parameter), which is how a fixture
@@ -110,6 +112,12 @@ pub enum KernelOp {
         feature: FeatureId,
         origin: DVec3,
         normal: DVec3,
+    },
+    /// The edges and vertices `names` of the operand body projected onto
+    /// `plane`.
+    Project {
+        names: Vec<PersistentName>,
+        plane: Frame,
     },
     /// The outward frame of a planar face of the operand body.
     FaceFrame { face: PersistentName },

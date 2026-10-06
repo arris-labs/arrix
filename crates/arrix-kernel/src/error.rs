@@ -75,6 +75,17 @@ impl KernelError {
         }
     }
 
+    /// A call Arris answered with something ArriX has no type for (a
+    /// projection to an ellipse): `kernel.unsupported.<what>`.
+    pub(crate) fn unsupported(call: CallIndex, what: &str, message: String) -> Self {
+        KernelError::Op {
+            call,
+            code: DiagnosticCode::new(format!("kernel.unsupported.{what}"))
+                .expect("a literal code"),
+            message,
+        }
+    }
+
     pub(crate) fn bytes(call: CallIndex, e: &BodyError) -> Self {
         let code = DiagnosticCode::new(body_category(e)).expect("every category is well-formed");
         KernelError::Op {
