@@ -280,11 +280,11 @@ fn build(c: &mut Client, i: &Ids) {
     let mut join = with(
         record(i.join, "core.boolean", "Join"),
         &[],
-        &[
-            ("target", slot(i.plate, "body")),
-            ("tool", slot(i.gear, "body")),
-        ],
+        &[("target", slot(i.plate, "body"))],
     );
+    join.type_version = 2;
+    join.inputs
+        .insert("tools".into(), vec![slot(i.gear, "body")].into());
     join.choices.insert("op".into(), "fuse".into());
     for (at, record) in [(2, base), (3, gear), (4, join)] {
         c.submit(Command::AddFeature {

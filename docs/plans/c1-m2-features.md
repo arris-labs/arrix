@@ -212,11 +212,17 @@ All in `arris` 0.5.0, already pinned; no ask is needed.
   `arrix-doc/tests/projected_sketch.rs` (width edit, a drawn line driven,
   the edge redrawn away upstream as `ref.lost`, an end-on edge, a shape
   mismatch).*
-- [ ] **[1]** Step 7 — `core.boolean` in full: `op` `common`; `tools` a
+- [x] **[1]** Step 7 — `core.boolean` in full: `op` `common`; `tools` a
   list body input (each consumed), several tools applied one call each.
   `core.boolean`'s `type_version` becomes 2, migrated from 1's single
   `tool` (third open question). Tests beside
   `crates/arrix-doc/tests/core_boolean.rs`.
+  *Done: the migration is a type-level link run after the schema chain on
+  every open (`migrate::core_types`), not a schema bump, so no document
+  needs a new schema; `tests/docs/slice` was re-saved at version 2 (the
+  diff is the one record) and `migrations/schema-2` stays at version 1 as
+  its fixture. `bodies::effects` now reads every element of a list body
+  input, so each tool is consumed.*
 - [ ] **[2]** Step 8 — `core.revolve`: a `region`, an `axis`, an `angle`
   (default a full turn), `mode` and `target` as `core.extrude` has them,
   the same failure codes under `revolve.*`. Tests: a full and a partial
@@ -338,6 +344,5 @@ Written at planning time; executed before the plan is deleted.
   (c) the split number `k` continued across a feature's calls: rejected
   in the probe's reading, since `k` would then depend on how many pieces
   earlier calls made, and an upstream edit would rename.
-- ⚠ OPEN: whether the M1 single-`tool` form of `core.boolean` becomes
-  `type_version` 2 with a migration (planned, step 7) or reads both
-  shapes forever. Agent, at step 7; a type migration is the default.
+- Decided at step 7 (the agent, the default): `core.boolean` becomes
+  `type_version` 2 with a migration on open, not both shapes forever.

@@ -175,6 +175,7 @@ fn open_with(
         from: e.from,
         message: e.message,
     })?;
+    migrate::core_types(&mut tree);
     let mut doc = Document {
         params: match tree.remove(PARAMS_JSON) {
             Some(v) => from_tree(PARAMS_JSON, v)?,

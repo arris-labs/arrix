@@ -36,14 +36,6 @@ pub(crate) fn effects(registry: &Registry, record: &FeatureRecord) -> Vec<(SlotK
     let spec = ty.spec();
     let mut out = Vec::new();
     for input in spec.inputs.iter().filter(|i| i.kind == InputKind::Body) {
-        let Some(Ref::Slot { feature, slot }) = record.inputs.get(&input.name).and_then(Input::one)
-        else {
-            continue;
-        };
-        let key = SlotKey {
-            feature: *feature,
-            slot: slot.clone(),
-        };
         let modifying = spec
             .outputs
             .iter()
@@ -52,7 +44,18 @@ pub(crate) fn effects(registry: &Registry, record: &FeatureRecord) -> Vec<(SlotK
             Some(s) => Effect::Modifies(s.name.clone()),
             None => Effect::Consumes,
         };
-        out.push((key, effect));
+        // A list input's every element is read alike (ADR-0012).
+        let refs = record.inputs.get(&input.name).map_or(&[][..], Input::refs);
+        for r in refs {
+            let Ref::Slot { feature, slot } = r else {
+                continue;
+            };
+            let key = SlotKey {
+                feature: *feature,
+                slot: slot.clone(),
+            };
+            out.push((key, effect.clone()));
+        }
     }
     out
 }

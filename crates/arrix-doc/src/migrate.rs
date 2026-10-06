@@ -33,6 +33,33 @@ fn schema_2_to_3(_: &mut Tree) -> Result<(), String> {
     Ok(())
 }
 
+/// The core feature types' own migrations, run on every open after the
+/// schema chain (a feature record's `type_version` is migrated by its type,
+/// docs/DATA-MODEL.md §File format). `core.boolean` 1 had one `tool` body
+/// input; 2 has a `tools` list, so a version-1 record's `tool` becomes a
+/// list of one.
+pub(crate) fn core_types(tree: &mut Tree) {
+    for (path, part) in tree.iter_mut() {
+        if !path.starts_with("parts/") {
+            continue;
+        }
+        let Some(features) = part.get_mut("features").and_then(Value::as_object_mut) else {
+            continue;
+        };
+        for record in features.values_mut() {
+            if record["type_id"] == "core.boolean"
+                && record["type_version"] == 1
+                && let Some(inputs) = record["inputs"].as_object_mut()
+            {
+                if let Some(tool) = inputs.remove("tool") {
+                    inputs.insert("tools".into(), Value::Array(vec![tool]));
+                }
+                record["type_version"] = Value::from(2);
+            }
+        }
+    }
+}
+
 /// A migration that failed: which link, and why.
 #[derive(Debug)]
 pub(crate) struct Failed {
@@ -91,6 +118,33 @@ mod tests {
         let mut t = tree(1);
         let e = run(&mut t, 1, &[mark, fail, mark]).unwrap_err();
         assert_eq!((e.from, e.message.as_str()), (2, "no"));
+    }
+
+    #[test]
+    fn a_boolean_of_version_1_gets_a_list_of_tools() {
+        let record = |version: u64| {
+            serde_json::json!({
+                "type_id": "core.boolean", "type_version": version,
+                "inputs": {"target": {"slot": 1}, "tool": {"slot": 2}},
+            })
+        };
+        let mut t = tree(3);
+        t.insert(
+            "parts/P.json".into(),
+            serde_json::json!({"features": {"a": record(1), "b": record(2)}}),
+        );
+        core_types(&mut t);
+        let features = &t["parts/P.json"]["features"];
+        assert_eq!(features["a"]["type_version"], 2);
+        assert_eq!(
+            features["a"]["inputs"]["tools"],
+            serde_json::json!([{"slot": 2}])
+        );
+        assert!(features["a"]["inputs"].get("tool").is_none());
+        assert_eq!(features["b"], record(2), "version 2 is left alone");
+        let again = t.clone();
+        core_types(&mut t);
+        assert_eq!(t, again, "it is idempotent");
     }
 
     #[test]

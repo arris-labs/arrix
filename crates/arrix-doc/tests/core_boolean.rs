@@ -56,7 +56,7 @@ fn record(id: u64, type_id: &str, name: &str) -> FeatureRecord {
     FeatureRecord {
         id: fid(id),
         type_id: FeatureTypeId::new(type_id).unwrap(),
-        type_version: 1,
+        type_version: if type_id == "core.boolean" { 2 } else { 1 },
         name: name.into(),
         params: BTreeMap::new(),
         choices: BTreeMap::new(),
@@ -138,7 +138,7 @@ fn boolean(id: u64, op: &str, tool: u64) -> FeatureRecord {
     r.inputs
         .insert("target".into(), plate_slot(PLATE, "body").into());
     r.inputs
-        .insert("tool".into(), plate_slot(tool, "body").into());
+        .insert("tools".into(), vec![plate_slot(tool, "body")].into());
     r
 }
 
@@ -247,16 +247,157 @@ fn a_boolean_needs_two_bodies_and_a_known_op() {
         ..FeatureEdit::default()
     };
     let wrong_kind = FeatureEdit {
-        inputs: BTreeMap::from([("tool".to_string(), Some(plate_slot(TOP, "plane").into()))]),
+        inputs: BTreeMap::from([(
+            "tools".to_string(),
+            Some(vec![plate_slot(TOP, "plane")].into()),
+        )]),
         ..FeatureEdit::default()
     };
     for (edit, want) in [
-        (clear("tool"), "boolean.no-body"),
+        (clear("tools"), "boolean.no-body"),
         (clear("target"), "boolean.no-body"),
-        (op("common"), "boolean.op"),
+        (op("union"), "boolean.op"),
         (wrong_kind, "input.wrong-kind"),
     ] {
         let e = eval(&edited(&part("fuse"), BOOLEAN, edit));
         assert_eq!(code(&e, BOOLEAN), want);
     }
+}
+
+const SECOND_SKETCH: u64 = 9;
+const SECOND: u64 = 10;
+const THIRD_SKETCH: u64 = 11;
+const THIRD: u64 = 12;
+
+/// `doc` with a second 10 × 10 mm boss, at x = 25 mm on the top plane, and
+/// a third, standing on the world plane at x = 5 mm, which is inside the
+/// plate for the first 5 mm of its 10.
+fn with_more_tools(doc: &Document) -> Document {
+    let second = rect(25.0, 5.0, 10.0, 10.0);
+    let third = rect(5.0, 5.0, 10.0, 10.0);
+    let mut doc = doc.clone();
+    for (at, record) in [
+        (5, sketch(SECOND_SKETCH, Some(TOP), second.clone())),
+        (
+            6,
+            extrude(SECOND, SECOND_SKETCH, &only_region(&second), "new", "10 mm"),
+        ),
+        (7, sketch(THIRD_SKETCH, None, third.clone())),
+        (
+            8,
+            extrude(THIRD, THIRD_SKETCH, &only_region(&third), "new", "10 mm"),
+        ),
+    ] {
+        doc = with(
+            &doc,
+            Command::AddFeature {
+                part: PART,
+                at,
+                record,
+            },
+        );
+    }
+    doc
+}
+
+fn tools(doc: &Document, op: &str, tools: &[u64]) -> Document {
+    let tools: Vec<Ref> = tools.iter().map(|t| plate_slot(*t, "body")).collect();
+    let edit = FeatureEdit {
+        choices: BTreeMap::from([("op".to_string(), Some(op.to_string()))]),
+        inputs: BTreeMap::from([("tools".to_string(), Some(tools.into()))]),
+        ..FeatureEdit::default()
+    };
+    edited(doc, BOOLEAN, edit)
+}
+
+#[test]
+fn several_tools_fuse_one_call_each_and_all_are_consumed() {
+    let doc = tools(&with_more_tools(&part("fuse")), "fuse", &[BOSS, SECOND]);
+    let e = eval(&doc);
+    assert!(
+        near(volume(&e, BOOLEAN), 6000.0 + 2000.0),
+        "{}",
+        volume(&e, BOOLEAN)
+    );
+    // A reader of the second tool finds its slot ended, as the first's.
+    let reader = boolean(AGAIN, "fuse", SECOND);
+    let doc = with(
+        &doc,
+        Command::AddFeature {
+            part: PART,
+            at: 10,
+            record: reader,
+        },
+    );
+    assert_eq!(code(&eval(&doc), AGAIN), "slot.consumed");
+}
+
+#[test]
+fn several_tools_cut_in_turn() {
+    // The third tool is a block inside the plate; the bosses only touch.
+    let doc = tools(
+        &with_more_tools(&part("cut")),
+        "cut",
+        &[BOSS, SECOND, THIRD],
+    );
+    let e = eval(&doc);
+    assert!(
+        near(volume(&e, BOOLEAN), 6000.0 - 500.0),
+        "{}",
+        volume(&e, BOOLEAN)
+    );
+}
+
+#[test]
+fn common_keeps_what_target_and_tool_share() {
+    let doc = tools(&with_more_tools(&part("common")), "common", &[THIRD]);
+    let e = eval(&doc);
+    assert!(near(volume(&e, BOOLEAN), 500.0), "{}", volume(&e, BOOLEAN));
+    // Intersected with a second tool the block only meets along a face, so
+    // nothing is left: the kernel's refusal, from the feature's second call.
+    let both = tools(&doc, "common", &[THIRD, SECOND]);
+    let e = eval(&both);
+    assert_eq!(code(&e, BOOLEAN), "kernel.degenerate.empty");
+    let Some(FeatureOutcome::Failed { call_index, .. }) = e.outcome(fid(BOOLEAN)) else {
+        unreachable!()
+    };
+    assert!(call_index.is_some(), "the failed call's record is kept");
+}
+#[test]
+fn tools_are_a_list_and_a_lone_reference_is_refused() {
+    let lone = FeatureEdit {
+        inputs: BTreeMap::from([("tools".to_string(), Some(plate_slot(BOSS, "body").into()))]),
+        ..FeatureEdit::default()
+    };
+    let e = eval(&edited(&part("fuse"), BOOLEAN, lone));
+    assert_eq!(code(&e, BOOLEAN), "input.list");
+    let empty = tools(&part("fuse"), "fuse", &[]);
+    assert_eq!(code(&eval(&empty), BOOLEAN), "boolean.no-body");
+}
+
+#[test]
+fn a_version_1_record_is_not_evaluated_as_version_2() {
+    let mut doc = part("fuse");
+    let mut old = boolean(BOOLEAN, "fuse", BOSS);
+    old.type_version = 1;
+    let at = doc.parts()[&PART]
+        .history
+        .iter()
+        .position(|f| *f == fid(BOOLEAN))
+        .unwrap();
+    doc = with(
+        &doc,
+        Command::DeleteFeature {
+            feature: fid(BOOLEAN),
+        },
+    );
+    doc = with(
+        &doc,
+        Command::AddFeature {
+            part: PART,
+            at,
+            record: old,
+        },
+    );
+    assert_eq!(code(&eval(&doc), BOOLEAN), "feature.type-version");
 }

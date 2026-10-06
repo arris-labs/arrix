@@ -343,18 +343,20 @@
             "slot": "body"
           }
         },
-        "tool": {
-          "slot": {
-            "feature": "5BJX8TTST7RVD",
-            "slot": "body"
+        "tools": [
+          {
+            "slot": {
+              "feature": "5BJX8TTST7RVD",
+              "slot": "body"
+            }
           }
-        }
+        ]
       },
       "name": "Join",
       "params": {},
       "suppressed": false,
       "type_id": "core.boolean",
-      "type_version": 1
+      "type_version": 2
     }
   },
   "history": [
