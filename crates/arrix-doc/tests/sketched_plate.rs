@@ -108,12 +108,13 @@ fn extrude_directly(v: &SketchView, key: &RegionKey, sides: &[EntityId]) -> f64 
     let profile = region.to_profile(&v.sketch, v.plane).unwrap();
     let feature = FeatureId(Id(900));
     let mut k = Kernel::new();
-    let body = k.extrude(feature, &profile, THICKNESS).unwrap();
+    let body = k.extrude(feature, 0, &profile, THICKNESS).unwrap();
     let names = k.names(body).unwrap();
     for entity in sides {
         let side = PersistentName {
             kind: TopoKind::Face,
             root: NameRoot::Sweep {
+                index: 0,
                 feature,
                 part: SweepPartName::Side(curve_key(*entity, None)),
             },

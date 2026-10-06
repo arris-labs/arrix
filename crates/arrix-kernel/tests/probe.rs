@@ -25,6 +25,7 @@ fn name(kind: TopoKind, part: SweepPartName) -> PersistentName {
     PersistentName {
         kind,
         root: NameRoot::Sweep {
+            index: 0,
             feature: feature(),
             part,
         },
@@ -61,7 +62,7 @@ fn plate() -> Profile {
 #[test]
 fn a_plate_with_a_bore_extrudes_to_its_hand_computed_body() {
     let mut k = Kernel::new();
-    let body = k.extrude(feature(), &plate(), 10.0 * MM).unwrap();
+    let body = k.extrude(feature(), 0, &plate(), 10.0 * MM).unwrap();
     let names = k.names(body).unwrap();
     assert_eq!(
         names.count(TopoKind::Face),
@@ -163,7 +164,7 @@ fn a_sixty_arc_outline_extrudes_to_its_hand_computed_volume() {
     let (profile, area) = scallops();
     let t = 5.0 * MM;
     let mut k = Kernel::new();
-    let body = k.extrude(feature(), &profile, t).unwrap();
+    let body = k.extrude(feature(), 0, &profile, t).unwrap();
     let names = k.names(body).unwrap();
     assert_eq!(names.count(TopoKind::Face), 62);
     assert_eq!(names.count(TopoKind::Edge), 180);
@@ -186,7 +187,7 @@ fn evaluating_twice_gives_identical_names_and_volumes() {
         let mut k = Kernel::new();
         let mut out = Vec::new();
         for profile in [plate(), scallops().0] {
-            let body = k.extrude(feature(), &profile, 7.0 * MM).unwrap();
+            let body = k.extrude(feature(), 0, &profile, 7.0 * MM).unwrap();
             let names: Vec<_> = k.names(body).unwrap().iter().cloned().collect();
             let props = k.mass_properties(body).unwrap();
             out.push((names, props.volume.to_bits(), props.area.to_bits()));
@@ -199,7 +200,7 @@ fn evaluating_twice_gives_identical_names_and_volumes() {
 #[test]
 fn a_negative_distance_extrudes_against_the_normal() {
     let mut k = Kernel::new();
-    let body = k.extrude(feature(), &plate(), -10.0 * MM).unwrap();
+    let body = k.extrude(feature(), 0, &plate(), -10.0 * MM).unwrap();
     let props = k.mass_properties(body).unwrap();
     assert!((props.centroid.z + 0.005).abs() < 1e-12, "{props:?}");
     let start = k
@@ -214,7 +215,7 @@ fn a_negative_distance_extrudes_against_the_normal() {
 #[test]
 fn a_zero_length_extrude_is_a_categorised_error_with_its_record_kept() {
     let mut k = Kernel::new();
-    let err = k.extrude(feature(), &plate(), 0.0).unwrap_err();
+    let err = k.extrude(feature(), 0, &plate(), 0.0).unwrap_err();
     assert_eq!(err.code().as_str(), "kernel.degenerate.not-positive");
     assert_eq!(err.call(), Some(CallIndex(0)));
     let [record] = k.records() else {
@@ -222,7 +223,7 @@ fn a_zero_length_extrude_is_a_categorised_error_with_its_record_kept() {
     };
     assert!(matches!(record.op, KernelOp::Extrude { distance, .. } if distance == 0.0));
 
-    let err = k.extrude(feature(), &plate(), f64::NAN).unwrap_err();
+    let err = k.extrude(feature(), 0, &plate(), f64::NAN).unwrap_err();
     assert_eq!(err.code().as_str(), "kernel.degenerate.non-finite");
     assert_eq!(err.call(), Some(CallIndex(1)));
 }
@@ -230,7 +231,7 @@ fn a_zero_length_extrude_is_a_categorised_error_with_its_record_kept() {
 #[test]
 fn a_query_that_fails_is_recorded_and_categorised() {
     let mut k = Kernel::new();
-    let body = k.extrude(feature(), &plate(), 10.0 * MM).unwrap();
+    let body = k.extrude(feature(), 0, &plate(), 10.0 * MM).unwrap();
     let bore = name(TopoKind::Face, SweepPartName::Side(key(5)));
     let err = k.face_frame(body, &bore).unwrap_err();
     assert_eq!(err.code().as_str(), "kernel.degenerate.not-planar");
@@ -259,7 +260,7 @@ fn a_query_that_fails_is_recorded_and_categorised() {
 #[test]
 fn records_name_their_operands_and_cross_as_json() {
     let mut k = Kernel::new();
-    let body = k.extrude(feature(), &plate(), 10.0 * MM).unwrap();
+    let body = k.extrude(feature(), 0, &plate(), 10.0 * MM).unwrap();
     k.mass_properties(body).unwrap();
     k.face_frame(body, &name(TopoKind::Face, SweepPartName::EndCap))
         .unwrap();
@@ -291,8 +292,10 @@ fn the_recorded_arris_version_is_the_locked_one() {
 #[test]
 fn retain_releases_the_other_bodies_and_keeps_the_kept_ones_whole() {
     let mut k = Kernel::new();
-    let kept = k.extrude(feature(), &plate(), 7.0 * MM).unwrap();
-    let dropped = k.extrude(FeatureId(Id(101)), &plate(), 3.0 * MM).unwrap();
+    let kept = k.extrude(feature(), 0, &plate(), 7.0 * MM).unwrap();
+    let dropped = k
+        .extrude(FeatureId(Id(101)), 0, &plate(), 3.0 * MM)
+        .unwrap();
     let before = k.mass_properties(kept).unwrap();
     k.retain(&BTreeSet::from([kept]));
     assert_eq!(k.mass_properties(kept).unwrap(), before);
@@ -300,7 +303,9 @@ fn retain_releases_the_other_bodies_and_keeps_the_kept_ones_whole() {
         k.mass_properties(dropped),
         Err(KernelError::UnknownBody(dropped))
     );
-    let again = k.extrude(FeatureId(Id(101)), &plate(), 3.0 * MM).unwrap();
+    let again = k
+        .extrude(FeatureId(Id(101)), 0, &plate(), 3.0 * MM)
+        .unwrap();
     assert_ne!(again, dropped, "a released handle is never reused");
     assert_eq!(k.names(kept).unwrap().count(TopoKind::Face), 7);
 }

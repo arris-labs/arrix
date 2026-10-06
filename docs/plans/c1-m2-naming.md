@@ -111,7 +111,7 @@ against the same list at step 2.
   `BlendTooLarge` where 0.4.0 said `TangentChain`; `docs/ARCHITECTURE.md`'s
   pin line. Nothing else moves (checked 2026-10-06 in a scratch worktree:
   every other test green, the slice's goldens included).
-- [ ] **[2]** Step 4 — the B rule in `boolean_names`: piece `0` keeps the
+- [x] **[2]** Step 4 — the B rule in `boolean_names`: piece `0` keeps the
   origin's name; pieces `k > 0` take `mod`; `docs/DATA-MODEL.md` states
   what a split piece's reference follows (first open question). M1's expectations in
   `booleans.rs` and `gear_naming.rs` and the slice's goldens change; their diff
@@ -211,11 +211,18 @@ Written at planning time; executed before the plan is deleted.
   ids; it is a row of `docs/ROADMAP.md` §C1 Arris dependencies, filed in
   Arris's asks by the human. Not chosen: (b) the idea's option C, a
   forward-closure resolver.
-- ⚠ OPEN: M1's scenario documents (`tests/docs/slice`) and the goldens
-  contain `mod.<F>.0` names. Preferred: no schema bump, because C1 is
-  unreleased; the documents and goldens are regenerated in step 4 and the
-  diff read. Who: human, by step 4. A schema 3 with a migration rewriting
-  `…/mod.<F>.0` is the alternative.
+- Decided 2026-10-06 (the human chose A): no schema bump. Step 4 edited
+  `tests/docs/slice/parts/F7Y3N3HJPEEDE.json` (the pocket sketch's
+  reference lost its `/mod.<join>.0`; before the edit `arrix eval` said
+  `ref.lost` and offered the bare face) and the tests; the `eval` goldens
+  hold unchanged, since they carry no names.
+- Found in step 4: with piece `0` bare, a feature that sweeps twice and
+  fuses the sweeps gave two entities one name (`demo.stack` in
+  `arrix-plugin-host/tests/tier0.rs`, `kernel.naming`). The human chose a
+  sweep index in the sweep root: ADR-0011. `NameRoot::Sweep` has `index`
+  (0 not written), the host counts a feature's sweeps, `Kernel::extrude`
+  takes it. Step 5's revolve root takes the same `index`; step 6's
+  `revolve` is counted with the extrudes. The backlog line is removed.
 - ⚠ OPEN: how "reproduces in Arris's fixture runner" is checked. Preferred:
   the recipe is validated in the test against a copy of Arris's fixture
   schema vendored under `tests/` (no `path =` dependency), and the real runner

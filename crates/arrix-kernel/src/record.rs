@@ -48,9 +48,12 @@ pub struct KernelCall {
 #[serde(tag = "op", rename_all = "snake_case")]
 pub enum KernelOp {
     /// `profile` swept along its plane's normal by `distance` metres; a
-    /// negative distance sweeps against it. `feature` roots the names.
+    /// negative distance sweeps against it. `feature` roots the names, as
+    /// its sweep number `index` (ADR-0011).
     Extrude {
         feature: FeatureId,
+        #[serde(default)]
+        index: u32,
         profile: Profile,
         distance: f64,
     },

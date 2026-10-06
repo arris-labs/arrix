@@ -139,6 +139,7 @@ pub(super) fn face(feature: u64, part: SweepPartName) -> PersistentName {
     PersistentName {
         kind: TopoKind::Face,
         root: NameRoot::Sweep {
+            index: 0,
             feature: fid(feature),
             part,
         },

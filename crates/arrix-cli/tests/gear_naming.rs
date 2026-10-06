@@ -35,6 +35,7 @@ fn gear_face(part: SweepPartName) -> PersistentName {
     PersistentName {
         kind: TopoKind::Face,
         root: NameRoot::Sweep {
+            index: 0,
             feature: GEAR,
             part,
         },
@@ -205,6 +206,7 @@ fn a_flank_whose_tooth_is_gone_is_a_lost_reference_never_a_rebind() {
             matches!(
                 name.root,
                 NameRoot::Sweep {
+                    index: 0,
                     feature: GEAR,
                     part: SweepPartName::Side(_)
                 }

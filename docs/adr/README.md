@@ -49,3 +49,4 @@ Each rejected option and the one-line reason it lost.
 - [ADR-0008](0008-a-body-input-is-an-owned-handle.md): a body input is an owned handle, not a borrow
 - [ADR-0009](0009-frozen-results-are-evaluation-output.md): a frozen result is evaluation output kept by the session and written on save, not a command
 - [ADR-0010](0010-the-single-piece-rule-instances-and-the-revolve-root.md): piece 0 of a split keeps its name; the Instance step and the revolve root
+- [ADR-0011](0011-a-sweep-index-in-the-sweep-root.md): a sweep index in the sweep root, so a feature's two sweeps name their caps apart

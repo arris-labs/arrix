@@ -20,6 +20,7 @@ fn side(key: CurveKey) -> PersistentName {
     PersistentName {
         kind: TopoKind::Face,
         root: NameRoot::Sweep {
+            index: 0,
             feature: feature(),
             part: SweepPartName::Side(key),
         },
@@ -48,7 +49,7 @@ fn a_sketched_plate_with_a_bore_extrudes_with_its_sides_named_by_their_entities(
     let profile = find_regions(&d)[0].to_profile(&d, Frame::WORLD_XY).unwrap();
 
     let mut k = Kernel::new();
-    let body = k.extrude(feature(), &profile, 5.0 * MM).unwrap();
+    let body = k.extrude(feature(), 0, &profile, 5.0 * MM).unwrap();
     let volume = k.mass_properties(body).unwrap().volume;
     let want = (40.0 * 30.0 - PI * 5.0 * 5.0) * 5.0 * MM.powi(3);
     assert!((volume - want).abs() <= 1e-9 * want, "{volume} vs {want}");
@@ -78,7 +79,7 @@ fn a_region_an_entity_bounds_twice_extrudes_with_unique_names() {
     let profile = find_regions(&d)[0].to_profile(&d, Frame::WORLD_XY).unwrap();
 
     let mut k = Kernel::new();
-    let body = k.extrude(feature(), &profile, 5.0 * MM).unwrap();
+    let body = k.extrude(feature(), 0, &profile, 5.0 * MM).unwrap();
     let volume = k.mass_properties(body).unwrap().volume;
     let want = (40.0 * 30.0 - 20.0 * 10.0) * 5.0 * MM.powi(3);
     assert!((volume - want).abs() <= 1e-9 * want, "{volume} vs {want}");

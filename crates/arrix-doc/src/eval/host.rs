@@ -30,6 +30,9 @@ pub(crate) struct FeatureKernel<'k> {
     feature: FeatureId,
     /// The feature's bodies; a plugin's handle is an index here.
     bodies: Vec<KernelBody>,
+    /// The sweeps the feature has made so far, the next one's index in
+    /// its names (ADR-0011).
+    sweeps: u32,
     /// The call the last kernel failure is recorded at.
     pub(crate) failed: Option<CallIndex>,
 }
@@ -42,6 +45,7 @@ impl<'k> FeatureKernel<'k> {
             kernel,
             feature,
             bodies: inputs,
+            sweeps: 0,
             failed: None,
         }
     }
@@ -87,7 +91,9 @@ impl<'k> FeatureKernel<'k> {
 
 impl arrix_plugin_api::Kernel for FeatureKernel<'_> {
     fn extrude(&mut self, profile: &Profile, distance: f64) -> Result<Body, Diagnostic> {
-        let r = self.kernel.extrude(self.feature, profile, distance);
+        let index = self.sweeps;
+        self.sweeps += 1;
+        let r = self.kernel.extrude(self.feature, index, profile, distance);
         let body = self.take(r)?;
         Ok(self.hand_out(body))
     }

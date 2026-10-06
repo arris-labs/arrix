@@ -14,7 +14,6 @@ idea is not brainstormed twice.
 - Sketch mode's remaining ports: the sketch fillet, auto-constrain with validation's gap closing, and the constraint descriptions, when M3's sketch mode reaches them (plans/c1-m1-sketch steps 4 and 6)
 - The sketch drag over its 4 ms frame budget (34 ms measured, `docs/CONCURRENCY-WASM.md` §Budgets): profile the null-space basis and retract before the budget gates, in M3's sketch-mode plan (plans/c1-m1-sketch step 3)
 - A frozen feature that modified a body input: its `modifies` is unknown without its type, so it cannot be a version; none exists in M1, and a plugin that modifies bodies needs the stored slot's target recorded (plans/c1-m1-slice step 14)
-- A feature that sweeps twice names both caps alike (`face:sweep.<feature>.end-cap`), so a boolean over both can give two entities one name; a keyed cap or a sweep index in the root, in M2's naming plan before `core.hole` and the patterns (plans/c1-m1-slice step 4)
 - A short ADR recording that a modifying slot is a version only while its input is set, if the rule should live in ADR-0007 and not only in `docs/DATA-MODEL.md` §Bodies across features (plans/c1-m1-slice step 6)
 
 ## Rejected

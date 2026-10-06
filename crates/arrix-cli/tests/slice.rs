@@ -2,7 +2,7 @@
 //! by commands alone through `LocalSession` with `gears` compiled in: a
 //! sketched plate extruded, a datum plane on its top face, a spur gear on
 //! that plane fused to the plate, and a pocket sketched on the joined top
-//! face (a `mod` name) and cut. It also writes `tests/docs/slice/`, the
+//! face (kept by its name, ADR-0010) and cut. It also writes `tests/docs/slice/`, the
 //! document `arrix eval` prints a golden line for.
 
 mod common;
@@ -67,6 +67,7 @@ impl Ids {
         PersistentName {
             kind: TopoKind::Face,
             root: NameRoot::Sweep {
+                index: 0,
                 feature: self.plate,
                 part: SweepPartName::EndCap,
             },
@@ -75,7 +76,7 @@ impl Ids {
     }
 
     fn joined_top(&self) -> PersistentName {
-        format!("face:sweep.{}.end-cap/mod.{}.0", self.plate, self.join)
+        format!("face:sweep.{}.end-cap", self.plate)
             .parse()
             .unwrap()
     }

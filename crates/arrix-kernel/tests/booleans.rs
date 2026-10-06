@@ -48,7 +48,7 @@ fn rectangle(plane: Frame, (x0, y0): (f64, f64), (x1, y1): (f64, f64), first: u6
 /// A `w` × 30 × 5 mm plate on the XY plane, sides keyed 1–4.
 fn plate(k: &mut Kernel, w: f64) -> KernelBody {
     let profile = rectangle(Frame::WORLD_XY, (0.0, 0.0), (w, 30.0), 1);
-    k.extrude(PLATE, &profile, 5.0 * MM).unwrap()
+    k.extrude(PLATE, 0, &profile, 5.0 * MM).unwrap()
 }
 
 /// A 4 mm boss, 10 mm tall, standing on the plate's top at (20, 15) mm.
@@ -59,13 +59,13 @@ fn boss(k: &mut Kernel) -> KernelBody {
         radius: 4.0 * MM,
     };
     let profile = Profile::new(plane_at(5.0 * MM), circle, vec![]).unwrap();
-    k.extrude(BOSS, &profile, 10.0 * MM).unwrap()
+    k.extrude(BOSS, 0, &profile, 10.0 * MM).unwrap()
 }
 
 /// A 10 × 6 mm pocket through the plate, from 1 mm below it to 1 mm above.
 fn pocket(k: &mut Kernel) -> KernelBody {
     let profile = rectangle(plane_at(-MM), (5.0, 5.0), (15.0, 11.0), 21);
-    k.extrude(POCKET, &profile, 7.0 * MM).unwrap()
+    k.extrude(POCKET, 0, &profile, 7.0 * MM).unwrap()
 }
 
 fn close(a: f64, b: f64) -> bool {
@@ -75,14 +75,13 @@ fn close(a: f64, b: f64) -> bool {
 fn sweep(kind: TopoKind, feature: FeatureId, part: SweepPartName) -> PersistentName {
     PersistentName {
         kind,
-        root: NameRoot::Sweep { feature, part },
+        root: NameRoot::Sweep {
+            index: 0,
+            feature,
+            part,
+        },
         chain: vec![],
     }
-}
-
-fn with(mut name: PersistentName, step: NameStep) -> PersistentName {
-    name.chain.push(step);
-    name
 }
 
 fn all_names(k: &Kernel, body: KernelBody) -> Vec<String> {
@@ -138,32 +137,18 @@ fn a_boss_fused_and_a_pocket_cut_give_their_hand_computed_bodies() {
     let v = k.mass_properties(cut).unwrap().volume;
     assert!(close(v, plate_v + boss_v - pocket_v), "{v}");
 
-    // What neither boolean touched keeps its extrude's name; the top face,
-    // holed twice, is one piece of itself each time.
+    // What neither boolean split keeps its extrude's name (ADR-0010): the
+    // top face, holed twice, is one piece of itself each time, piece 0.
     let side = sweep(TopoKind::Face, PLATE, SweepPartName::Side(key(2)));
     let top = sweep(TopoKind::Face, PLATE, SweepPartName::EndCap);
     let boss_top = sweep(TopoKind::Face, BOSS, SweepPartName::EndCap);
-    let top_now = with(
-        with(
-            top.clone(),
-            NameStep::Modified {
-                feature: JOIN,
-                split: 0,
-            },
-        ),
-        NameStep::Modified {
-            feature: CUT,
-            split: 0,
-        },
-    );
-    for name in [&side, &boss_top, &top_now] {
+    for name in [&side, &boss_top, &top] {
         assert!(names.contains(name), "{name} in {:#?}", all_names(&k, cut));
     }
-    assert!(!names.contains(&top), "the top face was changed");
     // Every entity has one name, every name one entity, and the frames
     // still come through them.
     assert_eq!(names.iter().count(), 12 + 27 + 18);
-    let frame = k.face_frame(cut, &top_now).unwrap();
+    let frame = k.face_frame(cut, &top).unwrap();
     assert!((frame.z_axis() - DVec3::Z).length() < 1e-12);
 }
 
@@ -223,39 +208,65 @@ fn a_boolean_twice_from_fresh_state_gives_identical_names_and_volumes() {
 fn channel_and_hole(k: &mut Kernel, w: f64) -> KernelBody {
     let p = plate(k, w);
     let profile = rectangle(plane_at(3.0 * MM), (18.0, -1.0), (22.0, 31.0), 31);
-    let tool = k.extrude(POCKET, &profile, 3.0 * MM).unwrap();
+    let tool = k.extrude(POCKET, 0, &profile, 3.0 * MM).unwrap();
     let channelled = k.cut(CUT, p, tool).unwrap();
     let profile = rectangle(plane_at(-MM), (8.0, 8.0), (11.0, 11.0), 41);
-    let hole = k.extrude(FeatureId(Id(6)), &profile, 7.0 * MM).unwrap();
+    let hole = k.extrude(FeatureId(Id(6)), 0, &profile, 7.0 * MM).unwrap();
     k.cut(FeatureId(Id(7)), channelled, hole).unwrap()
 }
 
 #[test]
 fn a_split_face_s_pieces_keep_their_index_across_a_width_edit() {
     // At 30 mm the left piece (18 mm) is the larger, at 50 mm the right
-    // (28 mm): the index follows what bounds a piece, not its size.
+    // (28 mm): the index follows what bounds a piece, not its size. Piece 0
+    // keeps the top face's name, piece 1 is `mod.<cut>.1` (ADR-0010); the
+    // holed piece is told by the rim edges generated from it.
     let left_piece = |w| {
         let mut k = Kernel::new();
         let body = channel_and_hole(&mut k, w);
         let top = sweep(TopoKind::Face, PLATE, SweepPartName::EndCap);
-        let mut splits = Vec::new();
-        for name in k.names(body).unwrap().of_kind(TopoKind::Face) {
+        let faces: Vec<_> = k
+            .names(body)
+            .unwrap()
+            .of_kind(TopoKind::Face)
+            .cloned()
+            .collect();
+        let mut holed = Vec::new();
+        let edges: Vec<_> = k
+            .names(body)
+            .unwrap()
+            .of_kind(TopoKind::Edge)
+            .cloned()
+            .collect();
+        for name in &edges {
+            if let Some(NameStep::Generated { feature, from }) = name.chain.last()
+                && *feature == FeatureId(Id(7))
+            {
+                holed.extend(from.iter().filter(|f| f.root == top.root).cloned());
+            }
+        }
+        let mut pieces = Vec::new();
+        for name in &faces {
             if name.root != top.root {
                 continue;
             }
-            let [NameStep::Modified { feature, split }, rest @ ..] = &name.chain[..] else {
-                panic!("the top face is split: {name}");
+            let split = match &name.chain[..] {
+                [] => 0,
+                [NameStep::Modified { feature, split }] => {
+                    assert_eq!(*feature, CUT);
+                    *split
+                }
+                _ => panic!("a top piece is piece 0 or a cut's piece: {name}"),
             };
-            assert_eq!(*feature, CUT);
-            let holed = matches!(rest, [NameStep::Modified { feature, split: 0 }] if *feature == FeatureId(Id(7)));
-            splits.push((*split, holed));
+            pieces.push((split, holed.contains(name)));
         }
-        splits.sort();
-        splits
+        pieces.sort_by_key(|p| p.0);
+        pieces
     };
     let narrow = left_piece(30.0);
     assert_eq!(narrow.len(), 2, "{narrow:?}");
-    assert_eq!(narrow.iter().filter(|(_, holed)| *holed).count(), 1);
+    assert_eq!(narrow.iter().map(|p| p.0).collect::<Vec<_>>(), [0, 1]);
+    assert_eq!(narrow.iter().filter(|(_, left)| *left).count(), 1);
     assert_eq!(narrow, left_piece(50.0), "{narrow:?}");
 }
 

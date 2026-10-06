@@ -105,7 +105,7 @@ fn sweep_part(part: SweepPart, keys: &[Vec<CurveKey>]) -> Option<SweepPartName> 
 pub(crate) fn extrude_names(
     m: &Model,
     body: Body,
-    feature: FeatureId,
+    (feature, index): (FeatureId, u32),
     profile: &Profile,
     provenance: &Provenance,
 ) -> Result<BodyNames, String> {
@@ -138,7 +138,11 @@ pub(crate) fn extrude_names(
             };
             let name = PersistentName {
                 kind,
-                root: NameRoot::Sweep { feature, part },
+                root: NameRoot::Sweep {
+                    feature,
+                    index,
+                    part,
+                },
                 chain: Vec::new(),
             };
             if let Some(other) = by_entity.insert(shape.id, name.clone()) {
@@ -174,9 +178,10 @@ pub(crate) fn entities(m: &Model, body: Body) -> Result<Vec<EntityId>, String> {
 }
 
 /// The names of a boolean's output, from its operands' names and its
-/// provenance. An entity the boolean left alone keeps its name. A piece
-/// is its origin's name with `mod.<feature>.<k>`, `k` its place in
-/// Arris's split order (ADR-0009 there), the target's origin first where
+/// provenance. An entity the boolean left alone keeps its name. Piece `0`
+/// of an origin's split order (ADR-0009 in Arris) keeps the origin's
+/// name (ADR-0010); a piece `k > 0` is that name with
+/// `mod.<feature>.<k>`. The target's origin comes first where
 /// both operands give one (the flush case). An entity the boolean made
 /// is `gen.<feature>[…]` of its origins' names, sorted, after the root
 /// and chain of the first of them, since a name has a root. `Err` says
@@ -210,10 +215,12 @@ pub(crate) fn boolean_names(
         };
         for (k, shape) in provenance.modified_from(origin).iter().enumerate() {
             let mut name = from_name.clone();
-            name.chain.push(NameStep::Modified {
-                feature,
-                split: u32::try_from(k).expect("under 2³² pieces"),
-            });
+            if k > 0 {
+                name.chain.push(NameStep::Modified {
+                    feature,
+                    split: u32::try_from(k).expect("under 2³² pieces"),
+                });
+            }
             pieces.entry(shape.id).or_default().push((operand, name));
         }
         for shape in provenance.generated_from(origin) {

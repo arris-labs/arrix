@@ -53,6 +53,7 @@ impl Ids {
         PersistentName {
             kind: TopoKind::Face,
             root: NameRoot::Sweep {
+                index: 0,
                 feature: self.gear,
                 part,
             },

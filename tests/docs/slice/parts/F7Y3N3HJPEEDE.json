@@ -57,7 +57,7 @@
       "id": "535B2GGCACYRR",
       "inputs": {
         "plane": {
-          "topo": "face:sweep.5BE3HE4D204QM.end-cap/mod.EDR6PVVF7Z9Z0.0"
+          "topo": "face:sweep.5BE3HE4D204QM.end-cap"
         }
       },
       "name": "Sketch 5",

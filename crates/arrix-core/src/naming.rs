@@ -8,7 +8,7 @@
 //! ```text
 //! name  := kind ':' root ('/' step)*
 //! kind  := 'face' | 'edge' | 'vertex'
-//! root  := 'sweep.' ID '.' part | 'plugin.' ID '.' ID | 'frozen.' ID '.' N
+//! root  := 'sweep.' ID ('.' N)? '.' part | 'plugin.' ID '.' ID | 'frozen.' ID '.' N
 //! part  := 'start-cap' | 'end-cap' | curve-part '.' ID
 //! step  := 'mod.' ID '.' N | 'gen.' ID '[' name (',' name)* ']'
 //! ```
@@ -51,6 +51,9 @@ pub enum NameRoot {
     /// A part of a sweep (extrude or revolve) made by `feature`.
     Sweep {
         feature: FeatureId,
+        /// Which of the feature's sweeps, from 0 in call order; 0 is not
+        /// written (ADR-0011).
+        index: u32,
         part: SweepPartName,
     },
     /// Topology a plugin feature built directly, at a key it chose
@@ -139,8 +142,15 @@ impl fmt::Display for PersistentName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}:", self.kind.as_str())?;
         match &self.root {
-            NameRoot::Sweep { feature, part } => {
+            NameRoot::Sweep {
+                feature,
+                index,
+                part,
+            } => {
                 write!(f, "sweep.{feature}.")?;
+                if *index > 0 {
+                    write!(f, "{index}.")?;
+                }
                 match part.word() {
                     (word, Some(key)) => write!(f, "{word}.{key}")?,
                     (word, None) => f.write_str(word)?,
@@ -268,6 +278,15 @@ impl<'a> Reader<'a> {
         self.expect(".", "expected '.' after the root's feature")?;
         match word {
             "sweep" => {
+                let mut index = 0;
+                if self.rest().starts_with(|c: char| c.is_ascii_digit()) {
+                    let at = self.at;
+                    index = self.number()?;
+                    if index == 0 {
+                        return Err((at, "a sweep index of 0 is not written"));
+                    }
+                    self.expect(".", "expected '.' after the sweep index")?;
+                }
                 let part_at = self.at;
                 let part = match self.word() {
                     "start-cap" => SweepPartName::StartCap,
@@ -282,7 +301,11 @@ impl<'a> Reader<'a> {
                         SweepPartName::from_word(other, key).expect("the word was checked")
                     }
                 };
-                Ok(NameRoot::Sweep { feature, part })
+                Ok(NameRoot::Sweep {
+                    feature,
+                    index,
+                    part,
+                })
             }
             "plugin" => Ok(NameRoot::Plugin {
                 feature,
@@ -374,10 +397,31 @@ mod tests {
             kind: TopoKind::Face,
             root: NameRoot::Sweep {
                 feature: fid(feature),
+                index: 0,
                 part: SweepPartName::Side(CurveKey(Id(curve))),
             },
             chain: vec![],
         }
+    }
+
+    #[test]
+    fn a_sweep_index_is_written_after_index_0() {
+        let mut name = side(1, 2);
+        let NameRoot::Sweep { index, .. } = &mut name.root else {
+            unreachable!()
+        };
+        *index = 3;
+        let text = "face:sweep.0000000000001.3.side.0000000000002";
+        assert_eq!(name.to_string(), text);
+        assert_eq!(text.parse::<PersistentName>(), Ok(name));
+        // Index 0 is the bare form, and is not written as a number.
+        let err = "face:sweep.0000000000001.0.end-cap"
+            .parse::<PersistentName>()
+            .unwrap_err();
+        assert_eq!(
+            (err.at, err.reason),
+            (25, "a sweep index of 0 is not written")
+        );
     }
 
     #[test]
@@ -395,6 +439,7 @@ mod tests {
             kind: TopoKind::Face,
             root: NameRoot::Sweep {
                 feature: fid(1),
+                index: 0,
                 part: SweepPartName::EndCap,
             },
             chain: vec![],
@@ -487,8 +532,13 @@ mod tests {
     fn arb_root() -> impl Strategy<Value = NameRoot> {
         let feature = arb_id().prop_map(FeatureId);
         prop_oneof![
-            (feature.clone(), arb_part())
-                .prop_map(|(feature, part)| NameRoot::Sweep { feature, part }),
+            (feature.clone(), any::<u32>(), arb_part()).prop_map(|(feature, index, part)| {
+                NameRoot::Sweep {
+                    feature,
+                    index,
+                    part,
+                }
+            }),
             (feature.clone(), arb_id())
                 .prop_map(|(feature, key)| NameRoot::Plugin { feature, key }),
             (feature, any::<u32>())

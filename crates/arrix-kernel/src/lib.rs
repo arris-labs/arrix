@@ -134,16 +134,19 @@ impl Kernel {
     }
 
     /// `profile` swept `distance` metres along its plane's normal, or
-    /// against it when negative; its entities named as `feature`'s sweep.
+    /// against it when negative; its entities named as `feature`'s sweep
+    /// number `index` (ADR-0011).
     pub fn extrude(
         &mut self,
         feature: FeatureId,
+        index: u32,
         profile: &Profile,
         distance: f64,
     ) -> Result<KernelBody, KernelError> {
         let call = self.begin(
             KernelOp::Extrude {
                 feature,
+                index,
                 profile: profile.clone(),
                 distance,
             },
@@ -158,8 +161,9 @@ impl Kernel {
             &Control::NONE,
         )
         .map_err(|e| KernelError::op(call, &e))?;
-        let names = naming::extrude_names(&self.model, body, feature, profile, &provenance)
-            .map_err(|message| KernelError::Naming { call, message })?;
+        let names =
+            naming::extrude_names(&self.model, body, (feature, index), profile, &provenance)
+                .map_err(|message| KernelError::Naming { call, message })?;
         Ok(self.push(body, names))
     }
 

@@ -38,7 +38,7 @@ impl arrix_plugin_api::Kernel for Host {
     fn extrude(&mut self, profile: &Profile, distance: f64) -> Result<Body, Diagnostic> {
         let b = self
             .kernel
-            .extrude(FeatureId(Id(7)), profile, distance)
+            .extrude(FeatureId(Id(7)), 0, profile, distance)
             .map_err(diag)?;
         self.bodies.push(b);
         Ok(Body::from_handle(self.bodies.len() as u32 - 1))
@@ -289,7 +289,7 @@ fn gear_on_plate() -> (Vec<String>, Vec<String>, [u64; 2], ProfileLoop) {
         ],
     };
     let rectangle = Profile::new(Frame::WORLD_XY, rectangle, vec![]).unwrap();
-    let plate = k.extrude(plate, &rectangle, 5.0 * MM).unwrap();
+    let plate = k.extrude(plate, 0, &rectangle, 5.0 * MM).unwrap();
     let spur = Spur {
         teeth: 20,
         module: MM,
@@ -305,7 +305,7 @@ fn gear_on_plate() -> (Vec<String>, Vec<String>, [u64; 2], ProfileLoop) {
         .unwrap()
     };
     let profile = Profile::new(at(5.0), outline.clone(), vec![]).unwrap();
-    let gear = k.extrude(gear, &profile, 8.0 * MM).unwrap();
+    let gear = k.extrude(gear, 0, &profile, 8.0 * MM).unwrap();
     let joined = k.fuse(join, plate, gear).unwrap();
     let circle = ProfileLoop::Circle {
         key: arrix_core::CurveKey(Id(9)),
@@ -313,7 +313,7 @@ fn gear_on_plate() -> (Vec<String>, Vec<String>, [u64; 2], ProfileLoop) {
         radius: 3.0 * MM,
     };
     let tool = Profile::new(at(-1.0), circle, vec![]).unwrap();
-    let tool = k.extrude(bore, &tool, 15.0 * MM).unwrap();
+    let tool = k.extrude(bore, 0, &tool, 15.0 * MM).unwrap();
     let cut = k.cut(cut, joined, tool).unwrap();
     let names = |b| {
         k.names(b)
@@ -354,11 +354,7 @@ fn a_gear_fused_flush_on_a_plate_and_bored_gives_its_hand_computed_body() {
     assert_eq!(faces(&cut), 6 + segments.len() + 1 + 1);
     let gear_bottom = format!("face:sweep.{}.start-cap", FeatureId(Id(2)));
     assert!(!joined.contains(&gear_bottom));
-    let top = format!(
-        "face:sweep.{}.end-cap/mod.{}.0",
-        FeatureId(Id(1)),
-        FeatureId(Id(3))
-    );
+    let top = format!("face:sweep.{}.end-cap", FeatureId(Id(1)));
     assert!(joined.contains(&top), "{joined:#?}");
 }
 
