@@ -124,7 +124,7 @@ against the same list at step 2.
   names from `Role::Revolve` through the profile's curve keys, a full turn
   (no end cap, seams as start edges) and a cavity, each exactly one name per
   entity.
-- [ ] **[2]** Step 7 — `fillet` and `chamfer`: names for the blend face, its
+- [x] **[2]** Step 7 — `fillet` and `chamfer`: names for the blend face, its
   contact edges, ends and corner entities from `gen.<F>[…]` of the edge
   names; the trimmed neighbours keep theirs by the B rule; `BlendTooLarge`,
   `TangentChain`, `VertexBlend` map to their `kernel.degenerate.*` codes
@@ -216,6 +216,20 @@ Written at planning time; executed before the plan is deleted.
   reference lost its `/mod.<join>.0`; before the edit `arrix eval` said
   `ref.lost` and offered the bare face) and the tests; the `eval` goldens
   hold unchanged, since they carry no names.
+- Found in step 7: a blend makes entities from the same edges alone (two
+  contact edges, four end vertices), which share one `gen` name.
+  `boolean_names`, now over one operand or two, gives each clashing entity
+  the names of what it touches (faces for an edge, edges for a vertex), so
+  a name is unique and stable; booleans, which never clashed, name as
+  before. A tangent chain named by one edge gives each chain edge its own
+  blend face; the same names come out whichever edge is named (probed on a
+  stadium, `blends.rs`). **Arris gap:** on that stadium a fillet of 1 mm or
+  less (one edge or all four) fails in `arris` 0.5.0 as
+  `Internal(Invariant)`, "a junction arc of positive angle was not found";
+  2 mm and every chamfer succeed. Pinned by
+  `a_small_fillet_of_a_stadium_rim_fails_inside_arris_and_keeps_its_record`;
+  it goes to Arris from step 9's export as a fixture and a backlog line
+  the human files, as the hole across a fillet does.
 - Found in step 6: a void's `Cavity` role generates a *shell*, which is no
   face, edge or vertex and has no name; `sweep_names` skips it, and the
   void's walls are named by their own `Side`, `Rise` and edge roles

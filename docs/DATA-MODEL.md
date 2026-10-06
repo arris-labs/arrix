@@ -516,6 +516,19 @@ at; `gen` nests at most 32 deep.
   sweep.<plate>.start-cap/gen.<cut>[face:sweep.<plate>.start-cap,face:
   sweep.<tool>.side.<k>]`. An entity with no nameable origin, or two with
   one name, fails the call as `kernel.naming`.
+- **Through a blend** (`fillet`, `chamfer`, as built): the faces an edge's
+  blend trims and the edges it shortens split nothing, so they keep their
+  names (piece `0`). What the blend made is `gen.<feature>[…]` of the
+  edges it came from, sorted: a blend face of one edge is `…/gen.<F>[<edge>]`,
+  a miter's shared edge `gen.<F>[<edge>,<edge>]`, a corner's patch face
+  `gen.<F>[<edge>,<edge>,<edge>]`. Entities made from the same edges (a
+  blend's two contact edges, its end vertices) would share that name, so
+  each also lists the names of what it touches: an edge its faces, a
+  vertex its edges, which the operation did not make from the same
+  origins. Naming one edge of a tangent chain blends the chain, and every
+  chain edge's blend face is `gen.<F>[<its own edge>]`, so the same names
+  come out whichever edge was named. A name nests one `gen` per blend of
+  a body that was blended again, within the limit of 32 (`crates/arrix-kernel/tests/blends.rs`).
 - **Plugin features get naming for free** when they build through kernel
   operations. Topology a plugin builds directly is rooted at a consumer
   role with a key the plugin chooses (ask A1). `gears.spur` keys each

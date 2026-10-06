@@ -24,6 +24,15 @@ pub use error::KernelError;
 pub use naming::BodyNames;
 pub use record::{ARRIS_VERSION, BodyHash, CallIndex, CallPrecision, KernelCall, KernelOp};
 
+/// Arris's `fillet` and `chamfer`, one signature.
+type BlendOp = fn(
+    &mut Model,
+    Body,
+    &[arris::topo::Edge],
+    f64,
+    &Control<'_>,
+) -> Result<(Body, arris::topo::Provenance), arris::ops::OpError>;
+
 /// A body made during one evaluation, opaque outside this crate and valid
 /// only in the `Kernel` that returned it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -263,9 +272,94 @@ impl Kernel {
         let (body, provenance) =
             run(&mut self.model, a, b, &Control::NONE).map_err(|e| KernelError::op(call, &e))?;
         let operands = [&self.entry(target)?.names, &self.entry(tool)?.names];
-        let names = naming::boolean_names(&self.model, body, feature, operands, &provenance)
+        let names = naming::boolean_names(&self.model, body, feature, &operands, &provenance)
             .map_err(|message| KernelError::Naming { call, message })?;
         Ok(self.push(body, names))
+    }
+
+    /// `body` with `edges` rounded at `radius` metres, named as `feature`'s
+    /// (docs/DATA-MODEL.md §Persistent naming): the blend faces and what
+    /// they made at their ends are `gen.<feature>[…]` of the edges, every
+    /// trimmed neighbour keeps its name. `body` stays valid.
+    pub fn fillet(
+        &mut self,
+        feature: FeatureId,
+        body: KernelBody,
+        edges: &[PersistentName],
+        radius: f64,
+    ) -> Result<KernelBody, KernelError> {
+        let op = KernelOp::Fillet {
+            feature,
+            edges: edges.to_vec(),
+            radius,
+        };
+        self.blend(op, feature, body, edges, arris::ops::fillet, radius)
+    }
+
+    /// `body` with `edges` cut flat at `distance` metres, named as
+    /// [`fillet`](Kernel::fillet)'s.
+    pub fn chamfer(
+        &mut self,
+        feature: FeatureId,
+        body: KernelBody,
+        edges: &[PersistentName],
+        distance: f64,
+    ) -> Result<KernelBody, KernelError> {
+        let op = KernelOp::Chamfer {
+            feature,
+            edges: edges.to_vec(),
+            distance,
+        };
+        self.blend(op, feature, body, edges, arris::ops::chamfer, distance)
+    }
+
+    fn blend(
+        &mut self,
+        op: KernelOp,
+        feature: FeatureId,
+        body: KernelBody,
+        edges: &[PersistentName],
+        run: BlendOp,
+        size: f64,
+    ) -> Result<KernelBody, KernelError> {
+        let entry = self.entry(body)?;
+        let target = entry.body;
+        let mut ids = Vec::with_capacity(edges.len());
+        for name in edges {
+            match entry.names.entity(name) {
+                Some(EntityId::Edge(id)) => ids.push(id),
+                Some(_) => {
+                    return Err(KernelError::WrongKind {
+                        name: name.clone(),
+                        wanted: TopoKind::Edge,
+                        found: name.kind,
+                    });
+                }
+                None => return Err(KernelError::UnknownName { name: name.clone() }),
+            }
+        }
+        let call = self.begin(op, &[body])?;
+        let handles = self
+            .model
+            .edges(target)
+            .map_err(|e| KernelError::op(call, &e.into()))?;
+        // In the order the names were given; an id the body lacks cannot
+        // happen, its table covers the body.
+        let handles: Vec<_> = ids
+            .iter()
+            .filter_map(|id| handles.iter().find(|e| e.id == *id).cloned())
+            .collect();
+        let (blended, provenance) = run(&mut self.model, target, &handles, size, &Control::NONE)
+            .map_err(|e| KernelError::op(call, &e))?;
+        let names = naming::boolean_names(
+            &self.model,
+            blended,
+            feature,
+            &[&self.entry(body)?.names],
+            &provenance,
+        )
+        .map_err(|message| KernelError::Naming { call, message })?;
+        Ok(self.push(blended, names))
     }
 
     fn push(&mut self, body: Body, names: BodyNames) -> KernelBody {

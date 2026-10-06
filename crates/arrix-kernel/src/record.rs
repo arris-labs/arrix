@@ -73,6 +73,19 @@ pub enum KernelOp {
     Fuse { feature: FeatureId },
     /// The first operand less the second; `feature` as for `Fuse`.
     Cut { feature: FeatureId },
+    /// The operand body with `edges` rounded at `radius` metres; `feature`
+    /// names the blend's entities.
+    Fillet {
+        feature: FeatureId,
+        edges: Vec<PersistentName>,
+        radius: f64,
+    },
+    /// The operand body with `edges` cut flat at `distance` metres.
+    Chamfer {
+        feature: FeatureId,
+        edges: Vec<PersistentName>,
+        distance: f64,
+    },
     /// The outward frame of a planar face of the operand body.
     FaceFrame { face: PersistentName },
     /// Volume, area and centroid of the operand body.

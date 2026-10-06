@@ -6,7 +6,7 @@
 //! its operands' names on what it leaves alone, and extends them with a
 //! `mod` or `gen` step on what it splits or makes.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use arris::topo::provenance::SweepPart;
 use arris::topo::{Body, EntityId, Model, Origin, Provenance, Role};
@@ -205,8 +205,8 @@ pub(crate) fn entities(m: &Model, body: Body) -> Result<Vec<EntityId>, String> {
         .collect())
 }
 
-/// The names of a boolean's output, from its operands' names and its
-/// provenance. An entity the boolean left alone keeps its name. Piece `0`
+/// The names of a boolean's or a blend's output, from its operands'
+/// names (one for a blend) and its provenance. An entity the boolean left alone keeps its name. Piece `0`
 /// of an origin's split order (ADR-0009 in Arris) keeps the origin's
 /// name (ADR-0010); a piece `k > 0` is that name with
 /// `mod.<feature>.<k>`. The target's origin comes first where
@@ -219,7 +219,7 @@ pub(crate) fn boolean_names(
     m: &Model,
     body: Body,
     feature: FeatureId,
-    operands: [&BodyNames; 2],
+    operands: &[&BodyNames],
     provenance: &Provenance,
 ) -> Result<BodyNames, String> {
     // Every operand entity's name, the target's first.
@@ -255,8 +255,9 @@ pub(crate) fn boolean_names(
             made.entry(shape.id).or_default().push(from_name.clone());
         }
     }
-    let mut by_name = BTreeMap::new();
-    for id in entities(m, body)? {
+    let all = entities(m, body)?;
+    let mut named: BTreeMap<EntityId, PersistentName> = BTreeMap::new();
+    for &id in &all {
         let kind = kind_of(id).expect("a closure's faces, edges and vertices");
         let mut name = if let Some(list) = pieces.get(&id) {
             let first = list.iter().map(|(operand, _)| *operand).min();
@@ -266,21 +267,76 @@ pub(crate) fn boolean_names(
                 _ => return Err(format!("{id} is a piece of more than one entity")),
             }
         } else if let Some(from) = made.get(&id) {
-            let mut from = from.clone();
-            from.sort();
-            from.dedup();
-            let mut name = from[0].clone();
-            name.chain.push(NameStep::Generated { feature, from });
-            name
+            generated(feature, from.clone())
         } else if let Some((_, name)) = old.get(&id) {
             (*name).clone()
         } else {
             return Err(format!("{id} has no nameable origin"));
         };
         name.kind = kind;
+        named.insert(id, name);
+    }
+    // Entities one operation made from the same origins (a blend's two
+    // contact edges, its end vertices) share a name so far. Each takes the
+    // names of what it touches, faces for an edge and edges for a vertex,
+    // which the operation did not make from the same origins.
+    let mut tally: BTreeMap<&PersistentName, usize> = BTreeMap::new();
+    for name in named.values() {
+        *tally.entry(name).or_default() += 1;
+    }
+    let clashing: BTreeSet<PersistentName> = tally
+        .into_iter()
+        .filter(|&(_, n)| n > 1)
+        .map(|(name, _)| name.clone())
+        .collect();
+    if !clashing.is_empty() {
+        let closure = m.closure(body).map_err(|e| e.to_string())?;
+        for &id in &all {
+            if !clashing.contains(&named[&id]) {
+                continue;
+            }
+            let Some(origins) = made.get(&id) else {
+                return Err(format!("{} names both {id} and another", named[&id]));
+            };
+            let touched: Vec<EntityId> = match id {
+                EntityId::Edge(e) => m
+                    .edge_uses(e)
+                    .map_err(|e| e.to_string())?
+                    .iter()
+                    .filter(|u| closure.faces.contains(&u.face))
+                    .map(|u| EntityId::Face(u.face))
+                    .collect(),
+                EntityId::Vertex(v) => m
+                    .vertex_edges(v)
+                    .map_err(|e| e.to_string())?
+                    .iter()
+                    .filter(|e| closure.edges.contains(e))
+                    .map(|&e| EntityId::Edge(e))
+                    .collect(),
+                _ => Vec::new(),
+            };
+            let mut from = origins.clone();
+            from.extend(touched.iter().map(|t| named[t].clone()));
+            let mut name = generated(feature, from);
+            name.kind = named[&id].kind;
+            named.insert(id, name);
+        }
+    }
+    let mut by_name = BTreeMap::new();
+    for (id, name) in named {
         if let Some(other) = by_name.insert(name.clone(), id) {
             return Err(format!("{name} names both {other} and {id}"));
         }
     }
     Ok(BodyNames { by_name })
+}
+
+/// `gen.<feature>[from]` after the root and chain of the first of `from`
+/// sorted, since a name has a root.
+fn generated(feature: FeatureId, mut from: Vec<PersistentName>) -> PersistentName {
+    from.sort();
+    from.dedup();
+    let mut name = from[0].clone();
+    name.chain.push(NameStep::Generated { feature, from });
+    name
 }

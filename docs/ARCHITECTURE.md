@@ -174,7 +174,9 @@ geometry from provenance, and to make every kernel call a record.
   negative distance against it), `revolve` (a keyed `Profile` about a world
   axis, a full turn without an end cap, named as a `revolve` root, a void's
   shell unnamed; neither sweep is offered to plugins as `revolve` yet),
-  `fuse` and `cut` (a target and a tool,
+  `fillet` and `chamfer` (a body and edges by name, `kernel.degenerate.
+  blend-too-large` and its siblings with the record kept), `fuse` and `cut`
+  (a target and a tool,
   both left valid, named through their provenance, §Persistent naming in
   `docs/DATA-MODEL.md`), `face_frame` (outward, planar faces only) and
   `mass_properties` (volume, area, centroid), and `to_bytes`/`from_bytes`
