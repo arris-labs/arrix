@@ -159,9 +159,9 @@ plugin. A gesture-count test over the flow.
 
 - Export: STEP of any set of bodies, STL and OBJ of their render meshes
   (`arris_io`).
-- `arrix eval` complete: directories, `--sweep`, `--summary` histogram,
-  `--save-fixtures`, `--without-plugin`, `--jobs`, `--budget` once A3
-  lands (`docs/CONCURRENCY-WASM.md` §Batch evaluation).
+- `arrix eval` complete (`--save-fixtures` landed in M2): directories,
+  `--sweep`, `--summary` histogram, `--without-plugin`, `--jobs`,
+  `--budget` once A3 lands (`docs/CONCURRENCY-WASM.md` §Batch evaluation).
 - The C1 benchmark: the budgets of `docs/CONCURRENCY-WASM.md` §Budgets
   measured on the acceptance part and written there.
 - Cancellation through A3's token, if released; otherwise between kernel

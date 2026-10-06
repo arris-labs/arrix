@@ -32,16 +32,30 @@ enum Command {
         /// features evaluate frozen.
         #[arg(long = "without-plugin", value_name = "ID")]
         without: Vec<String>,
+        /// Write each failed kernel call as an Arris fixture recipe,
+        /// `<DIR>/<code>-<hash>/fixture.json`. A failure whose recipe
+        /// cannot be made (a frozen body among its operands) is reported on
+        /// stderr and skipped.
+        #[arg(long = "save-fixtures", value_name = "DIR")]
+        save_fixtures: Option<PathBuf>,
     },
 }
 
 fn main() -> ExitCode {
     match Cli::parse().command {
-        Command::Eval { doc, without } => eval(&doc, &without),
+        Command::Eval {
+            doc,
+            without,
+            save_fixtures,
+        } => eval(&doc, &without, save_fixtures.as_deref()),
     }
 }
 
-fn eval(doc: &std::path::Path, without: &[String]) -> ExitCode {
+fn eval(
+    doc: &std::path::Path,
+    without: &[String],
+    save_fixtures: Option<&std::path::Path>,
+) -> ExitCode {
     let name = doc.to_string_lossy();
     let mut registry = plugins::registry();
     for id in without {
@@ -57,20 +71,27 @@ fn eval(doc: &std::path::Path, without: &[String]) -> ExitCode {
         std::fs::read(doc)
             .map_err(|e| e.to_string())
             .and_then(|bytes| arrix_doc::from_zip(&bytes).map_err(|e| e.to_string()))
-            .and_then(|files| arrix_doc::eval(&name, &files, &registry).map_err(|e| e.to_string()))
+            .and_then(|files| arrix_doc::run(&name, &files, &registry).map_err(|e| e.to_string()))
     } else if doc.is_dir() {
-        arrix_doc::eval(&name, &DirSource::new(doc), &registry).map_err(|e| e.to_string())
+        arrix_doc::run(&name, &DirSource::new(doc), &registry).map_err(|e| e.to_string())
     } else {
         eprintln!("arrix eval: {name}: no such directory or file");
         return ExitCode::from(2);
     };
-    let line = match line {
-        Ok(line) => line,
+    let run = match line {
+        Ok(run) => run,
         Err(err) => {
             eprintln!("arrix eval: {name}: {err}");
             return ExitCode::from(2);
         }
     };
+    if let Some(dir) = save_fixtures
+        && let Err(err) = save_recipes(dir, &run.failures)
+    {
+        eprintln!("arrix eval: --save-fixtures {}: {err}", dir.display());
+        return ExitCode::from(2);
+    }
+    let line = run.line;
     let json = serde_json::to_string(&line).expect("an eval line is plain data");
     if writeln!(std::io::stdout(), "{json}").is_err() {
         return ExitCode::from(2);
@@ -79,4 +100,24 @@ fn eval(doc: &std::path::Path, without: &[String]) -> ExitCode {
         arrix_doc::EvalStatus::Ok => ExitCode::SUCCESS,
         arrix_doc::EvalStatus::Failed => ExitCode::from(1),
     }
+}
+
+/// Writes each failure's recipe under `dir`, one directory per recipe; one
+/// that has none is said on stderr and the rest are still written.
+fn save_recipes(dir: &std::path::Path, failures: &[arrix_doc::FailedCall]) -> std::io::Result<()> {
+    for failure in failures {
+        match &failure.recipe {
+            Ok(recipe) => {
+                let at = dir.join(&recipe.name);
+                std::fs::create_dir_all(&at)?;
+                std::fs::write(at.join("fixture.json"), &recipe.json)?;
+                eprintln!("arrix eval: saved {}", at.display());
+            }
+            Err(err) => eprintln!(
+                "arrix eval: feature {} ({}) has no recipe: {err}",
+                failure.feature, failure.code
+            ),
+        }
+    }
+    Ok(())
 }

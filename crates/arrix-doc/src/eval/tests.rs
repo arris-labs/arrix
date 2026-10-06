@@ -466,7 +466,10 @@ fn a_kernel_failure_keeps_its_call_record() {
         vec![record(1, "test.block", &[("height", "0 mm")], &[])],
     );
     let e = Evaluator::new(registry()).evaluate(&d);
-    let Some(FeatureOutcome::Failed { diagnostic, call }) = e.outcome(fid(1)) else {
+    let Some(FeatureOutcome::Failed {
+        diagnostic, call, ..
+    }) = e.outcome(fid(1))
+    else {
         panic!("{:?}", e.outcome(fid(1)))
     };
     assert!(

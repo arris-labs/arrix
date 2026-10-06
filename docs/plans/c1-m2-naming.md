@@ -147,13 +147,20 @@ against the same list at step 2.
   decided 2026-10-06), so the closure is replayed. `FixtureRecipe::of`,
   `crates/arrix-kernel/tests/fixture_export.rs`, goldens under
   `tests/recipes/`: the oversize fillet and the two Arris gaps.*
-- [ ] **[2]** Step 10 — `arrix eval --save-fixtures <dir>`: each failed
+- [x] **[2]** Step 10 — `arrix eval --save-fixtures <dir>`: each failed
   feature's record written as a recipe, one directory per failure, named by
   its diagnostic code and a content hash (of the recipe's text); a failure
   whose closure holds a frozen body (`FixtureError::NoStep`) is reported,
   not written, and the rest still are; `tests/docs/` gains a document with
   an oversize fillet kept as a plain text document (no feature type yet:
   built by the kernel test's own driver if `core.fillet` is not there).
+  *Done: `arrix_doc::run`, `crates/arrix-cli/tests/save_fixtures.rs`.
+  No feature type can make a fillet fail yet, so the document is
+  `tests/docs/zero-plate` (the slice with a 0 mm plate: a failed extrude,
+  `kernel.degenerate.not-positive`); the oversize fillet's recipe stays
+  checked at the kernel (step 9), and the acceptance's second half runs on
+  `zero-plate` until `core.fillet` lands in `c1-m2-features`. The frozen
+  body case is `arrix-doc`'s unit test.*
 - [ ] **[2]** Step 11 — the kernel naming scenarios (the acceptance below)
   and their opposite cases, as one test file.
 

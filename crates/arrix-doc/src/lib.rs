@@ -31,9 +31,9 @@ pub use document::{
     is_param_name,
 };
 pub use eval::{
-    BodyLine, BodyMeasures, EvalEvent, EvalLine, EvalStatus, Evaluation, Evaluator, FeatureLine,
-    FeatureOutcome, FrozenInfo, FrozenReason, InputHash, ParamLine, RegionView, SketchView,
-    SlotView, SweepPoint, eval,
+    BodyLine, BodyMeasures, EvalEvent, EvalLine, EvalStatus, Evaluation, Evaluator, FailedCall,
+    FeatureLine, FeatureOutcome, FrozenInfo, FrozenReason, InputHash, ParamLine, RegionView, Run,
+    SavedRecipe, SketchView, SlotView, SweepPoint, eval, run,
 };
 pub use frozen::{BlobRef, Frozen, FrozenResult, InvalidBlobRef};
 pub use open::{DOCUMENT_JSON, DocumentSource, MemorySource, OpenError, PARAMS_JSON, SCHEMA, open};

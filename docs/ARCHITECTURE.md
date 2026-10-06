@@ -233,8 +233,13 @@ geometry from provenance, and to make every kernel call a record.
   grammar vendored in `arrix-kernel`'s tests (`tests/arris_fixture/`),
   which refuses a field Arris would ignore; the goldens under
   `tests/recipes/` are Arris fixture directories. "Save as kernel
-  fixture" is a command in the app and `--save-fixtures <dir>` in
-  `arrix eval` (not built yet).
+  fixture" is a command in the app (not built yet) and `--save-fixtures
+  <dir>` in `arrix eval`: `arrix_doc::run` lists each feature that failed
+  at a kernel call with its recipe, written as `<dir>/<code>-<12 hex of
+  the recipe's BLAKE3>/fixture.json` (equal recipes share a directory). A
+  failure with no recipe (`NoStep`) is said on stderr and skipped, the
+  rest are still written; the stdout line and the exit status do not
+  change.
 - **Failure categories.** Every failure maps to a stable, countable key:
   the kernel's typed error with its reason (`OpError::Degenerate(
   TangentContact)`), the feature type, and the plugin id when a plugin

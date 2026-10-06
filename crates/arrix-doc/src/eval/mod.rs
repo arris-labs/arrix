@@ -3,6 +3,7 @@
 //! failing soft. `LocalSession` runs it on its worker, stopping between
 //! features for a newer snapshot (docs/CONCURRENCY-WASM.md §The evaluator).
 
+mod fixtures;
 mod frozen;
 #[cfg(test)]
 mod frozen_tests;
@@ -31,6 +32,7 @@ use arrix_plugin_api::{
 use arrix_sketch::{ConstraintId, Sketch};
 use serde::{Deserialize, Serialize};
 
+pub use fixtures::{FailedCall, Run, SavedRecipe, run};
 pub use hash::InputHash;
 pub use line::{BodyLine, EvalLine, EvalStatus, FeatureLine, ParamLine, SweepPoint, eval};
 
@@ -113,6 +115,10 @@ pub enum FeatureOutcome {
         /// The kernel call it failed at, kept for a fixture.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         call: Option<Box<KernelCall>>,
+        /// That call's place in the kernel's records, which a recipe
+        /// needs to find the calls that made its operands.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        call_index: Option<CallIndex>,
     },
     Suppressed,
     /// At or after its part's rollback index.
@@ -396,6 +402,7 @@ impl Evaluator {
                 (outcome, State::Ok { hash, slots, stale })
             }
             Err(f) => {
+                let call_index = f.call.filter(|c| self.kernel.record(*c).is_some());
                 let call = f
                     .call
                     .and_then(|c| self.kernel.record(c))
@@ -404,7 +411,11 @@ impl Evaluator {
                 if diagnostic.refs.is_empty() {
                     diagnostic.refs.push(Ref::Feature(record.id));
                 }
-                let outcome = FeatureOutcome::Failed { diagnostic, call };
+                let outcome = FeatureOutcome::Failed {
+                    diagnostic,
+                    call,
+                    call_index,
+                };
                 (outcome, State::Unavailable("failed"))
             }
         }

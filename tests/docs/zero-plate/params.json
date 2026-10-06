@@ -1,0 +1,27 @@
+{
+  "6504KHBAT217J": {
+    "expr": "40 mm",
+    "kind": "length",
+    "name": "w"
+  },
+  "7HF4JFQPKAHAX": {
+    "expr": "20",
+    "kind": "count",
+    "name": "teeth"
+  },
+  "ANNRYEQ6Y5E4E": {
+    "expr": "1 mm",
+    "kind": "length",
+    "name": "m"
+  },
+  "BKXD0E5V68PG3": {
+    "expr": "5 mm",
+    "kind": "length",
+    "name": "t"
+  },
+  "CN9MW3R3SHZT9": {
+    "expr": "30 mm",
+    "kind": "length",
+    "name": "h"
+  }
+}
