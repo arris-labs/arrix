@@ -60,7 +60,10 @@ fn feature(
             .map(|(k, v)| (k.to_string(), Expr::parse(v).unwrap()))
             .collect(),
         choices: BTreeMap::new(),
-        inputs: inputs.into_iter().map(|(k, r)| (k.into(), r)).collect(),
+        inputs: inputs
+            .into_iter()
+            .map(|(k, r)| (k.into(), r.into()))
+            .collect(),
         suppressed: false,
         sketch: None,
         frozen: None,
@@ -218,7 +221,7 @@ fn writes_the_documented_layout() {
             format!("parts/{part}.json")
         ]
     );
-    assert_eq!(text(&files, DOCUMENT_JSON), "{\n  \"schema\": 2\n}\n");
+    assert_eq!(text(&files, DOCUMENT_JSON), "{\n  \"schema\": 3\n}\n");
     let params = text(&files, PARAMS_JSON);
     assert!(
         params.contains("\"expr\": \"1 mm\",\n    \"kind\": \"length\",\n    \"name\": \"m\""),

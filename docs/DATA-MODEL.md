@@ -9,7 +9,7 @@ the feature-type registry and the derived DAG (§The dependency DAG),
 commands, the authority and per-author undo (§Commands and undo, less
 plugin-data edits), the sketch record and its `SketchEdit` (§Sketches),
 saving and opening the directory form and the deterministic `.arrx` zip,
-schema 2 with its migration chain and blobs (§File format), frozen
+schema 3 with its migration chain and blobs (§File format), frozen
 results written on save and the frozen states of the evaluator (§Frozen
 results, §Evaluation), names from an
 extrude's and the booleans' provenance in `arrix-kernel` (§Persistent
@@ -152,7 +152,7 @@ pub struct FeatureRecord {
     name: String,                  // what the tree shows; unique within the part
     params: BTreeMap<String, Expr>,     // the form's numeric fields, each an expression
     choices: BTreeMap<String, String>,  // the form's plain values: a word the type lists
-    inputs: BTreeMap<String, Ref>,      // named inputs: a plane, a profile, faces, a body
+    inputs: BTreeMap<String, Input>,    // named inputs: a plane, a profile, faces, a body; a Ref, or a list of them
     suppressed: bool,
     sketch: Option<Sketch>,        // a core.sketch feature's sketch, §Sketches
     frozen: Option<FrozenResult>,  // §Frozen results; always present for a plugin feature
@@ -321,6 +321,16 @@ the rest are by id. A `SlotName` is one lower-kebab word (`body`,
 `plane`), the grammar of a diagnostic code's segment. In JSON a `Ref` is
 an object with one key, the variant in snake case: `{"topo":"face:…"}`,
 `{"slot":{"feature":"…","slot":"body"}}`.
+
+A record holds an `Input` under each input name: one `Ref`, or a list of
+them (`Input::One`, `Input::Many`, an object or an array in JSON, so a
+record from before lists reads unchanged). An empty list is the input
+unset, and the order of a list is kept. As built (schema 3): the record,
+`FeatureEdit` (which sets a list whole, its inverse the earlier value) and
+the DAG (one edge per element) carry lists; the evaluator refuses a list
+on an input that takes one as `input.list`. An input that declares it
+takes a list, and the kinds that use it, come with plugin API 0.4
+(`plans/c1-m2-features` step 5).
 
 ## The dependency DAG
 
@@ -683,7 +693,7 @@ pub struct FeatureEdit {        // what it leaves out is kept
     suppressed: Option<bool>,
     params: BTreeMap<String, Option<Expr>>,   // null removes the field
     choices: BTreeMap<String, Option<String>>,
-    inputs: BTreeMap<String, Option<Ref>>,
+    inputs: BTreeMap<String, Option<Input>>,  // a list input is set whole
 }
 ```
 
@@ -750,7 +760,11 @@ interaction).
   (`SEED.md` §8.2 rule 7). Projected geometry (an
   edge or vertex of a body projected onto the plane, M2) is an entity with a
   `Ref::Topo` source, re-projected on evaluation and failing like any lost
-  reference.
+  reference. As stored (schema 3): `sources`, a map from the entity's id
+  to the edge or vertex name, on a point, line, arc or circle only (the
+  `conics` gate stays off); `SketchEdit` puts or, with `null`, removes
+  one, and removing the entity sweeps its source. The evaluator reads a
+  source as a DAG edge; projecting it is `plans/c1-m2-features` step 6.
 - **Constraints and dimensions** reference entities by id. A dimension is
   a constraint with a value, driving or reference, and its value is an
   expression, so it can name a parameter. The kinds a document can hold
@@ -820,14 +834,14 @@ blobs/<blake3>.<ext>   frozen results (.arrisbody), name tables, imported files,
 - **Blobs are content-addressed**: the name is the BLAKE3 of the bytes, so
   identical results are stored once and a changed result is a new file.
   Blobs no record points at are dropped on save.
-- **Versioning.** `document.json` carries `schema` (an integer, 2 since C1 M1).
+- **Versioning.** `document.json` carries `schema` (an integer, 3 since C1 M2).
   Opening an older schema runs forward migrations in order, each a pure
   function over the JSON tree with its own fixture document. A newer
   schema than the build knows is refused with a message naming both. A
   feature record's `type_version` is migrated by its feature type (a
   plugin's own migration, or kept frozen if the plugin is absent).
 - **What opens and saves today** (`arrix_doc::open`, `arrix_doc::save`):
-  the directory form, as `document.json` (`schema` 2; nothing else in the
+  the directory form, as `document.json` (`schema` 3; nothing else in the
   header is interpreted yet), `params.json` (the parameters by id; absent
   reads as none), `parts/<part-id>.json` (one part, its id matching the
   file's name) and `blobs/<blake3>.<ext>`. `arrix_doc::to_json` is the
@@ -835,8 +849,8 @@ blobs/<blake3>.<ext>   frozen results (.arrisbody), name tables, imported files,
   sorted keys. A record with a field this build does not know is refused,
   never dropped on the next save. The opened document is checked as a
   command's result is (`Document::validate`). A newer schema is refused
-  with a message naming both (`the document's schema is 3, newer than this
-  build's 2`), a schema below 1 as one no ArriX wrote. `save` returns the
+  with a message naming both (`the document's schema is 4, newer than this
+  build's 3`), a schema below 1 as one no ArriX wrote. `save` returns the
   files by path; the caller writes them and removes what an earlier save
   left.
   Every command undone restores the earlier save's bytes, and redone the
@@ -853,7 +867,17 @@ blobs/<blake3>.<ext>   frozen results (.arrisbody), name tables, imported files,
   records. 1 → 2 is the identity bar the header; its fixture is
   `tests/docs/migrations/schema-1/`, opened and re-saved by
   `crates/arrix-cli/tests/migration.rs` to the bytes of
-  `tests/docs/gear-on-plane/`. A blob is read only when a frozen result
+  `tests/docs/gear-on-plane/`.
+- **Schema 3** (ADR-0012) adds two stored shapes: a feature's input may be
+  an array of references (`Input`, a `Ref` object or an array of them,
+  read untagged; an empty array is the input unset), and a sketch may
+  hold `sources`, a projected entity's edge or vertex name by the
+  entity's id (§Sketches). Neither shape is in a schema-2 document, so 2 →
+  3 is the identity bar the header; its fixture is
+  `tests/docs/migrations/schema-2/`, a copy of `tests/docs/slice/`
+  re-saved to the slice's bytes but the header, checked by the same test.
+  An older build refuses a schema-3 document by the schema rule, never by
+  failing to parse an array. A blob is read only when a frozen result
   points at it: a missing one is `blob.missing`, one whose bytes do not
   hash to its name `blob.corrupt`, and one nothing points at is dropped on
   the next save.

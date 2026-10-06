@@ -27,7 +27,7 @@ fn record(id: FeatureId, inputs: Vec<Ref>, exprs: &[&str]) -> FeatureRecord {
         inputs: inputs
             .into_iter()
             .enumerate()
-            .map(|(i, r)| (format!("in{i}"), r))
+            .map(|(i, r)| (format!("in{i}"), r.into()))
             .collect(),
         suppressed: false,
         sketch: None,
@@ -165,7 +165,7 @@ fn refuses_a_reference_forward_in_history() {
         .features
         .get_mut(&fid(20))
         .unwrap();
-    lower.inputs.insert("plane".into(), topo(22));
+    lower.inputs.insert("plane".into(), topo(22).into());
     let err = Dag::build(&doc).unwrap_err();
     assert_eq!(
         err,
@@ -185,8 +185,37 @@ fn refuses_a_reference_forward_in_history() {
         .features
         .get_mut(&fid(20))
         .unwrap();
-    lower.inputs.insert("plane".into(), Ref::Feature(fid(20)));
+    lower
+        .inputs
+        .insert("plane".into(), Ref::Feature(fid(20)).into());
     assert!(matches!(Dag::build(&doc), Err(DagError::Order { target, .. }) if target == fid(20)));
+}
+
+#[test]
+fn a_list_input_is_one_edge_per_element() {
+    let (mut doc, ..) = scenario();
+    let part = PartId(Id(10));
+    let lower = doc
+        .parts
+        .get_mut(&part)
+        .unwrap()
+        .features
+        .get_mut(&fid(20))
+        .unwrap();
+    // Forward in history through the second element: refused, naming it.
+    lower.inputs.insert(
+        "edges".into(),
+        vec![Ref::Param(ParamId(Id(1))), topo(22)].into(),
+    );
+    let err = Dag::build(&doc).unwrap_err();
+    assert_eq!(
+        err,
+        DagError::Order {
+            feature: fid(20),
+            field: "inputs.edges".into(),
+            target: fid(22)
+        }
+    );
 }
 
 #[test]
@@ -337,7 +366,7 @@ fn oracle_reads(doc: &Document) -> BTreeMap<Node, BTreeSet<Node>> {
                     .flat_map(|e| e.names())
                     .filter_map(by_name),
             );
-            for r in rec.inputs.values() {
+            for r in rec.inputs.values().flat_map(|i| i.refs()) {
                 let t = match r {
                     Ref::Feature(f) => *f,
                     Ref::Topo(n) => match n.root {

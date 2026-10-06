@@ -157,10 +157,19 @@ All in `arris` 0.5.0, already pinned; no ask is needed.
   `FeatureKernel` counts a feature's booleans and blends together. The
   plugin API is unchanged here: step 5 decides whether a plugin sees
   `n` (default: it does not, as for sweeps).*
-- [ ] **[2]** Step 4 — schema 3 in `arrix-core` and `arrix-doc`: `Input`,
+- [x] **[2]** Step 4 — schema 3 in `arrix-core` and `arrix-doc`: `Input`,
   the list form in JSON, `FeatureEdit` of a list input with its inverse,
   a sketch entity's `source`, the 2 → 3 link and its fixture, every save
   and undo byte test still green.
+  *Done: `Input` in `arrix-core`; `FeatureRecord.inputs` and
+  `FeatureEdit.inputs` hold it; the DAG reads one edge per element and
+  per sketch source; `Sketch.sources` (a map by entity id, `Ref::Topo`
+  only, on a point, line, arc or circle; `SketchEdit.sources`; removal
+  sweeps) is stored and diffed but nothing reads it for geometry until
+  step 6. The evaluator refuses any list as `input.list` until step 5
+  gives `input-spec` its `list`; a frozen feature's input hash takes a
+  list's elements in order. `SCHEMA` 3, the 2 → 3 link,
+  `tests/docs/migrations/schema-2/`, every scenario's header re-saved.*
 - [ ] **[2]** Step 5 — plugin API 0.4: the WIT world, the Rust traits, the
   equality test; the evaluator's host implements the new `Kernel`
   methods over `arrix-kernel` and resolves the new input kinds (a list

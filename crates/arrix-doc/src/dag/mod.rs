@@ -149,8 +149,15 @@ fn feature_reads(doc: &Document, record: &FeatureRecord) -> Vec<(String, Node)> 
             }
         }
     }
-    for (field, r) in &record.inputs {
-        let field = format!("inputs.{field}");
+    let sources = record.sketch.iter().flat_map(|s| s.sources().values());
+    let inputs = record.inputs.iter().flat_map(|(field, input)| {
+        input
+            .refs()
+            .iter()
+            .map(move |r| (format!("inputs.{field}"), r))
+    });
+    // A projected entity reads the body its source names, like an input.
+    for (field, r) in inputs.chain(sources.map(|r| ("sketch.sources".to_owned(), r))) {
         if let Ref::Param(p) = r
             && doc.params.contains_key(p)
         {

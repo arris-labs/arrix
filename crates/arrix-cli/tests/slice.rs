@@ -111,7 +111,7 @@ fn with(mut r: FeatureRecord, params: &[(&str, &str)], inputs: &[(&str, Ref)]) -
         .collect();
     r.inputs = inputs
         .iter()
-        .map(|(k, v)| (k.to_string(), v.clone()))
+        .map(|(k, v)| (k.to_string(), v.clone().into()))
         .collect();
     r
 }
@@ -155,7 +155,8 @@ fn rectangle_sketch(
 ) -> RegionKey {
     let mut r = record(feature, "core.sketch", &format!("Sketch {at}"));
     r.sketch = Some(Box::default());
-    r.inputs.extend(plane.map(|p| ("plane".to_string(), p)));
+    r.inputs
+        .extend(plane.map(|p| ("plane".to_string(), p.into())));
     c.submit(Command::AddFeature {
         part,
         at,
@@ -304,7 +305,9 @@ fn build(c: &mut Client, i: &Ids) {
     pocket
         .params
         .insert("distance".into(), Expr::parse("-6 mm").unwrap());
-    pocket.inputs.insert("target".into(), slot(i.plate, "body"));
+    pocket
+        .inputs
+        .insert("target".into(), slot(i.plate, "body").into());
     c.submit(Command::AddFeature {
         part: i.part,
         at: 6,

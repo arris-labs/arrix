@@ -4,7 +4,7 @@ use crate::frozen::BlobRef;
 fn files() -> MemorySource {
     let blob = BlobRef::of(&[7; 300], "arrisbody");
     MemorySource(BTreeMap::from([
-        (DOCUMENT_JSON.into(), b"{\n  \"schema\": 2\n}\n".to_vec()),
+        (DOCUMENT_JSON.into(), b"{\n  \"schema\": 3\n}\n".to_vec()),
         (PARAMS_JSON.into(), b"{}\n".repeat(50)),
         ("parts/0000000000001.json".into(), b"{}\n".to_vec()),
         ("plugins/gears/data.json".into(), b"[]".to_vec()),

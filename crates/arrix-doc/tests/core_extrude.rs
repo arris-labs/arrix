@@ -80,7 +80,8 @@ fn sketch(id: u64, on: Option<u64>, sketch: Sketch) -> FeatureRecord {
     let mut r = record(id, "core.sketch", &format!("Sketch {id}"));
     r.sketch = Some(Box::new(sketch));
     if let Some(plane) = on {
-        r.inputs.insert("plane".into(), plate_slot(plane, "plane"));
+        r.inputs
+            .insert("plane".into(), plate_slot(plane, "plane").into());
     }
     r
 }
@@ -126,10 +127,12 @@ fn extrude(id: u64, sketch_id: u64, key: &RegionKey, mode: &str, distance: &str)
         Ref::Region {
             feature: fid(sketch_id),
             key: key.clone(),
-        },
+        }
+        .into(),
     );
     if mode != "new" {
-        r.inputs.insert("target".into(), plate_slot(PLATE, "body"));
+        r.inputs
+            .insert("target".into(), plate_slot(PLATE, "body").into());
     }
     r
 }
@@ -244,7 +247,7 @@ fn nothing_upstream_changed_is_a_cache_hit_and_a_thicker_plate_moves_the_rest() 
 #[test]
 fn join_and_cut_need_a_body_target_and_new_takes_none() {
     let inputs = |target: Option<Ref>| FeatureEdit {
-        inputs: BTreeMap::from([("target".to_string(), target)]),
+        inputs: BTreeMap::from([("target".to_string(), target.map(Into::into))]),
         ..FeatureEdit::default()
     };
     let mode = |mode: &str| FeatureEdit {
@@ -283,7 +286,7 @@ fn a_joined_extrudes_own_slot_is_not_a_body_to_name() {
     // next version, and a target names the feature that made the slot.
     let target = Some(plate_slot(BOSS, "body"));
     let edit = FeatureEdit {
-        inputs: BTreeMap::from([("target".to_string(), target)]),
+        inputs: BTreeMap::from([("target".to_string(), target.map(Into::into))]),
         ..FeatureEdit::default()
     };
     let doc = edited(&part(), POCKET, edit);

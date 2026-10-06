@@ -100,3 +100,69 @@ fn writes_null_for_a_removal_and_leaves_out_what_it_keeps() {
         "{}"
     );
 }
+
+fn edge_name(feature: u64) -> arrix_core::Ref {
+    arrix_core::Ref::Topo(format!("edge:sweep.{feature:013}.end-cap").parse().unwrap())
+}
+
+#[test]
+fn a_projected_entity_carries_its_source_through_edit_diff_and_json() {
+    let (mut d, _) = rectangle();
+    let before = d.sketch.clone();
+    let line = *d.entities().keys().next().unwrap();
+    let source = edge_name(7);
+    d.set_source(line, Some(source.clone())).unwrap();
+    assert_eq!(d.source(line), Some(&source));
+
+    let edit = SketchEdit::diff(&before, &d);
+    assert_eq!(edit.sources, [(line, Some(source.clone()))].into());
+    let mut sketch = before.clone();
+    let inverse = edit.apply(&mut sketch).unwrap();
+    assert_eq!(sketch, d.sketch);
+    assert_eq!(inverse.sources, [(line, None)].into());
+    inverse.apply(&mut sketch).unwrap();
+    assert_eq!(sketch, before);
+
+    // The source is in the file and reads back; a sketch without one
+    // writes no `sources` key, so a schema-2 sketch's bytes are unchanged.
+    let json = serde_json::to_string(&d.sketch).unwrap();
+    assert!(json.contains("\"sources\""));
+    assert_eq!(serde_json::from_str::<Sketch>(&json).unwrap(), d.sketch);
+    assert!(!serde_json::to_string(&before).unwrap().contains("sources"));
+}
+
+#[test]
+fn a_source_is_a_topo_name_on_a_projectable_entity_and_goes_with_it() {
+    let (mut d, p) = rectangle();
+    let line = *d.entities().keys().next().unwrap();
+    assert_eq!(
+        d.set_source(
+            line,
+            Some(arrix_core::Ref::Param(arrix_core::ParamId(arrix_core::Id(
+                1
+            ))))
+        ),
+        Err(SketchError::SourceNotTopo { entity: line })
+    );
+    let nothing = arrix_sketch::SketchEntityId(arrix_core::Id(99));
+    assert!(matches!(
+        d.set_source(nothing, Some(edge_name(7))),
+        Err(SketchError::MissingEntity { .. })
+    ));
+    // A point entity can be a vertex's projection.
+    let lone = d.add_entity(arrix_sketch::Entity::Point(p[0]));
+    d.set_source(lone, Some(edge_name(8))).unwrap();
+    d.set_source(line, Some(edge_name(7))).unwrap();
+    // A removal sweeps the source, and the edit that does it puts it back
+    // on undo.
+    let mut sketch = d.sketch.clone();
+    let remove = SketchEdit::remove(&sketch, &[line].into());
+    assert_eq!(remove.sources, [(line, None)].into());
+    let inverse = remove.apply(&mut sketch).unwrap();
+    assert!(sketch.source(line).is_none());
+    inverse.apply(&mut sketch).unwrap();
+    assert_eq!(sketch, d.sketch);
+    // A stored sketch whose source names a missing entity does not read.
+    let bad = r#"{"sources":{"0000000000063":{"topo":"edge:sweep.0000000000007.end-cap"}}}"#;
+    assert!(serde_json::from_str::<Sketch>(bad).is_err());
+}

@@ -88,6 +88,56 @@ pub enum Ref {
     },
 }
 
+/// What a feature record holds under one input name: one `Ref`, or a list
+/// of them for an input that takes several (ADR-0012). Serialised
+/// untagged, a `Ref` object or an array of them, so a record written
+/// before lists existed reads unchanged. The order of a list is kept.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Input {
+    One(Ref),
+    Many(Vec<Ref>),
+}
+
+impl Input {
+    /// The references it holds, in order: one for `One`.
+    pub fn refs(&self) -> &[Ref] {
+        match self {
+            Input::One(r) => std::slice::from_ref(r),
+            Input::Many(rs) => rs,
+        }
+    }
+
+    /// The reference of a single input; `None` for a list, even of one.
+    pub fn one(&self) -> Option<&Ref> {
+        match self {
+            Input::One(r) => Some(r),
+            Input::Many(_) => None,
+        }
+    }
+
+    pub fn is_list(&self) -> bool {
+        matches!(self, Input::Many(_))
+    }
+
+    /// A list with nothing in it is the input unset.
+    pub fn is_empty(&self) -> bool {
+        matches!(self, Input::Many(rs) if rs.is_empty())
+    }
+}
+
+impl From<Ref> for Input {
+    fn from(r: Ref) -> Self {
+        Input::One(r)
+    }
+}
+
+impl From<Vec<Ref>> for Input {
+    fn from(rs: Vec<Ref>) -> Self {
+        Input::Many(rs)
+    }
+}
+
 /// Which face of a sketch's planar arrangement a feature was given
 /// (docs/DATA-MODEL.md §Sketches): every entity bounding the face, its
 /// holes' included, sorted, plus a point inside it. The entity set alone
@@ -146,6 +196,35 @@ mod tests {
             assert_eq!(SlotName::new(bad), Err(InvalidSlotName(bad.into())));
         }
         assert!(serde_json::from_str::<SlotName>("\"Body\"").is_err());
+    }
+
+    #[test]
+    fn an_input_is_a_ref_object_or_an_array_of_them() {
+        let (a, b) = (Ref::Feature(FeatureId(Id(1))), Ref::Param(ParamId(Id(2))));
+        let one = Input::from(a.clone());
+        let many = Input::from(vec![b.clone(), a.clone()]);
+        // A record written before lists existed holds the bare object.
+        assert_eq!(
+            serde_json::to_string(&one).unwrap(),
+            r#"{"feature":"0000000000001"}"#
+        );
+        assert_eq!(
+            serde_json::to_string(&many).unwrap(),
+            r#"[{"param":"0000000000002"},{"feature":"0000000000001"}]"#
+        );
+        for input in [one, many, Input::Many(vec![])] {
+            let json = serde_json::to_string(&input).unwrap();
+            assert_eq!(serde_json::from_str::<Input>(&json).unwrap(), input);
+        }
+        // Order is kept, and a list of one is still a list.
+        let list = Input::from(vec![b.clone(), a.clone()]);
+        assert_eq!(list.refs(), [b, a.clone()]);
+        assert_eq!(Input::Many(vec![a.clone()]).one(), None);
+        assert_eq!(Input::One(a.clone()).refs(), [a]);
+        assert!(
+            Input::Many(vec![]).is_empty()
+                && !Input::from(Ref::Feature(FeatureId(Id(1)))).is_empty()
+        );
     }
 
     #[test]

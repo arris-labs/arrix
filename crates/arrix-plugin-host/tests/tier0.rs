@@ -120,7 +120,7 @@ fn record(id: u64, type_id: &str, inputs: &[(&str, Ref)]) -> FeatureRecord {
         choices: BTreeMap::new(),
         inputs: inputs
             .iter()
-            .map(|(k, r)| (k.to_string(), r.clone()))
+            .map(|(k, r)| (k.to_string(), r.clone().into()))
             .collect(),
         suppressed: false,
         sketch: None,

@@ -7,6 +7,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use arrix_core::Ref;
 use serde::{Deserialize, Serialize};
 
 use crate::constraint::ConstraintRecord;
@@ -16,7 +17,9 @@ use crate::sketch::{Sketch, SketchError, SketchRecord};
 
 /// What a sketch edit changes; an id it leaves out is kept. In `points`,
 /// `entities` and `constraints` an entry puts the record under its id, or
-/// with `null` removes it; in `construction` it sets or clears the mark.
+/// with `null` removes it; in `construction` it sets or clears the mark; in
+/// `sources` it gives the entity its projection source, or with `null`
+/// takes it away.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SketchEdit {
@@ -28,6 +31,8 @@ pub struct SketchEdit {
     pub constraints: BTreeMap<ConstraintId, Option<ConstraintRecord>>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub construction: BTreeMap<EntityId, bool>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub sources: BTreeMap<EntityId, Option<Ref>>,
 }
 
 impl SketchEdit {
@@ -36,6 +41,7 @@ impl SketchEdit {
             && self.entities.is_empty()
             && self.constraints.is_empty()
             && self.construction.is_empty()
+            && self.sources.is_empty()
     }
 
     /// Applies the edit to `sketch` and returns its inverse. The result is
@@ -48,6 +54,7 @@ impl SketchEdit {
             entities: sketch.entities.clone(),
             constraints: sketch.constraints.clone(),
             construction: sketch.construction.clone(),
+            sources: sketch.sources.clone(),
         };
         let inverse = SketchEdit {
             points: swap(&mut record.points, &self.points),
@@ -65,6 +72,7 @@ impl SketchEdit {
                     (id, was)
                 })
                 .collect(),
+            sources: swap(&mut record.sources, &self.sources),
         };
         *sketch = Sketch::try_from(record)?;
         Ok(inverse)
@@ -83,12 +91,13 @@ impl SketchEdit {
                 .symmetric_difference(&after.construction)
                 .map(|id| (*id, after.construction.contains(id)))
                 .collect(),
+            sources: changed(&before.sources, &after.sources),
         }
     }
 
     /// Removes the records `ids` name and everything that names them: the
     /// entities on a removed point, the constraints on a removed point or
-    /// entity, a removed entity's construction mark.
+    /// entity, a removed entity's construction mark and source.
     pub fn remove(sketch: &Sketch, ids: &BTreeSet<SketchEntityId>) -> SketchEdit {
         let mut after = sketch.clone();
         for id in ids {

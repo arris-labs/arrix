@@ -5,6 +5,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use arrix_core::Ref;
 use serde::{Deserialize, Serialize};
 
 use crate::constraint::{Constraint, ConstraintPriority, ConstraintRecord};
@@ -28,6 +29,10 @@ pub enum SketchError {
         key: SketchEntityId,
         id: SketchEntityId,
     },
+    #[error("{entity} has a source, and only a point, line, arc or circle can")]
+    SourceOnUnprojectable { entity: EntityId },
+    #[error("{entity}'s source is not an edge or vertex name")]
+    SourceNotTopo { entity: EntityId },
 }
 
 /// A 2D sketch on a plane, in plane-local metres. The hosting `core.sketch`
@@ -52,6 +57,13 @@ pub struct Sketch {
     /// swept by every entity removal.
     #[serde(skip_serializing_if = "BTreeSet::is_empty")]
     pub(crate) construction: BTreeSet<EntityId>,
+    /// Projected geometry: an entity that is an edge or vertex of a body
+    /// projected onto the plane, by that edge's or vertex's name. It is
+    /// re-projected on every evaluation, so its stored positions are
+    /// recipe, and a lost source fails like any lost reference. Swept by
+    /// the entity's removal.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub(crate) sources: BTreeMap<EntityId, Ref>,
 }
 
 /// The unchecked wire form a [`Sketch`] is read through, and what an edit
@@ -67,6 +79,8 @@ pub(crate) struct SketchRecord {
     pub(crate) constraints: BTreeMap<ConstraintId, ConstraintRecord>,
     #[serde(default)]
     pub(crate) construction: BTreeSet<EntityId>,
+    #[serde(default)]
+    pub(crate) sources: BTreeMap<EntityId, Ref>,
 }
 
 impl TryFrom<SketchRecord> for Sketch {
@@ -90,6 +104,9 @@ impl TryFrom<SketchRecord> for Sketch {
             if !sketch.set_construction(id, true) {
                 return Err(SketchError::MissingEntity { by: id, entity: id });
             }
+        }
+        for (id, source) in r.sources {
+            sketch.set_source(id, Some(source))?;
         }
         Ok(sketch)
     }
@@ -273,6 +290,45 @@ impl Sketch {
         true
     }
 
+    /// Gives an entity a source (or, with `None`, takes it away): the edge
+    /// or vertex of a body it is the projection of. The source must be a
+    /// `Ref::Topo`, and the entity a point, line, arc or circle.
+    pub fn set_source(&mut self, id: EntityId, source: Option<Ref>) -> Result<(), SketchError> {
+        let Some(entity) = self.entities.get(&id) else {
+            return Err(SketchError::MissingEntity { by: id, entity: id });
+        };
+        let Some(source) = source else {
+            self.sources.remove(&id);
+            return Ok(());
+        };
+        if !matches!(source, Ref::Topo(_)) {
+            return Err(SketchError::SourceNotTopo { entity: id });
+        }
+        let projectable = match entity {
+            Entity::Point(_) | Entity::Line { .. } | Entity::Circle { .. } | Entity::Arc { .. } => {
+                true
+            }
+            #[cfg(feature = "conics")]
+            _ => false,
+        };
+        if !projectable {
+            return Err(SketchError::SourceOnUnprojectable { entity: id });
+        }
+        self.sources.insert(id, source);
+        Ok(())
+    }
+
+    /// The edge or vertex `id` is the projection of, if it is projected
+    /// geometry.
+    pub fn source(&self, id: EntityId) -> Option<&Ref> {
+        self.sources.get(&id)
+    }
+
+    /// Every projected entity with its source, by id.
+    pub fn sources(&self) -> &BTreeMap<EntityId, Ref> {
+        &self.sources
+    }
+
     pub fn is_construction(&self, id: EntityId) -> bool {
         self.construction.contains(&id)
     }
@@ -306,11 +362,12 @@ impl Sketch {
         }
     }
 
-    /// Removes an entity, its construction mark and every constraint that
-    /// names it. Its points stay.
+    /// Removes an entity, its construction mark, its source and every
+    /// constraint that names it. Its points stay.
     pub fn remove_entity(&mut self, id: EntityId) {
         self.entities.remove(&id);
         self.construction.remove(&id);
+        self.sources.remove(&id);
         self.constraints
             .retain(|_, r| !r.constraint.uses_entity(id));
     }

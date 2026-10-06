@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use arrix_core::{FeatureId, Id, IdMinter, ParamId, PartId, QuantityKind, Ref};
+use arrix_core::{FeatureId, Id, IdMinter, Input, ParamId, PartId, QuantityKind, Ref};
 use arrix_sketch::{Constraint, Draft, Entity, Point, Sketch, SketchEdit, SketchError};
 use proptest::prelude::*;
 
@@ -48,7 +48,7 @@ fn plane(id: u64, name: &str, inputs: &[(&str, Ref)]) -> FeatureRecord {
         choices: BTreeMap::new(),
         inputs: inputs
             .iter()
-            .map(|(k, r)| (k.to_string(), r.clone()))
+            .map(|(k, r)| (k.to_string(), r.clone().into()))
             .collect(),
         suppressed: false,
         sketch: None,
@@ -155,6 +155,56 @@ fn each_command_applies_and_its_inverse_restores() {
         doc = a.document;
     }
     assert_eq!(doc, Document::default());
+}
+
+#[test]
+fn a_list_input_is_set_whole_and_its_inverse_is_the_earlier_value() {
+    let f = |n| Ref::Feature(FeatureId(Id(n)));
+    let mut doc = Document::default();
+    for c in [
+        empty_part(10),
+        add_feature(10, 0, plane(20, "A", &[])),
+        add_feature(10, 1, plane(21, "B", &[])),
+        add_feature(10, 2, plane(22, "C", &[("plane", f(20))])),
+    ] {
+        doc = apply(&doc, &c).unwrap().document;
+    }
+    let set = |value: Option<Input>| Command::EditFeature {
+        feature: FeatureId(Id(22)),
+        edit: FeatureEdit {
+            inputs: BTreeMap::from([("plane".into(), value)]),
+            ..FeatureEdit::default()
+        },
+    };
+    let input = |doc: &Document| doc.feature(FeatureId(Id(22))).unwrap().2.inputs["plane"].clone();
+    // A single input becomes a list, in the order given, and back.
+    let list = apply(&doc, &set(Some(vec![f(21), f(20)].into()))).unwrap();
+    assert_eq!(input(&list.document), Input::Many(vec![f(21), f(20)]));
+    let back = apply(&list.document, &list.inverse).unwrap();
+    assert_eq!(back.document, doc);
+    assert_eq!(input(&back.document), Input::One(f(20)));
+    // And the list is removed whole, its inverse putting it back.
+    let removed = apply(&list.document, &set(None)).unwrap();
+    assert!(
+        !removed
+            .document
+            .feature(FeatureId(Id(22)))
+            .unwrap()
+            .2
+            .inputs
+            .contains_key("plane")
+    );
+    assert_eq!(
+        apply(&removed.document, &removed.inverse).unwrap().document,
+        list.document
+    );
+    // The command crosses as JSON with the array.
+    let json = serde_json::to_string(&set(Some(vec![f(21), f(20)].into()))).unwrap();
+    assert!(json.contains(r#""plane":[{"feature""#), "{json}");
+    assert_eq!(
+        serde_json::from_str::<Command>(&json).unwrap(),
+        set(Some(vec![f(21), f(20)].into()))
+    );
 }
 
 #[test]

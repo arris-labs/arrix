@@ -2,8 +2,9 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use arrix_core::{
-    CurveKey, DVec2, DVec3, Diagnostic, FeatureId, Id, NameRoot, ParamId, PartId, PersistentName,
-    Profile, ProfileLoop, ProfileSegment, QuantityKind, Ref, SlotName, SweepPartName, TopoKind,
+    CurveKey, DVec2, DVec3, Diagnostic, FeatureId, Id, Input, NameRoot, ParamId, PartId,
+    PersistentName, Profile, ProfileLoop, ProfileSegment, QuantityKind, Ref, SlotName,
+    SweepPartName, TopoKind,
 };
 use arrix_kernel::KernelOp;
 use arrix_plugin_api::{
@@ -120,7 +121,7 @@ pub(super) fn record(
         choices: BTreeMap::new(),
         inputs: inputs
             .iter()
-            .map(|(k, r)| (k.to_string(), r.clone()))
+            .map(|(k, r)| (k.to_string(), r.clone().into()))
             .collect(),
         suppressed: false,
         sketch: None,
@@ -426,7 +427,8 @@ fn a_face_that_is_gone_is_a_lost_reference_with_ranked_candidates() {
         .features
         .get_mut(&fid(3))
         .unwrap();
-    f3.inputs.insert("plane".into(), Ref::Topo(gone.clone()));
+    f3.inputs
+        .insert("plane".into(), Ref::Topo(gone.clone()).into());
     let e = Evaluator::new(registry()).evaluate(&d);
     let lost = failure(&e, 3);
     assert_eq!(lost.code.as_str(), "ref.lost");
@@ -439,6 +441,37 @@ fn a_face_that_is_gone_is_a_lost_reference_with_ranked_candidates() {
     assert!(
         cached_or_fresh(&e, 4),
         "a lost reference fails only its reader"
+    );
+}
+
+#[test]
+fn a_list_on_an_input_that_takes_one_is_refused_and_an_empty_list_is_unset() {
+    let mut d = scenario();
+    let f3 = d
+        .parts
+        .get_mut(&PART)
+        .unwrap()
+        .features
+        .get_mut(&fid(3))
+        .unwrap();
+    let one = f3.inputs["plane"].clone();
+    f3.inputs
+        .insert("plane".into(), Input::Many(one.refs().to_vec()));
+    let e = Evaluator::new(registry()).evaluate(&d);
+    assert_eq!(failure(&e, 3).code.as_str(), "input.list");
+    // An empty list is the input unset, as an absent entry is.
+    let f3 = d
+        .parts
+        .get_mut(&PART)
+        .unwrap()
+        .features
+        .get_mut(&fid(3))
+        .unwrap();
+    f3.inputs.insert("plane".into(), Input::Many(vec![]));
+    let e = Evaluator::new(registry()).evaluate(&d);
+    assert!(
+        !matches!(e.outcome(fid(3)), Some(FeatureOutcome::Failed { diagnostic, .. })
+            if diagnostic.code.as_str() == "input.list")
     );
 }
 
@@ -492,7 +525,7 @@ fn events_cross_as_json() {
         .unwrap();
     f3.inputs.insert(
         "plane".into(),
-        Ref::Topo(face(2, SweepPartName::Side(CurveKey(Id(9))))),
+        Ref::Topo(face(2, SweepPartName::Side(CurveKey(Id(9))))).into(),
     );
     d.parts
         .get_mut(&PART)

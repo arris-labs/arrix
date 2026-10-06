@@ -84,7 +84,10 @@ fn record(
             .map(|(k, v)| (k.to_string(), Expr::parse(v).unwrap()))
             .collect(),
         choices: BTreeMap::new(),
-        inputs: plane.into_iter().map(|r| ("plane".into(), r)).collect(),
+        inputs: plane
+            .into_iter()
+            .map(|r| ("plane".into(), r.into()))
+            .collect(),
         suppressed: false,
         sketch: None,
         frozen: None,

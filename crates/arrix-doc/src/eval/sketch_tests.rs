@@ -138,7 +138,7 @@ fn document(sketch: Sketch) -> Document {
         type_id: FeatureTypeId::new("core.sketch").unwrap(),
         name: "Sketch".into(),
         params: BTreeMap::new(),
-        inputs: BTreeMap::from([("plane".into(), on)]),
+        inputs: BTreeMap::from([("plane".into(), on.into())]),
         sketch: Some(Box::new(sketch)),
         frozen: None,
         ..plane.clone()
@@ -373,7 +373,8 @@ fn padded(sketch: Sketch, key: &RegionKey) -> Document {
             Ref::Region {
                 feature: SKETCH,
                 key: key.clone(),
-            },
+            }
+            .into(),
         )]),
         sketch: None,
         frozen: None,

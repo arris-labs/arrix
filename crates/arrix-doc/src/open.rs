@@ -13,7 +13,7 @@ use crate::frozen::BlobRef;
 use crate::migrate::{self, Tree};
 
 /// The schema this build reads and writes.
-pub const SCHEMA: u64 = 2;
+pub const SCHEMA: u64 = 3;
 
 /// The header every document has.
 pub const DOCUMENT_JSON: &str = "document.json";
@@ -247,11 +247,11 @@ mod tests {
 
     #[test]
     fn refuses_a_newer_schema_naming_both() {
-        let err = open(&doc(&[(DOCUMENT_JSON, r#"{"schema": 3}"#)])).unwrap_err();
-        assert!(matches!(err, OpenError::NewerSchema { found: 3 }));
+        let err = open(&doc(&[(DOCUMENT_JSON, r#"{"schema": 4}"#)])).unwrap_err();
+        assert!(matches!(err, OpenError::NewerSchema { found: 4 }));
         let message = err.to_string();
         assert!(
-            message.contains("is 3") && message.contains("build's 2"),
+            message.contains("is 4") && message.contains("build's 3"),
             "{message}"
         );
     }
@@ -397,10 +397,10 @@ mod tests {
     }
 
     #[test]
-    fn a_schema_1_document_opens_as_schema_2() {
+    fn a_schema_1_document_opens_as_schema_3() {
         let d = open(&doc(&[(DOCUMENT_JSON, r#"{"schema": 1}"#)])).unwrap();
         let saved = crate::save(&d);
-        assert_eq!(saved.0[DOCUMENT_JSON], b"{\n  \"schema\": 2\n}\n");
+        assert_eq!(saved.0[DOCUMENT_JSON], b"{\n  \"schema\": 3\n}\n");
     }
 
     #[test]

@@ -78,7 +78,8 @@ fn sketch(id: u64, on: Option<u64>, sketch: Sketch) -> FeatureRecord {
     let mut r = record(id, "core.sketch", &format!("Sketch {id}"));
     r.sketch = Some(Box::new(sketch));
     if let Some(plane) = on {
-        r.inputs.insert("plane".into(), plate_slot(plane, "plane"));
+        r.inputs
+            .insert("plane".into(), plate_slot(plane, "plane").into());
     }
     r
 }
@@ -124,7 +125,8 @@ fn extrude(id: u64, sketch_id: u64, key: &RegionKey, mode: &str, distance: &str)
         Ref::Region {
             feature: fid(sketch_id),
             key: key.clone(),
-        },
+        }
+        .into(),
     );
     r
 }
@@ -133,8 +135,10 @@ fn extrude(id: u64, sketch_id: u64, key: &RegionKey, mode: &str, distance: &str)
 fn boolean(id: u64, op: &str, tool: u64) -> FeatureRecord {
     let mut r = record(id, "core.boolean", &format!("Boolean {id}"));
     r.choices.insert("op".into(), op.into());
-    r.inputs.insert("target".into(), plate_slot(PLATE, "body"));
-    r.inputs.insert("tool".into(), plate_slot(tool, "body"));
+    r.inputs
+        .insert("target".into(), plate_slot(PLATE, "body").into());
+    r.inputs
+        .insert("tool".into(), plate_slot(tool, "body").into());
     r
 }
 
@@ -243,7 +247,7 @@ fn a_boolean_needs_two_bodies_and_a_known_op() {
         ..FeatureEdit::default()
     };
     let wrong_kind = FeatureEdit {
-        inputs: BTreeMap::from([("tool".to_string(), Some(plate_slot(TOP, "plane")))]),
+        inputs: BTreeMap::from([("tool".to_string(), Some(plate_slot(TOP, "plane").into()))]),
         ..FeatureEdit::default()
     };
     for (edit, want) in [

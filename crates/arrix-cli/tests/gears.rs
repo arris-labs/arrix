@@ -226,7 +226,10 @@ fn the_registered_plugin_evaluates_on_a_datum_plane() {
                 .map(|(k, v)| (k.to_string(), Expr::parse(v).unwrap()))
                 .collect(),
             choices: BTreeMap::new(),
-            inputs: inputs.into_iter().map(|(k, r)| (k.into(), r)).collect(),
+            inputs: inputs
+                .into_iter()
+                .map(|(k, r)| (k.into(), r.into()))
+                .collect(),
             suppressed: false,
             sketch: None,
             frozen: None,

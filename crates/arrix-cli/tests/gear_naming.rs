@@ -59,7 +59,10 @@ fn record(id: FeatureId, ty: &str, params: &[(&str, &str)], input: Option<Ref>) 
             .map(|(k, v)| (k.to_string(), Expr::parse(v).unwrap()))
             .collect(),
         choices: BTreeMap::new(),
-        inputs: input.into_iter().map(|r| ("plane".into(), r)).collect(),
+        inputs: input
+            .into_iter()
+            .map(|r| ("plane".into(), r.into()))
+            .collect(),
         suppressed: false,
         sketch: None,
         frozen: None,
@@ -216,7 +219,7 @@ fn a_flank_whose_tooth_is_gone_is_a_lost_reference_never_a_rebind() {
     }
     // Candidates are offered, never applied: the record still names tooth 20.
     let (_, _, record) = a.document().feature(FLANK).unwrap();
-    assert_eq!(record.inputs["plane"], Ref::Topo(tooth_20_flank()));
+    assert_eq!(record.inputs["plane"], Ref::Topo(tooth_20_flank()).into());
     for f in [BASE, GEAR, TOP] {
         evaluated(&e, f);
     }

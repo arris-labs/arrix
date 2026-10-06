@@ -615,8 +615,20 @@ impl Evaluator {
             });
         }
         for i in &spec.inputs {
-            let Some(r) = record.inputs.get(&i.name) else {
+            let Some(input) = record.inputs.get(&i.name).filter(|i| !i.is_empty()) else {
                 continue;
+            };
+            // No input type takes a list yet; the spec's `list` comes with
+            // plugin API 0.4 (ADR-0012).
+            let Some(r) = input.one() else {
+                return Err(error(
+                    "input.list",
+                    format!(
+                        "{}'s input `{}` takes one reference, not a list",
+                        spec.id, i.name
+                    ),
+                )
+                .into());
             };
             let value = match i.kind {
                 InputKind::Plane => InputValue::Plane(resolve::plane(kernel, scope, r)?),

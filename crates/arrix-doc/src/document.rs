@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use arrix_core::{
-    Diagnostic, FeatureId, ParamId, PartId, PluginId, QuantityKind, Ref, Severity, SketchEntityId,
+    Diagnostic, FeatureId, Input, ParamId, PartId, PluginId, QuantityKind, Severity, SketchEntityId,
 };
 use arrix_sketch::Sketch;
 use serde::{Deserialize, Serialize};
@@ -66,8 +66,9 @@ pub struct FeatureRecord {
     /// names, such as a datum plane's world plane (`xy`).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub choices: BTreeMap<String, String>,
-    /// Named inputs: a plane, a profile, faces, a body.
-    pub inputs: BTreeMap<String, Ref>,
+    /// Named inputs: a plane, a profile, faces, a body; a list of
+    /// references for an input that takes several (ADR-0012).
+    pub inputs: BTreeMap<String, Input>,
     pub suppressed: bool,
     /// A `core.sketch` feature's sketch: its entities, constraints with
     /// their dimensions' expressions, and last solved positions

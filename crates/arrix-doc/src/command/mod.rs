@@ -9,7 +9,7 @@ mod tests;
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use arrix_core::{Diagnostic, FeatureId, Id, ParamId, PartId, Ref, Severity};
+use arrix_core::{Diagnostic, FeatureId, Id, Input, ParamId, PartId, Severity};
 use arrix_sketch::{SketchEdit, SketchError};
 use serde::{Deserialize, Serialize};
 
@@ -90,7 +90,7 @@ pub struct FeatureEdit {
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub choices: BTreeMap<String, Option<String>>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub inputs: BTreeMap<String, Option<Ref>>,
+    pub inputs: BTreeMap<String, Option<Input>>,
 }
 
 /// Why a command was refused. The document is unchanged.

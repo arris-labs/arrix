@@ -4,7 +4,7 @@
 
 use std::collections::BTreeSet;
 
-use arrix_core::{FeatureId, Ref, SlotName};
+use arrix_core::{FeatureId, Input, Ref, SlotName};
 use arrix_plugin_api::{InputKind, SlotKind, SlotSpec};
 
 use crate::dag::ref_features;
@@ -36,7 +36,8 @@ pub(crate) fn effects(registry: &Registry, record: &FeatureRecord) -> Vec<(SlotK
     let spec = ty.spec();
     let mut out = Vec::new();
     for input in spec.inputs.iter().filter(|i| i.kind == InputKind::Body) {
-        let Some(Ref::Slot { feature, slot }) = record.inputs.get(&input.name) else {
+        let Some(Ref::Slot { feature, slot }) = record.inputs.get(&input.name).and_then(Input::one)
+        else {
             continue;
         };
         let key = SlotKey {
@@ -63,7 +64,7 @@ pub(crate) fn effects(registry: &Registry, record: &FeatureRecord) -> Vec<(SlotK
 pub(crate) fn is_version(slot: &SlotSpec, record: &FeatureRecord) -> bool {
     slot.modifies
         .as_ref()
-        .is_some_and(|input| record.inputs.contains_key(input))
+        .is_some_and(|input| record.inputs.get(input).is_some_and(|i| !i.is_empty()))
 }
 
 /// The body slots a persistent name into `feature` may be a face of: its
@@ -114,7 +115,7 @@ pub(crate) fn reads(
         .into_iter()
         .map(|(key, _)| key)
         .collect();
-    for r in record.inputs.values() {
+    for r in record.inputs.values().flat_map(Input::refs) {
         if matches!(r, Ref::Topo(_)) {
             for f in ref_features(r) {
                 out.extend(named_slots(registry, doc, f));

@@ -130,8 +130,10 @@ impl Evaluator {
             .into());
         };
         let mut inputs = Vec::new();
-        for (name, r) in &record.inputs {
-            inputs.push((name.clone(), resolve::blind(&mut self.kernel, scope, r)?));
+        for (name, input) in &record.inputs {
+            for r in input.refs() {
+                inputs.push((name.clone(), resolve::blind(&mut self.kernel, scope, r)?));
+            }
         }
         let mut values = Vec::new();
         for (name, expr) in &record.params {

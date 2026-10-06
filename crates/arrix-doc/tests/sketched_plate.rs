@@ -296,7 +296,8 @@ fn a_sketched_plate() {
                 Ref::Region {
                     feature: sketch,
                     key: key.clone(),
-                },
+                }
+                .into(),
             )]
             .into(),
             sketch: None,

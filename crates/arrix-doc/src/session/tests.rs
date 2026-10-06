@@ -43,7 +43,7 @@ fn plane(id: FeatureId, offset: &str, on: Option<FeatureId>) -> FeatureRecord {
         inputs: on
             .map(|f| {
                 let slot = SlotName::new("plane").unwrap();
-                ("plane".into(), Ref::Slot { feature: f, slot })
+                ("plane".into(), Ref::Slot { feature: f, slot }.into())
             })
             .into_iter()
             .collect(),
