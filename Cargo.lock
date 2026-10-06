@@ -467,7 +467,7 @@ dependencies = [
 
 [[package]]
 name = "arrix-plugin-api"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "arrix-core",
  "wit-bindgen 0.62.0",
