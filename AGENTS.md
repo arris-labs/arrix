@@ -34,9 +34,12 @@ landed 2026-10-02**, in three plans: the document, evaluator and
 `LocalSession`, `gears.spur` as a Tier 0 plugin feature; the ported
 sketcher and region references; bodies as inputs, extrude and boolean,
 frozen results and states, schema 2 and the `.arrx` zip, plugin API 0.3,
-`arris` 0.4. The accept is green. **C1 M2** plan 1 of 2 landed 2026-10-06:
-naming at the kernel (revolve, blends, copies), the fixture export,
-`arris` 0.5. **Now:** `c1-m2-features`, to be planned.
+`arris` 0.4. The accept is green. **C1 M2 landed 2026-10-07**, in two
+plans: naming at the kernel (revolve, blends, copies), the fixture export,
+`arris` 0.5; then every core feature type, list inputs, projection into a
+sketch, schema 3, plugin API 0.4, and the naming accept
+(`cargo test -p arrix-cli --test naming_scenarios`). **Now:** M3, the
+interactive app, to be planned.
 
 ## Rules that are not derivable from the code
 
@@ -98,7 +101,9 @@ it before ticking a step:
   `tests/docs/gear-on-plane` M1's first, `tests/docs/slice` its accept's
   document, each with a golden in `crates/arrix-cli/tests/golden/`).
   `cargo test -p arrix-cli --test slice` is M1's accept, frozen goldens
-  included.
+  included. `cargo test -p arrix-cli --test naming_scenarios` is M2's
+  (`tests/docs/naming`, written with `UPDATE_SNAPSHOTS=1`), with
+  `--test save_fixtures` for the oversize fillet's recipe.
 - Either hook runs by hand as `.githooks/pre-commit` or
   `.githooks/pre-push`. `scripts/size-lint --list` shows offenders past
   the allowlist.

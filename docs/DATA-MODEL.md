@@ -162,8 +162,7 @@ pub struct FeatureRecord {
 A form field the record leaves out takes the type's default; a field the
 type does not list is refused (`feature.unknown-field`), never ignored.
 An input that takes a list (a fillet's edges, a hole's points), and the
-`edge`, `point`, `axis` and `tool` input kinds, are ADR-0012's, landing
-with `plans/c1-m2-features`; until then an input is one `Ref`.
+`edge`, `point`, `axis` and `tool` input kinds, are ADR-0012's.
 `choices` is omitted from JSON when empty, and `sketch` when absent.
 
 The feature *type* (its parameters' form, its inputs, its `evaluate`) comes
@@ -412,12 +411,11 @@ an object with one key, the variant in snake case: `{"topo":"face:…"}`,
 A record holds an `Input` under each input name: one `Ref`, or a list of
 them (`Input::One`, `Input::Many`, an object or an array in JSON, so a
 record from before lists reads unchanged). An empty list is the input
-unset, and the order of a list is kept. As built (schema 3): the record,
-`FeatureEdit` (which sets a list whole, its inverse the earlier value) and
-the DAG (one edge per element) carry lists; the evaluator refuses a list
-on an input that takes one as `input.list`. An input that declares it
-takes a list, and the kinds that use it, come with plugin API 0.4
-(`plans/c1-m2-features` step 5).
+unset, and the order of a list is kept. The record, `FeatureEdit` (which sets a list whole, its inverse the
+earlier value) and the DAG (one edge per element) carry lists. An
+`input-spec` says whether its input takes one (plugin API 0.4), and a list
+on an input that does not, or one reference on an input that does, is
+`input.list`.
 
 ## The dependency DAG
 
@@ -641,10 +639,10 @@ it stopped at; `gen` nests at most 32 deep.
 - **Through a copy or a mirror** (`Kernel::copy`, `Kernel::mirror`, as
   built): Arris modifies every entity one-to-one, so each entity is its
   original's name with `inst.<feature>.<i>`, `i` from 1 (a mirror is
-  instance 1); a copy of an instance adds its own step. A pattern is the
-  copies fused into one tool and cut (the copies are disjoint, so the fuse
-  keeps every name): a hole's wall is `…/gen.<cut>[<wall>/inst.<F>.<i>]`,
-  so raising or lowering the count renames no surviving hole
+  instance 1); a copy of an instance adds its own step. A pattern applies
+  its copies one by one, each its own boolean (ADR-0014): a hole's wall in
+  copy `i` is `…/inst.<F>.<i>/gen.<F>.<i-1>[<wall>/inst.<F>.<i>]`, so
+  raising or lowering the count renames no surviving hole
   (`crates/arrix-kernel/tests/instances.rs`).
 - **Plugin features get naming for free** when they build through kernel
   operations. Topology a plugin builds directly is rooted at a consumer
@@ -845,7 +843,7 @@ interaction).
   (1 µm). Ellipses, elliptic arcs and B-splines are ported
   behind a feature gate that stays off until a scenario reaches them
   (`SEED.md` §8.2 rule 7). Projected geometry (an
-  edge or vertex of a body projected onto the plane, M2) is an entity with a
+  edge or vertex of a body projected onto the plane) is an entity with a
   `Ref::Topo` source, re-projected on evaluation and failing like any lost
   reference. As stored (schema 3): `sources`, a map from the entity's id
   to the edge or vertex name, on a point, line, arc or circle only (the
