@@ -190,7 +190,7 @@ All in `arris` 0.5.0, already pinned; no ask is needed.
   lone reference on a list input as `input.list`, and `core.extrude`
   keeps its tool in join and cut. Tests: `eval/input_tests.rs`,
   `arrix-kernel/tests/locate.rs`, the equality test.*
-- [ ] **[3]** Step 6 — projection: the evaluator projects each sourced
+- [x] **[3]** Step 6 — projection: the evaluator projects each sourced
   sketch entity before the solve, `arrix-sketch` holds it fixed, a lost
   source fails the sketch as `ref.lost` naming the entity, an edge-on or
   elliptic projection as its `kernel.*` code. Tests: a sketch on a
@@ -200,6 +200,18 @@ All in `arris` 0.5.0, already pinned; no ask is needed.
   whether `arrix-sketch`'s datum handling already fixes points, and stops
   for the human if fixing them changes the solver's rank or the drag
   policy.
+  *Done: no stop needed. A fixed point is already not a solver variable
+  and a pin on it is dropped, so a projected entity's points join that
+  set (`Sketch::held_points`) and a projected circle's radius gets no
+  column: the same mechanism, no new rank or drag rule. The evaluator
+  projects in `resolve` after the inputs (`eval/project.rs`), one
+  recorded call per entity, so the input hash reads the projected
+  positions; a line's ends are matched to the nearer projected ends. A
+  projection of another shape than the entity is `sketch.source-kind`.
+  Tests: `arrix-sketch/tests/projected.rs`,
+  `arrix-doc/tests/projected_sketch.rs` (width edit, a drawn line driven,
+  the edge redrawn away upstream as `ref.lost`, an end-on edge, a shape
+  mismatch).*
 - [ ] **[1]** Step 7 — `core.boolean` in full: `op` `common`; `tools` a
   list body input (each consumed), several tools applied one call each.
   `core.boolean`'s `type_version` becomes 2, migrated from 1's single

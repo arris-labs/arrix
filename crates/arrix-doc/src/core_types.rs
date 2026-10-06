@@ -67,7 +67,7 @@ impl DatumPlane {
 /// The plane a datum plane or a sketch stands on: its `plane` input, or,
 /// with none, the world plane its `world` choice names (`xy` by default).
 /// `ty` is the type's name, which prefixes its codes (`sketch.world`).
-fn stand_on(args: &FeatureArgs, ty: &str, what: &str) -> Result<Frame, Diagnostic> {
+pub(crate) fn stand_on(args: &FeatureArgs, ty: &str, what: &str) -> Result<Frame, Diagnostic> {
     if let Some(other) = args.choices.keys().find(|k| *k != "world") {
         return Err(error(
             "feature.unknown-choice",

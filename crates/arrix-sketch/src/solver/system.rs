@@ -164,8 +164,9 @@ impl System {
     pub fn build_with_pins(sketch: &Sketch, pins: &[Pin]) -> Self {
         let mut vars = Vec::new();
         let mut point_col = std::collections::BTreeMap::new();
-        for (id, point) in &sketch.points {
-            if !point.fixed {
+        let held = sketch.held_points();
+        for id in sketch.points.keys() {
+            if !held.contains(id) {
                 point_col.insert(*id, vars.len());
                 vars.push(Var::PointX(*id));
                 vars.push(Var::PointY(*id));
@@ -178,6 +179,8 @@ impl System {
         let mut minor_radius_col = std::collections::BTreeMap::new();
         for (id, entity) in &sketch.entities {
             match entity {
+                // A projected circle's radius is its source's.
+                Entity::Circle { .. } if sketch.sources.contains_key(id) => {}
                 Entity::Circle { .. } => {
                     radius_col.insert(*id, vars.len());
                     vars.push(Var::CircleRadius(*id));

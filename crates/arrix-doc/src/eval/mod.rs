@@ -12,6 +12,7 @@ mod host;
 #[cfg(test)]
 mod input_tests;
 mod line;
+mod project;
 mod resolve;
 #[cfg(test)]
 mod sketch_tests;
@@ -691,6 +692,17 @@ impl Evaluator {
                     value,
                 });
             }
+        }
+        // Projected geometry takes its source's place before the hash and
+        // the solve read the sketch, on the plane the sketch stands on.
+        if args
+            .sketch
+            .as_ref()
+            .is_some_and(|s| !s.sketch.sources().is_empty())
+        {
+            let plane = crate::core_types::stand_on(&args, "sketch", "a sketch")?;
+            let s = args.sketch.as_mut().expect("checked above");
+            project::sources(kernel, scope, s.feature, &mut s.sketch, &plane)?;
         }
         Ok((args, reads))
     }

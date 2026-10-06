@@ -329,6 +329,22 @@ impl Sketch {
         &self.sources
     }
 
+    /// The points the solver does not move: those marked fixed and every
+    /// point of a projected entity, whose place is its source's.
+    pub(crate) fn held_points(&self) -> BTreeSet<PointId> {
+        let projected = self
+            .sources
+            .keys()
+            .filter_map(|id| self.entities.get(id))
+            .flat_map(Entity::point_ids);
+        self.points
+            .iter()
+            .filter(|(_, p)| p.fixed)
+            .map(|(id, _)| *id)
+            .chain(projected)
+            .collect()
+    }
+
     pub fn is_construction(&self, id: EntityId) -> bool {
         self.construction.contains(&id)
     }

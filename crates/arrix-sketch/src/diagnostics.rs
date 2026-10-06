@@ -214,13 +214,14 @@ fn point_states(
         })
         .collect();
     let locked = |v| locks.get(&v).copied().unwrap_or(true);
+    let held = sketch.held_points();
     sketch
         .points
-        .iter()
-        .map(|(&pid, pt)| {
+        .keys()
+        .map(|&pid| {
             let state = if conflicting.contains(&pid) {
                 EntityConstraintState::Conflicting
-            } else if pt.fixed || fixed_by_constraint.contains(&pid) {
+            } else if held.contains(&pid) || fixed_by_constraint.contains(&pid) {
                 EntityConstraintState::Fixed
             } else if locked(solver::Var::PointX(pid)) && locked(solver::Var::PointY(pid)) {
                 EntityConstraintState::FullyConstrained
@@ -252,9 +253,12 @@ fn entity_states(
                         .copied()
                         .unwrap_or(EntityConstraintState::UnderConstrained)
                 });
+                // A projected entity's scalar is its source's, not a
+                // solver variable.
+                let scalar = scalar_var(entity, eid).filter(|_| sketch.source(eid).is_none());
                 combine(
                     point_states,
-                    scalar_var(entity, eid).map(|v| locks.get(&v).copied().unwrap_or(false)),
+                    scalar.map(|v| locks.get(&v).copied().unwrap_or(false)),
                 )
             };
             (eid, state)

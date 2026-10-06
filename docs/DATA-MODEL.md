@@ -775,7 +775,19 @@ interaction).
   to the edge or vertex name, on a point, line, arc or circle only (the
   `conics` gate stays off); `SketchEdit` puts or, with `null`, removes
   one, and removing the entity sweeps its source. The evaluator reads a
-  source as a DAG edge; projecting it is `plans/c1-m2-features` step 6.
+  source as a DAG edge, and before the solve and the input hash read the
+  sketch it projects each source onto the sketch's plane (one recorded
+  `project` call per entity, the body found as for any `Ref::Topo`) and
+  moves the entity there: a line keeps whichever end is nearer each
+  projected end, so shared points do not swap. The solver holds a
+  projected entity's points and a circle's radius as it holds a fixed
+  point (not variables; `Fixed` in the diagnostics), so a constraint to
+  it drives the drawn geometry. Its failures name the entity
+  (`Ref::Sketch`) and the source: a lost source is `ref.lost` with
+  candidates, a source seen end-on or as an ellipse the kernel's
+  `kernel.degenerate.projection-collapses` or
+  `kernel.unsupported.projection` (record kept), and a projection of
+  another shape than the entity's `sketch.source-kind`.
 - **Constraints and dimensions** reference entities by id. A dimension is
   a constraint with a value, driving or reference, and its value is an
   expression, so it can name a parameter. The kinds a document can hold

@@ -506,7 +506,7 @@ fn lost_in_sketch(feature: FeatureId, what: &str, r: &Ref) -> Failure {
     .into()
 }
 
-fn kernel_failure(e: &KernelError, r: &Ref) -> Failure {
+pub(super) fn kernel_failure(e: &KernelError, r: &Ref) -> Failure {
     Failure {
         diagnostic: kernel_diagnostic(e).with_refs([r.clone()]),
         call: e.call(),
@@ -637,7 +637,7 @@ fn face_frame(
 /// The one body, among those of the features `r` names, that has an entity
 /// called `name`. None is a lost reference with the nearest names as
 /// candidates, and so is more than one: a name never picks between bodies.
-fn locate(
+pub(super) fn locate(
     kernel: &mut Kernel,
     scope: &Scope,
     r: &Ref,
