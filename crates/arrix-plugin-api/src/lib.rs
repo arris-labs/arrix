@@ -7,24 +7,27 @@
 //! one of `arrix-core`'s, it is re-exported rather than mirrored, so a plugin
 //! names it through this crate and the host passes it without conversion.
 //!
-//! Built so far (0.3.0): the `types`, `kernel` (extrude, fuse, cut, names,
-//! face frames, mass properties) and `feature` interfaces; 0.2 added region
-//! references and region inputs (ADR-0006), 0.3 body inputs, slots that
-//! modify them, and `fuse` and `cut` (ADR-0007).
+//! Built so far (0.4.0): the `types`, `kernel` (extrude, revolve, fuse,
+//! cut, common, fillet, chamfer, copy, mirror, names, face frames, mass
+//! properties) and `feature` interfaces; 0.2 added region references and
+//! region inputs (ADR-0006), 0.3 body inputs, slots that modify them, and
+//! `fuse` and `cut` (ADR-0007), 0.4 list inputs and the `edge`, `point`,
+//! `axis` and `tool` kinds (ADR-0012), the tool a feature keeps
+//! (ADR-0013), and the part-feature operations of the kernel.
 
 mod feature;
 mod kernel;
 
 pub use arrix_core::geom::{FrameError, ProfileError};
 pub use arrix_core::{
-    CurveKey, DVec2, DVec3, Diagnostic, DiagnosticCode, FeatureId, Frame, Id, InvalidCode,
-    InvalidPluginId, InvalidSlotName, NameError, ParamId, PersistentName, PluginId, Profile,
-    ProfileLoop, ProfileSegment, Quantity, QuantityKind, RecordId, Ref, RegionKey, Severity,
-    SketchEntityId, SlotName, TopoKind, Unit,
+    Axis, CurveKey, DVec2, DVec3, Diagnostic, DiagnosticCode, FeatureId, Frame, Id, InvalidCode,
+    InvalidPluginId, InvalidSlotName, Motion, NameError, ParamId, PersistentName, PluginId,
+    Profile, ProfileLoop, ProfileSegment, Quantity, QuantityKind, RecordId, Ref, RegionKey,
+    Severity, SketchEntityId, SlotName, TopoKind, Unit,
 };
 pub use feature::{
     Feature, FeatureOutput, FeatureTypeSpec, InputKind, InputSpec, InputValue, OutputValue,
-    ParamSpec, ParamValue, ResolvedInput, SlotKind, SlotOutput, SlotSpec,
+    ParamSpec, ParamValue, Point, ResolvedInput, SlotKind, SlotOutput, SlotSpec, Tool, ToolOp,
 };
 pub use kernel::{Body, Kernel, MassProperties};
 

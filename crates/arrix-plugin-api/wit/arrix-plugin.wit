@@ -5,7 +5,7 @@
 //
 // SI throughout: metres, radians, kilograms. No Arris type appears here.
 
-package arrix:plugin@0.3.0;
+package arrix:plugin@0.4.0;
 
 interface types {
   // An id: 64 bits, as `arrix-core`'s typed ids carry it.
@@ -65,6 +65,16 @@ interface types {
 
   // At unit density: cubic metres, square metres, a point.
   record mass-properties { volume: f64, area: f64, centroid: vec3 }
+
+  // A line in the world: a point on it and a direction (a revolve's axis,
+  // an `axis` input). A resolved input's direction is unit.
+  record axis { origin: vec3, direction: vec3 }
+  // A point input: where it is in the world, and, for a sketch point, the
+  // normal of the sketch's plane.
+  record point { at: vec3, normal: option<vec3> }
+  // A proper rigid motion: the body turns by `angle` about the axis through
+  // the world origin along `axis`, then moves by `translation`.
+  record motion { translation: vec3, axis: vec3, angle: f64 }
 }
 
 // The kernel, a host service: operations with ArriX's signatures, each
@@ -72,13 +82,16 @@ interface types {
 // point). Everything built is named from provenance, as the calling
 // feature's.
 interface kernel {
-  use types.{diagnostic, frame, mass-properties, persistent-ref, profile};
+  use types.{axis, diagnostic, frame, mass-properties, motion, persistent-ref, profile, vec3};
 
   // A body made in this evaluation; valid within it only.
   resource body;
 
   // `p` swept `distance` along its plane's normal, against it when negative.
   extrude: func(p: profile, distance: f64) -> result<body, diagnostic>;
+  // `p` turned `angle` radians (at most a full turn) about `a`. Counted
+  // with the extrudes in the feature's sweep numbering (ADR-0011).
+  revolve: func(p: profile, a: axis, angle: f64) -> result<body, diagnostic>;
   // Every face, edge and vertex of `b`, by name.
   names: func(b: borrow<body>) -> result<list<persistent-ref>, diagnostic>;
   // The outward frame of a planar face of `b`.
@@ -89,20 +102,38 @@ interface kernel {
   // the operands left as they were.
   fuse: func(target: borrow<body>, tool: borrow<body>) -> result<body, diagnostic>;
   cut: func(target: borrow<body>, tool: borrow<body>) -> result<body, diagnostic>;
+  // What `target` and `tool` have in common.
+  common: func(target: borrow<body>, tool: borrow<body>) -> result<body, diagnostic>;
+  // `b` with `edges` rounded at `radius` metres, or cut flat at `distance`.
+  // A feature's booleans and blends are numbered in call order (ADR-0014).
+  fillet: func(b: borrow<body>, edges: list<persistent-ref>, radius: f64) -> result<body, diagnostic>;
+  chamfer: func(b: borrow<body>, edges: list<persistent-ref>, distance: f64) -> result<body, diagnostic>;
+  // `b` moved by `m`, every entity named as copy `index` of the calling
+  // feature (index from 1: raising a pattern's count renames no copy that
+  // stays, ADR-0010), and `b` reflected in the plane through `origin` with
+  // `normal`, named as copy 1. The operand is left as it was.
+  copy: func(index: u32, b: borrow<body>, m: motion) -> result<body, diagnostic>;
+  mirror: func(b: borrow<body>, origin: vec3, normal: vec3) -> result<body, diagnostic>;
 }
 
 // Feature types (docs/PLUGINS.md §Contribution points, 1).
 interface feature {
-  use types.{diagnostic, frame, profile, quantity, quantity-kind};
+  use types.{axis, diagnostic, frame, persistent-ref, point, profile, quantity, quantity-kind};
   use kernel.{body};
 
   // A numeric field; `default` is an expression (`20`, `1 mm`).
   record param-spec { name: string, title: string, kind: quantity-kind, default: string }
   // What an input resolves to: a plane (a datum, a planar face, a world
-  // plane), a sketch region as a profile keyed by its entities, or a body
-  // slot's version current at the feature (ADR-0007).
-  enum input-kind { plane, region, body }
-  record input-spec { name: string, title: string, kind: input-kind }
+  // plane), a sketch region as a profile keyed by its entities, a body
+  // slot's version current at the feature (ADR-0007), an edge by name, a
+  // point (a sketch point or a vertex), an axis (a sketch line, a straight
+  // edge) or the tool a joining or cutting feature kept (ADR-0012,
+  // ADR-0013).
+  enum input-kind { plane, region, body, edge, point, axis, tool }
+  // A `list` input takes several references: it arrives as one
+  // `resolved-input` per element, in the record's order, each with the
+  // input's name.
+  record input-spec { name: string, title: string, kind: input-kind, %list: bool }
   enum slot-kind { body, plane }
   // An output slot; `name` is one lower-kebab word. A body slot that
   // `modifies` a body input is that input's slot's next version, not a
@@ -124,11 +155,26 @@ interface feature {
   // A body input is a handle of the plugin's own to the slot's version,
   // dropped when it is done: an owned handle rather than a borrow, which
   // wit-bindgen's Rust guests cannot take inside a list (ADR-0008).
-  variant input-value { plane(frame), region(profile), body(body) }
+  // The tool a feature that joins or cuts applied, kept so a pattern or a
+  // mirror can copy it, and the operation it was applied with. As an input
+  // it is the source feature's, an owned handle; as an output it is the
+  // body the feature built, given up.
+  enum tool-op { fuse, cut }
+  record tool { body: body, op: tool-op }
+  variant input-value {
+    plane(frame),
+    region(profile),
+    body(body),
+    edge(persistent-ref),
+    point(point),
+    axis(axis),
+    tool(tool),
+  }
   record resolved-input { name: string, value: input-value }
   variant output-value { body(body), plane(frame) }
   record slot-output { name: string, value: output-value }
-  record feature-output { slots: list<slot-output> }
+  // `tool` is a joining or cutting feature's kept tool (ADR-0013).
+  record feature-output { slots: list<slot-output>, tool: option<tool> }
 
   describe: func() -> list<feature-type-spec>;
   // Deterministic: a pure function of its arguments, the kernel's results

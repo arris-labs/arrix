@@ -3,7 +3,9 @@
 //! sees only the bodies it built itself and its body inputs, by its own
 //! handles.
 
-use arrix_core::{Diagnostic, FeatureId, Frame, PersistentName, Profile, Ref, Severity};
+use arrix_core::{
+    Axis, DVec3, Diagnostic, FeatureId, Frame, Motion, PersistentName, Profile, Ref, Severity,
+};
 use arrix_kernel::{CallIndex, Kernel, KernelBody, KernelError};
 use arrix_plugin_api::{Body, MassProperties};
 
@@ -109,6 +111,20 @@ impl arrix_plugin_api::Kernel for FeatureKernel<'_> {
         Ok(self.hand_out(body))
     }
 
+    fn revolve(&mut self, profile: &Profile, axis: &Axis, angle: f64) -> Result<Body, Diagnostic> {
+        let index = self.sweeps;
+        self.sweeps += 1;
+        let r = self.kernel.revolve(
+            self.feature,
+            index,
+            profile,
+            (axis.origin, axis.direction),
+            angle,
+        );
+        let body = self.take(r)?;
+        Ok(self.hand_out(body))
+    }
+
     fn names(&mut self, body: &Body) -> Result<Vec<PersistentName>, Diagnostic> {
         let b = self.resolve(body)?;
         let r = self.kernel.names(b).map(|n| n.iter().cloned().collect());
@@ -146,5 +162,55 @@ impl arrix_plugin_api::Kernel for FeatureKernel<'_> {
         let r = self.kernel.cut(self.feature, boolean, a, b);
         let body = self.take(r)?;
         Ok(self.hand_out(body))
+    }
+
+    fn common(&mut self, target: &Body, tool: &Body) -> Result<Body, Diagnostic> {
+        let (a, b) = (self.resolve(target)?, self.resolve(tool)?);
+        let boolean = self.next_boolean();
+        let r = self.kernel.common(self.feature, boolean, a, b);
+        let body = self.take(r)?;
+        Ok(self.hand_out(body))
+    }
+
+    fn fillet(
+        &mut self,
+        body: &Body,
+        edges: &[PersistentName],
+        radius: f64,
+    ) -> Result<Body, Diagnostic> {
+        let b = self.resolve(body)?;
+        let boolean = self.next_boolean();
+        let r = self.kernel.fillet(self.feature, boolean, b, edges, radius);
+        let blended = self.take(r)?;
+        Ok(self.hand_out(blended))
+    }
+
+    fn chamfer(
+        &mut self,
+        body: &Body,
+        edges: &[PersistentName],
+        distance: f64,
+    ) -> Result<Body, Diagnostic> {
+        let b = self.resolve(body)?;
+        let boolean = self.next_boolean();
+        let r = self
+            .kernel
+            .chamfer(self.feature, boolean, b, edges, distance);
+        let blended = self.take(r)?;
+        Ok(self.hand_out(blended))
+    }
+
+    fn copy(&mut self, index: u32, body: &Body, motion: &Motion) -> Result<Body, Diagnostic> {
+        let b = self.resolve(body)?;
+        let r = self.kernel.copy(self.feature, index, b, *motion);
+        let copy = self.take(r)?;
+        Ok(self.hand_out(copy))
+    }
+
+    fn mirror(&mut self, body: &Body, origin: DVec3, normal: DVec3) -> Result<Body, Diagnostic> {
+        let b = self.resolve(body)?;
+        let r = self.kernel.mirror(self.feature, b, origin, normal);
+        let image = self.take(r)?;
+        Ok(self.hand_out(image))
     }
 }

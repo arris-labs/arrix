@@ -5,15 +5,16 @@
 use std::collections::BTreeMap;
 
 use arrix_core::{
-    Diagnostic, FeatureId, Frame, ParamId, PersistentName, Profile, Quantity, QuantityKind, Ref,
-    RegionKey, Severity, SlotName, TopoKind,
+    Axis, DVec2, DVec3, Diagnostic, FeatureId, Frame, ParamId, PersistentName, Profile, Quantity,
+    QuantityKind, Ref, RegionKey, Severity, SlotName, TopoKind,
 };
-use arrix_kernel::{Kernel, KernelBody};
-use arrix_sketch::{ResolveRegion, Sketch};
+use arrix_kernel::{Kernel, KernelBody, KernelError};
+use arrix_plugin_api::{Point, ToolOp};
+use arrix_sketch::{Entity, ResolveRegion, Sketch};
 
 use super::hash::Resolved;
 use super::host::kernel_diagnostic;
-use super::{BodyRead, Failure, InputHash, RegionView, SlotOut, State};
+use super::{BodyRead, Failure, InputHash, RegionView, SketchView, SlotOut, State};
 use crate::bodies::{self, Effect, SlotKey};
 use crate::dag::{Dag, Node, ref_features};
 use crate::document::{Document, Part};
@@ -284,7 +285,231 @@ pub(super) fn blind(kernel: &mut Kernel, scope: &Scope, r: &Ref) -> Result<Resol
             body(scope, r).map(Resolved::Body)
         }
         Ref::Region { .. } => region(scope.doc, scope.states, r).map(Resolved::Region),
+        Ref::Feature(_) => tool(scope, r).map(|(read, _)| Resolved::Tool(read)),
+        // An edge is an `edge` input, whose hash is its name; a type that
+        // read it as an `axis` hashed its line, so a frozen feature of
+        // that shape is reported stale until its plugin is back.
+        Ref::Topo(name) if name.kind == TopoKind::Edge => {
+            edge(kernel, scope, r).map(Resolved::Edge)
+        }
+        Ref::Topo(name) if name.kind == TopoKind::Vertex => {
+            point(kernel, scope, r).map(Resolved::Point)
+        }
+        Ref::Sketch { feature, entity } => {
+            let view = sketch_view(scope.doc, scope.states, *feature, r)?;
+            if matches!(view.sketch.entity(*entity), Some(Entity::Line { .. })) {
+                axis(kernel, scope, r).map(Resolved::Axis)
+            } else {
+                point(kernel, scope, r).map(Resolved::Point)
+            }
+        }
         _ => plane(kernel, scope, r).map(Resolved::Plane),
+    }
+}
+
+/// The sketch `feature` solved, as its outputs hold it.
+fn sketch_view<'s>(
+    doc: &Document,
+    states: &'s BTreeMap<FeatureId, State>,
+    feature: FeatureId,
+    r: &Ref,
+) -> Result<&'s SketchView, Failure> {
+    outputs(doc, states, feature, r)?
+        .values()
+        .find_map(|slot| match slot {
+            SlotOut::Sketch(view) => Some(&**view),
+            _ => None,
+        })
+        .ok_or_else(|| {
+            error(
+                "input.wrong-kind",
+                format!("feature {feature} has no sketch to name a point or line of"),
+            )
+            .with_refs([r.clone()])
+            .into()
+        })
+}
+
+/// The tool a feature that joins or cuts kept (ADR-0013): a body read, by
+/// the feature's own input hash, and the operation it was applied with. A
+/// feature that keeps none, a frozen one included, is `input.no-tool`.
+pub(super) fn tool(scope: &Scope, r: &Ref) -> Result<(BodyRead, ToolOp), Failure> {
+    let Ref::Feature(feature) = r else {
+        return Err(error(
+            "input.wrong-kind",
+            "a tool input takes a feature that joins or cuts",
+        )
+        .with_refs([r.clone()])
+        .into());
+    };
+    let Some((maker_part, _, _)) = scope.doc.feature(*feature) else {
+        return Err(error(
+            "ref.lost",
+            format!("feature {feature} is not in the document"),
+        )
+        .with_refs([r.clone()])
+        .into());
+    };
+    if maker_part.id != scope.part.id {
+        return Err(error(
+            "input.cross-part",
+            format!("the tool of feature {feature} is in another part; bodies are read within their part"),
+        )
+        .with_refs([r.clone()])
+        .into());
+    }
+    produced(scope.doc, scope.states, *feature, r)?;
+    let Some(State::Ok {
+        hash,
+        tool: Some(kept),
+        ..
+    }) = scope.states.get(feature)
+    else {
+        return Err(error(
+            "input.no-tool",
+            format!(
+                "feature {feature} keeps no tool: only a feature that joins or cuts does, and a \
+                 plugin feature whose result is stored does not"
+            ),
+        )
+        .with_refs([r.clone()])
+        .into());
+    };
+    let read = BodyRead {
+        body: kept.body,
+        hash: *hash,
+        slot: SlotName::new("tool").expect("a literal slot name"),
+    };
+    Ok((read, kept.op))
+}
+
+/// An edge input: a name of an edge that exactly one body of the features
+/// it names has. Which body the feature then applies it to is its kernel
+/// call's to check (`kernel.unknown-name`).
+pub(super) fn edge(kernel: &mut Kernel, scope: &Scope, r: &Ref) -> Result<PersistentName, Failure> {
+    let Ref::Topo(name) = r else {
+        return Err(
+            error("input.wrong-kind", "an edge input takes an edge by name")
+                .with_refs([r.clone()])
+                .into(),
+        );
+    };
+    if name.kind != TopoKind::Edge {
+        return Err(error(
+            "input.wrong-kind",
+            format!("{name} is not an edge, where an edge is wanted"),
+        )
+        .with_refs([r.clone()])
+        .into());
+    }
+    locate(kernel, scope, r, name)?;
+    Ok(name.clone())
+}
+
+/// A point input: a sketch point (or a lone point entity) in the world,
+/// with its plane's normal, or a vertex by name.
+pub(super) fn point(kernel: &mut Kernel, scope: &Scope, r: &Ref) -> Result<Point, Failure> {
+    match r {
+        Ref::Sketch { feature, entity } => {
+            let view = sketch_view(scope.doc, scope.states, *feature, r)?;
+            let id = match view.sketch.entity(*entity) {
+                Some(Entity::Point(p)) => *p,
+                _ => *entity,
+            };
+            let Some(p) = view.sketch.point(id) else {
+                return Err(lost_in_sketch(*feature, "point", r));
+            };
+            Ok(Point {
+                at: view.plane.point(DVec2::new(p.x, p.y)),
+                normal: Some(view.plane.z_axis()),
+            })
+        }
+        Ref::Topo(name) if name.kind == TopoKind::Vertex => {
+            let body = locate(kernel, scope, r, name)?;
+            let at = kernel
+                .vertex_point(body, name)
+                .map_err(|e| kernel_failure(&e, r))?;
+            Ok(Point { at, normal: None })
+        }
+        other => Err(error(
+            "input.wrong-kind",
+            "a point input takes a sketch point or a vertex",
+        )
+        .with_refs([other.clone()])
+        .into()),
+    }
+}
+
+/// An axis input: a sketch line from its start along its length, or a
+/// straight edge by name, in the world with a unit direction.
+pub(super) fn axis(kernel: &mut Kernel, scope: &Scope, r: &Ref) -> Result<Axis, Failure> {
+    match r {
+        Ref::Sketch { feature, entity } => {
+            let view = sketch_view(scope.doc, scope.states, *feature, r)?;
+            let Some(Entity::Line { start, end }) = view.sketch.entity(*entity) else {
+                return Err(lost_in_sketch(*feature, "line", r));
+            };
+            let at = |id| {
+                view.sketch
+                    .point(id)
+                    .map(|p| view.plane.point(DVec2::new(p.x, p.y)))
+            };
+            let (Some(a), Some(b)) = (at(*start), at(*end)) else {
+                return Err(lost_in_sketch(*feature, "line", r));
+            };
+            let along: DVec3 = b - a;
+            if along.length() < arrix_core::LENGTH_TOLERANCE {
+                return Err(error(
+                    "input.degenerate",
+                    format!(
+                        "line {entity} of feature {feature}'s sketch has no length to be an axis"
+                    ),
+                )
+                .with_refs([r.clone()])
+                .into());
+            }
+            Ok(Axis {
+                origin: a,
+                direction: along.normalize(),
+            })
+        }
+        Ref::Topo(name) if name.kind == TopoKind::Edge => {
+            let body = locate(kernel, scope, r, name)?;
+            kernel.edge_axis(body, name).map_err(|e| {
+                // A curved edge is the wrong kind of thing for an axis.
+                let mut f = kernel_failure(&e, r);
+                if e.code().as_str() == "kernel.invalid-input" {
+                    f.diagnostic = error(
+                        "input.wrong-kind",
+                        format!("{name} is not a straight edge, where an axis is wanted"),
+                    )
+                    .with_refs([r.clone()]);
+                }
+                f
+            })
+        }
+        other => Err(error(
+            "input.wrong-kind",
+            "an axis input takes a sketch line or a straight edge",
+        )
+        .with_refs([other.clone()])
+        .into()),
+    }
+}
+
+fn lost_in_sketch(feature: FeatureId, what: &str, r: &Ref) -> Failure {
+    error(
+        "ref.lost",
+        format!("feature {feature}'s sketch has no {what} the reference names"),
+    )
+    .with_refs([r.clone()])
+    .into()
+}
+
+fn kernel_failure(e: &KernelError, r: &Ref) -> Failure {
+    Failure {
+        diagnostic: kernel_diagnostic(e).with_refs([r.clone()]),
+        call: e.call(),
     }
 }
 
@@ -402,6 +627,22 @@ fn face_frame(
     r: &Ref,
     name: &PersistentName,
 ) -> Result<Frame, Failure> {
+    let body = locate(kernel, scope, r, name)?;
+    kernel.face_frame(body, name).map_err(|e| Failure {
+        diagnostic: kernel_diagnostic(&e).with_refs([r.clone()]),
+        call: e.call(),
+    })
+}
+
+/// The one body, among those of the features `r` names, that has an entity
+/// called `name`. None is a lost reference with the nearest names as
+/// candidates, and so is more than one: a name never picks between bodies.
+fn locate(
+    kernel: &mut Kernel,
+    scope: &Scope,
+    r: &Ref,
+    name: &PersistentName,
+) -> Result<KernelBody, Failure> {
     let mut pool: Vec<KernelBody> = Vec::new();
     let mut keys = std::collections::BTreeSet::new();
     for f in ref_features(r) {
@@ -422,10 +663,7 @@ fn face_frame(
         }
     }
     if let [body] = matches[..] {
-        return kernel.face_frame(body, name).map_err(|e| Failure {
-            diagnostic: kernel_diagnostic(&e).with_refs([r.clone()]),
-            call: e.call(),
-        });
+        return Ok(body);
     }
     let mut all = Vec::new();
     for b in &pool {

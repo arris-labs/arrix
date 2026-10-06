@@ -34,11 +34,13 @@ impl CoreBoolean {
                         name: "target".into(),
                         title: "Body to modify".into(),
                         kind: InputKind::Body,
+                        list: false,
                     },
                     InputSpec {
                         name: "tool".into(),
                         title: "Body to fuse in or cut away".into(),
                         kind: InputKind::Body,
+                        list: false,
                     },
                 ],
                 outputs: vec![SlotSpec {
@@ -96,6 +98,7 @@ impl FeatureType for CoreBoolean {
                 name: self.spec.outputs[0].name.clone(),
                 value: OutputValue::Body(result),
             }],
+            tool: None,
         }
         .into())
     }

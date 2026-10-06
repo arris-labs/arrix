@@ -9,6 +9,8 @@ mod frozen;
 mod frozen_tests;
 mod hash;
 mod host;
+#[cfg(test)]
+mod input_tests;
 mod line;
 mod resolve;
 #[cfg(test)]
@@ -27,7 +29,7 @@ use arrix_core::{
 };
 use arrix_kernel::{CallIndex, Kernel, KernelBody, KernelCall, KernelError};
 use arrix_plugin_api::{
-    Body, InputKind, InputValue, OutputValue, ParamValue, ResolvedInput, SlotKind,
+    Body, InputKind, InputValue, OutputValue, ParamValue, ResolvedInput, SlotKind, Tool, ToolOp,
 };
 use arrix_sketch::{ConstraintId, Sketch};
 use serde::{Deserialize, Serialize};
@@ -210,6 +212,15 @@ impl SlotOut {
 
 type Slots = BTreeMap<SlotName, SlotOut>;
 
+/// The tool a feature that joins or cuts applied, held by the evaluator
+/// beside its slots (ADR-0013): no part body, readable only by a `tool`
+/// input, never consumed.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct KeptTool {
+    pub(crate) body: KernelBody,
+    pub(crate) op: ToolOp,
+}
+
 /// What a later feature finds when it reads one.
 pub(crate) enum State {
     /// Its outputs, the input hash they were evaluated under (a frozen
@@ -218,6 +229,9 @@ pub(crate) enum State {
     Ok {
         hash: InputHash,
         slots: Slots,
+        /// The tool it kept, if it joins or cuts and is live (a frozen
+        /// result stores none).
+        tool: Option<KeptTool>,
         stale: BTreeSet<FeatureId>,
     },
     /// Why it has no outputs: "failed", "is suppressed", "is rolled back".
@@ -239,6 +253,7 @@ struct Computed {
     hash: InputHash,
     cached: bool,
     slots: Slots,
+    tool: Option<KeptTool>,
     frozen: Option<FrozenInfo>,
 }
 
@@ -263,6 +278,7 @@ fn error(code: &str, message: impl Into<String>) -> Diagnostic {
 
 struct CacheEntry {
     slots: Slots,
+    tool: Option<KeptTool>,
     /// A plugin feature's result as the file stores it, made on first use.
     frozen: Option<Arc<Frozen>>,
     /// The evaluation that last used it.
@@ -384,6 +400,7 @@ impl Evaluator {
                 hash,
                 cached,
                 slots,
+                tool,
                 frozen,
             }) => {
                 let views = slots.iter().map(|(n, s)| (n.clone(), s.view())).collect();
@@ -399,7 +416,15 @@ impl Evaluator {
                     frozen,
                     diagnostics,
                 };
-                (outcome, State::Ok { hash, slots, stale })
+                (
+                    outcome,
+                    State::Ok {
+                        hash,
+                        slots,
+                        tool,
+                        stale,
+                    },
+                )
             }
             Err(f) => {
                 let call_index = f.call.filter(|c| self.kernel.record(*c).is_some());
@@ -469,20 +494,21 @@ impl Evaluator {
         };
         let (args, reads) = Self::resolve(&mut self.kernel, &scope, &*ty, record, params)?;
         let hash = InputHash::of(record, &*ty, &args, &reads);
-        let (cached, slots) = if let Some(entry) = self.cache.get_mut(&hash) {
+        let (cached, slots, tool) = if let Some(entry) = self.cache.get_mut(&hash) {
             entry.used = self.run;
-            (true, entry.slots.clone())
+            (true, entry.slots.clone(), entry.tool)
         } else {
-            let slots = self.run_type(&*ty, record.id, &args, &reads)?;
+            let (slots, tool) = self.run_type(&*ty, record.id, &args, &reads)?;
             self.cache.insert(
                 hash,
                 CacheEntry {
                     slots: slots.clone(),
+                    tool,
                     frozen: None,
                     used: self.run,
                 },
             );
-            (false, slots)
+            (false, slots, tool)
         };
         if let Some(version) = ty.plugin_version() {
             self.freeze(record.id, hash, version, &slots)?;
@@ -491,6 +517,7 @@ impl Evaluator {
             hash,
             cached,
             slots,
+            tool,
             frozen: None,
         })
     }
@@ -618,34 +645,52 @@ impl Evaluator {
             let Some(input) = record.inputs.get(&i.name).filter(|i| !i.is_empty()) else {
                 continue;
             };
-            // No input type takes a list yet; the spec's `list` comes with
-            // plugin API 0.4 (ADR-0012).
-            let Some(r) = input.one() else {
+            // A list on a single input, or one reference on a list input,
+            // is refused, not read as the other (ADR-0012).
+            if input.is_list() != i.list {
+                let (has, wants) = if i.list {
+                    ("one reference", "a list")
+                } else {
+                    ("a list", "one reference")
+                };
                 return Err(error(
                     "input.list",
                     format!(
-                        "{}'s input `{}` takes one reference, not a list",
+                        "{}'s input `{}` holds {has}, and takes {wants}",
                         spec.id, i.name
                     ),
                 )
                 .into());
-            };
-            let value = match i.kind {
-                InputKind::Plane => InputValue::Plane(resolve::plane(kernel, scope, r)?),
-                InputKind::Region => {
-                    InputValue::Region(resolve::region(scope.doc, scope.states, r)?)
-                }
-                InputKind::Body => {
-                    let read = resolve::body(scope, r)?;
+            }
+            // Each element in order, each a resolved input of the name.
+            for r in input.refs() {
+                let mut handle = |read: BodyRead| {
                     let handle = u32::try_from(reads.len()).expect("under 2³² inputs");
                     reads.push(read);
-                    InputValue::Body(Body::from_handle(handle))
-                }
-            };
-            args.inputs.push(ResolvedInput {
-                name: i.name.clone(),
-                value,
-            });
+                    Body::from_handle(handle)
+                };
+                let value = match i.kind {
+                    InputKind::Plane => InputValue::Plane(resolve::plane(kernel, scope, r)?),
+                    InputKind::Region => {
+                        InputValue::Region(resolve::region(scope.doc, scope.states, r)?)
+                    }
+                    InputKind::Body => InputValue::Body(handle(resolve::body(scope, r)?)),
+                    InputKind::Edge => InputValue::Edge(resolve::edge(kernel, scope, r)?),
+                    InputKind::Point => InputValue::Point(resolve::point(kernel, scope, r)?),
+                    InputKind::Axis => InputValue::Axis(resolve::axis(kernel, scope, r)?),
+                    InputKind::Tool => {
+                        let (read, op) = resolve::tool(scope, r)?;
+                        InputValue::Tool(Tool {
+                            body: handle(read),
+                            op,
+                        })
+                    }
+                };
+                args.inputs.push(ResolvedInput {
+                    name: i.name.clone(),
+                    value,
+                });
+            }
         }
         Ok((args, reads))
     }
@@ -658,7 +703,7 @@ impl Evaluator {
         feature: FeatureId,
         args: &FeatureArgs,
         reads: &[BodyRead],
-    ) -> Result<Slots, Failure> {
+    ) -> Result<(Slots, Option<KeptTool>), Failure> {
         let spec = ty.spec();
         let inputs = reads.iter().map(|r| r.body).collect();
         let mut k = FeatureKernel::new(&mut self.kernel, feature, inputs);
@@ -710,12 +755,21 @@ impl Evaluator {
         {
             return Err(bad(format!("slot `{missing}` was not filled")));
         }
+        let tool = match output.output.tool {
+            Some(Tool { body, op }) => {
+                let body = k
+                    .body(&body)
+                    .ok_or_else(|| bad("the tool is a body the feature did not build".into()))?;
+                Some(KeptTool { body, op })
+            }
+            None => None,
+        };
         for slot in slots.values_mut() {
             if let SlotOut::Body { body, measures } = slot {
                 *measures = self.measure(*body)?;
             }
         }
-        Ok(slots)
+        Ok((slots, tool))
     }
 
     fn measure(&mut self, body: KernelBody) -> Result<BodyMeasures, Failure> {
@@ -751,10 +805,12 @@ impl Evaluator {
         let keep: BTreeSet<KernelBody> = self
             .cache
             .values()
-            .flat_map(|e| e.slots.values())
-            .filter_map(|s| match s {
-                SlotOut::Body { body, .. } => Some(*body),
-                SlotOut::Plane(_) | SlotOut::Sketch(_) => None,
+            .flat_map(|e| {
+                let bodies = e.slots.values().filter_map(|s| match s {
+                    SlotOut::Body { body, .. } => Some(*body),
+                    SlotOut::Plane(_) | SlotOut::Sketch(_) => None,
+                });
+                bodies.chain(e.tool.map(|t| t.body))
             })
             .collect();
         self.kernel.retain(&keep);

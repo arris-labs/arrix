@@ -98,8 +98,15 @@ impl FeatureArgs {
             .map(|p| p.value.si)
     }
 
+    /// The first input called `name`: the whole of a single input.
     pub fn input(&self, name: &str) -> Option<&ResolvedInput> {
         self.inputs.iter().find(|i| i.name == name)
+    }
+
+    /// Every input called `name`, in the record's order: a list input's
+    /// elements (ADR-0012); empty when it is unset.
+    pub fn inputs_named<'a>(&'a self, name: &'a str) -> impl Iterator<Item = &'a ResolvedInput> {
+        self.inputs.iter().filter(move |i| i.name == name)
     }
 }
 
@@ -291,6 +298,7 @@ mod tests {
                     name: "target".into(),
                     title: "Target".into(),
                     kind: input,
+                    list: false,
                 }],
                 outputs: vec![SlotSpec {
                     name: SlotName::new("body").unwrap(),

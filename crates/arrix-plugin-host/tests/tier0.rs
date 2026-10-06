@@ -54,6 +54,7 @@ impl Feature for Demo {
                 name: "plane".into(),
                 title: "Plane".into(),
                 kind: InputKind::Plane,
+                list: false,
             }],
             outputs: vec![body.clone()],
         };
@@ -96,6 +97,7 @@ impl Feature for Demo {
                 name: SlotName::new("body").unwrap(),
                 value: OutputValue::Body(body),
             }],
+            tool: None,
         })
     }
 }
@@ -106,7 +108,7 @@ fn demo() -> Arc<dyn Feature> {
 
 fn registry(version: &str) -> Registry {
     let mut r = Registry::with_core_types();
-    register_tier0(&mut r, &manifest("demo", version, "^0.3"), demo()).unwrap();
+    register_tier0(&mut r, &manifest("demo", version, "^0.4"), demo()).unwrap();
     r
 }
 
@@ -167,7 +169,7 @@ fn hash(registry: Registry, d: &Document, feature: u64) -> InputHash {
 #[test]
 fn every_type_registers_under_the_plugins_namespace() {
     let mut r = Registry::with_core_types();
-    let ids = register_tier0(&mut r, &manifest("demo", "0.1.0", "^0.3"), demo()).unwrap();
+    let ids = register_tier0(&mut r, &manifest("demo", "0.1.0", "^0.4"), demo()).unwrap();
     let ids: Vec<_> = ids.iter().map(FeatureTypeId::as_str).collect();
     assert_eq!(ids, ["demo.disc", "demo.stack", "demo.washer", "demo.boom"]);
     let all: Vec<_> = r.ids().map(FeatureTypeId::as_str).collect();
@@ -192,7 +194,7 @@ fn a_plugin_that_does_not_fit_is_refused_whole() {
     let before: Vec<_> = r.ids().cloned().collect();
     let foreign = Arc::new(Demo { prefix: "other" });
     assert!(matches!(
-        register_tier0(&mut r, &manifest("demo", "0.1.0", "^0.3"), foreign),
+        register_tier0(&mut r, &manifest("demo", "0.1.0", "^0.4"), foreign),
         Err(HostError::Namespace { .. })
     ));
     // Built against a plugin API before this host's (ADR-0006, ADR-0007).
@@ -202,7 +204,7 @@ fn a_plugin_that_does_not_fit_is_refused_whole() {
             Err(HostError::Api { .. })
         ));
     }
-    let tier1 = manifest("demo", "0.1.0", "^0.3").replace("tier = 0", "tier = 1");
+    let tier1 = manifest("demo", "0.1.0", "^0.4").replace("tier = 0", "tier = 1");
     assert!(matches!(
         register_tier0(&mut r, &tier1, demo()),
         Err(HostError::NotTier0 { tier: 1, .. })
@@ -212,9 +214,9 @@ fn a_plugin_that_does_not_fit_is_refused_whole() {
         Err(HostError::Manifest(_))
     ));
     assert_eq!(r.ids().cloned().collect::<Vec<_>>(), before);
-    register_tier0(&mut r, &manifest("demo", "0.1.0", "^0.3"), demo()).unwrap();
+    register_tier0(&mut r, &manifest("demo", "0.1.0", "^0.4"), demo()).unwrap();
     assert!(matches!(
-        register_tier0(&mut r, &manifest("demo", "0.1.0", "^0.3"), demo()),
+        register_tier0(&mut r, &manifest("demo", "0.1.0", "^0.4"), demo()),
         Err(HostError::Registry(_))
     ));
 }

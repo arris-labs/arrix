@@ -21,14 +21,15 @@ use arris::Control;
 use arris::io::body::BodyError;
 use arris::math::Precision;
 use arris::topo::{Body, EntityId, Model};
-use arrix_core::{DVec3, FeatureId, Frame, PersistentName, Profile, TopoKind};
+use arrix_core::{Axis, DVec3, FeatureId, Frame, PersistentName, Profile, TopoKind};
 
+pub use arrix_core::Motion;
 pub use bytes::{BodyBytes, NameEntry, NameTable};
 pub use error::KernelError;
 pub use fixture::{FixtureError, FixtureRecipe};
 pub use naming::BodyNames;
 pub use project::Projected;
-pub use record::{ARRIS_VERSION, BodyHash, CallIndex, CallPrecision, KernelCall, KernelOp, Motion};
+pub use record::{ARRIS_VERSION, BodyHash, CallIndex, CallPrecision, KernelCall, KernelOp};
 
 /// Arris's `fillet` and `chamfer`, one signature.
 type BlendOp = fn(
@@ -580,6 +581,81 @@ impl Kernel {
         let frame = arris::ops::query::face_frame(&self.model, used)
             .map_err(|e| KernelError::op(call, &e))?;
         Ok(convert::frame_back(&frame))
+    }
+
+    /// Where the vertex `vertex` of `body` is, in the world.
+    pub fn vertex_point(
+        &mut self,
+        body: KernelBody,
+        vertex: &PersistentName,
+    ) -> Result<DVec3, KernelError> {
+        let entry = self.entry(body)?;
+        let id = match entry.names.entity(vertex) {
+            Some(EntityId::Vertex(id)) => id,
+            Some(_) => {
+                return Err(KernelError::WrongKind {
+                    name: vertex.clone(),
+                    wanted: TopoKind::Vertex,
+                    found: vertex.kind,
+                });
+            }
+            None => {
+                return Err(KernelError::UnknownName {
+                    name: vertex.clone(),
+                });
+            }
+        };
+        let call = self.begin(
+            KernelOp::VertexPoint {
+                vertex: vertex.clone(),
+            },
+            &[body],
+        )?;
+        let point = self
+            .model
+            .vertex(id)
+            .map_err(|e| KernelError::op(call, &e.into()))?
+            .point();
+        Ok(convert::dpoint3(point))
+    }
+
+    /// The line the straight edge `edge` of `body` lies on: a point of it
+    /// and its unit direction, as Arris orients it. A curved edge is
+    /// `kernel.invalid-input`.
+    pub fn edge_axis(
+        &mut self,
+        body: KernelBody,
+        edge: &PersistentName,
+    ) -> Result<Axis, KernelError> {
+        let entry = self.entry(body)?;
+        let id = match entry.names.entity(edge) {
+            Some(EntityId::Edge(id)) => id,
+            Some(_) => {
+                return Err(KernelError::WrongKind {
+                    name: edge.clone(),
+                    wanted: TopoKind::Edge,
+                    found: edge.kind,
+                });
+            }
+            None => return Err(KernelError::UnknownName { name: edge.clone() }),
+        };
+        let call = self.begin(KernelOp::EdgeAxis { edge: edge.clone() }, &[body])?;
+        let curve = self
+            .model
+            .edge(id)
+            .map_err(|e| KernelError::op(call, &e.into()))?
+            .curve()
+            .and_then(|(curve, _)| self.model.curve(curve).ok());
+        match curve {
+            Some(arris::geom::Curve::Line { origin, direction }) => Ok(Axis {
+                origin: convert::dpoint3(*origin),
+                direction: convert::dvec3(direction.into_inner()),
+            }),
+            _ => Err(KernelError::invalid_input(
+                call,
+                format!("{edge} is not a straight edge"),
+            )),
+        }
     }
 
     /// The edges and vertices `names` of `body` projected orthogonally

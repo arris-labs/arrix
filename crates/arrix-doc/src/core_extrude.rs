@@ -5,7 +5,7 @@
 use arrix_core::{Diagnostic, QuantityKind, Severity, SlotName};
 use arrix_plugin_api::{
     FeatureOutput, FeatureTypeSpec, InputKind, InputSpec, InputValue, Kernel, OutputValue,
-    ParamSpec, SlotKind, SlotOutput, SlotSpec,
+    ParamSpec, SlotKind, SlotOutput, SlotSpec, Tool, ToolOp,
 };
 
 use crate::registry::{FeatureArgs, FeatureType, TypeOutput};
@@ -41,11 +41,13 @@ impl CoreExtrude {
                         name: "region".into(),
                         title: "Sketch region".into(),
                         kind: InputKind::Region,
+                        list: false,
                     },
                     InputSpec {
                         name: "target".into(),
                         title: "Body to join to or cut".into(),
                         kind: InputKind::Body,
+                        list: false,
                     },
                 ],
                 outputs: vec![SlotSpec {
@@ -92,6 +94,7 @@ impl FeatureType for CoreExtrude {
             _ => None,
         };
         let distance = args.param("distance").unwrap_or(0.0);
+        let mut kept = None;
         let body = match (mode, target) {
             ("new", None) => kernel.extrude(profile, distance)?,
             ("new", Some(_)) => {
@@ -108,11 +111,21 @@ impl FeatureType for CoreExtrude {
             }
             ("join", Some(target)) => {
                 let tool = kernel.extrude(profile, distance)?;
-                kernel.fuse(target, &tool)?
+                let joined = kernel.fuse(target, &tool)?;
+                kept = Some(Tool {
+                    body: tool,
+                    op: ToolOp::Fuse,
+                });
+                joined
             }
             ("cut", Some(target)) => {
                 let tool = kernel.extrude(profile, distance)?;
-                kernel.cut(target, &tool)?
+                let cut = kernel.cut(target, &tool)?;
+                kept = Some(Tool {
+                    body: tool,
+                    op: ToolOp::Cut,
+                });
+                cut
             }
             (other, _) => {
                 return Err(error(
@@ -126,6 +139,9 @@ impl FeatureType for CoreExtrude {
                 name: self.spec.outputs[0].name.clone(),
                 value: OutputValue::Body(body),
             }],
+            // A join or a cut keeps its tool for a pattern or a mirror
+            // of it to copy (ADR-0013).
+            tool: kept,
         }
         .into())
     }

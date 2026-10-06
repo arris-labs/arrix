@@ -7,8 +7,8 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use arrix_core::{
-    DVec2, Diagnostic, FeatureId, Frame, Id, PartId, PersistentName, Profile, ProfileLoop,
-    ProfileSegment, Quantity, QuantityKind, Ref, Severity, SlotName, TopoKind,
+    Axis, DVec2, DVec3, Diagnostic, FeatureId, Frame, Id, Motion, PartId, PersistentName, Profile,
+    ProfileLoop, ProfileSegment, Quantity, QuantityKind, Ref, Severity, SlotName, TopoKind,
 };
 use arrix_doc::{
     Command, Document, Evaluator, FeatureOutcome, FeatureRecord, FeatureTypeId, Part, Registry,
@@ -32,6 +32,13 @@ struct Host {
 
 fn diag(e: arrix_kernel::KernelError) -> Diagnostic {
     Diagnostic::new(Severity::Error, e.code().as_str(), e.to_string()).unwrap()
+}
+
+impl Host {
+    fn push(&mut self, body: KernelBody) -> Body {
+        self.bodies.push(body);
+        Body::from_handle(self.bodies.len() as u32 - 1)
+    }
 }
 
 impl arrix_plugin_api::Kernel for Host {
@@ -88,6 +95,73 @@ impl arrix_plugin_api::Kernel for Host {
         let body = self.kernel.cut(FeatureId(Id(7)), 0, a, b).map_err(diag)?;
         self.bodies.push(body);
         Ok(Body::from_handle(self.bodies.len() as u32 - 1))
+    }
+
+    fn revolve(&mut self, profile: &Profile, axis: &Axis, angle: f64) -> Result<Body, Diagnostic> {
+        let at = (axis.origin, axis.direction);
+        let body = self
+            .kernel
+            .revolve(FeatureId(Id(7)), 0, profile, at, angle)
+            .map_err(diag)?;
+        Ok(self.push(body))
+    }
+
+    fn common(&mut self, target: &Body, tool: &Body) -> Result<Body, Diagnostic> {
+        let (a, b) = (
+            self.bodies[target.handle() as usize],
+            self.bodies[tool.handle() as usize],
+        );
+        let body = self
+            .kernel
+            .common(FeatureId(Id(7)), 0, a, b)
+            .map_err(diag)?;
+        Ok(self.push(body))
+    }
+
+    fn fillet(
+        &mut self,
+        body: &Body,
+        edges: &[PersistentName],
+        radius: f64,
+    ) -> Result<Body, Diagnostic> {
+        let a = self.bodies[body.handle() as usize];
+        let body = self
+            .kernel
+            .fillet(FeatureId(Id(7)), 0, a, edges, radius)
+            .map_err(diag)?;
+        Ok(self.push(body))
+    }
+
+    fn chamfer(
+        &mut self,
+        body: &Body,
+        edges: &[PersistentName],
+        distance: f64,
+    ) -> Result<Body, Diagnostic> {
+        let a = self.bodies[body.handle() as usize];
+        let body = self
+            .kernel
+            .chamfer(FeatureId(Id(7)), 0, a, edges, distance)
+            .map_err(diag)?;
+        Ok(self.push(body))
+    }
+
+    fn copy(&mut self, index: u32, body: &Body, motion: &Motion) -> Result<Body, Diagnostic> {
+        let a = self.bodies[body.handle() as usize];
+        let body = self
+            .kernel
+            .copy(FeatureId(Id(7)), index, a, *motion)
+            .map_err(diag)?;
+        Ok(self.push(body))
+    }
+
+    fn mirror(&mut self, body: &Body, origin: DVec3, normal: DVec3) -> Result<Body, Diagnostic> {
+        let a = self.bodies[body.handle() as usize];
+        let body = self
+            .kernel
+            .mirror(FeatureId(Id(7)), a, origin, normal)
+            .map_err(diag)?;
+        Ok(self.push(body))
     }
 }
 

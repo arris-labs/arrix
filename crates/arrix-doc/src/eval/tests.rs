@@ -47,6 +47,7 @@ impl Block {
                 name: "plane".into(),
                 title: "Plane".into(),
                 kind: InputKind::Plane,
+                list: false,
             }],
             outputs: vec![SlotSpec {
                 name: slot("body"),
@@ -92,6 +93,7 @@ impl FeatureType for Block {
                 name: slot("body"),
                 value: OutputValue::Body(body),
             }],
+            tool: None,
         }
         .into())
     }

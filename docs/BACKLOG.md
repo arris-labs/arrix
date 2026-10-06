@@ -17,5 +17,6 @@ idea is not brainstormed twice.
 - A short ADR recording that a modifying slot is a version only while its input is set, if the rule should live in ADR-0007 and not only in `docs/DATA-MODEL.md` §Bodies across features (plans/c1-m1-slice step 6)
 - File with Arris (human): a hole across a fillet fails `cut` as `Internal(Split(Dangling))`, and a stadium fillet of 1 mm or less fails as `Internal(Invariant)`; recipes in `crates/arrix-kernel/tests/recipes/` (plans/c1-m2-naming steps 2, 7, 9)
 - A feature giving each sweep its own index (a hole's point id), so removing one of a hole's points renames no other hole's tool; an ADR beside ADR-0011 when a scenario needs it (plans/c1-m2-features, open question 2)
+- A frozen feature's `axis` input from a straight edge hashes as an `edge` input's name, since its type's form is unknown, so a plugin feature stored with an edge-sourced axis reads stale while its plugin is absent; record the input's kind in the stored result if a plugin does this (plans/c1-m2-features step 5)
 
 ## Rejected

@@ -21,9 +21,9 @@ use std::path::Path;
 
 use arrix_plugin_api as api;
 use arrix_plugin_api::{
-    Body, CurveKey, DVec2, DVec3, Diagnostic, FeatureId, Frame, Id, ParamId, PersistentName,
-    PluginId, Profile, ProfileLoop, ProfileSegment, Quantity, QuantityKind, RecordId, Ref,
-    RegionKey, Severity, SketchEntityId, SlotName,
+    Axis, Body, CurveKey, DVec2, DVec3, Diagnostic, FeatureId, Frame, Id, Motion, ParamId,
+    PersistentName, PluginId, Profile, ProfileLoop, ProfileSegment, Quantity, QuantityKind,
+    RecordId, Ref, RegionKey, Severity, SketchEntityId, SlotName,
 };
 
 mod wit {
@@ -391,6 +391,86 @@ impl Mirror for api::MassProperties {
     }
 }
 
+impl Mirror for Axis {
+    type Wit = wt::Axis;
+    fn to_wit(&self) -> wt::Axis {
+        let Axis { origin, direction } = *self;
+        wt::Axis {
+            origin: origin.to_wit(),
+            direction: direction.to_wit(),
+        }
+    }
+    fn from_wit(w: wt::Axis) -> Self {
+        let wt::Axis { origin, direction } = w;
+        Axis {
+            origin: DVec3::from_wit(origin),
+            direction: DVec3::from_wit(direction),
+        }
+    }
+}
+
+impl Mirror for Motion {
+    type Wit = wt::Motion;
+    fn to_wit(&self) -> wt::Motion {
+        let Motion {
+            translation,
+            axis,
+            angle,
+        } = *self;
+        wt::Motion {
+            translation: translation.to_wit(),
+            axis: axis.to_wit(),
+            angle,
+        }
+    }
+    fn from_wit(w: wt::Motion) -> Self {
+        let wt::Motion {
+            translation,
+            axis,
+            angle,
+        } = w;
+        Motion {
+            translation: DVec3::from_wit(translation),
+            axis: DVec3::from_wit(axis),
+            angle,
+        }
+    }
+}
+
+impl Mirror for api::Point {
+    type Wit = wt::Point;
+    fn to_wit(&self) -> wt::Point {
+        let api::Point { at, normal } = *self;
+        wt::Point {
+            at: at.to_wit(),
+            normal: normal.map(|n| n.to_wit()),
+        }
+    }
+    fn from_wit(w: wt::Point) -> Self {
+        let wt::Point { at, normal } = w;
+        api::Point {
+            at: DVec3::from_wit(at),
+            normal: normal.map(DVec3::from_wit),
+        }
+    }
+}
+
+impl Mirror for api::ToolOp {
+    type Wit = wf::ToolOp;
+    fn to_wit(&self) -> wf::ToolOp {
+        match self {
+            api::ToolOp::Fuse => wf::ToolOp::Fuse,
+            api::ToolOp::Cut => wf::ToolOp::Cut,
+        }
+    }
+    fn from_wit(w: wf::ToolOp) -> Self {
+        match w {
+            wf::ToolOp::Fuse => api::ToolOp::Fuse,
+            wf::ToolOp::Cut => api::ToolOp::Cut,
+        }
+    }
+}
+
 // ---- feature types ----------------------------------------------------------
 
 impl Mirror for api::ParamSpec {
@@ -432,6 +512,10 @@ impl Mirror for api::InputKind {
             api::InputKind::Plane => wf::InputKind::Plane,
             api::InputKind::Region => wf::InputKind::Region,
             api::InputKind::Body => wf::InputKind::Body,
+            api::InputKind::Edge => wf::InputKind::Edge,
+            api::InputKind::Point => wf::InputKind::Point,
+            api::InputKind::Axis => wf::InputKind::Axis,
+            api::InputKind::Tool => wf::InputKind::Tool,
         }
     }
     fn from_wit(w: wf::InputKind) -> Self {
@@ -439,6 +523,10 @@ impl Mirror for api::InputKind {
             wf::InputKind::Plane => api::InputKind::Plane,
             wf::InputKind::Region => api::InputKind::Region,
             wf::InputKind::Body => api::InputKind::Body,
+            wf::InputKind::Edge => api::InputKind::Edge,
+            wf::InputKind::Point => api::InputKind::Point,
+            wf::InputKind::Axis => api::InputKind::Axis,
+            wf::InputKind::Tool => api::InputKind::Tool,
         }
     }
 }
@@ -446,19 +534,31 @@ impl Mirror for api::InputKind {
 impl Mirror for api::InputSpec {
     type Wit = wf::InputSpec;
     fn to_wit(&self) -> wf::InputSpec {
-        let api::InputSpec { name, title, kind } = self;
+        let api::InputSpec {
+            name,
+            title,
+            kind,
+            list,
+        } = self;
         wf::InputSpec {
             name: name.clone(),
             title: title.clone(),
             kind: kind.to_wit(),
+            list: *list,
         }
     }
     fn from_wit(w: wf::InputSpec) -> Self {
-        let wf::InputSpec { name, title, kind } = w;
+        let wf::InputSpec {
+            name,
+            title,
+            kind,
+            list,
+        } = w;
         api::InputSpec {
             name,
             title,
             kind: api::InputKind::from_wit(kind),
+            list,
         }
     }
 }
@@ -574,6 +674,13 @@ fn input_to_wit(input: &api::ResolvedInput, bodies: &mut WitKernel) -> wf::Resol
         api::InputValue::Plane(f) => wf::InputValue::Plane(f.to_wit()),
         api::InputValue::Region(p) => wf::InputValue::Region(p.to_wit()),
         api::InputValue::Body(b) => wf::InputValue::Body(bodies.take(b)),
+        api::InputValue::Edge(n) => wf::InputValue::Edge(n.to_wit()),
+        api::InputValue::Point(p) => wf::InputValue::Point(p.to_wit()),
+        api::InputValue::Axis(a) => wf::InputValue::Axis(a.to_wit()),
+        api::InputValue::Tool(api::Tool { body, op }) => wf::InputValue::Tool(wf::Tool {
+            body: bodies.take(body),
+            op: op.to_wit(),
+        }),
     };
     wf::ResolvedInput {
         name: name.clone(),
@@ -587,6 +694,13 @@ fn input_from_wit(w: wf::ResolvedInput, bodies: &mut WitKernel) -> api::Resolved
         wf::InputValue::Plane(f) => api::InputValue::Plane(Frame::from_wit(f)),
         wf::InputValue::Region(p) => api::InputValue::Region(Profile::from_wit(p)),
         wf::InputValue::Body(b) => api::InputValue::Body(bodies.put(b)),
+        wf::InputValue::Edge(n) => api::InputValue::Edge(PersistentName::from_wit(n)),
+        wf::InputValue::Point(p) => api::InputValue::Point(api::Point::from_wit(p)),
+        wf::InputValue::Axis(a) => api::InputValue::Axis(Axis::from_wit(a)),
+        wf::InputValue::Tool(wf::Tool { body, op }) => api::InputValue::Tool(api::Tool {
+            body: bodies.put(body),
+            op: api::ToolOp::from_wit(op),
+        }),
     };
     api::ResolvedInput { name, value }
 }
@@ -594,7 +708,11 @@ fn input_from_wit(w: wf::ResolvedInput, bodies: &mut WitKernel) -> api::Resolved
 /// Outputs hold bodies, which are resources: they move, never copy, so
 /// they convert by value through the body table of the evaluation.
 fn output_to_wit(out: api::FeatureOutput, bodies: &mut WitKernel) -> wf::FeatureOutput {
-    let api::FeatureOutput { slots } = out;
+    let api::FeatureOutput { slots, tool } = out;
+    let tool = tool.map(|api::Tool { body, op }| wf::Tool {
+        body: bodies.take(&body),
+        op: op.to_wit(),
+    });
     let slots = slots
         .into_iter()
         .map(|api::SlotOutput { name, value }| wf::SlotOutput {
@@ -605,11 +723,15 @@ fn output_to_wit(out: api::FeatureOutput, bodies: &mut WitKernel) -> wf::Feature
             },
         })
         .collect();
-    wf::FeatureOutput { slots }
+    wf::FeatureOutput { slots, tool }
 }
 
 fn output_from_wit(out: wf::FeatureOutput) -> api::FeatureOutput {
-    let wf::FeatureOutput { slots } = out;
+    let wf::FeatureOutput { slots, tool } = out;
+    let tool = tool.map(|wf::Tool { body, op }| api::Tool {
+        body: Body::from_handle(body.handle()),
+        op: api::ToolOp::from_wit(op),
+    });
     let slots = slots
         .into_iter()
         .map(|wf::SlotOutput { name, value }| api::SlotOutput {
@@ -620,7 +742,7 @@ fn output_from_wit(out: wf::FeatureOutput) -> api::FeatureOutput {
             },
         })
         .collect();
-    api::FeatureOutput { slots }
+    api::FeatureOutput { slots, tool }
 }
 
 // ---- functions --------------------------------------------------------------
@@ -657,6 +779,13 @@ impl api::Kernel for WitKernel {
         }
     }
 
+    fn revolve(&mut self, profile: &Profile, axis: &Axis, angle: f64) -> Result<Body, Diagnostic> {
+        match wit::kernel::revolve(&profile.to_wit(), axis.to_wit(), angle) {
+            Ok(b) => Ok(self.put(b)),
+            Err(d) => Err(Diagnostic::from_wit(d)),
+        }
+    }
+
     fn names(&mut self, body: &Body) -> Result<Vec<PersistentName>, Diagnostic> {
         wit::kernel::names(self.get(body))
             .map(Vec::from_wit)
@@ -688,6 +817,51 @@ impl api::Kernel for WitKernel {
             Err(d) => Err(Diagnostic::from_wit(d)),
         }
     }
+
+    fn common(&mut self, target: &Body, tool: &Body) -> Result<Body, Diagnostic> {
+        match wit::kernel::common(self.get(target), self.get(tool)) {
+            Ok(b) => Ok(self.put(b)),
+            Err(d) => Err(Diagnostic::from_wit(d)),
+        }
+    }
+
+    fn fillet(
+        &mut self,
+        body: &Body,
+        edges: &[PersistentName],
+        radius: f64,
+    ) -> Result<Body, Diagnostic> {
+        match wit::kernel::fillet(self.get(body), &edges.to_vec().to_wit(), radius) {
+            Ok(b) => Ok(self.put(b)),
+            Err(d) => Err(Diagnostic::from_wit(d)),
+        }
+    }
+
+    fn chamfer(
+        &mut self,
+        body: &Body,
+        edges: &[PersistentName],
+        distance: f64,
+    ) -> Result<Body, Diagnostic> {
+        match wit::kernel::chamfer(self.get(body), &edges.to_vec().to_wit(), distance) {
+            Ok(b) => Ok(self.put(b)),
+            Err(d) => Err(Diagnostic::from_wit(d)),
+        }
+    }
+
+    fn copy(&mut self, index: u32, body: &Body, motion: &Motion) -> Result<Body, Diagnostic> {
+        match wit::kernel::copy(index, self.get(body), motion.to_wit()) {
+            Ok(b) => Ok(self.put(b)),
+            Err(d) => Err(Diagnostic::from_wit(d)),
+        }
+    }
+
+    fn mirror(&mut self, body: &Body, origin: DVec3, normal: DVec3) -> Result<Body, Diagnostic> {
+        match wit::kernel::mirror(self.get(body), origin.to_wit(), normal.to_wit()) {
+            Ok(b) => Ok(self.put(b)),
+            Err(d) => Err(Diagnostic::from_wit(d)),
+        }
+    }
 }
 
 /// A test plugin: one feature type, a plane offset from its input, so it
@@ -709,6 +883,7 @@ fn offset_type() -> api::FeatureTypeSpec {
             name: "plane".into(),
             title: "Plane".into(),
             kind: api::InputKind::Plane,
+            list: false,
         }],
         outputs: vec![api::SlotSpec {
             name: SlotName::new("plane").unwrap(),
@@ -747,6 +922,7 @@ impl api::Feature for Offset {
                 name: SlotName::new("plane").unwrap(),
                 value: api::OutputValue::Plane(plane.offset(distance.value.si)),
             }],
+            tool: None,
         })
     }
 }
@@ -915,7 +1091,40 @@ fn every_type_round_trips_through_the_world() {
         kind: api::SlotKind::Body,
         modifies: Some("target".into()),
     });
-    round_trip(&api::InputKind::Body);
+    for kind in [
+        api::InputKind::Plane,
+        api::InputKind::Region,
+        api::InputKind::Body,
+        api::InputKind::Edge,
+        api::InputKind::Point,
+        api::InputKind::Axis,
+        api::InputKind::Tool,
+    ] {
+        round_trip(&kind);
+        round_trip(&api::InputSpec {
+            name: "in".into(),
+            title: "In".into(),
+            kind,
+            list: kind == api::InputKind::Edge,
+        });
+    }
+    round_trip(&Axis {
+        origin: DVec3::new(0.01, 0.0, -0.002),
+        direction: DVec3::new(0.0, 0.6, 0.8),
+    });
+    round_trip(&Motion {
+        translation: DVec3::new(0.008, 0.0, 0.0),
+        axis: DVec3::Z,
+        angle: 0.5,
+    });
+    for normal in [None, Some(DVec3::Z)] {
+        round_trip(&api::Point {
+            at: DVec3::new(0.01, 0.02, 0.005),
+            normal,
+        });
+    }
+    round_trip(&api::ToolOp::Fuse);
+    round_trip(&api::ToolOp::Cut);
 }
 
 #[test]
@@ -969,13 +1178,29 @@ const COVERED: &[(&str, &[&str], &[&str])] = &[
             "profile-loop",
             "profile",
             "mass-properties",
+            "axis",
+            "point",
+            "motion",
         ],
         &[],
     ),
     (
         "kernel",
         &["body"],
-        &["extrude", "names", "face-frame", "measure", "fuse", "cut"],
+        &[
+            "extrude",
+            "revolve",
+            "names",
+            "face-frame",
+            "measure",
+            "fuse",
+            "cut",
+            "common",
+            "fillet",
+            "chamfer",
+            "copy",
+            "mirror",
+        ],
     ),
     (
         "feature",
@@ -989,6 +1214,8 @@ const COVERED: &[(&str, &[&str], &[&str])] = &[
             "param-value",
             "input-value",
             "resolved-input",
+            "tool-op",
+            "tool",
             "output-value",
             "slot-output",
             "feature-output",
@@ -1030,11 +1257,11 @@ fn the_world_is_exactly_what_is_covered() {
     // `types` only through the `use`s.
     assert_eq!(
         names(&world.imports),
-        BTreeSet::from(["arrix:plugin/kernel@0.3.0", "arrix:plugin/types@0.3.0"].map(String::from))
+        BTreeSet::from(["arrix:plugin/kernel@0.4.0", "arrix:plugin/types@0.4.0"].map(String::from))
     );
     assert_eq!(
         names(&world.exports),
-        BTreeSet::from(["arrix:plugin/feature@0.3.0".to_owned()])
+        BTreeSet::from(["arrix:plugin/feature@0.4.0".to_owned()])
     );
 
     let mut found = BTreeSet::new();

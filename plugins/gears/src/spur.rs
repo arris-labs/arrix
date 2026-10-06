@@ -48,6 +48,7 @@ pub fn spec() -> FeatureTypeSpec {
             name: "plane".into(),
             title: "Plane".into(),
             kind: InputKind::Plane,
+            list: false,
         }],
         outputs: vec![SlotSpec {
             name: body_slot(),
@@ -133,5 +134,6 @@ pub fn evaluate(
             name: body_slot(),
             value: OutputValue::Body(body),
         }],
+        tool: None,
     })
 }

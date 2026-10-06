@@ -9,6 +9,37 @@ use serde::{Deserialize, Serialize};
 
 use crate::CurveKey;
 
+/// A straight line through `origin` along `direction`, in the world. Not
+/// necessarily unit: what carries it says so, and a revolve's axis is
+/// normalised by the kernel.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Axis {
+    pub origin: DVec3,
+    pub direction: DVec3,
+}
+
+/// A proper rigid motion, in metres and radians: the body turns by `angle`
+/// about the axis through the world origin along `axis`, then moves by
+/// `translation`. A turn about another point is that, with the translation
+/// the composition gives.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Motion {
+    pub translation: DVec3,
+    pub axis: DVec3,
+    pub angle: f64,
+}
+
+impl Motion {
+    /// A pure translation.
+    pub fn translation(translation: DVec3) -> Self {
+        Self {
+            translation,
+            axis: DVec3::Z,
+            angle: 0.0,
+        }
+    }
+}
+
 /// How far from orthogonal a frame's two given axes may be, as the cosine
 /// of the angle between them. Tighter than any modelling tolerance, so a
 /// frame built from unit vectors by rotation always passes.

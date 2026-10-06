@@ -158,6 +158,7 @@ impl Evaluator {
             self.cache.insert(
                 hash,
                 CacheEntry {
+                    tool: None,
                     slots: slots.clone(),
                     frozen: None,
                     used: self.run,
@@ -166,6 +167,7 @@ impl Evaluator {
             (false, slots)
         };
         Ok(Computed {
+            tool: None,
             hash,
             cached,
             slots,

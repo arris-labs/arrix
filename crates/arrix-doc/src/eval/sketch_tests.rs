@@ -325,6 +325,7 @@ impl FeatureType for Pad {
                 name: SlotName::new("body").unwrap(),
                 value: OutputValue::Body(body),
             }],
+            tool: None,
         }
         .into())
     }
@@ -348,6 +349,7 @@ fn with_pad() -> Registry {
                 name: "region".into(),
                 title: "Region".into(),
                 kind: InputKind::Region,
+                list: false,
             }],
             outputs: vec![SlotSpec {
                 name: SlotName::new("body").unwrap(),

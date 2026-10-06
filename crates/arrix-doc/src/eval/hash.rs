@@ -5,9 +5,9 @@
 
 use std::fmt;
 
-use arrix_core::{FeatureId, Frame, Profile, SlotName};
+use arrix_core::{Axis, DVec3, FeatureId, Frame, PersistentName, Profile, SlotName};
 use arrix_kernel::ARRIS_VERSION;
-use arrix_plugin_api::InputValue;
+use arrix_plugin_api::{InputValue, Point};
 use serde::{Deserialize, Serialize};
 
 use super::BodyRead;
@@ -59,6 +59,20 @@ enum Input<'a> {
         produced_by: InputHash,
         slot: &'a SlotName,
     },
+    /// An edge by its name: which body it is on is the call's to check.
+    Edge(&'a PersistentName),
+    Point {
+        at: DVec3,
+        normal: Option<DVec3>,
+    },
+    Axis {
+        origin: DVec3,
+        direction: DVec3,
+    },
+    /// The tool a feature kept, by that feature's input hash.
+    Tool {
+        tool_of: InputHash,
+    },
 }
 
 /// An input as resolved without its type's form, by the shape of its
@@ -68,6 +82,10 @@ pub(crate) enum Resolved {
     Plane(Frame),
     Region(Profile),
     Body(BodyRead),
+    Edge(PersistentName),
+    Point(Point),
+    Axis(Axis),
+    Tool(BodyRead),
 }
 
 impl InputHash {
@@ -99,6 +117,18 @@ impl InputHash {
                             slot: &read.slot,
                         }
                     }
+                    InputValue::Edge(n) => Input::Edge(n),
+                    InputValue::Point(p) => Input::Point {
+                        at: p.at,
+                        normal: p.normal,
+                    },
+                    InputValue::Axis(a) => Input::Axis {
+                        origin: a.origin,
+                        direction: a.direction,
+                    },
+                    InputValue::Tool(t) => Input::Tool {
+                        tool_of: bodies[t.body.handle() as usize].hash,
+                    },
                 };
                 (i.name.as_str(), value)
             })
@@ -138,6 +168,16 @@ impl InputHash {
                         produced_by: read.hash,
                         slot: &read.slot,
                     },
+                    Resolved::Edge(n) => Input::Edge(n),
+                    Resolved::Point(p) => Input::Point {
+                        at: p.at,
+                        normal: p.normal,
+                    },
+                    Resolved::Axis(a) => Input::Axis {
+                        origin: a.origin,
+                        direction: a.direction,
+                    },
+                    Resolved::Tool(read) => Input::Tool { tool_of: read.hash },
                 };
                 (name.as_str(), value)
             })

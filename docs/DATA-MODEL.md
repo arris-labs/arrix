@@ -288,6 +288,17 @@ extrude in cut mode, the body it cut is a new version of the same slot.
   read within its part: naming one of another part is `input.cross-part`
   until assemblies say what a version across parts is.
 
+- **The tool a feature keeps** (ADR-0013, as built): a feature that joins
+  or cuts hands back the tool it applied, and the evaluator holds it beside
+  the feature's slots, in its cache entry and in the state later features
+  read. It is no part body and no slot: nothing reads it by `Ref::Slot`
+  and nothing consumes it. A `tool` input (a `Ref::Feature`) reads it, as
+  a body handle of the reader's own and the operation, `fuse` or `cut`;
+  its input hash is the source feature's. A feature that keeps none, or a
+  frozen plugin feature (a stored result holds no tool), is `input.no-tool`
+  naming it; a tool of another part is `input.cross-part`.
+  `core.extrude` in `join` and `cut` modes keeps its tool.
+
 Built-ins and plugins declare these the same way, through the plugin
 API's `input-kind.body` and `slot-spec.modifies` (`docs/PLUGINS.md` §One
 interface).

@@ -1,7 +1,9 @@
 //! Feature types a plugin contributes (the world's `feature`;
 //! docs/PLUGINS.md §Contribution points, 1).
 
-use arrix_core::{Diagnostic, Frame, Profile, Quantity, QuantityKind, SlotName};
+use arrix_core::{
+    Axis, DVec3, Diagnostic, Frame, PersistentName, Profile, Quantity, QuantityKind, SlotName,
+};
 
 use crate::{Body, Kernel};
 
@@ -28,6 +30,19 @@ pub enum InputKind {
     /// as a `Body` handle to the slot's version current at the feature
     /// (ADR-0007, ADR-0008).
     Body,
+    /// An edge, referenced by its name (`Ref::Topo`), as a
+    /// `PersistentName`. Which body it is on is the kernel call's to check
+    /// (ADR-0012).
+    Edge,
+    /// A sketch point (`Ref::Sketch`) or a vertex (`Ref::Topo`), as a
+    /// world `Point`.
+    Point,
+    /// A sketch line (`Ref::Sketch`) or a straight edge (`Ref::Topo`), as
+    /// a world `Axis` with a unit direction.
+    Axis,
+    /// The tool a joining or cutting feature kept (`Ref::Feature`), as a
+    /// `Tool` (ADR-0013).
+    Tool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -35,6 +50,10 @@ pub struct InputSpec {
     pub name: String,
     pub title: String,
     pub kind: InputKind,
+    /// The input takes a list of references, and arrives as one
+    /// `ResolvedInput` per element in the record's order, each with the
+    /// input's name (ADR-0012).
+    pub list: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -74,6 +93,31 @@ pub struct ParamValue {
     pub value: Quantity,
 }
 
+/// A point input, in the world.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Point {
+    pub at: DVec3,
+    /// The normal of the sketch's plane for a sketch point; a vertex has
+    /// none.
+    pub normal: Option<DVec3>,
+}
+
+/// How a feature applied its tool.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ToolOp {
+    Fuse,
+    Cut,
+}
+
+/// The tool a feature that joins or cuts applied, and the operation:
+/// what a pattern or a mirror of that feature copies (ADR-0013). Not
+/// `Clone`: its body is a handle.
+#[derive(Debug, PartialEq)]
+pub struct Tool {
+    pub body: Body,
+    pub op: ToolOp,
+}
+
 /// A resolved input. Not `Clone`, since a `Body` is not: a body input is a
 /// handle the host gives the feature for its evaluation (ADR-0008), read
 /// through `&[ResolvedInput]`.
@@ -82,6 +126,10 @@ pub enum InputValue {
     Plane(Frame),
     Region(Profile),
     Body(Body),
+    Edge(PersistentName),
+    Point(Point),
+    Axis(Axis),
+    Tool(Tool),
 }
 
 #[derive(Debug, PartialEq)]
@@ -102,10 +150,12 @@ pub struct SlotOutput {
     pub value: OutputValue,
 }
 
-/// What `evaluate` produced, slot by slot.
+/// What `evaluate` produced, slot by slot, and the tool a joining or
+/// cutting feature keeps for a pattern or a mirror to copy (ADR-0013).
 #[derive(Debug, Default, PartialEq)]
 pub struct FeatureOutput {
     pub slots: Vec<SlotOutput>,
+    pub tool: Option<Tool>,
 }
 
 /// A plugin's feature types. `evaluate` is deterministic: a pure function

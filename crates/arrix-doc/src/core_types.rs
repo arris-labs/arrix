@@ -52,6 +52,7 @@ impl DatumPlane {
                     name: "plane".into(),
                     title: "Plane or planar face".into(),
                     kind: InputKind::Plane,
+                    list: false,
                 }],
                 outputs: vec![SlotSpec {
                     name: slot("plane"),
@@ -88,6 +89,10 @@ fn stand_on(args: &FeatureArgs, ty: &str, what: &str) -> Result<Frame, Diagnosti
             InputValue::Body(_) => Err(error(
                 "input.wrong-kind",
                 format!("{what} stands on a plane, not a body"),
+            )),
+            _ => Err(error(
+                "input.wrong-kind",
+                format!("{what} stands on a plane"),
             )),
         },
         (None, world) => {
@@ -129,6 +134,7 @@ impl FeatureType for DatumPlane {
                 name: self.spec.outputs[0].name.clone(),
                 value: OutputValue::Plane(plane),
             }],
+            tool: None,
         }
         .into())
     }
@@ -157,6 +163,7 @@ impl CoreSketch {
                     name: "plane".into(),
                     title: "Plane or planar face".into(),
                     kind: InputKind::Plane,
+                    list: false,
                 }],
                 outputs: vec![],
             },

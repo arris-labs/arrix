@@ -35,6 +35,7 @@ fn input(name: &str, kind: InputKind) -> InputSpec {
         name: name.into(),
         title: name.into(),
         kind,
+        list: false,
     }
 }
 
@@ -67,6 +68,7 @@ fn plane_out(z: f64) -> TypeOutput {
             name: slot("plane"),
             value: OutputValue::Plane(f),
         }],
+        tool: None,
     }
     .into()
 }
@@ -144,6 +146,7 @@ impl FeatureType for Modifier {
                 name: slot("body"),
                 value: OutputValue::Body(body),
             }],
+            tool: None,
         }
         .into())
     }

@@ -206,6 +206,8 @@ impl FixtureRecipe {
         let result = match failed.op {
             KernelOp::Project { .. }
             | KernelOp::FaceFrame { .. }
+            | KernelOp::VertexPoint { .. }
+            | KernelOp::EdgeAxis { .. }
             | KernelOp::MassProperties
             | KernelOp::ToBytes => name(failed.sources[0]),
             _ => name(call),
@@ -349,6 +351,8 @@ fn push_steps(
         },
         KernelOp::Project { .. }
         | KernelOp::FaceFrame { .. }
+        | KernelOp::VertexPoint { .. }
+        | KernelOp::EdgeAxis { .. }
         | KernelOp::MassProperties
         | KernelOp::ToBytes => return Ok(()),
         KernelOp::FromBytes { .. } => {
@@ -414,6 +418,8 @@ fn op_word(op: &KernelOp) -> &'static str {
         KernelOp::Copy { .. } => "copy",
         KernelOp::Mirror { .. } => "mirror",
         KernelOp::FaceFrame { .. } => "face_frame",
+        KernelOp::VertexPoint { .. } => "vertex_point",
+        KernelOp::EdgeAxis { .. } => "edge_axis",
         KernelOp::MassProperties => "mass_properties",
         KernelOp::ToBytes => "to_bytes",
         KernelOp::FromBytes { .. } => "from_bytes",

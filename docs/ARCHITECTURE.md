@@ -7,7 +7,7 @@ the kernel's choke point, errors, testing and the gate. The charter is
 `docs/CONCURRENCY-WASM.md`. Built: the workspace with every crate
 (`arrix-core`'s units, ids, references, persistent names, frames and
 profiles, and `Diagnostic`, `arrix-kernel`'s first slice of §The kernel
-choke point, `arrix-plugin-api` 0.3.0, `arrix-doc`'s
+choke point, `arrix-plugin-api` 0.4.0, `arrix-doc`'s
 expressions, document, DAG, commands and undo, evaluator and cache, the
 directory form's and the zip's save and open with the migration chain,
 frozen results, and the `arrix eval` line (`--without-plugin`),
@@ -60,7 +60,7 @@ hashes through the same code) has, `toml` (1, parsing and serde only) and
 "forbid"` is a workspace lint every crate inherits; `wit-bindgen`'s
 `generate!` compiles under it, its `export!` does not, which is why the
 equality test implements the guest traits without exporting them.
-`arrix-plugin-api` alone carries its own version (0.3.0); every other
+`arrix-plugin-api` alone carries its own version (0.4.0); every other
 crate is the workspace's 0.0.0.
 The binaries are `arrix` (`arrix-cli`) and `arrix-app`. No crate is
 published yet (`publish = false`); reserving names is the human's act.
@@ -173,7 +173,8 @@ geometry from provenance, and to make every kernel call a record.
   Built: `extrude` (a keyed `Profile` along its plane's normal, a
   negative distance against it), `revolve` (a keyed `Profile` about a world
   axis, a full turn without an end cap, named as a `revolve` root, a void's
-  shell unnamed; neither sweep is offered to plugins as `revolve` yet),
+  shell unnamed), now all of them offered to plugins at API 0.4 except
+  `project`, `vertex_point` and `edge_axis`, which are the evaluator's,
   `fillet` and `chamfer` (a body and edges by name, `kernel.degenerate.
   blend-too-large` and its siblings with the record kept), `copy` (a
   body moved by a turn and a translation, `Motion`) and `mirror` (both
@@ -186,6 +187,9 @@ geometry from provenance, and to make every kernel call a record.
   anticlockwise arc or circle in the frame's `(u, v)`; an edge seen
   end-on is `kernel.degenerate.projection-collapses`, an ellipse or a
   NURBS `kernel.unsupported.projection`, both with the record kept),
+  `vertex_point` and `edge_axis` (where a vertex is, and the line a
+  straight edge lies on, both recorded: they are what a `point` and an
+  `axis` input read from a body; a curved edge is `kernel.invalid-input`),
   `face_frame` (outward, planar faces only) and
   `mass_properties` (volume, area, centroid), and `to_bytes`/`from_bytes`
   (ask A2, `arris` 0.4): a body as canonical Arris body bytes with a

@@ -170,7 +170,7 @@ All in `arris` 0.5.0, already pinned; no ask is needed.
   gives `input-spec` its `list`; a frozen feature's input hash takes a
   list's elements in order. `SCHEMA` 3, the 2 → 3 link,
   `tests/docs/migrations/schema-2/`, every scenario's header re-saved.*
-- [ ] **[2]** Step 5 — plugin API 0.4: the WIT world, the Rust traits, the
+- [x] **[2]** Step 5 — plugin API 0.4: the WIT world, the Rust traits, the
   equality test; the evaluator's host implements the new `Kernel`
   methods over `arrix-kernel` and resolves the new input kinds (a list
   input as its elements in order; an `edge` not on the body is the
@@ -178,6 +178,18 @@ All in `arris` 0.5.0, already pinned; no ask is needed.
   as today; `feature-output.tool` held by the evaluator, ADR-0013).
   `gears` on 0.4; `docs/PLUGINS.md` §One interface and §Versioning in the
   same commit.
+  *Done: API 0.4.0 as ADR-0012/0013 say, with one `tool` record for both
+  the input and the output (not a separate `tool-output`), `list` written
+  `%list` in WIT, `Axis` and `Motion` in `arrix-core` (`Motion` moved from
+  the kernel, re-exported there); `copy` takes its instance index and the
+  rest of the numbering is the host's (ADR-0014: a plugin does not see
+  `n`). `arrix-kernel` gained recorded `vertex_point` and `edge_axis` for
+  the `point` and `axis` inputs from the body. The evaluator holds a
+  kept tool in its cache entry and state, hashes the new kinds by value
+  (a tool by its source's hash), refuses a list on a single input and a
+  lone reference on a list input as `input.list`, and `core.extrude`
+  keeps its tool in join and cut. Tests: `eval/input_tests.rs`,
+  `arrix-kernel/tests/locate.rs`, the equality test.*
 - [ ] **[3]** Step 6 — projection: the evaluator projects each sourced
   sketch entity before the solve, `arrix-sketch` holds it fixed, a lost
   source fails the sketch as `ref.lost` naming the entity, an edge-on or
