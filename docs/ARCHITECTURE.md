@@ -175,7 +175,9 @@ geometry from provenance, and to make every kernel call a record.
   axis, a full turn without an end cap, named as a `revolve` root, a void's
   shell unnamed; neither sweep is offered to plugins as `revolve` yet),
   `fillet` and `chamfer` (a body and edges by name, `kernel.degenerate.
-  blend-too-large` and its siblings with the record kept), `fuse` and `cut`
+  blend-too-large` and its siblings with the record kept), `copy` (a
+  body moved by a turn and a translation, `Motion`) and `mirror` (both
+  named with an `inst` step), `fuse` and `cut`
   (a target and a tool,
   both left valid, named through their provenance, §Persistent naming in
   `docs/DATA-MODEL.md`), `face_frame` (outward, planar faces only) and

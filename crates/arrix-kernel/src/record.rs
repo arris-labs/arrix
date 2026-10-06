@@ -86,6 +86,20 @@ pub enum KernelOp {
         edges: Vec<PersistentName>,
         distance: f64,
     },
+    /// The operand body moved by `motion`, its entities named as copy
+    /// `index` of `feature` (`inst.<feature>.<index>`).
+    Copy {
+        feature: FeatureId,
+        index: u32,
+        motion: Motion,
+    },
+    /// The operand body reflected in the plane through `origin` with
+    /// `normal`; its entities are instance 1 of `feature`.
+    Mirror {
+        feature: FeatureId,
+        origin: DVec3,
+        normal: DVec3,
+    },
     /// The outward frame of a planar face of the operand body.
     FaceFrame { face: PersistentName },
     /// Volume, area and centroid of the operand body.
@@ -95,6 +109,28 @@ pub enum KernelOp {
     /// Body bytes read into the model; `bytes` is their hash. The operand
     /// list is empty: the bytes are the input.
     FromBytes { bytes: BodyHash },
+}
+
+/// A proper rigid motion, in metres and radians: the body turns by `angle`
+/// about the axis through the world origin along `axis`, then moves by
+/// `translation`. A turn about another point is that, with the translation
+/// the composition gives.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Motion {
+    pub translation: DVec3,
+    pub axis: DVec3,
+    pub angle: f64,
+}
+
+impl Motion {
+    /// A pure translation.
+    pub fn translation(translation: DVec3) -> Self {
+        Self {
+            translation,
+            axis: DVec3::Z,
+            angle: 0.0,
+        }
+    }
 }
 
 /// The model tolerances a call ran under, in the fields an Arris fixture

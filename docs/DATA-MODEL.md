@@ -529,6 +529,14 @@ at; `gen` nests at most 32 deep.
   chain edge's blend face is `gen.<F>[<its own edge>]`, so the same names
   come out whichever edge was named. A name nests one `gen` per blend of
   a body that was blended again, within the limit of 32 (`crates/arrix-kernel/tests/blends.rs`).
+- **Through a copy or a mirror** (`Kernel::copy`, `Kernel::mirror`, as
+  built): Arris modifies every entity one-to-one, so each entity is its
+  original's name with `inst.<feature>.<i>`, `i` from 1 (a mirror is
+  instance 1); a copy of an instance adds its own step. A pattern is the
+  copies fused into one tool and cut (the copies are disjoint, so the fuse
+  keeps every name): a hole's wall is `…/gen.<cut>[<wall>/inst.<F>.<i>]`,
+  so raising or lowering the count renames no surviving hole
+  (`crates/arrix-kernel/tests/instances.rs`).
 - **Plugin features get naming for free** when they build through kernel
   operations. Topology a plugin builds directly is rooted at a consumer
   role with a key the plugin chooses (ask A1). `gears.spur` keys each

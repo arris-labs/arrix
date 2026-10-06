@@ -135,7 +135,7 @@ against the same list at step 2.
   face from an edge the feature did not name takes `gen.<F>[<that
   edge's name>]`, so the names stay one per entity whichever edge of the
   chain was picked.
-- [ ] **[2]** Step 8 — instances: `copy` (a body transformed `N` times, each
+- [x] **[2]** Step 8 — instances: `copy` (a body transformed `N` times, each
   entity `inst.<F>.<i>`, `i` from 1) and `mirror` (instance 1), then the
   pattern shapes as a fuse or cut of the copies. Raising or lowering `N`
   renames no surviving copy.
@@ -249,12 +249,10 @@ Written at planning time; executed before the plan is deleted.
   schema vendored under `tests/` (no `path =` dependency), and the real runner
   is run once by hand against `docs/notes/LOCAL.md`'s checkout, the result
   recorded in the commit message. Who: human, by step 9.
-- ⚠ OPEN: pattern shape, one fused tool and one cut, or `N` cuts. Preferred:
-  one fused tool, since Arris handles multi-lump solids (C2) and the name
-  of a hole's wall then carries one `inst` step, not a chain. Arris's
-  `cut_many` (on `main` for 0.6, unreleased) is a third shape: one boolean
-  with one record naming each tool, every untouched entity keeping its id.
-  If 0.6 is released before step 8, it is taken there with its breaking
-  `Reason` regrouping; otherwise the fused tool, and `cut_many` a later
-  bump. Who: agent,
-  by step 8, after the probe of step 2.
+- Decided in step 8 (agent): the pattern is one fused tool and one cut.
+  `cut_many` is not released (`arris` 0.5.0 is the latest), so it stays a
+  later bump. Fusing the disjoint copies keeps every name, and a hole's
+  wall carries one `inst` step (`tests/instances.rs`). `Kernel::copy`
+  takes one copy by index and a `Motion` (a turn about the origin, then a
+  translation); the host and `core.pattern` build the count from it in
+  `c1-m2-features`.

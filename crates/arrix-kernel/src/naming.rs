@@ -331,6 +331,49 @@ pub(crate) fn boolean_names(
     Ok(BodyNames { by_name })
 }
 
+/// The names of a copy's or a mirror image's output: each entity is
+/// `Modified` one-to-one from its operand's, and takes that name with
+/// `inst.<feature>.<index>` (ADR-0010). `Err` says what could not be
+/// placed: an origin that is not an entity of the operand, a split or a
+/// merge, which a copy never makes, or two entities with one name.
+pub(crate) fn instance_names(
+    m: &Model,
+    body: Body,
+    (feature, index): (FeatureId, u32),
+    operand: &BodyNames,
+    provenance: &Provenance,
+) -> Result<BodyNames, String> {
+    let old: BTreeMap<EntityId, &PersistentName> = operand.pairs().map(|(n, id)| (id, n)).collect();
+    let mut named: BTreeMap<EntityId, PersistentName> = BTreeMap::new();
+    for origin in provenance.origins_recorded() {
+        let Origin::Entity(from) = origin else {
+            return Err(format!("{origin} is a role, not an operand's entity"));
+        };
+        let Some(&from_name) = old.get(&from.id) else {
+            continue;
+        };
+        let to = provenance.modified_from(origin);
+        let ([shape], true) = (to, provenance.generated_from(origin).is_empty()) else {
+            return Err(format!("{origin} is not copied one-to-one"));
+        };
+        let mut name = from_name.clone();
+        name.chain.push(NameStep::Instance { feature, index });
+        if let Some(other) = named.insert(shape.id, name) {
+            return Err(format!("{other} names {} twice", shape.id));
+        }
+    }
+    let mut by_name = BTreeMap::new();
+    for id in entities(m, body)? {
+        let Some(name) = named.remove(&id) else {
+            return Err(format!("{id} is no copy of an operand entity"));
+        };
+        if let Some(other) = by_name.insert(name.clone(), id) {
+            return Err(format!("{name} names both {other} and {id}"));
+        }
+    }
+    Ok(BodyNames { by_name })
+}
+
 /// `gen.<feature>[from]` after the root and chain of the first of `from`
 /// sorted, since a name has a root.
 fn generated(feature: FeatureId, mut from: Vec<PersistentName>) -> PersistentName {

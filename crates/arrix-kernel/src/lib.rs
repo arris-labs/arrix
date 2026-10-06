@@ -3,7 +3,8 @@
 //! kernel choke point).
 //!
 //! Built so far: the `Kernel` service's first slice (`extrude`, `revolve`,
-//! `fuse`, `cut`, `face_frame`, `mass_properties`, `to_bytes`,
+//! `fuse`, `cut`, `fillet`, `chamfer`, `copy`, `mirror`, `face_frame`,
+//! `mass_properties`, `to_bytes`,
 //! `from_bytes`), names from the sweeps' and the booleans' provenance, and
 //! a `KernelCall` record made before every call.
 
@@ -22,7 +23,7 @@ use arrix_core::{DVec3, FeatureId, Frame, PersistentName, Profile, TopoKind};
 pub use bytes::{BodyBytes, NameEntry, NameTable};
 pub use error::KernelError;
 pub use naming::BodyNames;
-pub use record::{ARRIS_VERSION, BodyHash, CallIndex, CallPrecision, KernelCall, KernelOp};
+pub use record::{ARRIS_VERSION, BodyHash, CallIndex, CallPrecision, KernelCall, KernelOp, Motion};
 
 /// Arris's `fillet` and `chamfer`, one signature.
 type BlendOp = fn(
@@ -311,6 +312,86 @@ impl Kernel {
             distance,
         };
         self.blend(op, feature, body, edges, arris::ops::chamfer, distance)
+    }
+
+    /// `body` moved by `motion`, every entity named as copy `index` of
+    /// `feature` (`inst.<feature>.<index>`, `index` from 1), so a
+    /// pattern's count can rise and fall without renaming a copy that
+    /// stays. `body` stays valid.
+    pub fn copy(
+        &mut self,
+        feature: FeatureId,
+        index: u32,
+        body: KernelBody,
+        motion: Motion,
+    ) -> Result<KernelBody, KernelError> {
+        let source = self.entry(body)?.body;
+        let call = self.begin(
+            KernelOp::Copy {
+                feature,
+                index,
+                motion,
+            },
+            &[body],
+        )?;
+        let axis =
+            arris::math::UnitVec3::try_new(convert::vec3(motion.axis), 0.0).ok_or_else(|| {
+                KernelError::invalid_input(call, "a rotation axis of no length".to_owned())
+            })?;
+        let rotation = arris::math::nalgebra::UnitQuaternion::from_axis_angle(&axis, motion.angle);
+        let isometry = arris::math::Isometry::new(rotation, convert::vec3(motion.translation));
+        let (copy, provenance) =
+            arris::ops::transform(&mut self.model, source, &isometry, &Control::NONE)
+                .map_err(|e| KernelError::op(call, &e))?;
+        self.instance(call, copy, (feature, index), body, &provenance)
+    }
+
+    /// `body` reflected in the plane through `origin` with `normal`, named
+    /// as instance 1 of `feature`. `body` stays valid.
+    pub fn mirror(
+        &mut self,
+        feature: FeatureId,
+        body: KernelBody,
+        origin: DVec3,
+        normal: DVec3,
+    ) -> Result<KernelBody, KernelError> {
+        let source = self.entry(body)?.body;
+        let call = self.begin(
+            KernelOp::Mirror {
+                feature,
+                origin,
+                normal,
+            },
+            &[body],
+        )?;
+        let plane = arris::math::Reflection::new(
+            arris::math::Point3::from(convert::vec3(origin)),
+            convert::vec3(normal),
+        )
+        .map_err(|e| KernelError::invalid_input(call, e.to_string()))?;
+        let (image, provenance) =
+            arris::ops::mirror(&mut self.model, source, &plane, &Control::NONE)
+                .map_err(|e| KernelError::op(call, &e))?;
+        self.instance(call, image, (feature, 1), body, &provenance)
+    }
+
+    fn instance(
+        &mut self,
+        call: CallIndex,
+        made: Body,
+        instance: (FeatureId, u32),
+        from: KernelBody,
+        provenance: &arris::topo::Provenance,
+    ) -> Result<KernelBody, KernelError> {
+        let names = naming::instance_names(
+            &self.model,
+            made,
+            instance,
+            &self.entry(from)?.names,
+            provenance,
+        )
+        .map_err(|message| KernelError::Naming { call, message })?;
+        Ok(self.push(made, names))
     }
 
     fn blend(
