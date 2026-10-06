@@ -139,6 +139,22 @@ fn a_sketch_dimension_reads_the_parameters_its_expression_names() {
 }
 
 #[test]
+fn a_name_reads_the_features_of_its_root_and_every_step() {
+    let name = format!(
+        "face:revolve.{}.side.{}/inst.{}.2/mod.{}.1/gen.{}[edge:sweep.{}.end-cap]",
+        Id(1),
+        Id(9),
+        Id(2),
+        Id(3),
+        Id(4),
+        Id(5)
+    );
+    let r = Ref::Topo(name.parse().unwrap());
+    let want: BTreeSet<_> = (1..=5).map(fid).collect();
+    assert_eq!(ref_features(&r), want);
+}
+
+#[test]
 fn refuses_a_reference_forward_in_history() {
     let (mut doc, ..) = scenario();
     let part = PartId(Id(10));

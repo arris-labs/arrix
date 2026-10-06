@@ -231,7 +231,10 @@ the document.
   downstream like a built-in's. Topology a plugin builds directly (from
   profiles it constructs point by point, say) is rooted at a consumer role
   with a key the plugin supplies (Arris ask A1); the key must be stable
-  across evaluations for the same logical entity.
+  across evaluations for the same logical entity. A name is opaque text
+  here (grammar: `docs/DATA-MODEL.md` §Persistent naming); a feature's
+  sweeps are numbered in the order it makes them (ADR-0011), so a feature
+  that sweeps twice names its caps apart as long as it keeps that order.
 - **Versioning**: a feature type has its own `type_version`. A document
   holding an older one is migrated by the plugin's `migrate`; a newer one
   than the plugin knows evaluates frozen.

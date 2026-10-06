@@ -458,9 +458,9 @@ world's `persistent-ref`):
 ```text
 name  := kind ':' root ('/' step)*
 kind  := 'face' | 'edge' | 'vertex'
-root  := 'sweep.' ID ('.' N)? '.' part | 'plugin.' ID '.' ID | 'frozen.' ID '.' N
+root  := ('sweep.' | 'revolve.') ID ('.' N)? '.' part | 'plugin.' ID '.' ID | 'frozen.' ID '.' N
 part  := 'start-cap' | 'end-cap' | curve-part '.' ID
-step  := 'mod.' ID '.' N | 'gen.' ID '[' name (',' name)* ']'
+step  := 'mod.' ID '.' N | 'inst.' ID '.' N | 'gen.' ID '[' name (',' name)* ']'
 ```
 
 `ID` is an id's 13 characters, `N` a decimal `u32` without leading zeros,
@@ -469,7 +469,11 @@ step  := 'mod.' ID '.' N | 'gen.' ID '[' name (',' name)* ']'
 The optional `N` is the sweep's index among those one feature's evaluation
 made, from 0 in call order; 0 is not written, and a written 0 is an error
 (ADR-0011), so a feature that sweeps twice names its caps apart
-(`end-cap`, `1.end-cap`). A parse error names the byte it stopped at; `gen` nests at most 32 deep.
+(`end-cap`, `1.end-cap`). A `revolve` root has the same shape as a
+`sweep` one (ADR-0010); an `inst.<feature>.<N>` step names an entity of the
+`N`-th copy a pattern or mirror made, `N` from 1, so changing a pattern's
+count renames no copy that stays. A parse error names the byte it stopped
+at; `gen` nests at most 32 deep.
 
 - **Roots** come from what made an entity from nothing. A sweep's side
   face is rooted at the **key of the curve** that swept it, not at its

@@ -454,12 +454,12 @@ fn likeness(lost: &PersistentName, other: &PersistentName) -> (u8, usize) {
         match (&lost.root, &other.root) {
             (
                 NameRoot::Sweep {
-                    index: 0,
+                    index: _,
                     feature: a,
                     part: p,
                 },
                 NameRoot::Sweep {
-                    index: 0,
+                    index: _,
                     feature: b,
                     part: q,
                 },

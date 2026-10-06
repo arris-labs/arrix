@@ -8,9 +8,9 @@
 //! ```text
 //! name  := kind ':' root ('/' step)*
 //! kind  := 'face' | 'edge' | 'vertex'
-//! root  := 'sweep.' ID ('.' N)? '.' part | 'plugin.' ID '.' ID | 'frozen.' ID '.' N
+//! root  := ('sweep.' | 'revolve.') ID ('.' N)? '.' part | 'plugin.' ID '.' ID | 'frozen.' ID '.' N
 //! part  := 'start-cap' | 'end-cap' | curve-part '.' ID
-//! step  := 'mod.' ID '.' N | 'gen.' ID '[' name (',' name)* ']'
+//! step  := 'mod.' ID '.' N | 'inst.' ID '.' N | 'gen.' ID '[' name (',' name)* ']'
 //! ```
 //!
 //! `ID` is an id's 13 Crockford characters, `N` a decimal `u32` without
@@ -56,6 +56,14 @@ pub enum NameRoot {
         index: u32,
         part: SweepPartName,
     },
+    /// A part of a revolve made by `feature`; `index` and `part` as for a
+    /// sweep, so a revolved profile's side face is rooted at the key of the
+    /// curve that swept it (ADR-0010).
+    Revolve {
+        feature: FeatureId,
+        index: u32,
+        part: SweepPartName,
+    },
     /// Topology a plugin feature built directly, at a key it chose
     /// (Arris ask A1).
     Plugin { feature: FeatureId, key: Id },
@@ -84,6 +92,9 @@ pub enum SweepPartName {
 pub enum NameStep {
     /// A piece of it; `split` is 0 when it was kept whole but changed.
     Modified { feature: FeatureId, split: u32 },
+    /// An entity of the `index`-th copy a pattern or mirror made, from 1
+    /// (ADR-0010); raising a pattern's count renames no copy that stays.
+    Instance { feature: FeatureId, index: u32 },
     /// Made from these (an edge from two faces).
     Generated {
         feature: FeatureId,
@@ -138,6 +149,23 @@ impl SweepPartName {
     }
 }
 
+fn write_sweep(
+    f: &mut fmt::Formatter<'_>,
+    word: &str,
+    feature: FeatureId,
+    index: u32,
+    part: &SweepPartName,
+) -> fmt::Result {
+    write!(f, "{word}.{feature}.")?;
+    if index > 0 {
+        write!(f, "{index}.")?;
+    }
+    match part.word() {
+        (word, Some(key)) => write!(f, "{word}.{key}"),
+        (word, None) => f.write_str(word),
+    }
+}
+
 impl fmt::Display for PersistentName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}:", self.kind.as_str())?;
@@ -146,22 +174,19 @@ impl fmt::Display for PersistentName {
                 feature,
                 index,
                 part,
-            } => {
-                write!(f, "sweep.{feature}.")?;
-                if *index > 0 {
-                    write!(f, "{index}.")?;
-                }
-                match part.word() {
-                    (word, Some(key)) => write!(f, "{word}.{key}")?,
-                    (word, None) => f.write_str(word)?,
-                }
-            }
+            } => write_sweep(f, "sweep", *feature, *index, part)?,
+            NameRoot::Revolve {
+                feature,
+                index,
+                part,
+            } => write_sweep(f, "revolve", *feature, *index, part)?,
             NameRoot::Plugin { feature, key } => write!(f, "plugin.{feature}.{key}")?,
             NameRoot::Frozen { feature, index } => write!(f, "frozen.{feature}.{index}")?,
         }
         for step in &self.chain {
             match step {
                 NameStep::Modified { feature, split } => write!(f, "/mod.{feature}.{split}")?,
+                NameStep::Instance { feature, index } => write!(f, "/inst.{feature}.{index}")?,
                 NameStep::Generated { feature, from } => {
                     write!(f, "/gen.{feature}[")?;
                     for (i, name) in from.iter().enumerate() {
@@ -270,14 +295,14 @@ impl<'a> Reader<'a> {
     fn root(&mut self) -> Read<NameRoot> {
         let start = self.at;
         let word = self.word();
-        if !["sweep", "plugin", "frozen"].contains(&word) {
-            return Err((start, "expected sweep, plugin or frozen"));
+        if !["sweep", "revolve", "plugin", "frozen"].contains(&word) {
+            return Err((start, "expected sweep, revolve, plugin or frozen"));
         }
         self.expect(".", "expected '.' after the root's kind")?;
         let feature = FeatureId(self.id()?);
         self.expect(".", "expected '.' after the root's feature")?;
         match word {
-            "sweep" => {
+            "sweep" | "revolve" => {
                 let mut index = 0;
                 if self.rest().starts_with(|c: char| c.is_ascii_digit()) {
                     let at = self.at;
@@ -301,10 +326,18 @@ impl<'a> Reader<'a> {
                         SweepPartName::from_word(other, key).expect("the word was checked")
                     }
                 };
-                Ok(NameRoot::Sweep {
-                    feature,
-                    index,
-                    part,
+                Ok(if word == "sweep" {
+                    NameRoot::Sweep {
+                        feature,
+                        index,
+                        part,
+                    }
+                } else {
+                    NameRoot::Revolve {
+                        feature,
+                        index,
+                        part,
+                    }
                 })
             }
             "plugin" => Ok(NameRoot::Plugin {
@@ -322,8 +355,8 @@ impl<'a> Reader<'a> {
     fn step(&mut self, depth: usize) -> Read<NameStep> {
         let start = self.at;
         let word = self.word();
-        if !["mod", "gen"].contains(&word) {
-            return Err((start, "expected mod or gen"));
+        if !["mod", "inst", "gen"].contains(&word) {
+            return Err((start, "expected mod, inst or gen"));
         }
         self.expect(".", "expected '.' after the step's kind")?;
         let feature = FeatureId(self.id()?);
@@ -333,6 +366,13 @@ impl<'a> Reader<'a> {
                 Ok(NameStep::Modified {
                     feature,
                     split: self.number()?,
+                })
+            }
+            "inst" => {
+                self.expect(".", "expected '.' before the instance")?;
+                Ok(NameStep::Instance {
+                    feature,
+                    index: self.number()?,
                 })
             }
             "gen" => {
@@ -422,6 +462,57 @@ mod tests {
             (err.at, err.reason),
             (25, "a sweep index of 0 is not written")
         );
+    }
+
+    #[test]
+    fn an_instance_step_and_a_revolve_root_have_their_words() {
+        let name = PersistentName {
+            kind: TopoKind::Edge,
+            root: NameRoot::Revolve {
+                feature: fid(1),
+                index: 0,
+                part: SweepPartName::Side(CurveKey(Id(2))),
+            },
+            chain: vec![
+                NameStep::Instance {
+                    feature: fid(3),
+                    index: 2,
+                },
+                NameStep::Modified {
+                    feature: fid(4),
+                    split: 1,
+                },
+            ],
+        };
+        let text = "edge:revolve.0000000000001.side.0000000000002\
+                    /inst.0000000000003.2/mod.0000000000004.1";
+        assert_eq!(name.to_string(), text);
+        assert_eq!(text.parse::<PersistentName>(), Ok(name));
+        for (text, at, reason) in [
+            (
+                "face:revolve.0000000000001.0.end-cap",
+                27,
+                "a sweep index of 0 is not written",
+            ),
+            (
+                "face:sweep.0000000000001.end-cap/inst.0000000000001.01",
+                52,
+                "expected a decimal number without leading zeros",
+            ),
+            (
+                "face:sweep.0000000000001.end-cap/inst.0000000000001",
+                51,
+                "expected '.' before the instance",
+            ),
+            (
+                "face:sweep.0000000000001.end-cap/copy.0000000000001.1",
+                33,
+                "expected mod, inst or gen",
+            ),
+        ] {
+            let err = text.parse::<PersistentName>().unwrap_err();
+            assert_eq!((err.at, err.reason), (at, reason), "{text}");
+        }
     }
 
     #[test]
@@ -539,6 +630,13 @@ mod tests {
                     part,
                 }
             }),
+            (feature.clone(), any::<u32>(), arb_part()).prop_map(|(feature, index, part)| {
+                NameRoot::Revolve {
+                    feature,
+                    index,
+                    part,
+                }
+            }),
             (feature.clone(), arb_id())
                 .prop_map(|(feature, key)| NameRoot::Plugin { feature, key }),
             (feature, any::<u32>())
@@ -558,16 +656,20 @@ mod tests {
         let leaf = (
             arb_kind(),
             arb_root(),
-            prop::collection::vec((arb_id(), any::<u32>()), 0..3),
+            prop::collection::vec((arb_id(), any::<u32>(), any::<bool>()), 0..3),
         )
-            .prop_map(|(kind, root, mods)| PersistentName {
+            .prop_map(|(kind, root, steps)| PersistentName {
                 kind,
                 root,
-                chain: mods
+                chain: steps
                     .into_iter()
-                    .map(|(f, split)| NameStep::Modified {
-                        feature: FeatureId(f),
-                        split,
+                    .map(|(f, n, copy)| {
+                        let feature = FeatureId(f);
+                        if copy {
+                            NameStep::Instance { feature, index: n }
+                        } else {
+                            NameStep::Modified { feature, split: n }
+                        }
                     })
                     .collect(),
             });

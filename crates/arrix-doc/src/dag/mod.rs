@@ -97,12 +97,13 @@ pub struct Dag {
 fn name_features(name: &PersistentName, out: &mut BTreeSet<FeatureId>) {
     out.insert(match name.root {
         NameRoot::Sweep { feature, .. }
+        | NameRoot::Revolve { feature, .. }
         | NameRoot::Plugin { feature, .. }
         | NameRoot::Frozen { feature, .. } => feature,
     });
     for step in &name.chain {
         match step {
-            NameStep::Modified { feature, .. } => {
+            NameStep::Modified { feature, .. } | NameStep::Instance { feature, .. } => {
                 out.insert(*feature);
             }
             NameStep::Generated { feature, from } => {

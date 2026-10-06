@@ -117,7 +117,7 @@ against the same list at step 2.
   `booleans.rs` and `gear_naming.rs` and the slice's goldens change; their diff
   is read, not refreshed blind (`docs/DATA-MODEL.md` §Persistent naming is
   updated in the same commit).
-- [ ] **[2]** Step 5 — `NameStep::Instance` and `NameRoot::Revolve` in
+- [x] **[2]** Step 5 — `NameStep::Instance` and `NameRoot::Revolve` in
   `arrix-core`: text form, parse errors naming the byte, serde, `proptest`
   round trip of the grammar, the DAG's reads.
 - [ ] **[2]** Step 6 — `revolve` in `arrix-kernel`: the call record, the
