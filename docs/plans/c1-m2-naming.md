@@ -139,13 +139,19 @@ against the same list at step 2.
   entity `inst.<F>.<i>`, `i` from 1) and `mirror` (instance 1), then the
   pattern shapes as a fuse or cut of the copies. Raising or lowering `N`
   renames no surviving copy.
-- [ ] **[3]** Step 9 — the fixture export: a `KernelCall` serialises as an
+- [x] **[3]** Step 9 — the fixture export: a `KernelCall` serialises as an
   Arris `fixture.json` (the operands' closures as body bytes, the operation,
   the precision, nothing else), read first against Arris's fixture format and
   runner. A golden recipe for the oversize fillet.
+  *Done: Arris's recipe has no body-bytes operand (see the open question
+  decided 2026-10-06), so the closure is replayed. `FixtureRecipe::of`,
+  `crates/arrix-kernel/tests/fixture_export.rs`, goldens under
+  `tests/recipes/`: the oversize fillet and the two Arris gaps.*
 - [ ] **[2]** Step 10 — `arrix eval --save-fixtures <dir>`: each failed
   feature's record written as a recipe, one directory per failure, named by
-  its diagnostic code and a content hash; `tests/docs/` gains a document with
+  its diagnostic code and a content hash (of the recipe's text); a failure
+  whose closure holds a frozen body (`FixtureError::NoStep`) is reported,
+  not written, and the rest still are; `tests/docs/` gains a document with
   an oversize fillet kept as a plain text document (no feature type yet:
   built by the kernel test's own driver if `core.fillet` is not there).
 - [ ] **[2]** Step 11 — the kernel naming scenarios (the acceptance below)
@@ -244,11 +250,25 @@ Written at planning time; executed before the plan is deleted.
   (0 not written), the host counts a feature's sweeps, `Kernel::extrude`
   takes it. Step 5's revolve root takes the same `index`; step 6's
   `revolve` is counted with the extrudes. The backlog line is removed.
-- ⚠ OPEN: how "reproduces in Arris's fixture runner" is checked. Preferred:
-  the recipe is validated in the test against a copy of Arris's fixture
-  schema vendored under `tests/` (no `path =` dependency), and the real runner
-  is run once by hand against `docs/notes/LOCAL.md`'s checkout, the result
-  recorded in the commit message. Who: human, by step 9.
+- Decided 2026-10-06 (the human chose both recommendations, at step 9's
+  probe): **Arris's `fixture.json` has no operand made of body bytes**
+  (its steps are primitives, profiles, sweeps, booleans, transforms,
+  blends, `polyhedron` and a STEP file), so a record exports by
+  replaying its closure: every call that made an operand, through the
+  record's new `sources`, one recipe step each; a blend's record keeps a
+  point on each edge (`at`), since the recipe names edges by points. Not
+  chosen: STEP files as operands (fresh ids, provenance lost, the round
+  trip itself may move the failure); an Arris ask for a `body` op. A
+  frozen body has no recipe step, so a failure on one does not export
+  (step 10 reports it). Checking: the recipe is parsed by a copy of
+  Arris's `v0.5.0` grammar vendored at
+  `crates/arrix-kernel/tests/arris_fixture/`, strict where Arris is
+  lenient (unknown fields refused); the real runner is run once by hand
+  by the human against `docs/notes/LOCAL.md`'s checkout. That run needs
+  an `expected.json` from Arris's OCCT oracle, so a recipe goes in under
+  `regression/` there; if Open CASCADE also refuses the 30 mm fillet,
+  Arris's lint forbids `expect_error` beside a `degenerate` oracle
+  answer, and the refusal is dropped from the recipe on filing.
 - Decided in step 8 (agent): the pattern is one fused tool and one cut.
   `cut_many` is not released (`arris` 0.5.0 is the latest), so it stays a
   later bump. Fusing the disjoint copies keeps every name, and a hole's

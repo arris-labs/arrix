@@ -1,0 +1,136 @@
+{
+  "description": "ArriX's kernel call 3 (cut) on arris 0.5.0, which failed as kernel.internal.split: the call and every call that made its operands, one step each named c<call>, exported from their records. Lengths in metres.",
+  "steps": [
+    {
+      "op": "profile",
+      "name": "c0.profile",
+      "plane": {
+        "origin": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "x": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "y": [
+          0.0,
+          1.0,
+          0.0
+        ]
+      },
+      "outer": {
+        "start": [
+          0.0,
+          0.0
+        ],
+        "segments": [
+          {
+            "line_to": [
+              0.04,
+              0.0
+            ]
+          },
+          {
+            "line_to": [
+              0.04,
+              0.03
+            ]
+          },
+          {
+            "line_to": [
+              0.0,
+              0.03
+            ]
+          },
+          {
+            "line_to": [
+              0.0,
+              0.0
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "op": "extrude",
+      "name": "c0",
+      "profile": "c0.profile",
+      "direction": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "length": 0.005
+    },
+    {
+      "op": "fillet",
+      "name": "c1",
+      "of": "c0",
+      "edges": [
+        [
+          0.04,
+          0.015,
+          0.005
+        ]
+      ],
+      "radius": 0.003
+    },
+    {
+      "op": "profile",
+      "name": "c2.profile",
+      "plane": {
+        "origin": [
+          0.0,
+          0.0,
+          -0.001
+        ],
+        "x": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "y": [
+          0.0,
+          1.0,
+          0.0
+        ]
+      },
+      "outer": {
+        "circle": {
+          "center": [
+            0.039,
+            0.015
+          ],
+          "radius": 0.002
+        }
+      }
+    },
+    {
+      "op": "extrude",
+      "name": "c2",
+      "profile": "c2.profile",
+      "direction": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "length": 0.007
+    },
+    {
+      "op": "cut",
+      "name": "c3",
+      "target": "c1",
+      "tool": "c2"
+    }
+  ],
+  "result": "c3",
+  "precision": {
+    "default_tolerance": 1e-6
+  },
+  "tolerances": {
+    "mesh_chord": 0.00001
+  }
+}

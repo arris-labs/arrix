@@ -5,12 +5,14 @@
 //! Built so far: the `Kernel` service's first slice (`extrude`, `revolve`,
 //! `fuse`, `cut`, `fillet`, `chamfer`, `copy`, `mirror`, `face_frame`,
 //! `mass_properties`, `to_bytes`,
-//! `from_bytes`), names from the sweeps' and the booleans' provenance, and
-//! a `KernelCall` record made before every call.
+//! `from_bytes`), names from the sweeps' and the booleans' provenance, a
+//! `KernelCall` record made before every call, and a record's export as
+//! an Arris fixture recipe (`FixtureRecipe`).
 
 mod bytes;
 mod convert;
 mod error;
+mod fixture;
 mod naming;
 mod record;
 
@@ -22,6 +24,7 @@ use arrix_core::{DVec3, FeatureId, Frame, PersistentName, Profile, TopoKind};
 
 pub use bytes::{BodyBytes, NameEntry, NameTable};
 pub use error::KernelError;
+pub use fixture::{FixtureError, FixtureRecipe};
 pub use naming::BodyNames;
 pub use record::{ARRIS_VERSION, BodyHash, CallIndex, CallPrecision, KernelCall, KernelOp, Motion};
 
@@ -55,6 +58,8 @@ struct BodyEntry {
     /// Of its canonical bytes, once an operand needed it; a body never
     /// changes, so it is made once.
     hash: Option<BodyHash>,
+    /// The call that made it.
+    made_by: CallIndex,
 }
 
 /// A kernel context: an Arris model, the bodies made in it, and the
@@ -100,15 +105,18 @@ impl Kernel {
         self.records.get(call.0 as usize)
     }
 
-    /// Records a call before it runs, its operands by content hash.
+    /// Records a call before it runs, its operands by content hash and by
+    /// the calls that made them.
     fn begin(&mut self, op: KernelOp, operands: &[KernelBody]) -> Result<CallIndex, KernelError> {
+        let mut sources = Vec::with_capacity(operands.len());
         for &operand in operands {
-            self.entry(operand)?;
+            sources.push(self.entry(operand)?.made_by);
         }
         let call = CallIndex(u32::try_from(self.records.len()).expect("under 2³² calls"));
         self.records.push(KernelCall {
             op,
             operands: Vec::new(),
+            sources,
             precision: CallPrecision {
                 default_tolerance: self.model.precision().default_tolerance,
             },
@@ -180,7 +188,7 @@ impl Kernel {
             &provenance,
         )
         .map_err(|message| KernelError::Naming { call, message })?;
-        Ok(self.push(body, names))
+        Ok(self.push(call, body, names))
     }
 
     /// `profile` revolved `angle` radians (at most a full turn) about the
@@ -229,7 +237,7 @@ impl Kernel {
             &provenance,
         )
         .map_err(|message| KernelError::Naming { call, message })?;
-        Ok(self.push(body, names))
+        Ok(self.push(call, body, names))
     }
 
     /// `target` ∪ `tool`, named as `feature`'s: what the union left alone
@@ -275,7 +283,7 @@ impl Kernel {
         let operands = [&self.entry(target)?.names, &self.entry(tool)?.names];
         let names = naming::boolean_names(&self.model, body, feature, &operands, &provenance)
             .map_err(|message| KernelError::Naming { call, message })?;
-        Ok(self.push(body, names))
+        Ok(self.push(call, body, names))
     }
 
     /// `body` with `edges` rounded at `radius` metres, named as `feature`'s
@@ -289,9 +297,10 @@ impl Kernel {
         edges: &[PersistentName],
         radius: f64,
     ) -> Result<KernelBody, KernelError> {
-        let op = KernelOp::Fillet {
+        let op = |at| KernelOp::Fillet {
             feature,
             edges: edges.to_vec(),
+            at,
             radius,
         };
         self.blend(op, feature, body, edges, arris::ops::fillet, radius)
@@ -306,9 +315,10 @@ impl Kernel {
         edges: &[PersistentName],
         distance: f64,
     ) -> Result<KernelBody, KernelError> {
-        let op = KernelOp::Chamfer {
+        let op = |at| KernelOp::Chamfer {
             feature,
             edges: edges.to_vec(),
+            at,
             distance,
         };
         self.blend(op, feature, body, edges, arris::ops::chamfer, distance)
@@ -391,12 +401,12 @@ impl Kernel {
             provenance,
         )
         .map_err(|message| KernelError::Naming { call, message })?;
-        Ok(self.push(made, names))
+        Ok(self.push(call, made, names))
     }
 
     fn blend(
         &mut self,
-        op: KernelOp,
+        op: impl FnOnce(Vec<DVec3>) -> KernelOp,
         feature: FeatureId,
         body: KernelBody,
         edges: &[PersistentName],
@@ -419,7 +429,8 @@ impl Kernel {
                 None => return Err(KernelError::UnknownName { name: name.clone() }),
             }
         }
-        let call = self.begin(op, &[body])?;
+        let at = ids.iter().filter_map(|&id| self.edge_point(id)).collect();
+        let call = self.begin(op(at), &[body])?;
         let handles = self
             .model
             .edges(target)
@@ -440,15 +451,24 @@ impl Kernel {
             &provenance,
         )
         .map_err(|message| KernelError::Naming { call, message })?;
-        Ok(self.push(blended, names))
+        Ok(self.push(call, blended, names))
     }
 
-    fn push(&mut self, body: Body, names: BodyNames) -> KernelBody {
+    /// A point on edge `id`: its curve at mid-parameter. `None` for an
+    /// edge with no curve, which a fixture recipe then cannot name.
+    fn edge_point(&self, id: arris::topo::EdgeId) -> Option<DVec3> {
+        let (curve, range) = self.model.edge(id).ok()?.curve()?;
+        let point = self.model.curve(curve).ok()?.point(range.midpoint());
+        Some(convert::dpoint3(point))
+    }
+
+    fn push(&mut self, made_by: CallIndex, body: Body, names: BodyNames) -> KernelBody {
         let handle = KernelBody(u32::try_from(self.bodies.len()).expect("under 2³² bodies"));
         self.bodies.push(Some(BodyEntry {
             body,
             names,
             hash: None,
+            made_by,
         }));
         handle
     }
@@ -551,6 +571,6 @@ impl Kernel {
         let (body, names) = bytes::decode(&mut self.model, bytes, table)
             .map_err(|e| KernelError::bytes(call, &e))?;
         let names = names.map_err(|message| KernelError::Naming { call, message })?;
-        Ok(self.push(body, names))
+        Ok(self.push(call, body, names))
     }
 }

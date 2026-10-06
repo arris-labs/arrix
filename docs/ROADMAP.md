@@ -214,7 +214,7 @@ and names it; nothing is worked around.
 
 | Ask | Needed by | If it has not landed |
 |---|---|---|
-| A2 body bytes | M1 frozen results; M2 fixture operands that are bodies | landed: `arris` 0.4.0, taken in M1 |
+| A2 body bytes | M1 frozen results (M2's fixture recipes replay the calls instead: Arris's recipe has no body-bytes operand) | landed: `arris` 0.4.0, taken in M1 |
 | A11 `ops::mirror` | M2 `core.mirror` | landed: `arris` 0.4.0, taken in M2 (`core.mirror` in `plans/c1-m2-features`) |
 | A3 cancellation | M4 cancellation latency, `--budget` | cancellation between kernel calls only; the gap named in the status line |
 | A1 consumer roles | a plugin building topology directly | the gear extrudes and does not need it; the builder service waits |

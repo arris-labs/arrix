@@ -201,22 +201,40 @@ geometry from provenance, and to make every kernel call a record.
   operation should not record, is refused as `kernel.naming` with its
   record kept, never named by position.
 - **Call records.** Before an operation or query runs, it is described
-  by a value: `KernelCall { op, operands, precision, arris_version }`,
+  by a value: `KernelCall { op, operands, sources, precision,
+  arris_version }`,
   `op` carrying its arguments in ArriX's own types (`KernelOp::Extrude {
   feature, index, profile, distance }`, `index` the feature's sweep number,
   ADR-0011), `precision` the recipe's
   `default_tolerance`, `arris_version` the locked release (a test holds it
   to `Cargo.lock`). Operands are bodies by content hash (`BodyHash`, the BLAKE3 of the
-  body's canonical bytes, made on first use and kept with the body). The `Kernel` keeps every record it made, failed calls
+  body's canonical bytes, made on first use and kept with the body), and
+  `sources` names the call that made each. A blend's record holds a point
+  on each named edge (`at`, its curve at mid-parameter). The `Kernel` keeps every record it made, failed calls
   included, and a failure names its record's index. On failure the
   failing record is kept beside the diagnostic, in the feature's
   `failed` event.
-- **Fixture export** (M4, not built). A kept record serialises as a self-contained Arris
-  fixture recipe (Arris's `fixture.json`): the operands' closures as body
-  bytes, the operation and its arguments, the precision, and nothing else
-  of the document. "Save as kernel fixture" is a command in the app and
-  `--save-fixtures <dir>` in `arrix eval`. An operand's body bytes
-  are the canonical bytes its record's hash names.
+- **Fixture export.** A kept record serialises as a self-contained Arris
+  fixture recipe (`FixtureRecipe::of`, written as Arris's `fixture.json`
+  at the release the record names). Arris's recipe grammar has no
+  operand made of body bytes, so the recipe replays the call's closure:
+  the calls that made its operands, transitively through `sources`, one
+  step each named `c<call>` in call order (a sweep as a `profile` step
+  and its own), then the call, and nothing else of the document. A
+  blend names its edges by their `at` points, a copy is a `transform`
+  (the turn first, about the origin), a query's recipe ends at the body
+  it was asked of. The precision is the record's, the mesh chord a
+  metre part's (as Arris's `probe-*-m` fixtures set it), and a failure
+  Arris's runner asserts by type (`blend-too-large`, `unsupported`, …)
+  is the recipe's `analytic.expect_error`; any other is left for the
+  runner to meet, as a regression fixture. A body read from bytes (a
+  frozen result) has no recipe step, and its closure fails to export as
+  `FixtureError::NoStep`. The recipe is held to a copy of Arris's
+  grammar vendored in `arrix-kernel`'s tests (`tests/arris_fixture/`),
+  which refuses a field Arris would ignore; the goldens under
+  `tests/recipes/` are Arris fixture directories. "Save as kernel
+  fixture" is a command in the app and `--save-fixtures <dir>` in
+  `arrix eval` (not built yet).
 - **Failure categories.** Every failure maps to a stable, countable key:
   the kernel's typed error with its reason (`OpError::Degenerate(
   TangentContact)`), the feature type, and the plugin id when a plugin

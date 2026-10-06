@@ -1,7 +1,8 @@
 //! Call records: every kernel call described as a value before it runs
 //! (docs/ARCHITECTURE.md §The kernel choke point, "Call records"). Plain
 //! data with no Arris type in it, so the evaluator can keep them beside a
-//! diagnostic and a later step can export one as an Arris fixture recipe.
+//! diagnostic and [`fixture`](crate::fixture) can export one as an Arris
+//! fixture recipe.
 
 use arrix_core::{DVec3, FeatureId, PersistentName, Profile};
 use serde::{Deserialize, Serialize};
@@ -33,12 +34,15 @@ impl BodyHash {
 }
 
 /// One kernel call. `operands` are the bodies this one reads, by content
-/// hash, in operand order.
+/// hash, in operand order; `sources` the calls that made them, in the same
+/// order, which is how a fixture recipe finds an operand's own recipe.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct KernelCall {
     pub op: KernelOp,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub operands: Vec<BodyHash>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sources: Vec<CallIndex>,
     pub precision: CallPrecision,
     pub arris_version: String,
 }
@@ -74,16 +78,23 @@ pub enum KernelOp {
     /// The first operand less the second; `feature` as for `Fuse`.
     Cut { feature: FeatureId },
     /// The operand body with `edges` rounded at `radius` metres; `feature`
-    /// names the blend's entities.
+    /// names the blend's entities. `at` holds a point on each edge, in the
+    /// same order (its curve at mid-parameter), which is how a fixture
+    /// recipe names an edge.
     Fillet {
         feature: FeatureId,
         edges: Vec<PersistentName>,
+        #[serde(default)]
+        at: Vec<DVec3>,
         radius: f64,
     },
-    /// The operand body with `edges` cut flat at `distance` metres.
+    /// The operand body with `edges` cut flat at `distance` metres; `at` as
+    /// for `Fillet`.
     Chamfer {
         feature: FeatureId,
         edges: Vec<PersistentName>,
+        #[serde(default)]
+        at: Vec<DVec3>,
         distance: f64,
     },
     /// The operand body moved by `motion`, its entities named as copy
