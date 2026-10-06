@@ -142,7 +142,7 @@ All in `arris` 0.5.0, already pinned; no ask is needed.
   the plane's `(u, v)`, a circle), end-on edges and revolve seams
   `projection-collapses`, ellipses `kernel.unsupported.projection`.
   Step 3 is new, for the human's decision under the open questions.*
-- [ ] **[2]** Step 3 — ADR-0014, several booleans in one feature, as the
+- [x] **[2]** Step 3 — ADR-0014, several booleans in one feature, as the
   human decides it under the open questions; then built: as recommended,
   `fuse`, `cut`, `common`, `fillet` and `chamfer` take the feature's
   boolean number `n`, written `mod.<F>.<n>.<k>` and `gen.<F>.<n>[…]` with
@@ -151,6 +151,12 @@ All in `arris` 0.5.0, already pinned; no ask is needed.
   test turned to the clean case, `docs/DATA-MODEL.md` §Persistent naming
   and the ⚠ OPEN in `docs/ARCHITECTURE.md` §The kernel choke point
   resolved. Blocks steps 5 (the API carries `n`), 7, 11 and 12.
+  *Done: ADR-0014; `NameStep::{Modified, Generated}` carry `boolean`;
+  `Kernel::{fuse, cut, common, fillet, chamfer}` take it after the
+  feature and the records hold it (`serde(default)`); the host's
+  `FeatureKernel` counts a feature's booleans and blends together. The
+  plugin API is unchanged here: step 5 decides whether a plugin sees
+  `n` (default: it does not, as for sweeps).*
 - [ ] **[2]** Step 4 — schema 3 in `arrix-core` and `arrix-doc`: `Input`,
   the list form in JSON, `FeatureEdit` of a list input with its inverse,
   a sketch entity's `source`, the 2 → 3 link and its fixture, every save
@@ -273,8 +279,9 @@ Written at planning time; executed before the plan is deleted.
   nothing. Step 10 states this in `docs/DATA-MODEL.md` §Persistent naming;
   a feature giving a sweep its own index is a backlog line, an ADR when a
   scenario needs it.
-- ⚠ OPEN (human, before step 3): **how a feature names several booleans
-  on one target.** Step 2 found that the second of two cuts by one
+- Decided 2026-10-06 (the human chose (a)): **a boolean number in the
+  step**, ADR-0014. The question as asked: **how a feature names several
+  booleans on one target.** Step 2 found that the second of two cuts by one
   feature splits piece `0` of what the first split and names its piece
   `1` as the first did, so the result is refused as `kernel.naming`.
   It concerns `core.boolean` with several tools (step 7: `common` cannot

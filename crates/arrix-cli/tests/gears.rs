@@ -75,7 +75,7 @@ impl arrix_plugin_api::Kernel for Host {
             self.bodies[target.handle() as usize],
             self.bodies[tool.handle() as usize],
         );
-        let body = self.kernel.fuse(FeatureId(Id(7)), a, b).map_err(diag)?;
+        let body = self.kernel.fuse(FeatureId(Id(7)), 0, a, b).map_err(diag)?;
         self.bodies.push(body);
         Ok(Body::from_handle(self.bodies.len() as u32 - 1))
     }
@@ -85,7 +85,7 @@ impl arrix_plugin_api::Kernel for Host {
             self.bodies[target.handle() as usize],
             self.bodies[tool.handle() as usize],
         );
-        let body = self.kernel.cut(FeatureId(Id(7)), a, b).map_err(diag)?;
+        let body = self.kernel.cut(FeatureId(Id(7)), 0, a, b).map_err(diag)?;
         self.bodies.push(body);
         Ok(Body::from_handle(self.bodies.len() as u32 - 1))
     }
@@ -306,7 +306,7 @@ fn gear_on_plate() -> (Vec<String>, Vec<String>, [u64; 2], ProfileLoop) {
     };
     let profile = Profile::new(at(5.0), outline.clone(), vec![]).unwrap();
     let gear = k.extrude(gear, 0, &profile, 8.0 * MM).unwrap();
-    let joined = k.fuse(join, plate, gear).unwrap();
+    let joined = k.fuse(join, 0, plate, gear).unwrap();
     let circle = ProfileLoop::Circle {
         key: arrix_core::CurveKey(Id(9)),
         center: DVec2::ZERO,
@@ -314,7 +314,7 @@ fn gear_on_plate() -> (Vec<String>, Vec<String>, [u64; 2], ProfileLoop) {
     };
     let tool = Profile::new(at(-1.0), circle, vec![]).unwrap();
     let tool = k.extrude(bore, 0, &tool, 15.0 * MM).unwrap();
-    let cut = k.cut(cut, joined, tool).unwrap();
+    let cut = k.cut(cut, 0, joined, tool).unwrap();
     let names = |b| {
         k.names(b)
             .unwrap()

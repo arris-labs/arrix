@@ -95,9 +95,9 @@ fn all_names(k: &Kernel, body: KernelBody) -> Vec<String> {
 /// The plate, the boss fused onto it, and the pocket cut through it.
 fn plate_boss_pocket(k: &mut Kernel) -> (KernelBody, KernelBody) {
     let (p, b) = (plate(k, 40.0), boss(k));
-    let joined = k.fuse(JOIN, p, b).unwrap();
+    let joined = k.fuse(JOIN, 0, p, b).unwrap();
     let tool = pocket(k);
-    let cut = k.cut(CUT, joined, tool).unwrap();
+    let cut = k.cut(CUT, 0, joined, tool).unwrap();
     (joined, cut)
 }
 
@@ -159,9 +159,21 @@ fn the_booleans_are_recorded_with_their_operands() {
     let records = k.records();
     // plate, boss, fuse, pocket, cut.
     assert_eq!(records.len(), 5);
-    assert_eq!(records[2].op, KernelOp::Fuse { feature: JOIN });
+    assert_eq!(
+        records[2].op,
+        KernelOp::Fuse {
+            feature: JOIN,
+            boolean: 0
+        }
+    );
     let (fuse_operands, cut_operands) = (records[2].operands.clone(), records[4].operands.clone());
-    assert_eq!(records[4].op, KernelOp::Cut { feature: CUT });
+    assert_eq!(
+        records[4].op,
+        KernelOp::Cut {
+            feature: CUT,
+            boolean: 0
+        }
+    );
     assert_eq!(fuse_operands.len(), 2);
     assert_ne!(fuse_operands[0], fuse_operands[1]);
     // The operands are bodies by content: the fuse's result, the pocket.
@@ -180,7 +192,7 @@ fn the_operands_stay_valid_after_a_boolean() {
     let p = plate(&mut k, 40.0);
     let before = k.mass_properties(p).unwrap();
     let b = boss(&mut k);
-    k.fuse(JOIN, p, b).unwrap();
+    k.fuse(JOIN, 0, p, b).unwrap();
     assert_eq!(k.mass_properties(p).unwrap(), before);
     assert_eq!(k.names(p).unwrap().count(TopoKind::Face), 6);
 }
@@ -209,10 +221,10 @@ fn channel_and_hole(k: &mut Kernel, w: f64) -> KernelBody {
     let p = plate(k, w);
     let profile = rectangle(plane_at(3.0 * MM), (18.0, -1.0), (22.0, 31.0), 31);
     let tool = k.extrude(POCKET, 0, &profile, 3.0 * MM).unwrap();
-    let channelled = k.cut(CUT, p, tool).unwrap();
+    let channelled = k.cut(CUT, 0, p, tool).unwrap();
     let profile = rectangle(plane_at(-MM), (8.0, 8.0), (11.0, 11.0), 41);
     let hole = k.extrude(FeatureId(Id(6)), 0, &profile, 7.0 * MM).unwrap();
-    k.cut(FeatureId(Id(7)), channelled, hole).unwrap()
+    k.cut(FeatureId(Id(7)), 0, channelled, hole).unwrap()
 }
 
 #[test]
@@ -239,7 +251,7 @@ fn a_split_face_s_pieces_keep_their_index_across_a_width_edit() {
             .cloned()
             .collect();
         for name in &edges {
-            if let Some(NameStep::Generated { feature, from }) = name.chain.last()
+            if let Some(NameStep::Generated { feature, from, .. }) = name.chain.last()
                 && *feature == FeatureId(Id(7))
             {
                 holed.extend(from.iter().filter(|f| f.root == top.root).cloned());
@@ -252,7 +264,7 @@ fn a_split_face_s_pieces_keep_their_index_across_a_width_edit() {
             }
             let split = match &name.chain[..] {
                 [] => 0,
-                [NameStep::Modified { feature, split }] => {
+                [NameStep::Modified { feature, split, .. }] => {
                     assert_eq!(*feature, CUT);
                     *split
                 }

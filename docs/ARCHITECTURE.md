@@ -180,10 +180,8 @@ geometry from provenance, and to make every kernel call a record.
   named with an `inst` step), `fuse`, `cut` and `common`
   (a target and a tool,
   both left valid, named through their provenance, §Persistent naming in
-  `docs/DATA-MODEL.md`; ⚠ OPEN: two of one feature that split the same
-  entity twice clash on a `mod` name and are refused as `kernel.naming`,
-  which a call number in the step would settle, an ADR before a feature
-  makes several booleans on one target), `project` (edges and
+  `docs/DATA-MODEL.md`; each takes the feature's boolean number, so a
+  feature may make several on one target, ADR-0014), `project` (edges and
   vertices of a body by name onto a frame, as a `Projected` point, line,
   anticlockwise arc or circle in the frame's `(u, v)`; an edge seen
   end-on is `kernel.degenerate.projection-collapses`, an ellipse or a

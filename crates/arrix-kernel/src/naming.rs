@@ -209,16 +209,16 @@ pub(crate) fn entities(m: &Model, body: Body) -> Result<Vec<EntityId>, String> {
 /// names (one for a blend) and its provenance. An entity the boolean left alone keeps its name. Piece `0`
 /// of an origin's split order (ADR-0009 in Arris) keeps the origin's
 /// name (ADR-0010); a piece `k > 0` is that name with
-/// `mod.<feature>.<k>`. The target's origin comes first where
+/// `mod.<feature>.<boolean>.<k>` (the number not written when 0, ADR-0014). The target's origin comes first where
 /// both operands give one (the flush case). An entity the boolean made
-/// is `gen.<feature>[…]` of its origins' names, sorted, after the root
+/// is `gen.<feature>.<boolean>[…]` of its origins' names, sorted, after the root
 /// and chain of the first of them, since a name has a root. `Err` says
 /// what could not be placed: an entity with no nameable origin, or two
 /// entities with one name.
 pub(crate) fn boolean_names(
     m: &Model,
     body: Body,
-    feature: FeatureId,
+    (feature, boolean): (FeatureId, u32),
     operands: &[&BodyNames],
     provenance: &Provenance,
 ) -> Result<BodyNames, String> {
@@ -246,6 +246,7 @@ pub(crate) fn boolean_names(
             if k > 0 {
                 name.chain.push(NameStep::Modified {
                     feature,
+                    boolean,
                     split: u32::try_from(k).expect("under 2³² pieces"),
                 });
             }
@@ -267,7 +268,7 @@ pub(crate) fn boolean_names(
                 _ => return Err(format!("{id} is a piece of more than one entity")),
             }
         } else if let Some(from) = made.get(&id) {
-            generated(feature, from.clone())
+            generated((feature, boolean), from.clone())
         } else if let Some((_, name)) = old.get(&id) {
             (*name).clone()
         } else {
@@ -317,7 +318,7 @@ pub(crate) fn boolean_names(
             };
             let mut from = origins.clone();
             from.extend(touched.iter().map(|t| named[t].clone()));
-            let mut name = generated(feature, from);
+            let mut name = generated((feature, boolean), from);
             name.kind = named[&id].kind;
             named.insert(id, name);
         }
@@ -376,10 +377,17 @@ pub(crate) fn instance_names(
 
 /// `gen.<feature>[from]` after the root and chain of the first of `from`
 /// sorted, since a name has a root.
-fn generated(feature: FeatureId, mut from: Vec<PersistentName>) -> PersistentName {
+fn generated(
+    (feature, boolean): (FeatureId, u32),
+    mut from: Vec<PersistentName>,
+) -> PersistentName {
     from.sort();
     from.dedup();
     let mut name = from[0].clone();
-    name.chain.push(NameStep::Generated { feature, from });
+    name.chain.push(NameStep::Generated {
+        feature,
+        boolean,
+        from,
+    });
     name
 }

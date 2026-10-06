@@ -465,7 +465,7 @@ name  := kind ':' root ('/' step)*
 kind  := 'face' | 'edge' | 'vertex'
 root  := ('sweep.' | 'revolve.') ID ('.' N)? '.' part | 'plugin.' ID '.' ID | 'frozen.' ID '.' N
 part  := 'start-cap' | 'end-cap' | curve-part '.' ID
-step  := 'mod.' ID '.' N | 'inst.' ID '.' N | 'gen.' ID '[' name (',' name)* ']'
+step  := 'mod.' ID ('.' N)? '.' N | 'inst.' ID '.' N | 'gen.' ID ('.' N)? '[' name (',' name)* ']'
 ```
 
 `ID` is an id's 13 characters, `N` a decimal `u32` without leading zeros,
@@ -477,8 +477,12 @@ made, from 0 in call order; 0 is not written, and a written 0 is an error
 (`end-cap`, `1.end-cap`). A `revolve` root has the same shape as a
 `sweep` one (ADR-0010); an `inst.<feature>.<N>` step names an entity of the
 `N`-th copy a pattern or mirror made, `N` from 1, so changing a pattern's
-count renames no copy that stays. A parse error names the byte it stopped
-at; `gen` nests at most 32 deep.
+count renames no copy that stays. The optional `N` after a `mod`'s or a
+`gen`'s id is the place of the call among the booleans (and blends) the
+feature made, from 0 in call order, not written when 0 and an error when
+written (ADR-0014): `mod.<F>.<k>` is boolean 0's piece `k`, `mod.<F>.<n>.<k>`
+boolean `n`'s, so one feature may cut twice. A parse error names the byte
+it stopped at; `gen` nests at most 32 deep.
 
 - **Roots** come from what made an entity from nothing. A sweep's side
   face is rooted at the **key of the curve** that swept it, not at its
@@ -503,10 +507,12 @@ at; `gen` nests at most 32 deep.
   vertices, all from roots (`crates/arrix-kernel/tests/probe.rs`).
 - **Kept entities** keep their names across features; a kept id is not a
   step.
-- **Through a boolean** (`fuse`, `cut`, as built; ADR-0010): piece `0`
+- **Through a boolean** (`fuse`, `cut`, `common`, as built; ADR-0010,
+  ADR-0014): piece `0`
   of an operand's entity keeps its name, so a face trimmed or holed but
   not split is named as before; a piece `k > 0` is the name with
-  `mod.<feature>.<k>`, `k` its place in Arris's split order, so `k` is
+  `mod.<feature>.<k>` (`mod.<feature>.<n>.<k>` for the feature's `n`-th
+  boolean, `n > 0`), `k` its place in Arris's split order, so `k` is
   the same after an edit that keeps which entities bound each piece
   (`crates/arrix-kernel/tests/booleans.rs`). A reference to one piece of
   a split face follows Arris's order (its ADR-0009, input ids), which a
@@ -514,7 +520,8 @@ at; `gen` nests at most 32 deep.
   then moves to the other piece
   (`probe_m2.rs`, `piece_0_of_a_split_follows_the_profile_s_walk`). Where a piece comes from both
   operands (two faces flush), the target's origin names it. An entity the
-  boolean made is `gen.<feature>[…]` of its origins' names, sorted, after
+  boolean made is `gen.<feature>[…]` of its origins' names (`gen.<feature>.<n>[…]`
+  for boolean `n > 0`), sorted, after
   the root and chain of the first of them, since every name has a root:
   a pocket's wall is `face:sweep.<tool>.side.<k>/gen.<cut>[face:sweep.
   <tool>.side.<k>]`, the edge where it meets the plate's bottom `edge:

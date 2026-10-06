@@ -77,9 +77,9 @@ fn of_kind(k: &Kernel, body: KernelBody, kind: TopoKind) -> BTreeSet<PersistentN
 
 fn blend(k: &mut Kernel, chamfer: bool, body: KernelBody, edges: &[PersistentName]) -> KernelBody {
     if chamfer {
-        k.chamfer(BLEND, body, edges, 2.0 * MM).unwrap()
+        k.chamfer(BLEND, 0, body, edges, 2.0 * MM).unwrap()
     } else {
-        k.fillet(BLEND, body, edges, 2.0 * MM).unwrap()
+        k.fillet(BLEND, 0, body, edges, 2.0 * MM).unwrap()
     }
 }
 
@@ -128,13 +128,16 @@ fn a_blend_keeps_every_name_it_only_trims_and_names_what_it_made() {
 fn a_blend_face_is_generated_from_its_edge_alone() {
     let mut k = Kernel::new();
     let body = plate(&mut k);
-    let blended = k.fillet(BLEND, body, &[top(1), top(2)], 2.0 * MM).unwrap();
+    let blended = k
+        .fillet(BLEND, 0, body, &[top(1), top(2)], 2.0 * MM)
+        .unwrap();
     let faces = of_kind(&k, blended, TopoKind::Face);
     for s in [1, 2] {
         let edge = top(s);
         let face = PersistentName {
             kind: TopoKind::Face,
             chain: vec![NameStep::Generated {
+                boolean: 0,
                 feature: BLEND,
                 from: vec![edge.clone()],
             }],
@@ -182,14 +185,14 @@ fn a_second_blend_on_a_blended_body_leaves_the_first_blend_alone() {
 fn an_oversize_blend_fails_with_its_category_and_its_record() {
     let mut k = Kernel::new();
     let body = plate(&mut k);
-    let err = k.fillet(BLEND, body, &[top(1)], 30.0 * MM).unwrap_err();
+    let err = k.fillet(BLEND, 0, body, &[top(1)], 30.0 * MM).unwrap_err();
     assert_eq!(err.code().as_str(), "kernel.degenerate.blend-too-large");
     let call = k.record(err.call().unwrap()).unwrap();
     assert!(matches!(&call.op, KernelOp::Fillet { edges, .. } if edges == &[top(1)]));
     assert_eq!(call.operands.len(), 1);
     // The second fillet on an edge the first shortened runs off its face.
     let once = blend(&mut k, false, body, &[top(1)]);
-    let err = k.fillet(BLEND, once, &[top(4)], 2.0 * MM).unwrap_err();
+    let err = k.fillet(BLEND, 0, once, &[top(4)], 2.0 * MM).unwrap_err();
     assert_eq!(err.code().as_str(), "kernel.degenerate.blend-too-large");
 }
 
@@ -199,9 +202,9 @@ fn a_name_that_is_not_an_edge_of_the_body_is_refused_without_a_record() {
     let body = plate(&mut k);
     let calls = k.records().len();
     let face = root(TopoKind::Face, SweepPartName::EndCap);
-    let err = k.fillet(BLEND, body, &[face], 2.0 * MM).unwrap_err();
+    let err = k.fillet(BLEND, 0, body, &[face], 2.0 * MM).unwrap_err();
     assert_eq!(err.code().as_str(), "kernel.wrong-kind");
-    let err = k.chamfer(BLEND, body, &[rise(9)], 2.0 * MM).unwrap_err();
+    let err = k.chamfer(BLEND, 0, body, &[rise(9)], 2.0 * MM).unwrap_err();
     assert_eq!(err.code().as_str(), "kernel.unknown-name");
     assert_eq!(k.records().len(), calls);
 }
@@ -240,7 +243,7 @@ fn stadium(k: &mut Kernel) -> KernelBody {
 fn naming_one_edge_of_a_tangent_chain_blends_the_chain_with_one_name_per_entity() {
     let mut k = Kernel::new();
     let body = stadium(&mut k);
-    let blended = k.fillet(BLEND, body, &[top(1)], 2.0 * MM).unwrap();
+    let blended = k.fillet(BLEND, 0, body, &[top(1)], 2.0 * MM).unwrap();
     // Whichever edge of the chain is named, the same names come out.
     let faces = of_kind(&k, blended, TopoKind::Face);
     let made: BTreeSet<_> = faces.iter().filter(|n| made_by_blend(n)).collect();
@@ -259,7 +262,7 @@ fn naming_one_edge_of_a_tangent_chain_blends_the_chain_with_one_name_per_entity(
             "side {s}: {made:#?}"
         );
     }
-    let again = k.fillet(BLEND, body, &[top(3)], 2.0 * MM).unwrap();
+    let again = k.fillet(BLEND, 0, body, &[top(3)], 2.0 * MM).unwrap();
     assert_eq!(all(&k, again), all(&k, blended));
 }
 
@@ -273,11 +276,11 @@ fn naming_one_edge_of_a_tangent_chain_blends_the_chain_with_one_name_per_entity(
 fn a_small_fillet_of_a_stadium_rim_fails_inside_arris_and_keeps_its_record() {
     let mut k = Kernel::new();
     let body = stadium(&mut k);
-    let err = k.fillet(BLEND, body, &[top(1)], 1.0 * MM).unwrap_err();
+    let err = k.fillet(BLEND, 0, body, &[top(1)], 1.0 * MM).unwrap_err();
     assert_eq!(err.code().as_str(), "kernel.internal.invariant");
     assert!(matches!(
         &k.record(err.call().unwrap()).unwrap().op,
         KernelOp::Fillet { radius, .. } if *radius == 1.0 * MM
     ));
-    assert!(k.chamfer(BLEND, body, &[top(1)], 1.0 * MM).is_ok());
+    assert!(k.chamfer(BLEND, 0, body, &[top(1)], 1.0 * MM).is_ok());
 }

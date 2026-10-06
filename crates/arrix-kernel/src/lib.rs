@@ -242,43 +242,62 @@ impl Kernel {
         Ok(self.push(call, body, names))
     }
 
-    /// `target` ∪ `tool`, named as `feature`'s: what the union left alone
-    /// keeps its name, a piece of an entity is `mod.<feature>.<k>` of it,
-    /// what it made is `gen.<feature>[…]` of its origins. The operands
-    /// stay valid.
+    /// `target` ∪ `tool`, named as `feature`'s boolean number `boolean`
+    /// (from 0 in call order, ADR-0014): what the union left alone keeps
+    /// its name, a piece of an entity is `mod.<feature>.<boolean>.<k>` of
+    /// it, what it made is `gen.<feature>.<boolean>[…]` of its origins,
+    /// the number not written when 0. The operands stay valid.
     pub fn fuse(
         &mut self,
         feature: FeatureId,
+        boolean: u32,
         target: KernelBody,
         tool: KernelBody,
     ) -> Result<KernelBody, KernelError> {
-        self.boolean(KernelOp::Fuse { feature }, feature, target, tool)
+        self.boolean(
+            KernelOp::Fuse { feature, boolean },
+            (feature, boolean),
+            target,
+            tool,
+        )
     }
 
     /// `target` less `tool`, named as [`fuse`](Kernel::fuse)'s.
     pub fn cut(
         &mut self,
         feature: FeatureId,
+        boolean: u32,
         target: KernelBody,
         tool: KernelBody,
     ) -> Result<KernelBody, KernelError> {
-        self.boolean(KernelOp::Cut { feature }, feature, target, tool)
+        self.boolean(
+            KernelOp::Cut { feature, boolean },
+            (feature, boolean),
+            target,
+            tool,
+        )
     }
 
     /// `target` ∩ `tool`, named as [`fuse`](Kernel::fuse)'s.
     pub fn common(
         &mut self,
         feature: FeatureId,
+        boolean: u32,
         target: KernelBody,
         tool: KernelBody,
     ) -> Result<KernelBody, KernelError> {
-        self.boolean(KernelOp::Common { feature }, feature, target, tool)
+        self.boolean(
+            KernelOp::Common { feature, boolean },
+            (feature, boolean),
+            target,
+            tool,
+        )
     }
 
     fn boolean(
         &mut self,
         op: KernelOp,
-        feature: FeatureId,
+        feature: (FeatureId, u32),
         target: KernelBody,
         tool: KernelBody,
     ) -> Result<KernelBody, KernelError> {
@@ -300,23 +319,32 @@ impl Kernel {
     }
 
     /// `body` with `edges` rounded at `radius` metres, named as `feature`'s
-    /// (docs/DATA-MODEL.md §Persistent naming): the blend faces and what
+    /// boolean number `boolean` (docs/DATA-MODEL.md §Persistent naming): the blend faces and what
     /// they made at their ends are `gen.<feature>[…]` of the edges, every
     /// trimmed neighbour keeps its name. `body` stays valid.
     pub fn fillet(
         &mut self,
         feature: FeatureId,
+        boolean: u32,
         body: KernelBody,
         edges: &[PersistentName],
         radius: f64,
     ) -> Result<KernelBody, KernelError> {
         let op = |at| KernelOp::Fillet {
             feature,
+            boolean,
             edges: edges.to_vec(),
             at,
             radius,
         };
-        self.blend(op, feature, body, edges, arris::ops::fillet, radius)
+        self.blend(
+            op,
+            (feature, boolean),
+            body,
+            edges,
+            arris::ops::fillet,
+            radius,
+        )
     }
 
     /// `body` with `edges` cut flat at `distance` metres, named as
@@ -324,17 +352,26 @@ impl Kernel {
     pub fn chamfer(
         &mut self,
         feature: FeatureId,
+        boolean: u32,
         body: KernelBody,
         edges: &[PersistentName],
         distance: f64,
     ) -> Result<KernelBody, KernelError> {
         let op = |at| KernelOp::Chamfer {
             feature,
+            boolean,
             edges: edges.to_vec(),
             at,
             distance,
         };
-        self.blend(op, feature, body, edges, arris::ops::chamfer, distance)
+        self.blend(
+            op,
+            (feature, boolean),
+            body,
+            edges,
+            arris::ops::chamfer,
+            distance,
+        )
     }
 
     /// `body` moved by `motion`, every entity named as copy `index` of
@@ -420,7 +457,7 @@ impl Kernel {
     fn blend(
         &mut self,
         op: impl FnOnce(Vec<DVec3>) -> KernelOp,
-        feature: FeatureId,
+        feature: (FeatureId, u32),
         body: KernelBody,
         edges: &[PersistentName],
         run: BlendOp,

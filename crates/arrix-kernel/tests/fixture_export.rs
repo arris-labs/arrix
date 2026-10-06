@@ -84,7 +84,7 @@ fn ops(recipe: &arris_fixture::Recipe) -> Vec<(&str, &str)> {
 fn an_oversize_fillet_exports_as_a_recipe_arris_refuses_the_same_way() {
     let mut k = Kernel::new();
     let body = plate(&mut k);
-    let err = k.fillet(BLEND, body, &[top(1)], 30.0 * MM).unwrap_err();
+    let err = k.fillet(BLEND, 0, body, &[top(1)], 30.0 * MM).unwrap_err();
     assert_eq!(err.code().as_str(), "kernel.degenerate.blend-too-large");
     let json = export(&k, &err).unwrap();
     arris_fixture::check_golden("oversize-fillet", &json);
@@ -152,7 +152,7 @@ fn a_small_fillet_of_a_stadium_rim_exports_with_no_refusal_stated() {
     };
     let profile = Profile::new(Frame::WORLD_XY, outer, vec![]).unwrap();
     let body = k.extrude(PLATE, 0, &profile, 5.0 * MM).unwrap();
-    let err = k.fillet(BLEND, body, &[top(1)], 1.0 * MM).unwrap_err();
+    let err = k.fillet(BLEND, 0, body, &[top(1)], 1.0 * MM).unwrap_err();
     assert_eq!(err.code().as_str(), "kernel.internal.invariant");
     let json = export(&k, &err).unwrap();
     arris_fixture::check_golden("stadium-rim-small-fillet", &json);
@@ -169,9 +169,9 @@ fn a_small_fillet_of_a_stadium_rim_exports_with_no_refusal_stated() {
 fn a_hole_across_a_fillet_exports_both_operands_closures() {
     let mut k = Kernel::new();
     let body = plate(&mut k);
-    let filleted = k.fillet(BLEND, body, &[top(2)], 3.0 * MM).unwrap();
+    let filleted = k.fillet(BLEND, 0, body, &[top(2)], 3.0 * MM).unwrap();
     let tool = pin(&mut k, (39.0, 15.0), 2.0);
-    let err = k.cut(HOLE, filleted, tool).unwrap_err();
+    let err = k.cut(HOLE, 0, filleted, tool).unwrap_err();
     assert_eq!(err.code().as_str(), "kernel.internal.split");
     let json = export(&k, &err).unwrap();
     arris_fixture::check_golden("hole-across-fillet", &json);
@@ -212,9 +212,9 @@ fn a_recipe_holds_the_calls_its_operands_came_from_and_nothing_else() {
     let image = k
         .mirror(COPY, moved, DVec3::new(20.0 * MM, 0.0, 0.0), DVec3::X)
         .unwrap();
-    let tools = k.fuse(COPY, moved, image).unwrap();
-    let cut = k.cut(HOLE, body, tools).unwrap();
-    let err = k.chamfer(BLEND, cut, &[top(1)], 40.0 * MM).unwrap_err();
+    let tools = k.fuse(COPY, 0, moved, image).unwrap();
+    let cut = k.cut(HOLE, 0, body, tools).unwrap();
+    let err = k.chamfer(BLEND, 0, cut, &[top(1)], 40.0 * MM).unwrap_err();
     let recipe = arris_fixture::parse(&export(&k, &err).unwrap());
     assert_eq!(
         ops(&recipe),
@@ -276,7 +276,7 @@ fn a_common_exports_as_arris_s_common_step() {
     let body = plate(&mut k);
     // A pin clear of the plate: the two share no material.
     let tool = pin(&mut k, (60.0, 15.0), 2.0);
-    let err = k.common(HOLE, body, tool).unwrap_err();
+    let err = k.common(HOLE, 0, body, tool).unwrap_err();
     assert_eq!(err.code().as_str(), "kernel.degenerate.empty");
     let recipe = arris_fixture::parse(&export(&k, &err).unwrap());
     assert_eq!(
@@ -326,7 +326,9 @@ fn a_body_read_from_bytes_has_no_recipe_step() {
     let body = plate(&mut k);
     let bytes = k.to_bytes(body).unwrap();
     let frozen = k.from_bytes(&bytes.bytes, &bytes.names).unwrap();
-    let err = k.fillet(BLEND, frozen, &[top(1)], 30.0 * MM).unwrap_err();
+    let err = k
+        .fillet(BLEND, 0, frozen, &[top(1)], 30.0 * MM)
+        .unwrap_err();
     assert_eq!(
         export(&k, &err),
         Err(FixtureError::NoStep {
@@ -340,7 +342,7 @@ fn a_body_read_from_bytes_has_no_recipe_step() {
 fn a_field_arris_would_not_read_is_refused_by_the_vendored_grammar() {
     let mut k = Kernel::new();
     let body = plate(&mut k);
-    let err = k.fillet(BLEND, body, &[top(1)], 30.0 * MM).unwrap_err();
+    let err = k.fillet(BLEND, 0, body, &[top(1)], 30.0 * MM).unwrap_err();
     let json = export(&k, &err).unwrap();
     let misspelt = json.replacen("\"length\"", "\"lenght\"", 1);
     assert_ne!(misspelt, json);

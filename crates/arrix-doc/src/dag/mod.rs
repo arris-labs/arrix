@@ -106,7 +106,7 @@ fn name_features(name: &PersistentName, out: &mut BTreeSet<FeatureId>) {
             NameStep::Modified { feature, .. } | NameStep::Instance { feature, .. } => {
                 out.insert(*feature);
             }
-            NameStep::Generated { feature, from } => {
+            NameStep::Generated { feature, from, .. } => {
                 out.insert(*feature);
                 from.iter().for_each(|n| name_features(n, out));
             }

@@ -76,9 +76,9 @@ fn pattern(k: &mut Kernel, n: u32) -> (KernelBody, Vec<PersistentName>) {
     let mut tool = k.copy(PATTERN, 1, seed, step(8.0)).unwrap();
     for i in 2..=n {
         let next = k.copy(PATTERN, i, seed, step(8.0 * f64::from(i))).unwrap();
-        tool = k.fuse(PATTERN, tool, next).unwrap();
+        tool = k.fuse(PATTERN, i - 2, tool, next).unwrap();
     }
-    let cut = k.cut(CUT, plate, tool).unwrap();
+    let cut = k.cut(CUT, 0, plate, tool).unwrap();
     // A hole's wall is `gen.CUT[` the copy's wall `]`: the one face whose
     // origin carries instance `i`.
     let walls = (1..=n)

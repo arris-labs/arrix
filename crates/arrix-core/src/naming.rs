@@ -10,7 +10,7 @@
 //! kind  := 'face' | 'edge' | 'vertex'
 //! root  := ('sweep.' | 'revolve.') ID ('.' N)? '.' part | 'plugin.' ID '.' ID | 'frozen.' ID '.' N
 //! part  := 'start-cap' | 'end-cap' | curve-part '.' ID
-//! step  := 'mod.' ID '.' N | 'inst.' ID '.' N | 'gen.' ID '[' name (',' name)* ']'
+//! step  := 'mod.' ID ('.' N)? '.' N | 'inst.' ID '.' N | 'gen.' ID ('.' N)? '[' name (',' name)* ']'
 //! ```
 //!
 //! `ID` is an id's 13 Crockford characters, `N` a decimal `u32` without
@@ -90,14 +90,22 @@ pub enum SweepPartName {
 /// What a later feature did to an entity.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum NameStep {
-    /// A piece of it; `split` is 0 when it was kept whole but changed.
-    Modified { feature: FeatureId, split: u32 },
+    /// A piece of it, by `feature`'s boolean number `boolean` (from 0 in
+    /// call order, not written when 0: ADR-0014); `split` is 0 when it was
+    /// kept whole but changed.
+    Modified {
+        feature: FeatureId,
+        boolean: u32,
+        split: u32,
+    },
     /// An entity of the `index`-th copy a pattern or mirror made, from 1
     /// (ADR-0010); raising a pattern's count renames no copy that stays.
     Instance { feature: FeatureId, index: u32 },
     /// Made from these (an edge from two faces).
     Generated {
         feature: FeatureId,
+        /// `feature`'s boolean number, as for `Modified`.
+        boolean: u32,
         from: Vec<PersistentName>,
     },
 }
@@ -185,10 +193,28 @@ impl fmt::Display for PersistentName {
         }
         for step in &self.chain {
             match step {
-                NameStep::Modified { feature, split } => write!(f, "/mod.{feature}.{split}")?,
+                NameStep::Modified {
+                    feature,
+                    boolean,
+                    split,
+                } => {
+                    write!(f, "/mod.{feature}.")?;
+                    if *boolean > 0 {
+                        write!(f, "{boolean}.")?;
+                    }
+                    write!(f, "{split}")?;
+                }
                 NameStep::Instance { feature, index } => write!(f, "/inst.{feature}.{index}")?,
-                NameStep::Generated { feature, from } => {
-                    write!(f, "/gen.{feature}[")?;
+                NameStep::Generated {
+                    feature,
+                    boolean,
+                    from,
+                } => {
+                    write!(f, "/gen.{feature}")?;
+                    if *boolean > 0 {
+                        write!(f, ".{boolean}")?;
+                    }
+                    f.write_str("[")?;
                     for (i, name) in from.iter().enumerate() {
                         if i > 0 {
                             f.write_str(",")?;
@@ -363,9 +389,21 @@ impl<'a> Reader<'a> {
         match word {
             "mod" => {
                 self.expect(".", "expected '.' before the split")?;
+                let at = self.at;
+                let mut boolean = 0;
+                let mut split = self.number()?;
+                if self.eat(".") {
+                    // `mod.<F>.<n>.<k>`: the first number is the boolean's.
+                    if split == 0 {
+                        return Err((at, "a boolean number of 0 is not written"));
+                    }
+                    boolean = split;
+                    split = self.number()?;
+                }
                 Ok(NameStep::Modified {
                     feature,
-                    split: self.number()?,
+                    boolean,
+                    split,
                 })
             }
             "inst" => {
@@ -376,13 +414,25 @@ impl<'a> Reader<'a> {
                 })
             }
             "gen" => {
+                let mut boolean = 0;
+                if self.eat(".") {
+                    let at = self.at;
+                    boolean = self.number()?;
+                    if boolean == 0 {
+                        return Err((at, "a boolean number of 0 is not written"));
+                    }
+                }
                 self.expect("[", "expected '[' after gen's feature")?;
                 let mut from = vec![self.name(depth + 1)?];
                 while self.eat(",") {
                     from.push(self.name(depth + 1)?);
                 }
                 self.expect("]", "expected ',' or ']'")?;
-                Ok(NameStep::Generated { feature, from })
+                Ok(NameStep::Generated {
+                    feature,
+                    boolean,
+                    from,
+                })
             }
             _ => unreachable!("the step's kind was checked"),
         }
@@ -480,6 +530,7 @@ mod tests {
                 },
                 NameStep::Modified {
                     feature: fid(4),
+                    boolean: 0,
                     split: 1,
                 },
             ],
@@ -516,10 +567,56 @@ mod tests {
     }
 
     #[test]
+    fn a_boolean_number_is_written_after_number_0() {
+        let mut face = side(1, 2);
+        face.chain.push(NameStep::Modified {
+            feature: fid(3),
+            boolean: 2,
+            split: 1,
+        });
+        face.chain.push(NameStep::Generated {
+            feature: fid(3),
+            boolean: 1,
+            from: vec![side(1, 4)],
+        });
+        let text = "face:sweep.0000000000001.side.0000000000002\
+                    /mod.0000000000003.2.1\
+                    /gen.0000000000003.1[face:sweep.0000000000001.side.0000000000004]";
+        assert_eq!(face.to_string(), text);
+        assert_eq!(text.parse::<PersistentName>(), Ok(face));
+        for (text, at, reason) in [
+            (
+                "face:sweep.0000000000001.end-cap/mod.0000000000003.0.1",
+                51,
+                "a boolean number of 0 is not written",
+            ),
+            (
+                "face:sweep.0000000000001.end-cap/gen.0000000000003.0[face:x",
+                51,
+                "a boolean number of 0 is not written",
+            ),
+            (
+                "face:sweep.0000000000001.end-cap/mod.0000000000003.1.",
+                53,
+                "expected a decimal number without leading zeros",
+            ),
+            (
+                "face:sweep.0000000000001.end-cap/mod.0000000000003.1.2.3",
+                54,
+                "trailing text",
+            ),
+        ] {
+            let err = text.parse::<PersistentName>().unwrap_err();
+            assert_eq!((err.at, err.reason), (at, reason), "{text}");
+        }
+    }
+
+    #[test]
     fn writes_the_documented_form() {
         let mut face = side(1, 2);
         face.chain.push(NameStep::Modified {
             feature: fid(3),
+            boolean: 0,
             split: 0,
         });
         assert_eq!(
@@ -543,6 +640,7 @@ mod tests {
             },
             chain: vec![NameStep::Generated {
                 feature: fid(5),
+                boolean: 0,
                 from: vec![face, cap],
             }],
         };
@@ -656,19 +754,23 @@ mod tests {
         let leaf = (
             arb_kind(),
             arb_root(),
-            prop::collection::vec((arb_id(), any::<u32>(), any::<bool>()), 0..3),
+            prop::collection::vec((arb_id(), any::<u32>(), any::<u32>(), any::<bool>()), 0..3),
         )
             .prop_map(|(kind, root, steps)| PersistentName {
                 kind,
                 root,
                 chain: steps
                     .into_iter()
-                    .map(|(f, n, copy)| {
+                    .map(|(f, n, boolean, copy)| {
                         let feature = FeatureId(f);
                         if copy {
                             NameStep::Instance { feature, index: n }
                         } else {
-                            NameStep::Modified { feature, split: n }
+                            NameStep::Modified {
+                                feature,
+                                boolean,
+                                split: n,
+                            }
                         }
                     })
                     .collect(),
@@ -678,13 +780,15 @@ mod tests {
                 arb_kind(),
                 arb_root(),
                 arb_id(),
+                any::<u32>(),
                 prop::collection::vec(inner, 1..3),
             )
-                .prop_map(|(kind, root, f, from)| PersistentName {
+                .prop_map(|(kind, root, f, boolean, from)| PersistentName {
                     kind,
                     root,
                     chain: vec![NameStep::Generated {
                         feature: FeatureId(f),
+                        boolean,
                         from,
                     }],
                 })

@@ -132,7 +132,7 @@ fn tool(k: &mut Kernel, s: &Scene) -> Option<KernelBody> {
         let copy = k.copy(PATTERN, i, seed, step(i)).unwrap();
         tool = Some(match tool {
             None => copy,
-            Some(so_far) => k.fuse(PATTERN, so_far, copy).unwrap(),
+            Some(so_far) => k.fuse(PATTERN, i - 2, so_far, copy).unwrap(),
         });
     }
     tool
@@ -143,16 +143,16 @@ fn build(s: &Scene) -> (Kernel, KernelBody) {
     let mut body = plate(&mut k, s);
     if s.boss {
         let b = boss(&mut k);
-        body = k.fuse(JOIN, body, b).unwrap();
+        body = k.fuse(JOIN, 0, body, b).unwrap();
     }
     if s.blend == Blend::Before {
-        body = k.fillet(BLEND, body, &[top_edge(2)], 2.0 * MM).unwrap();
+        body = k.fillet(BLEND, 0, body, &[top_edge(2)], 2.0 * MM).unwrap();
     }
     if let Some(t) = tool(&mut k, s) {
-        body = k.cut(CUT, body, t).unwrap();
+        body = k.cut(CUT, 0, body, t).unwrap();
     }
     if s.blend == Blend::After {
-        body = k.fillet(BLEND, body, &[top_edge(2)], 2.0 * MM).unwrap();
+        body = k.fillet(BLEND, 0, body, &[top_edge(2)], 2.0 * MM).unwrap();
     }
     (k, body)
 }
@@ -193,6 +193,7 @@ fn blend_face() -> PersistentName {
         kind: TopoKind::Face,
         chain: vec![NameStep::Generated {
             feature: BLEND,
+            boolean: 0,
             from: vec![top_edge(2)],
         }],
         root: top_edge(2).root,
@@ -213,7 +214,7 @@ fn wall(names: &BTreeSet<PersistentName>, i: u32) -> Option<PersistentName> {
         n.kind == TopoKind::Face
             && matches!(
                 n.chain.last(),
-                Some(NameStep::Generated { feature, from })
+                Some(NameStep::Generated { feature, from, .. })
                     if *feature == CUT && from.iter().any(|f| f.chain.contains(&inst(i)))
             )
     });

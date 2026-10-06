@@ -33,6 +33,9 @@ pub(crate) struct FeatureKernel<'k> {
     /// The sweeps the feature has made so far, the next one's index in
     /// its names (ADR-0011).
     sweeps: u32,
+    /// The booleans (and blends) it has made, the next one's number in its
+    /// names (ADR-0014).
+    booleans: u32,
     /// The call the last kernel failure is recorded at.
     pub(crate) failed: Option<CallIndex>,
 }
@@ -46,6 +49,7 @@ impl<'k> FeatureKernel<'k> {
             feature,
             bodies: inputs,
             sweeps: 0,
+            booleans: 0,
             failed: None,
         }
     }
@@ -81,6 +85,13 @@ impl<'k> FeatureKernel<'k> {
         let handle = u32::try_from(self.bodies.len()).expect("under 2³² bodies");
         self.bodies.push(body);
         Body::from_handle(handle)
+    }
+
+    /// The number of the feature's next boolean.
+    fn next_boolean(&mut self) -> u32 {
+        let n = self.booleans;
+        self.booleans += 1;
+        n
     }
 
     /// Unwraps a kernel result, keeping where a failure is recorded.
@@ -123,14 +134,16 @@ impl arrix_plugin_api::Kernel for FeatureKernel<'_> {
 
     fn fuse(&mut self, target: &Body, tool: &Body) -> Result<Body, Diagnostic> {
         let (a, b) = (self.resolve(target)?, self.resolve(tool)?);
-        let r = self.kernel.fuse(self.feature, a, b);
+        let boolean = self.next_boolean();
+        let r = self.kernel.fuse(self.feature, boolean, a, b);
         let body = self.take(r)?;
         Ok(self.hand_out(body))
     }
 
     fn cut(&mut self, target: &Body, tool: &Body) -> Result<Body, Diagnostic> {
         let (a, b) = (self.resolve(target)?, self.resolve(tool)?);
-        let r = self.kernel.cut(self.feature, a, b);
+        let boolean = self.next_boolean();
+        let r = self.kernel.cut(self.feature, boolean, a, b);
         let body = self.take(r)?;
         Ok(self.hand_out(body))
     }

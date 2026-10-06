@@ -73,18 +73,35 @@ pub enum KernelOp {
         angle: f64,
     },
     /// The union of the two operand bodies, target first; `feature` names
-    /// the pieces and what the union generated.
-    Fuse { feature: FeatureId },
-    /// The first operand less the second; `feature` as for `Fuse`.
-    Cut { feature: FeatureId },
-    /// The intersection of the two operands; `feature` as for `Fuse`.
-    Common { feature: FeatureId },
+    /// the pieces and what the union generated, and `boolean` is the place
+    /// of the call among `feature`'s booleans (ADR-0014).
+    Fuse {
+        feature: FeatureId,
+        #[serde(default)]
+        boolean: u32,
+    },
+    /// The first operand less the second; `feature` and `boolean` as for
+    /// `Fuse`.
+    Cut {
+        feature: FeatureId,
+        #[serde(default)]
+        boolean: u32,
+    },
+    /// The intersection of the two operands; `feature` and `boolean` as for
+    /// `Fuse`.
+    Common {
+        feature: FeatureId,
+        #[serde(default)]
+        boolean: u32,
+    },
     /// The operand body with `edges` rounded at `radius` metres; `feature`
-    /// names the blend's entities. `at` holds a point on each edge, in the
+    /// names the blend's entities, `boolean` as for `Fuse`. `at` holds a point on each edge, in the
     /// same order (its curve at mid-parameter), which is how a fixture
     /// recipe names an edge.
     Fillet {
         feature: FeatureId,
+        #[serde(default)]
+        boolean: u32,
         edges: Vec<PersistentName>,
         #[serde(default)]
         at: Vec<DVec3>,
@@ -94,6 +111,8 @@ pub enum KernelOp {
     /// for `Fillet`.
     Chamfer {
         feature: FeatureId,
+        #[serde(default)]
+        boolean: u32,
         edges: Vec<PersistentName>,
         #[serde(default)]
         at: Vec<DVec3>,

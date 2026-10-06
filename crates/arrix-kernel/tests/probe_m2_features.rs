@@ -128,7 +128,7 @@ fn a_common_keeps_each_operand_s_faces_inside_the_other() {
     let mut k = Kernel::new();
     let plate = plate(&mut k);
     let tool = block(&mut k, 0, ((30.0, 20.0), (50.0, 40.0)), (-1.0, 7.0), 11);
-    let common = k.common(F, plate, tool).unwrap();
+    let common = k.common(F, 0, plate, tool).unwrap();
     assert!(close(
         k.mass_properties(common).unwrap().volume,
         10.0 * 10.0 * 5.0 * MM.powi(3)
@@ -151,40 +151,47 @@ fn a_common_keeps_each_operand_s_faces_inside_the_other() {
     );
     // The record names the operation; the operands are its two bodies.
     let record = &k.records()[2];
-    assert!(matches!(record.op, KernelOp::Common { feature: F }));
+    assert!(matches!(
+        record.op,
+        KernelOp::Common {
+            feature: F,
+            boolean: 0
+        }
+    ));
     assert_eq!(record.operands.len(), 2);
 }
 
-/// The finding that stops the plan after this step: a second boolean of
-/// the same feature splits piece `0` of what the first split, and names
-/// its piece `1` as the first did.
+/// The finding that stopped step 2, and ADR-0014's answer: a second cut of
+/// the same feature splits piece `0` of what the first split, and would name
+/// its piece `1` as the first did (`kernel.naming` without a boolean number).
+/// With the boolean's number in the step the names are clean, and a
+/// boolean 0 is written as before.
 #[test]
-fn two_booleans_of_one_feature_on_one_target_clash_on_a_split_name() {
-    for features in [[F, F], [F, FeatureId(Id(10))]] {
-        let mut k = Kernel::new();
-        let plate = plate(&mut k);
-        let (a, b) = (channel(&mut k, 0, 10.0, 11), channel(&mut k, 1, 26.0, 21));
-        let once = k.cut(features[0], plate, a).unwrap();
-        let twice = k.cut(features[1], once, b);
-        if features[0] != features[1] {
-            twice.unwrap();
-            continue;
-        }
-        let err = twice.unwrap_err();
-        let KernelError::Naming { message, .. } = &err else {
-            panic!("{err:?}")
-        };
+fn two_booleans_of_one_feature_on_one_target_name_by_boolean_number() {
+    let mut k = Kernel::new();
+    let plate = plate(&mut k);
+    let (a, b) = (channel(&mut k, 0, 10.0, 11), channel(&mut k, 1, 26.0, 21));
+    let once = k.cut(F, 0, plate, a).unwrap();
+    let twice = k.cut(F, 1, once, b).unwrap();
+    // The first cut's piece 1 of the top face is `mod.F.1`, the second's
+    // `mod.F.1.1`: one text each.
+    let top = |boolean| {
         let mut piece = sweep(TopoKind::Face, PLATE, SweepPartName::EndCap);
         piece.chain.push(arrix_core::NameStep::Modified {
             feature: F,
+            boolean,
             split: 1,
         });
-        assert!(
-            message.starts_with(&format!("{piece} names both")),
-            "{message}"
-        );
-        assert_eq!(err.code().as_str(), "kernel.naming");
-    }
+        piece
+    };
+    assert!(k.names(once).unwrap().contains(&top(0)));
+    assert!(k.names(twice).unwrap().contains(&top(1)));
+    assert!(top(0).to_string().ends_with("/mod.0000000000009.1"));
+    assert!(top(1).to_string().ends_with("/mod.0000000000009.1.1"));
+    assert!(matches!(
+        k.records()[k.records().len() - 1].op,
+        KernelOp::Cut { boolean: 1, .. }
+    ));
 }
 
 #[test]
@@ -195,8 +202,8 @@ fn tools_fused_first_and_cut_once_name_cleanly() {
         let plate = plate(&mut k);
         let a = channel(&mut k, 0, 10.0, 11);
         let b = block(&mut k, 1, second, DEEP, 21);
-        let tools = k.fuse(F, a, b).unwrap();
-        k.cut(F, plate, tools).unwrap();
+        let tools = k.fuse(F, 0, a, b).unwrap();
+        k.cut(F, 1, plate, tools).unwrap();
     }
 }
 
@@ -225,7 +232,7 @@ fn counterbore(k: &mut Kernel, index: u32, (x, y): (f64, f64)) -> KernelBody {
 fn drilled(k: &mut Kernel, at: (f64, f64)) -> KernelBody {
     let plate = plate(k);
     let tool = counterbore(k, 0, at);
-    k.cut(F, plate, tool).unwrap()
+    k.cut(F, 0, plate, tool).unwrap()
 }
 
 #[test]
