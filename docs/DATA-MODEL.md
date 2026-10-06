@@ -214,6 +214,19 @@ that is none of the three as `extrude.mode`, no region as
 `extrude.no-region`, and a target that is not a body as
 `input.wrong-kind`.
 
+`core.fillet` and `core.chamfer` are built: a `target` body input, an
+`edges` list of edge inputs (`Ref::Topo` edges of the target, ADR-0012),
+and a `radius` (fillet) or a `distance` (chamfer), a length defaulting to
+1 mm. The slot, `body`, modifies `target`. Naming one edge of a tangent
+chain blends the chain, so listing one edge or all of them gives the same
+body (§Persistent naming, through a blend). They fail as `fillet.no-target`
+or `chamfer.no-target`, `fillet.no-edges` or `chamfer.no-edges`, an edge
+no body the feature reads holds as `ref.lost` with candidates, and a
+blend no face can hold as `kernel.degenerate.blend-too-large` with the
+call kept, which `arrix eval --save-fixtures` writes as a recipe
+(`tests/docs/oversize-fillet/`). A feature that blends keeps no tool, so
+a pattern or a mirror of it is refused.
+
 `core.revolve` is built: a `region` input, an `axis` input (a sketch line,
 from its start along its length, or a straight edge, ADR-0012), an `angle`
 (default 360 deg, positive and at most a full turn; a full turn has no end

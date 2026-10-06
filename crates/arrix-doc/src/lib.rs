@@ -4,6 +4,7 @@
 mod authority;
 mod bodies;
 mod command;
+mod core_blend;
 mod core_boolean;
 mod core_extrude;
 mod core_revolve;
@@ -23,6 +24,7 @@ mod zip;
 
 pub use authority::{AuthorId, Authority, Change, CommandEnvelope, Generation, Outcome, Rejected};
 pub use command::{Applied, Command, CommandError, FeatureEdit, apply};
+pub use core_blend::CoreBlend;
 pub use core_boolean::CoreBoolean;
 pub use core_extrude::CoreExtrude;
 pub use core_revolve::CoreRevolve;

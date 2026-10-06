@@ -1,0 +1,122 @@
+{
+  "features": {
+    "3KB37HHSMBZTH": {
+      "choices": {
+        "mode": "new"
+      },
+      "id": "3KB37HHSMBZTH",
+      "inputs": {
+        "region": {
+          "region": {
+            "feature": "E2PTGP209DD49",
+            "key": {
+              "entities": [
+                "307H7HYN02QE5",
+                "62VWP62R0EG24",
+                "85NWC2C39KVSB",
+                "FRKF43WDWR6S1"
+              ],
+              "sample": [
+                20000000,
+                15000000
+              ]
+            }
+          }
+        }
+      },
+      "name": "Plate",
+      "params": {
+        "distance": "5 mm"
+      },
+      "suppressed": false,
+      "type_id": "core.extrude",
+      "type_version": 1
+    },
+    "E2PTGP209DD49": {
+      "id": "E2PTGP209DD49",
+      "inputs": {},
+      "name": "Sketch",
+      "params": {},
+      "sketch": {
+        "entities": {
+          "307H7HYN02QE5": {
+            "line": {
+              "end": "C15SH9P9SEDQR",
+              "start": "660SV1JHRKGTT"
+            }
+          },
+          "62VWP62R0EG24": {
+            "line": {
+              "end": "3Q4PKY086QGA7",
+              "start": "C15SH9P9SEDQR"
+            }
+          },
+          "85NWC2C39KVSB": {
+            "line": {
+              "end": "660SV1JHRKGTT",
+              "start": "1JVJERBD0BEA5"
+            }
+          },
+          "FRKF43WDWR6S1": {
+            "line": {
+              "end": "1JVJERBD0BEA5",
+              "start": "3Q4PKY086QGA7"
+            }
+          }
+        },
+        "points": {
+          "1JVJERBD0BEA5": {
+            "x": 0.0,
+            "y": 0.03
+          },
+          "3Q4PKY086QGA7": {
+            "x": 0.04,
+            "y": 0.03
+          },
+          "660SV1JHRKGTT": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "C15SH9P9SEDQR": {
+            "x": 0.04,
+            "y": 0.0
+          }
+        }
+      },
+      "suppressed": false,
+      "type_id": "core.sketch",
+      "type_version": 1
+    },
+    "EVQ7AMJVZ35T2": {
+      "id": "EVQ7AMJVZ35T2",
+      "inputs": {
+        "edges": [
+          {
+            "topo": "edge:sweep.3KB37HHSMBZTH.end-edge.307H7HYN02QE5"
+          }
+        ],
+        "target": {
+          "slot": {
+            "feature": "3KB37HHSMBZTH",
+            "slot": "body"
+          }
+        }
+      },
+      "name": "Fillet",
+      "params": {
+        "radius": "30 mm"
+      },
+      "suppressed": false,
+      "type_id": "core.fillet",
+      "type_version": 1
+    }
+  },
+  "history": [
+    "E2PTGP209DD49",
+    "3KB37HHSMBZTH",
+    "EVQ7AMJVZ35T2"
+  ],
+  "id": "5J93KFXR155D0",
+  "name": "Plate",
+  "rollback": null
+}

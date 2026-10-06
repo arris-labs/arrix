@@ -177,8 +177,10 @@ fn every_type_registers_under_the_plugins_namespace() {
         all,
         [
             "core.boolean",
+            "core.chamfer",
             "core.datum-plane",
             "core.extrude",
+            "core.fillet",
             "core.revolve",
             "core.sketch",
             "demo.boom",

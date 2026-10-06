@@ -234,13 +234,19 @@ All in `arris` 0.5.0, already pinned; no ask is needed.
   cuts the end cap's circle name alike); the tests stand it on the plate
   or pocket it, and the gap is a backlog line for Arris, no recipe saved
   yet.*
-- [ ] **[2]** Step 9 — `core.fillet` and `core.chamfer` (`core_blend.rs`):
+- [x] **[2]** Step 9 — `core.fillet` and `core.chamfer` (`core_blend.rs`):
   a `target` body and a list of `edges`; `radius`, or `distance`; the
   slot modifies `target`. Tests: four edges of a plate; a chain named by
   one edge; a blend of a blended edge; an oversize fillet failing as
   `kernel.degenerate.blend-too-large` with its record. `tests/docs/oversize-fillet/`
   replaces `zero-plate` in `crates/arrix-cli/tests/save_fixtures.rs`, and
   its recipe golden parses under the vendored grammar.
+  *Done: one `CoreBlend` type for both. The oversize document is what
+  `save_fixtures.rs` builds by commands (`scenario_directory`), and its
+  recipe is held equal, bar the step numbering (call 1 is the edge's
+  locate, no step), to the kernel's own `oversize-fillet` golden, which
+  the vendored grammar reads. An edge not on the body is `ref.lost` with
+  candidates from the resolver, as every name. `zero-plate` is gone.*
 - [ ] **[2]** Step 10 — `core.hole`: a `target`, a list of `points` (sketch
   points), `diameter`, `extent` choice `blind` (with `depth`) or
   `through`, `kind` choice `simple`, `counterbore` (`cb-diameter`,
