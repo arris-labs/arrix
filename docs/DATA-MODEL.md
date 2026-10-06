@@ -161,6 +161,9 @@ pub struct FeatureRecord {
 
 A form field the record leaves out takes the type's default; a field the
 type does not list is refused (`feature.unknown-field`), never ignored.
+An input that takes a list (a fillet's edges, a hole's points), and the
+`edge`, `point`, `axis` and `tool` input kinds, are ADR-0012's, landing
+with `plans/c1-m2-features`; until then an input is one `Ref`.
 `choices` is omitted from JSON when empty, and `sketch` when absent.
 
 The feature *type* (its parameters' form, its inputs, its `evaluate`) comes
@@ -311,7 +314,9 @@ pub struct RegionKey {
 }
 ```
 
-Every `Ref` is a DAG edge. `Topo` references are the ones naming solves;
+Every `Ref` is a DAG edge (each element of a list input, ADR-0012). A
+`Ref::Feature` in a `tool` input reads the tool a joining or cutting
+feature keeps (ADR-0013). `Topo` references are the ones naming solves;
 the rest are by id. A `SlotName` is one lower-kebab word (`body`,
 `plane`), the grammar of a diagnostic code's segment. In JSON a `Ref` is
 an object with one key, the variant in snake case: `{"topo":"face:…"}`,

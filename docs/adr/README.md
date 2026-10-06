@@ -50,3 +50,5 @@ Each rejected option and the one-line reason it lost.
 - [ADR-0009](0009-frozen-results-are-evaluation-output.md): a frozen result is evaluation output kept by the session and written on save, not a command
 - [ADR-0010](0010-the-single-piece-rule-instances-and-the-revolve-root.md): piece 0 of a split keeps its name; the Instance step and the revolve root
 - [ADR-0011](0011-a-sweep-index-in-the-sweep-root.md): a sweep index in the sweep root, so a feature's two sweeps name their caps apart
+- [ADR-0012](0012-list-inputs-and-the-edge-point-axis-and-tool-kinds.md): inputs that are lists, and the `edge`, `point`, `axis` and `tool` kinds; plugin API 0.4, schema 3
+- [ADR-0013](0013-a-pattern-of-features-copies-their-tools.md): a feature that joins or cuts keeps its tool; a pattern or a mirror of features copies the tools

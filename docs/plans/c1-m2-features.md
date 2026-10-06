@@ -52,12 +52,12 @@ recipe.
   checked against the feature's `target` body and passed as its name),
   `point` (a sketch point or a vertex, as a world point), `axis` (a sketch
   line, a straight edge, or a world axis by choice, as a point and a
-  direction) and `feature` (for patterns and mirror, per ADR-0013). Product
+  direction) and `tool` (a feature's kept tool, per ADR-0013). Product
   scenario: a fillet of four edges, a hole at three sketch points.
 - **ADR-0013, what a pattern or a mirror copies** (step 1, decided under
   the open questions): a body, or the tool of a feature that joins or
   cuts. A feature that joins or cuts keeps its tool as a
-  hidden output the evaluator holds, readable only by `feature` inputs
+  hidden output the evaluator holds, readable only by `tool` inputs
   (not a part body, never `slot.consumed`), and a pattern of features
   copies their tools, fuses the copies and applies them with each source's
   own mode: the `c1-m2-naming` shape (`inst` steps, raising the count
@@ -87,7 +87,7 @@ recipe.
   per ADR-0013.
 - **`arrix-plugin-api` 0.4** (step 4). API: minor (breaking under 0.x):
   `Kernel` gains `revolve`, `fillet`, `chamfer`, `common`, `copy`,
-  `mirror`; `input-kind` gains `edge`, `point`, `axis`, `feature`;
+  `mirror`; `input-kind` gains `edge`, `point`, `axis`, `tool`;
   `input-spec` gains `list`; `input-value` gains the matching values. The
   WIT world and the Rust traits change together under `wit_equality.rs`;
   `gears` takes 0.4 with no code change beyond its `api` range.
@@ -115,10 +115,15 @@ All in `arris` 0.5.0, already pinned; no ask is needed.
 
 ## Steps
 
-- [ ] **[2]** Step 1 — ADR-0012 (list inputs, the `edge`, `point`, `axis`
-  and `feature` kinds) and ADR-0013 (a pattern or a mirror of features
+- [x] **[2]** Step 1 — ADR-0012 (list inputs, the `edge`, `point`, `axis`
+  and `tool` kinds) and ADR-0013 (a pattern or a mirror of features
   copies their tools). Docs only: `docs/DATA-MODEL.md` §Features and
   §References say where the ADRs land; nothing is built.
+  *Done: the `feature` kind is named `tool` (it resolves to the tool, not
+  the feature); an `edge` is checked against its body by the kernel call
+  (`kernel.unknown-name`), not by the resolver; a frozen source has no
+  tool (`input.no-tool`); a type returns its tool as `tool-output` beside
+  its slots.*
 - [ ] **[3]** Step 2 — probe tests in `arrix-kernel/tests/probe_m2_features.rs`
   (metres): `common` of a plate and a box (what each piece is named); two
   `cut`s and a `fuse` in one feature (do any two entities share a `gen` or
@@ -135,8 +140,9 @@ All in `arris` 0.5.0, already pinned; no ask is needed.
 - [ ] **[2]** Step 4 — plugin API 0.4: the WIT world, the Rust traits, the
   equality test; the evaluator's host implements the new `Kernel`
   methods over `arrix-kernel` and resolves the new input kinds (a list
-  input in the form's order; an `edge` not on the `target` body is
-  `input.wrong-body`; a lost name `ref.lost` with candidates as today).
+  input as its elements in order; an `edge` not on the body is the
+  kernel's `kernel.unknown-name`; a lost name `ref.lost` with candidates
+  as today; `feature-output.tool` held by the evaluator, ADR-0013).
   `gears` on 0.4; `docs/PLUGINS.md` §One interface and §Versioning in the
   same commit.
 - [ ] **[3]** Step 5 — projection: the evaluator projects each sourced
