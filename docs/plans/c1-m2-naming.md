@@ -161,8 +161,11 @@ against the same list at step 2.
   checked at the kernel (step 9), and the acceptance's second half runs on
   `zero-plate` until `core.fillet` lands in `c1-m2-features`. The frozen
   body case is `arrix-doc`'s unit test.*
-- [ ] **[2]** Step 11 — the kernel naming scenarios (the acceptance below)
+- [x] **[2]** Step 11 — the kernel naming scenarios (the acceptance below)
   and their opposite cases, as one test file.
+  *Done: `crates/arrix-kernel/tests/naming_scenarios.rs`: six tests over one
+  scene (a plate with a three-hole pattern, a boss, a fillet on side 2's
+  top edge), each checked by name table alone.*
 
 Each step is one commit; steps 2 and 9 begin as probes and may rewrite the
 steps after them.
