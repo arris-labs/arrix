@@ -16,5 +16,6 @@ idea is not brainstormed twice.
 - A frozen feature that modified a body input: its `modifies` is unknown without its type, so it cannot be a version; none exists in M1, and a plugin that modifies bodies needs the stored slot's target recorded (plans/c1-m1-slice step 14)
 - A short ADR recording that a modifying slot is a version only while its input is set, if the rule should live in ADR-0007 and not only in `docs/DATA-MODEL.md` §Bodies across features (plans/c1-m1-slice step 6)
 - File with Arris (human): a hole across a fillet fails `cut` as `Internal(Split(Dangling))`, and a stadium fillet of 1 mm or less fails as `Internal(Invariant)`; recipes in `crates/arrix-kernel/tests/recipes/` (plans/c1-m2-naming steps 2, 7, 9)
+- A feature giving each sweep its own index (a hole's point id), so removing one of a hole's points renames no other hole's tool; an ADR beside ADR-0011 when a scenario needs it (plans/c1-m2-features, open question 2)
 
 ## Rejected
