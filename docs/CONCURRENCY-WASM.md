@@ -185,6 +185,7 @@ measured number written here.
 | A UI frame with the C1 acceptance part on screen | ≤ 16 ms; measured 0.09 ms median |
 | Applying a command (authority and replica) | ≤ 1 ms |
 | One sketch-drag solve on a 200-entity sketch | ≤ 4 ms, on the UI thread; gated, measured 0.38 ms median |
+| One inference verdict (`check_candidate`) on a drawn part's sketch | inside the frame, on the UI thread; measured 0.1–0.6 ms median |
 | First coarse mesh after a parameter edit of the acceptance part | ≤ 150 ms |
 | Cancellation latency once A3 lands | ≤ 50 ms |
 | Save and load of the acceptance document | ≤ 100 ms each |
@@ -222,6 +223,15 @@ a length and perpendicular to the last, drags at 300 ms median per frame
 (7.2 s before; reported, not gated), a dense 400-variable basis of about
 30 ms per follow iteration and about 13 iterations a frame on a chain that
 cannot reach the cursor (`docs/BACKLOG.md`).
+
+An inference verdict is what the draw preview pays when its candidate set
+changes (`Sketch::check_candidate`, one per candidate): on a fully
+constrained plate of 31 constraints (a rectangle, a bolt circle of four
+holes, a slot) with a line mid-draw, 0.11 ms median for `Ok`, 0.12 ms for
+`Redundant` and 0.58 ms for `Conflicting` in a release build on a Ryzen 9
+7950X, 0.2, 0.2 and 1.0 ms in the dev profile
+(`crates/arrix-sketch/tests/inference_probe.rs`, reported, asserted only
+under a generous 50 ms ceiling).
 
 ## Open questions
 

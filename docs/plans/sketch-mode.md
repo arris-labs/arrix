@@ -108,7 +108,7 @@ Complexity: **[1]** routine; **[2]** careful; **[3]** unproven.
   today's for the existing drag tests unless a test says why not. Done:
   the median at or under 4 ms, then asserted (in release, a margin noted)
   and the number written in §Budgets; or ⚠ OPEN 2.
-- [ ] **[3]** Step 2 — Inference, ported into `arrix-sketch`: the snap
+- [x] **[3]** Step 2 — Inference, ported into `arrix-sketch`: the snap
   search in plane-local metres with a pixel tolerance turned metres,
   point, curve and relation candidates in priority order, and the commit
   rule (bound one at a time, each checked against the sketch with the
@@ -280,6 +280,12 @@ accepted, and the step 1 drag benchmark asserts its budget.
   200-line zigzag, 300 ms a frame, from 7.2 s), now a backlog line; the
   positions differ from the unreduced solver's by round-off (about 1e-8 m),
   not bit for bit, which `solver/tangent.rs`'s test pins.
+- Finding (step 2): the probe holds every case of the commit rule as
+  established before (the redundant alignment under an H lock, `Tangent`
+  alone at the touching point, parallel and perpendicular without a flip),
+  and one verdict costs 0.11 to 0.58 ms in release (§Budgets). The grid
+  pass and its glyph were left out of the port (grid snap is a non-goal),
+  and the angle tolerance is a constant, `ANGLE_TOL`.
 - ⚠ OPEN 3: the arc tool's gesture: centre, start, end; three points
   (start, end, through); or both, the second sharing the button. Default
   proposed: three-point, as the most common, with tangent arcs left out.

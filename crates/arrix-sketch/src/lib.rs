@@ -5,7 +5,8 @@
 //! ArriX's rules on the way in: ids are the document's `SketchEntityId`s,
 //! minted by a command's author ([`Draft`]); SI inside; the constraint
 //! kinds a document can hold are the ones M3's sketch mode reaches, and
-//! the rest sit behind the `conics` and `snells-law` features.
+//! the rest sit behind the `conics` and `snells-law` features. Inference,
+//! the snap search sketch mode draws and commits, is here too, headless.
 
 mod arrangement;
 #[cfg(feature = "conics")]
@@ -18,6 +19,7 @@ mod dsu;
 mod edit;
 mod entity;
 mod ids;
+mod inference;
 pub mod instrument;
 pub mod modify;
 mod profile;
@@ -41,6 +43,10 @@ pub use draft::Draft;
 pub use edit::SketchEdit;
 pub use entity::{Entity, Point};
 pub use ids::{ConstraintId, EntityId, PointId, SketchEntityId};
+pub use inference::{
+    ANGLE_TOL, GlyphKind, Inference, Inferred, Snap, SnapGlyph, SnapGuide, SnapQuery,
+    apply as apply_inference, commit as commit_inferences, snap_search,
+};
 pub use profile::{RegionProfileError, curve_key};
 pub use region::{
     EdgeGeom, EdgePiece, Loop, LoopEdge, Profile, Region, RegionKey, ResolveRegion, find_profiles,

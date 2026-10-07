@@ -11,9 +11,9 @@ choke point, `arrix-plugin-api` 0.4.0, `arrix-doc`'s
 expressions, document, DAG, commands and undo, evaluator and cache, the
 directory form's and the zip's save and open with the migration chain,
 frozen results, and the `arrix eval` line (`--without-plugin`),
-`arrix-sketch` less inference (the model, solver, diagnostics,
-validation, regions and their profiles, trim, extend, offset, mirror,
-`SketchEdit`), `arrix-plugin-host`'s Tier 0, `plugins/gears`, the empty shell in
+`arrix-sketch` (the model, solver, diagnostics, validation, regions and
+their profiles, trim, extend, offset, mirror, `SketchEdit`, inference),
+`arrix-plugin-host`'s Tier 0, `plugins/gears`, the empty shell in
 `arrix-ui` and `arrix-app`, the rest stubs), §The protocol boundary
 (`LocalSession` and replicas), §Errors and diagnostics, the document,
 evaluation, naming, protocol, UI, CLI and sketch-solver rows of §Testing and the
@@ -30,7 +30,7 @@ unless an ADR says otherwise.
 |---|---|---|---|
 | `arrix-core` | units and quantities, the length tolerance, ids, plugin ids, plain math over `glam` (f64), persistent-reference types, `Diagnostic` | — | `glam`, `serde`, `thiserror` |
 | `arrix-kernel` | the only crate naming Arris types: operations, naming from provenance, render meshes, body bytes, call records | core | `arris`, `blake3`, `serde`, `thiserror` |
-| `arrix-sketch` | the sketch model and `SketchEdit`, the constraint solver and diagnostics, regions and their keyed profiles, trim/extend/offset/mirror, inference (M3) (ported) | core | `serde`, `thiserror` |
+| `arrix-sketch` | the sketch model and `SketchEdit`, the constraint solver and diagnostics, regions and their keyed profiles, trim/extend/offset/mirror, inference (ported) | core | `serde`, `thiserror` |
 | `arrix-plugin-api` | the WIT world, its Rust traits and plain types; semver of its own | core | `wit-bindgen`, `wit-parser` (the equality test only, dev) |
 | `arrix-doc` | document, parameters and expressions, DAG, feature registry, commands, undo, evaluator, `.arrx`, the `arrix eval` line; reads no files (a `DocumentSource` hands it bytes) | core, kernel, sketch, plugin-api | `serde_json`, `blake3`, `miniz_oxide`, `crc32fast` |
 | `arrix-plugin-host` | tier 0/1/2 hosting, manifests, capabilities, the frozen fallback | core, doc, plugin-api | `toml`, `semver`, `wasmtime` (native, C3) |

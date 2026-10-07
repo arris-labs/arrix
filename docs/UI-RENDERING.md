@@ -238,14 +238,23 @@ orthographic projection.
   bit-identical positions. The drag is inside its frame budget on a
   drawn part's sketch, and over it on one of mostly nonlinear rows
   (`docs/CONCURRENCY-WASM.md` §Budgets).
-- **Inference is one engine** in `arrix-sketch`, ported with sketch mode
-  in M3, as are the sketch fillet, auto-constrain and the constraint
-  descriptions: a search over candidate
-  snaps in priority order, in plane-local metres with a tolerance in
-  pixels. Its result is drawn as glyphs and guides, and the click commits
-  the same inferences. Every candidate is checked against the sketch first:
-  a redundant one is drawn but not committed; a conflicting one is neither.
-  Alignment sources are acquired by dwell; a modifier suppresses inference.
+- **Inference is one engine** in `arrix-sketch` (`snap_search`), ported
+  and headless: a search over candidate snaps in priority order (a point,
+  the origin, a midpoint, an intersection, a tangency, a quadrant, on a
+  curve or an acquired line's extension; then alignment guides with
+  acquired points, the pending segment's H/V lock or a direction relation
+  to a line, the sketch axes), in plane-local metres with a tolerance in
+  pixels turned metres. Its result is drawn as glyphs and guides, and the
+  click commits the same inferences by the commit rule: bound one at a
+  time in priority order (an object snap, the line's own orientation, a
+  relation, an alignment, an axis), each checked with
+  `Sketch::check_candidate` against the sketch with the earlier ones in;
+  a redundant one is drawn but not committed, a conflicting one neither.
+  A tangent snap commits `Tangent` alone: with the end held on the rim
+  too, the two are one first-order row at the touching point
+  (`crates/arrix-sketch/tests/inference_probe.rs`). Alignment sources are
+  acquired by dwell; a modifier suppresses inference. The sketch fillet,
+  auto-constrain and the constraint descriptions are not ported yet.
 - **A sketch edit is one command.** Drawing a line with its inferred
   coincidence and horizontal is one `SketchEdit`; a drag is one on release;
   trim, extend, offset and mirror are each one.
