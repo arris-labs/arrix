@@ -529,6 +529,8 @@ version = "0.0.0"
 dependencies = [
  "arrix-core",
  "egui-wgpu",
+ "glam 0.33.10",
+ "web-time",
 ]
 
 [[package]]

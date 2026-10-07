@@ -151,7 +151,7 @@ All present in the pinned `arris` 0.5:
   slice's stream; the JSON round-trip test covers the new event; the first
   coarse mesh after a width edit is measured and printed (budget 150 ms,
   reported).
-- [ ] **[1]** 5 — `arrix-viewport` scene and camera, GPU-free: `Scene` keyed
+- [x] **[1]** 5 — `arrix-viewport` scene and camera, GPU-free: `Scene` keyed
   by part and slot behind the payload trait (re-upload only what changed),
   `OrbitCamera` (orbit, pan, zoom to cursor, perspective/orthographic,
   standard views, animations skippable) on `glam`, Z-up; the source's
@@ -289,3 +289,12 @@ build included.
   starts when the whole evaluation has finished, not part by part, and
   `Meshed` carries `Result<RenderMesh, Diagnostic>` so a failed
   tessellation is shown rather than dropped.
+- Found in step 5: the camera comes in with the sketch-plane machinery
+  left out (a sketch-mode plan's), its tests ported, and the zoom range tied
+  to the depth range with `set_depth_range_for(radius)`, which step 7 calls
+  on every framing so a 40 mm plate is not clipped by a 1 cm near plane.
+  `Scene::set_body` skips the upload when the body already holds that very
+  mesh (a fingerprint of what it draws), since the evaluator sends every
+  final body's mesh again on each generation; the viewport's `BodyKey` is
+  part, feature and slot in `arrix-core` types, so it names no doc type.
+  The camera is clocked by `web_time`, new in the workspace.
