@@ -109,24 +109,35 @@ impl OrbitCamera {
         self.projection = self.projection.toggled();
     }
 
-    /// Snaps orientation to a [`StandardView`]; target and distance are
-    /// unchanged.
-    pub fn set_standard_view(&mut self, view: StandardView) {
-        self.cancel_animation();
+    /// The `(yaw, pitch)` a [`StandardView`] looks along from this camera.
+    /// Yaw is irrelevant once pitch reaches a pole, so the top and bottom
+    /// keep the current one, which lets a later orbit drag continue
+    /// smoothly.
+    pub fn standard_angles(&self, view: StandardView) -> (f32, f32) {
         use std::f32::consts::{FRAC_PI_2, FRAC_PI_4, PI};
-        let (yaw, pitch) = match view {
+        match view {
             StandardView::Front => (FRAC_PI_2, 0.0),
             StandardView::Back => (-FRAC_PI_2, 0.0),
             StandardView::Right => (0.0, 0.0),
             StandardView::Left => (PI, 0.0),
-            // Yaw is irrelevant once pitch reaches a pole; keep the current
-            // one so a later orbit drag continues smoothly.
             StandardView::Top => (self.yaw, FRAC_PI_2),
             StandardView::Bottom => (self.yaw, -FRAC_PI_2),
             StandardView::Iso => (-FRAC_PI_4, ISO_PITCH),
-        };
-        self.yaw = yaw;
-        self.pitch = pitch;
+        }
+    }
+
+    /// Snaps orientation to a [`StandardView`]; target and distance are
+    /// unchanged.
+    pub fn set_standard_view(&mut self, view: StandardView) {
+        self.cancel_animation();
+        (self.yaw, self.pitch) = self.standard_angles(view);
+    }
+
+    /// Starts a smooth animation to a [`StandardView`]; target and distance
+    /// are unchanged.
+    pub fn animate_to_standard_view(&mut self, view: StandardView) {
+        let (yaw, pitch) = self.standard_angles(view);
+        self.animate_to(yaw, pitch);
     }
 
     /// Snaps orientation to a [`ViewOrientation`]; target and distance are

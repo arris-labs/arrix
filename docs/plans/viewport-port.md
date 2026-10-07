@@ -187,7 +187,7 @@ All present in the pinned `arris` 0.5:
   is unchanged by every pick, hover and clear (asserted); the status
   line's hint names the hovered entity and what a click does. Scenario
   with a hovered edge and a selected face.
-- [ ] **[2]** 12 — The ViewCube ported into `arrix-ui` from its own
+- [x] **[2]** 12 — The ViewCube ported into `arrix-ui` from its own
   source, not the viewport's (already on `glam`): the chamfered cube's
   faces, edges and corners, drag to orbit on the cube, the step arrows,
   the corner axes and the projection button, painted top-right over the
@@ -258,10 +258,12 @@ build included.
   hidden on the empty start. The property card's `auto` is "while a
   feature is being edited", which no step here reaches, so it stays hidden
   in this plan unless toggled.
-- ⚠ OPEN 3 (agent, by step 12): mouse gestures. Proposed: middle drag
+- Settled in step 12 (agent), formerly ⚠ OPEN 3: mouse gestures, as proposed: middle drag
   orbits, shift + middle drag pans, wheel zooms to the cursor, left click
-  picks; right drag orbits too, for a touchpad-less mouse without a usable
-  middle button.
+  picks; right drag orbits too, for a mouse without a usable
+  middle button. The wheel is read as egui's smoothed scroll, so a notch
+  zooms over a few frames. Keys: `home`, `ctrl+7` top, `ctrl+1` front,
+  `ctrl+3` right, `ctrl+0` iso, `ctrl+5` projection.
 - Settled in step 3 (agent), formerly ⚠ OPEN 4: the chords are 1e-3
   (coarse) and 1e-4 (refined) of the diagonal of the box of the body's
   edges and vertices (`MeshDetail::chord_fraction`): a circle the size of

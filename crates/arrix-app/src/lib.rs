@@ -11,6 +11,7 @@ mod documents;
 mod keys;
 mod palette;
 mod theme;
+mod viewport;
 
 pub use debug::DebugState;
 
@@ -18,14 +19,15 @@ use arrix_config::{
     CONFIG_RELOAD, CommandRegistry, Config, ConfigDiagnostic, ConfigSource, DOCUMENT_CLOSE,
     DOCUMENT_NEXT, DOCUMENT_PREVIOUS, Keymap, MemorySource, PALETTE_CLOSE, PALETTE_NEXT,
     PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN, PANEL_PROPERTIES_TOGGLE, PANEL_TREE_TOGGLE,
-    ParamDefaults, SELECTION_CLEAR, Settings, Theme,
+    ParamDefaults, SELECTION_CLEAR, Settings, Theme, VIEW_FRONT, VIEW_HOME, VIEW_ISO,
+    VIEW_PROJECTION_TOGGLE, VIEW_RIGHT, VIEW_TOP,
 };
 use arrix_core::RenderMesh;
 use arrix_plugin_api::FeatureTypeSpec;
 use arrix_ui::{
     CardsView, DocumentTab, DocumentTabsView, ShellLayout, ShellView, StatusView, UiIntent,
 };
-use arrix_viewport::{BodyKey, Highlights, Renderer};
+use arrix_viewport::{BodyKey, Renderer, StandardView};
 use documents::{CardToggles, OpenDocument, PickFor, ViewState};
 use palette::Palette;
 
@@ -326,6 +328,32 @@ impl ArrixApp {
         ))
     }
 
+    /// Finishes every running camera animation at once, so a scenario sees
+    /// the view a command or a click flew to without waiting for the clock.
+    pub fn skip_animations(&mut self) {
+        self.idle_view.skip_animation();
+        for document in &mut self.documents {
+            document.view.skip_animation();
+        }
+    }
+
+    /// Where the ViewCube's facet for `orientation` is, in points, as of the
+    /// last frame; `None` before one, or for a facet the view has culled.
+    /// How a scenario clicks the cube.
+    pub fn viewcube_facet(
+        &self,
+        orientation: arrix_viewport::ViewOrientation,
+    ) -> Option<egui::Pos2> {
+        let drawn = self.drawn.as_ref()?;
+        let rect = arrix_ui::viewcube_rect(drawn.layout.viewport, &drawn.view.cards);
+        let view = self.active_document().map_or(&self.idle_view, |d| &d.view);
+        let camera = &view.camera;
+        arrix_ui::viewcube::project_viewcube(rect, camera.yaw, camera.pitch)
+            .into_iter()
+            .find(|facet| facet.orientation == orientation)
+            .map(|facet| facet.center_2d)
+    }
+
     /// The initial form of a new feature of `type_id`: each parameter's
     /// name and expression, with the user's defaults over the type's own.
     /// M3's document plan seeds the property panel from it.
@@ -500,6 +528,12 @@ impl ArrixApp {
                 self.toggles_mut().properties = Some(!shown);
             }
             SELECTION_CLEAR => self.view_mut().selection = None,
+            VIEW_HOME => self.view_mut().home(),
+            VIEW_TOP => self.view_mut().turn_to(StandardView::Top),
+            VIEW_FRONT => self.view_mut().turn_to(StandardView::Front),
+            VIEW_RIGHT => self.view_mut().turn_to(StandardView::Right),
+            VIEW_ISO => self.view_mut().turn_to(StandardView::Iso),
+            VIEW_PROJECTION_TOGGLE => self.view_mut().camera.toggle_projection(),
             DOCUMENT_NEXT => self.step_document(1),
             DOCUMENT_PREVIOUS => self.step_document(-1),
             DOCUMENT_CLOSE => self.close_document(self.active),
@@ -628,50 +662,12 @@ impl eframe::App for ArrixApp {
             Some(d) => &mut d.view,
             None => &mut self.idle_view,
         };
-        let renderer = &mut self.renderer;
-        let mut hover_left = false;
+        let renderer = self.renderer.as_mut();
+        let mut frame = None;
         let response = arrix_ui::shell(ui, &view, |ui| {
-            let rect = ui.max_rect();
-            // The viewport's own response: a card over it is a layer above
-            // and takes its clicks, so a click on a card picks nothing.
-            let response = ui.interact(rect, ui.id().with("arrix.viewport"), egui::Sense::click());
-            let click = response
-                .clicked()
-                .then(|| response.interact_pointer_pos())
-                .flatten();
-            let hover = response.hover_pos();
-            // A hover pick is asked for when the pointer has moved and none
-            // is on its way; a click's wins over it.
-            let moved = hover.filter(|p| view_state.hover_at != Some(*p));
-            let wanted = click.map(|at| (at, PickFor::Click)).or_else(|| {
-                let at = moved.filter(|_| view_state.pick.is_none())?;
-                Some((at, PickFor::Hover))
-            });
-            if hover.is_none() && view_state.hover_at.take().is_some() {
-                hover_left = true;
-            }
-            if let Some(renderer) = renderer {
-                let scene = &view_state.scene;
-                let highlights = Highlights {
-                    hover: view_state.hover.as_ref(),
-                    selection: view_state.selection.as_ref(),
-                };
-                let pick = renderer.paint(
-                    ui.painter(),
-                    rect,
-                    scene,
-                    &view_state.camera,
-                    highlights,
-                    wanted.map(|(at, _)| at),
-                );
-                if let (Some(pick), Some((at, purpose))) = (pick, wanted) {
-                    if purpose == PickFor::Hover {
-                        view_state.hover_at = Some(at);
-                    }
-                    view_state.pick = Some((pick, purpose));
-                }
-            }
+            frame = Some(viewport::show(ui, view_state, renderer, &view.cards));
         });
+        let hover_left = frame.is_some_and(|f| f.hover_left);
         self.drawn = Some(Drawn {
             window,
             view,

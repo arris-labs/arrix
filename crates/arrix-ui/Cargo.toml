@@ -14,4 +14,8 @@ arrix-core.workspace = true
 arrix-viewport.workspace = true
 arrix-plugin-api.workspace = true
 egui.workspace = true
+glam.workspace = true
 serde.workspace = true
+
+[dev-dependencies]
+web-time.workspace = true

@@ -77,6 +77,9 @@ pub struct CameraDebug {
     pub yaw: f64,
     pub pitch: f64,
     pub projection: String,
+    /// The view-projection matrix at the viewport's aspect, column by
+    /// column: what the shaders draw with.
+    pub view_proj: [f64; 16],
 }
 
 /// Each shell region as `[min_x, min_y, max_x, max_y]` in points; a card
@@ -93,6 +96,11 @@ pub struct LayoutDebug {
 
 fn round6(x: f32) -> f64 {
     (f64::from(x) * 1e6).round() / 1e6
+}
+
+fn view_proj(camera: &arrix_viewport::OrbitCamera, viewport: egui::Rect) -> [f64; 16] {
+    let aspect = viewport.width().max(1.0) / viewport.height().max(1.0);
+    camera.view_proj(aspect).to_cols_array().map(round6)
 }
 
 fn rect(r: egui::Rect) -> [f64; 4] {
@@ -166,6 +174,7 @@ impl ArrixApp {
                     yaw: round6(c.yaw),
                     pitch: round6(c.pitch),
                     projection: c.projection.label().to_owned(),
+                    view_proj: view_proj(c, drawn.layout.viewport),
                 }
             }),
             selection: self

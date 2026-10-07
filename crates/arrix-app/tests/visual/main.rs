@@ -1,5 +1,6 @@
 //! The visual scenarios (docs/UI-RENDERING.md §Visual debugging).
 
+mod camera;
 mod coarse;
 mod fixture;
 mod harness;

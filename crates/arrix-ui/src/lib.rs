@@ -5,8 +5,9 @@ mod palette;
 mod shell;
 mod theme;
 pub mod view;
+pub mod viewcube;
 
-pub use shell::{ShellLayout, ShellResponse, shell};
+pub use shell::{ShellLayout, ShellResponse, shell, viewcube_rect};
 pub use theme::{Rgba, ThemeView};
 pub use view::{
     CardsView, DocumentTab, DocumentTabsView, FeatureState, PaletteEntry, PaletteView,

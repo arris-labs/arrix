@@ -7,8 +7,8 @@
 //! only while they show.
 
 use crate::view::{
-    DocumentTabsView, FeatureState, RibbonView, ShellView, StatusView, TreeFeature, TreeView,
-    UiIntent,
+    CardsView, DocumentTabsView, FeatureState, RibbonView, ShellView, StatusView, TreeFeature,
+    TreeView, UiIntent,
 };
 
 /// Fixed so a frame's layout is a function of the window size and of which
@@ -31,6 +31,21 @@ pub struct ShellLayout {
     pub status: egui::Rect,
     pub tree: Option<egui::Rect>,
     pub properties: Option<egui::Rect>,
+}
+
+/// The cube's own rect in the viewport `viewport`, clear of the property
+/// card when that is showing: cards are a layer above the viewport and
+/// would cover it.
+pub fn viewcube_rect(viewport: egui::Rect, cards: &CardsView) -> egui::Rect {
+    let reserved = if cards.properties {
+        PROPERTIES_WIDTH + CARD_MARGIN
+    } else {
+        0.0
+    };
+    crate::viewcube::viewcube_rect_in(egui::Rect::from_min_max(
+        viewport.min,
+        egui::pos2(viewport.max.x - reserved, viewport.max.y),
+    ))
 }
 
 pub struct ShellResponse {

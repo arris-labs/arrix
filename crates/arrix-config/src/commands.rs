@@ -23,6 +23,13 @@ pub const PANEL_TREE_TOGGLE: &str = "core.panel.tree.toggle";
 pub const PANEL_PROPERTIES_TOGGLE: &str = "core.panel.properties.toggle";
 /// Clearing what is selected in the viewport.
 pub const SELECTION_CLEAR: &str = "core.selection.clear";
+/// Turning the camera to a standard view, and the projection.
+pub const VIEW_HOME: &str = "core.view.home";
+pub const VIEW_TOP: &str = "core.view.top";
+pub const VIEW_FRONT: &str = "core.view.front";
+pub const VIEW_RIGHT: &str = "core.view.right";
+pub const VIEW_ISO: &str = "core.view.iso";
+pub const VIEW_PROJECTION_TOGGLE: &str = "core.view.projection.toggle";
 /// Switching and closing the open documents' tabs.
 pub const DOCUMENT_NEXT: &str = "core.document.next";
 pub const DOCUMENT_PREVIOUS: &str = "core.document.previous";
@@ -98,6 +105,16 @@ impl CommandRegistry {
                 when: Some("part".into()),
                 ..document_command(SELECTION_CLEAR, "Clear selection", &["escape"])
             },
+            view_command(VIEW_HOME, "Home view: fit all", &["home"]),
+            view_command(VIEW_TOP, "Top view", &["ctrl+7"]),
+            view_command(VIEW_FRONT, "Front view", &["ctrl+1"]),
+            view_command(VIEW_RIGHT, "Right view", &["ctrl+3"]),
+            view_command(VIEW_ISO, "Isometric view", &["ctrl+0"]),
+            view_command(
+                VIEW_PROJECTION_TOGGLE,
+                "Toggle perspective and orthographic",
+                &["ctrl+5"],
+            ),
             document_command(DOCUMENT_NEXT, "Next document", &["ctrl+tab"]),
             document_command(DOCUMENT_PREVIOUS, "Previous document", &["ctrl+shift+tab"]),
             document_command(DOCUMENT_CLOSE, "Close document", &["ctrl+w"]),
@@ -168,6 +185,14 @@ fn document_command(id: &str, title: &str, keys: &[&str]) -> CommandSpec {
     CommandSpec {
         needs_document: true,
         ..command(id, title, keys)
+    }
+}
+
+/// A command about the view of the shown document, keyed in `part`.
+fn view_command(id: &str, title: &str, keys: &[&str]) -> CommandSpec {
+    CommandSpec {
+        when: Some("part".into()),
+        ..document_command(id, title, keys)
     }
 }
 

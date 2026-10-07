@@ -335,9 +335,26 @@ draws). Ported, reviewed on the way in (`SEED.md` §8.1).
   clears the selection. None of it is a command on the document.
 - **Camera**: orbit about a target, pan, zoom to cursor, perspective or
   orthographic, standard views, animated transitions that tests can skip.
-  **Z-up, right-handed** (`SEED.md` §8.2). The ViewCube lives in
-  `arrix-ui` and is painted with egui's painter; it returns an action
-  (select a view, orbit, home, toggle projection).
+  **Z-up, right-handed** (`SEED.md` §8.2). The camera is session state per
+  tab, so it issues no command. Gestures are fixed for now (bindings in the
+  keymap are a backlog line): middle drag (or right drag) orbits, shift and
+  middle drag pans, the wheel zooms toward the cursor, left click picks. The
+  view commands are `core.view.{home,top,front,right,iso,projection.toggle}`
+  (`home`, `ctrl+7`, `ctrl+1`, `ctrl+3`, `ctrl+0`, `ctrl+5`); each flies
+  the camera, and `ArrixApp::skip_animations` finishes a flight at once for
+  a scenario. A pose that changed re-asks for the hover pick under a
+  resting pointer. The ViewCube lives in `arrix-ui` (`viewcube`) and is
+  painted with egui's painter, over the scene in the viewport's top-right
+  corner, moved left of the property card while that shows. It is the
+  chamfered cube's 26 facets (6 faces, 12 edges, 8 corners, one per
+  `ViewOrientation`) in a fixed orthographic projection of its own, so it is
+  one size whatever the camera does and takes only its orientation; faces
+  carry their label in their own plane, the world axes stand on the
+  (−X, −Y, −Z) corner, four step arrows turn the view 15°, and a button
+  names and toggles the projection. A drag on the cube orbits at the
+  viewport's own rate. It never writes the camera: it returns a
+  `ViewCubeAction` (`Select`, `Orbit`, `Step`, `Home`, `ToggleProjection`)
+  that the app applies to the camera it owns.
 - **Overlays**: the sketch (points, curves, constraint glyphs,
   dimensions), plugin drawables, diagnostics highlights, frozen badges on
   bodies from frozen features.

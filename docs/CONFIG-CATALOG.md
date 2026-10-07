@@ -23,6 +23,12 @@ the command registry and the setting specs; a test holds it fresh. Do not edit.
 | `core.panel.tree.toggle` | Toggle feature tree |  |  |  |
 | `core.panel.properties.toggle` | Toggle property panel |  |  |  |
 | `core.selection.clear` | Clear selection | escape | part |  |
+| `core.view.home` | Home view: fit all | home | part |  |
+| `core.view.top` | Top view | ctrl+7 | part |  |
+| `core.view.front` | Front view | ctrl+1 | part |  |
+| `core.view.right` | Right view | ctrl+3 | part |  |
+| `core.view.iso` | Isometric view | ctrl+0 | part |  |
+| `core.view.projection.toggle` | Toggle perspective and orthographic | ctrl+5 | part |  |
 | `core.document.next` | Next document | ctrl+tab |  |  |
 | `core.document.previous` | Previous document | ctrl+shift+tab |  |  |
 | `core.document.close` | Close document | ctrl+w |  |  |
