@@ -5,7 +5,9 @@
 
 use std::sync::Arc;
 
-use arrix_config::{CommandRegistry, CommandSpec, Settings};
+use arrix_config::{
+    CommandRegistry, CommandSpec, SKETCH_CREATE, SKETCH_EDIT, SKETCH_FINISH, Settings,
+};
 use arrix_doc::Registry;
 use arrix_plugin_api::FeatureTypeSpec;
 use arrix_plugin_host::register_tier0;
@@ -38,10 +40,29 @@ pub fn command_registry(types: &Registry) -> CommandRegistry {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Context {
     pub document_open: bool,
+    /// The shown document is in sketch mode.
+    pub sketching: bool,
+    /// The tree's selection is a sketch that can be opened.
+    pub sketch_selected: bool,
+}
+
+/// Why `command` does not apply, in the words of the status line's hint
+/// (after `title: `); `None` when it does.
+pub fn needs(command: &CommandSpec, cx: Context) -> Option<&'static str> {
+    if command.needs_document && !cx.document_open {
+        return Some("needs an open document");
+    }
+    match command.id.as_str() {
+        SKETCH_FINISH if !cx.sketching => Some("needs sketch mode"),
+        SKETCH_EDIT if cx.sketching => Some("finish the sketch first"),
+        SKETCH_EDIT if !cx.sketch_selected => Some("needs a sketch selected in the tree"),
+        SKETCH_CREATE if cx.sketching => Some("finish the sketch first"),
+        _ => None,
+    }
 }
 
 pub fn enabled(command: &CommandSpec, cx: Context) -> bool {
-    !command.needs_document || cx.document_open
+    needs(command, cx).is_none()
 }
 
 /// The ribbon from the registry: its tabs minus `ui.ribbon.hidden-tabs`,
@@ -127,6 +148,7 @@ mod tests {
             "gears",
             Context {
                 document_open: true,
+                ..Context::default()
             },
         );
         assert!(on.groups[0].commands[0].enabled);

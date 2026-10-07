@@ -6,7 +6,8 @@
 use std::collections::BTreeSet;
 use std::time::Duration;
 
-use arrix_core::{Id, MeshDetail, PersistentName};
+use crate::sketch_mode::SketchMode;
+use arrix_core::{FeatureId, Id, MeshDetail, PersistentName};
 use arrix_doc::{
     AuthorId, Command, CommandEnvelope, Document, DocumentSource, EventStream, FeatureOutcome,
     Generation, LocalSession, Outcome, Registry, Replica, Session, SessionEvent,
@@ -32,6 +33,8 @@ pub struct ViewState {
     pub scene: Scene<GpuMesh>,
     pub camera: OrbitCamera,
     pub selection: Option<PersistentName>,
+    /// The feature selected in the tree.
+    pub feature_selection: Option<FeatureId>,
     /// What the pointer is over, as of the last hover pick that came back.
     pub hover: Option<PersistentName>,
     /// Where the pointer was when a hover pick was last asked for; a pick
@@ -65,7 +68,7 @@ impl ViewState {
 
 /// The tree card's view of the part `part`: each feature with where it
 /// stands, from the replica's document and the outcomes it has heard.
-fn tree_part(replica: &Replica, part: &arrix_doc::Part) -> TreePart {
+fn tree_part(replica: &Replica, part: &arrix_doc::Part, selected: Option<FeatureId>) -> TreePart {
     let features = part
         .history
         .iter()
@@ -106,6 +109,7 @@ fn tree_part(replica: &Replica, part: &arrix_doc::Part) -> TreePart {
                 kind: record.type_id.to_string(),
                 state,
                 note,
+                selected: selected == Some(record.id),
             }
         })
         .collect();
@@ -135,6 +139,9 @@ pub struct OpenDocument {
     _session: LocalSession,
     pub replica: Replica,
     pub view: ViewState,
+    /// The sketch being edited, while there is one: session state, one
+    /// sketch per tab.
+    pub sketch: Option<SketchMode>,
     /// Whether the camera has been fitted to the bodies: it is once, on
     /// the first mesh, and never again, so a later edit does not take the
     /// view away from the user.
@@ -197,6 +204,7 @@ impl OpenDocument {
             _session: session,
             replica: Replica::default(),
             view: ViewState::default(),
+            sketch: None,
             framed: false,
             mesh: MeshProgress::default(),
             finished_at: None,
@@ -267,7 +275,7 @@ impl OpenDocument {
                 .document()
                 .parts()
                 .values()
-                .map(|part| tree_part(&self.replica, part))
+                .map(|part| tree_part(&self.replica, part, self.view.feature_selection))
                 .collect(),
         }
     }

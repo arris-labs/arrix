@@ -156,7 +156,8 @@ rule).
   { form, field, text }`, `CommandInvoked { command }` (a ribbon button, a palette row or a key),
   `RibbonTabSelected { tab }`, `PaletteQuery { text }`, `PaletteClosed`,
   `DocumentTabSelected { index }`, `DocumentTabClosed { index }`,
-  `Picked { name }`, `Hovered { name }`. The ViewCube returns a
+  `Picked { name }`, `Hovered { name }`, `TreeFeatureSelected { feature }`,
+  `TreeFeatureActivated { feature }`. The ViewCube returns a
   `ViewCubeAction` of its own, which the app applies to its camera.
   `arrix-app` turns an intent into a `CommandEnvelope`, or into a change of
   session state (selection, camera), which issues no command.
@@ -225,9 +226,32 @@ plugin needs it, not before.
 
 ## Sketch mode
 
-Sketch mode edits one `core.sketch` feature. It is session state: entering
-it issues no command, and the camera turns to face the plane in
-orthographic projection.
+Sketch mode edits one `core.sketch` feature. It is session state, one
+sketch per document tab; opening a sketch issues no command, and the camera
+turns to face the plane in orthographic projection.
+
+- **Entering** is `core.sketch.create`, which is one command (an
+  `AddFeature`, in a document with no part a `Group` of `AddPart` and
+  `AddFeature`), or `core.sketch.edit`, which is none. Create stands the
+  sketch on the selected planar face (`Ref::Topo`), else on the datum plane
+  selected in the tree (`Ref::Slot`), else on the world XY plane; it lands
+  at the end of the part the face or datum plane is in, else of the first.
+  A face that is not planar is not checked for here: the feature fails
+  with its diagnostic, in the tree. A tree row is clicked to select it
+  (`TreeFeatureSelected`) and double-clicked to act on it
+  (`TreeFeatureActivated`): a sketch opens, a datum plane gets a sketch.
+  `core.sketch.edit` opens the sketch selected in the tree.
+- **Finishing** is `core.sketch.finish` (Escape, in the `sketch` context),
+  which issues no command. Undoing the creation of the open sketch leaves
+  sketch mode, since there is nothing left to edit.
+- **The camera** turns once the sketch's plane is known, which is when its
+  evaluation arrives: the plane's normal gives the turntable's yaw and
+  pitch (a plane facing Z keeps the yaw it has), the target is the plane's
+  origin and the view is orthographic, fitted to 100 mm or to the bodies.
+  Finishing flies it back to the pose, projection and depth range it had.
+  The turntable keeps Z up, so a tilted plane's axes are not on the screen's.
+  In sketch mode the `sketch` context is active in place of `part`, so the
+  view keys are off.
 
 - **The solver runs on the UI thread**, the one sanctioned exception to
   "the kernel never runs on the UI thread" (`SEED.md` §6.1): sketches are

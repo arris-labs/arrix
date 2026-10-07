@@ -91,7 +91,7 @@ pub fn shell(
     let tree = view
         .cards
         .tree
-        .then(|| tree_card(ui.ctx(), viewport, &view.tree));
+        .then(|| tree_card(ui.ctx(), viewport, &view.tree, &mut intents));
     let properties = view
         .cards
         .properties
@@ -221,7 +221,12 @@ fn card(
         .rect
 }
 
-fn tree_card(ctx: &egui::Context, viewport: egui::Rect, tree: &TreeView) -> egui::Rect {
+fn tree_card(
+    ctx: &egui::Context,
+    viewport: egui::Rect,
+    tree: &TreeView,
+    intents: &mut Vec<UiIntent>,
+) -> egui::Rect {
     card(ctx, "arrix.tree", viewport, false, TREE_WIDTH, |ui| {
         ui.heading("Parts");
         if tree.parts.is_empty() {
@@ -230,13 +235,13 @@ fn tree_card(ctx: &egui::Context, viewport: egui::Rect, tree: &TreeView) -> egui
         for part in &tree.parts {
             ui.strong(&part.name);
             for feature in &part.features {
-                feature_row(ui, feature);
+                feature_row(ui, feature, intents);
             }
         }
     })
 }
 
-fn feature_row(ui: &mut egui::Ui, feature: &TreeFeature) {
+fn feature_row(ui: &mut egui::Ui, feature: &TreeFeature, intents: &mut Vec<UiIntent>) {
     let visuals = ui.visuals();
     let colour = match feature.state {
         FeatureState::Failed => visuals.error_fg_color,
@@ -244,20 +249,38 @@ fn feature_row(ui: &mut egui::Ui, feature: &TreeFeature) {
         FeatureState::Ok => visuals.text_color(),
         _ => visuals.weak_text_color(),
     };
-    let row = ui.horizontal(|ui| {
-        ui.add_space(8.0);
-        ui.label(egui::RichText::new(&feature.name).color(colour));
-        if let Some(tag) = feature.state.tag() {
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.label(egui::RichText::new(tag).color(colour).small());
-            });
-        }
+    let fill = if feature.selected {
+        visuals.selection.bg_fill
+    } else {
+        egui::Color32::TRANSPARENT
+    };
+    let row = egui::Frame::new().fill(fill).show(ui, |ui| {
+        ui.set_width(ui.available_width());
+        ui.horizontal(|ui| {
+            ui.add_space(8.0);
+            ui.label(egui::RichText::new(&feature.name).color(colour));
+            if let Some(tag) = feature.state.tag() {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.label(egui::RichText::new(tag).color(colour).small());
+                });
+            }
+        });
     });
     let hover = match &feature.note {
         Some(note) => format!("{}\n{note}", feature.kind),
         None => feature.kind.clone(),
     };
-    row.response.on_hover_text(hover);
+    let response = row.response.interact(egui::Sense::CLICK);
+    let response = response.on_hover_text(hover);
+    if response.double_clicked() {
+        intents.push(UiIntent::TreeFeatureActivated {
+            feature: feature.id.clone(),
+        });
+    } else if response.clicked() {
+        intents.push(UiIntent::TreeFeatureSelected {
+            feature: feature.id.clone(),
+        });
+    }
 }
 
 fn properties_card(ctx: &egui::Context, viewport: egui::Rect) -> egui::Rect {

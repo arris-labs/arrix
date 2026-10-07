@@ -34,6 +34,11 @@ pub const VIEW_PROJECTION_TOGGLE: &str = "core.view.projection.toggle";
 pub const DOCUMENT_NEXT: &str = "core.document.next";
 pub const DOCUMENT_PREVIOUS: &str = "core.document.previous";
 pub const DOCUMENT_CLOSE: &str = "core.document.close";
+/// Sketch mode: opening a sketch (the creation command is the type's,
+/// `core.sketch.create`) and leaving it.
+pub const SKETCH_CREATE: &str = "core.sketch.create";
+pub const SKETCH_EDIT: &str = "core.sketch.edit";
+pub const SKETCH_FINISH: &str = "core.sketch.finish";
 /// A new, empty document in a new tab.
 pub const DOCUMENT_NEW: &str = "core.document.new";
 /// Undoing and redoing the author's last change to the shown document.
@@ -149,6 +154,21 @@ impl CommandRegistry {
                 listed: true,
             });
         }
+        let sketch_group = || {
+            Some(RibbonPlacement {
+                tab: CORE_SKETCH_TAB.into(),
+                group: "Sketch".into(),
+            })
+        };
+        commands.push(CommandSpec {
+            ribbon: sketch_group(),
+            ..document_command(SKETCH_EDIT, "Edit sketch", &[])
+        });
+        commands.push(CommandSpec {
+            ribbon: sketch_group(),
+            when: Some("sketch".into()),
+            ..document_command(SKETCH_FINISH, "Finish sketch", &["escape"])
+        });
         // One command per tab, so the palette and a key can open it.
         for tab in &tabs {
             commands.push(command(

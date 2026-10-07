@@ -125,7 +125,7 @@ Complexity: **[1]** routine; **[2]** careful; **[3]** unproven.
   commands it submitted counted, and `debug_state()` reports the last
   gesture's count. Test: undo and redo on an opened document, byte for
   byte to the saved files; a no-op gesture counts zero.
-- [ ] **[2]** Step 4 — Entering and leaving sketch mode.
+- [x] **[2]** Step 4 — Entering and leaving sketch mode.
   `core.sketch.create`: with a planar face or a datum plane selected, a
   sketch on it; with nothing selected, on the world plane of ⚠ OPEN 1; in
   a document with no part, one `Group` of `AddPart` and `AddFeature`.
@@ -270,11 +270,8 @@ accepted, and the step 1 drag benchmark asserts its budget.
 
 ## Open questions
 
-- ⚠ OPEN 1: the plane `core.sketch.create` uses with nothing selected.
-  Default proposed: world XY (Top), with the user re-picking by selecting a
-  face first; the alternative is a plane chooser showing the three world
-  planes in the viewport to click (more UI, one more gesture). Human, by
-  step 4.
+- OPEN 1 (closed at step 4, by the human): world XY (Top) with nothing
+  selected; the user re-picks by selecting a face or a datum plane first.
 - OPEN 2 (closed at step 1): the grid reaches 4 ms (0.38 ms median,
   gated). Finding: a sketch of mostly nonlinear rows is still over (a
   200-line zigzag, 300 ms a frame, from 7.2 s), now a backlog line; the
@@ -286,6 +283,13 @@ accepted, and the step 1 drag benchmark asserts its budget.
   and one verdict costs 0.11 to 0.58 ms in release (§Budgets). The grid
   pass and its glyph were left out of the port (grid snap is a non-goal),
   and the angle tolerance is a constant, `ANGLE_TOL`.
+- Finding (step 4): "the Sketch tab's tools enabled" has nothing to
+  enable yet: each tool's command arrives with its own step (7 on). The
+  step added `core.sketch.edit` and `.finish`, the tree's click and
+  double-click intents, and the app's id minter (`seed_ids` fixes it for a
+  scenario). A tilted plane's axes are not on the screen's, the turntable
+  camera keeping Z up; a face-on camera with a roll waits for a scenario
+  that needs it.
 - ⚠ OPEN 3: the arc tool's gesture: centre, start, end; three points
   (start, end, through); or both, the second sharing the button. Default
   proposed: three-point, as the most common, with tangent arcs left out.

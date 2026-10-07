@@ -10,6 +10,7 @@ mod document_files;
 mod documents;
 mod keys;
 mod palette;
+mod sketch_mode;
 mod theme;
 mod viewport;
 
@@ -19,10 +20,11 @@ use arrix_config::{
     CONFIG_RELOAD, CommandRegistry, Config, ConfigDiagnostic, ConfigSource, DOCUMENT_CLOSE,
     DOCUMENT_NEW, DOCUMENT_NEXT, DOCUMENT_PREVIOUS, EDIT_REDO, EDIT_UNDO, Keymap, MemorySource,
     PALETTE_CLOSE, PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN,
-    PANEL_PROPERTIES_TOGGLE, PANEL_TREE_TOGGLE, ParamDefaults, SELECTION_CLEAR, Settings, Theme,
-    VIEW_FRONT, VIEW_HOME, VIEW_ISO, VIEW_PROJECTION_TOGGLE, VIEW_RIGHT, VIEW_TOP,
+    PANEL_PROPERTIES_TOGGLE, PANEL_TREE_TOGGLE, ParamDefaults, SELECTION_CLEAR, SKETCH_CREATE,
+    SKETCH_EDIT, SKETCH_FINISH, Settings, Theme, VIEW_FRONT, VIEW_HOME, VIEW_ISO,
+    VIEW_PROJECTION_TOGGLE, VIEW_RIGHT, VIEW_TOP,
 };
-use arrix_core::RenderMesh;
+use arrix_core::{FeatureId, IdMinter, RenderMesh};
 use arrix_plugin_api::FeatureTypeSpec;
 use arrix_ui::{
     CardsView, DocumentTab, DocumentTabsView, ShellLayout, ShellView, StatusView, UiIntent,
@@ -60,6 +62,14 @@ struct Gestures {
     last: Option<usize>,
 }
 
+/// A seed for the id minter: the clock, which a session's ids need only to
+/// differ from the last session's, whose ids a document may hold.
+fn entropy() -> u64 {
+    web_time::SystemTime::now()
+        .duration_since(web_time::UNIX_EPOCH)
+        .map_or(0x5EED, |d| d.as_nanos() as u64)
+}
+
 /// The application state eframe drives.
 pub struct ArrixApp {
     session: Session,
@@ -90,6 +100,8 @@ pub struct ArrixApp {
     /// shown (an index; session state, no command).
     documents: Vec<OpenDocument>,
     active: usize,
+    /// Mints the ids of what this client's commands create (SEED.md §6.1).
+    ids: IdMinter,
 }
 
 struct Drawn {
@@ -166,7 +178,14 @@ impl ArrixApp {
             idle_view: ViewState::default(),
             documents: Vec::new(),
             active: 0,
+            ids: IdMinter::new(entropy()),
         }
+    }
+
+    /// Mints the ids of every later command from `seed` instead of the
+    /// clock, so a scenario's records and goldens are the same every run.
+    pub fn seed_ids(&mut self, seed: u64) {
+        self.ids = IdMinter::new(seed);
     }
 
     /// Opens the document `source` holds, named `path`, and shows it: its
@@ -326,6 +345,8 @@ impl ArrixApp {
     fn context(&self) -> commands::Context {
         commands::Context {
             document_open: !self.documents.is_empty(),
+            sketching: self.active_document().is_some_and(|d| d.sketch.is_some()),
+            sketch_selected: self.selected_sketch().is_some(),
         }
     }
 
@@ -339,6 +360,7 @@ impl ArrixApp {
             document.drain(self.renderer.as_ref());
             waiting |= !document.settled();
         }
+        self.turn_to_sketches();
         if waiting {
             ctx.request_repaint_after(POLL);
         }
@@ -527,6 +549,16 @@ impl ArrixApp {
                         false => format!("{name}: click to select it."),
                     };
                 }
+                if let Some(mode) = &document.sketch {
+                    let name = document
+                        .replica
+                        .document()
+                        .parts()
+                        .values()
+                        .find_map(|p| p.features.get(&mode.feature))
+                        .map_or("sketch", |r| r.name.as_str());
+                    return format!("Sketching {name}. Escape finishes the sketch.");
+                }
                 return match document.settled() {
                     true => format!("{}: ready", document.title),
                     false => format!("{}: evaluating…", document.title),
@@ -543,8 +575,8 @@ impl ArrixApp {
         if !keys.is_empty() {
             hint = format!("{hint} ({})", keys.join(", "));
         }
-        if !commands::enabled(spec, cx) {
-            hint.push_str(": needs an open document");
+        if let Some(why) = commands::needs(spec, cx) {
+            hint = format!("{hint}: {why}");
         }
         hint
     }
@@ -583,6 +615,16 @@ impl ArrixApp {
             }
             UiIntent::DocumentTabClosed { index } => self.close_document(index),
             UiIntent::Picked { name } => self.view_mut().selection = name,
+            UiIntent::TreeFeatureSelected { feature } => {
+                if let Ok(feature) = feature.parse::<FeatureId>() {
+                    self.view_mut().feature_selection = Some(feature);
+                }
+            }
+            UiIntent::TreeFeatureActivated { feature } => {
+                if let Ok(feature) = feature.parse::<FeatureId>() {
+                    self.activate_feature(feature);
+                }
+            }
             UiIntent::Hovered { name } => self.view_mut().hover = name,
         }
     }
@@ -626,6 +668,9 @@ impl ArrixApp {
             DOCUMENT_PREVIOUS => self.step_document(-1),
             DOCUMENT_CLOSE => self.close_document(self.active),
             DOCUMENT_NEW => self.new_document(),
+            SKETCH_CREATE => self.create_sketch(),
+            SKETCH_EDIT => self.edit_sketch(),
+            SKETCH_FINISH => self.finish_sketch(),
             EDIT_UNDO => self.edit(OpenDocument::undo),
             EDIT_REDO => self.edit(OpenDocument::redo),
             CONFIG_RELOAD => self.reload(),
@@ -700,13 +745,14 @@ impl ArrixApp {
 
     /// The keymap contexts active now. The palette, while open, owns the
     /// keyboard: its own context and `text`, so its field keeps the keys.
-    /// Otherwise `part` (no sketch is edited yet), and `text` while a text
-    /// field has focus.
+    /// Otherwise `sketch` in sketch mode and `part` outside it, and `text`
+    /// while a text field has focus.
     fn key_contexts(&self, ctx: &egui::Context) -> Vec<&'static str> {
         if self.session.palette.is_some() {
             return vec!["palette", "text"];
         }
-        let mut contexts = vec!["part"];
+        let sketching = self.active_document().is_some_and(|d| d.sketch.is_some());
+        let mut contexts = vec![if sketching { "sketch" } else { "part" }];
         // Not `egui_wants_keyboard_input`: that is any focused widget, a tab
         // reached by Tab included, and would silence every key.
         if ctx.text_edit_focused() {

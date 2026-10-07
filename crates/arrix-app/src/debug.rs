@@ -37,6 +37,9 @@ pub struct DebugState {
     /// A pick is on its way back from the GPU.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub picking: bool,
+    /// The sketch open in the active document, in sketch mode.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sketch: Option<SketchModeDebug>,
     /// How many commands the last gesture submitted (SEED.md §8.2: one,
     /// or none where nothing changed); absent before any gesture.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -45,6 +48,14 @@ pub struct DebugState {
     pub keymap: Vec<Binding>,
     /// What the config files got wrong, each with its file and line.
     pub config_diagnostics: Vec<ConfigDiagnostic>,
+}
+
+/// The sketch the active tab is editing.
+#[derive(Debug, Serialize)]
+pub struct SketchModeDebug {
+    pub feature: String,
+    /// The camera has turned square to the sketch's plane.
+    pub turned: bool,
 }
 
 /// Where the active document's evaluation is.
@@ -130,6 +141,7 @@ impl ArrixApp {
                 selection: None,
                 hover: None,
                 picking: false,
+                sketch: None,
                 gesture_commands: self.session.gestures.last,
                 keymap: self.keymap.bindings().to_vec(),
                 config_diagnostics: self.config_diagnostics.clone(),
@@ -189,6 +201,13 @@ impl ArrixApp {
             picking: self
                 .active_document()
                 .is_some_and(|d| d.view.pick.is_some()),
+            sketch: self
+                .active_document()
+                .and_then(|d| d.sketch.as_ref())
+                .map(|mode| SketchModeDebug {
+                    feature: mode.feature.to_string(),
+                    turned: mode.turned(),
+                }),
             gesture_commands: self.session.gestures.last,
             keymap: self.keymap.bindings().to_vec(),
             config_diagnostics: self.config_diagnostics.clone(),

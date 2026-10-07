@@ -6,6 +6,7 @@ mod coarse;
 mod fixture;
 mod harness;
 mod highlight;
+mod sketch;
 mod snapshot;
 mod viewport;
 

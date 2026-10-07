@@ -79,6 +79,9 @@ pub struct TreeFeature {
     /// What is worth saying beside the state: why it failed, or is frozen.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
+    /// The tree's selection, session state.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub selected: bool,
 }
 
 /// Where a feature stands, the first of these that applies.
@@ -191,6 +194,12 @@ pub enum UiIntent {
     Picked {
         name: Option<arrix_core::PersistentName>,
     },
+    /// A feature's row in the tree was clicked: it becomes the tree's
+    /// selection. Session state, no command.
+    TreeFeatureSelected { feature: String },
+    /// A feature's row in the tree was double-clicked: a sketch opens in
+    /// sketch mode, a datum plane gets a sketch.
+    TreeFeatureActivated { feature: String },
     /// The pointer is over this face, edge or vertex, or over nothing: the
     /// hover becomes it. Session state, no command.
     Hovered {
