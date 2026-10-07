@@ -31,6 +31,7 @@ fn spec_input(name: &str, kind: InputKind, list: bool) -> InputSpec {
         title: name.into(),
         kind,
         list,
+        shown_when: None,
     }
 }
 
@@ -51,6 +52,7 @@ impl Keeper {
                 kind: SlotKind::Body,
                 modifies: Some("target".into()),
             }],
+            choices: vec![],
         })
     }
 }
@@ -125,6 +127,7 @@ impl Probe {
                     kind: SlotKind::Plane,
                     modifies: None,
                 }],
+                choices: vec![],
             },
             seen,
         )

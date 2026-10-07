@@ -159,8 +159,15 @@ pub struct FeatureRecord {
 }
 ```
 
-A form field the record leaves out takes the type's default; a field the
-type does not list is refused (`feature.unknown-field`), never ignored.
+A form field the record leaves out takes the type's default; a field or a
+choice the type does not list is refused (`feature.unknown-field`), never
+ignored. Every choice a type declares reaches the feature (the record's
+word or the type's default; a choice with no default and no word is not
+given), and a word it does not list is `feature.choice`, one check in the
+evaluator for every type (ADR-0018); the input hash covers the choices as
+the record wrote them. A parameter or an input may be shown only under a
+choice's values (`shown_when`): a form matter alone, a hidden field is
+still resolved and keeps its value.
 An input that takes a list (a fillet's edges, a hole's points), and the
 `edge`, `point`, `axis` and `tool` input kinds, are ADR-0012's.
 `choices` is omitted from JSON when empty, and `sketch` when absent.
@@ -209,7 +216,7 @@ as the slot it modifies, so with `target` set it is the target slot's
 next version, and with `target` unset (mode `new`) it is a slot of its own
 (§Bodies across features). A `join` or `cut` without a target fails as
 `extrude.no-target`, a `new` with one as `extrude.stray-target`, a mode
-that is none of the three as `extrude.mode`, no region as
+that is none of the three as `feature.choice`, no region as
 `extrude.no-region`, and a target that is not a body as
 `input.wrong-kind`.
 
@@ -233,7 +240,7 @@ caps), the `mode` choice, `new` (the default), `join` or `cut`, and the
 `target` body input of `core.extrude`, with the same slot rule, tool
 keeping (ADR-0013) and codes under `revolve.`: `revolve.no-region`,
 `revolve.no-axis`, `revolve.angle`, `revolve.no-target`,
-`revolve.stray-target`, `revolve.mode`. An axis through the region, or one
+`revolve.stray-target`. An axis through the region, or one
 the kernel refuses, fails as the kernel's own `kernel.*` code with the call
 kept. Its turn counts in the feature's sweep numbering (ADR-0011).
 
@@ -251,7 +258,7 @@ nothing, adding one at the end renames no other hole, removing one
 renames the later holes' roots. The tools are then fused and kept for a
 pattern or a mirror to copy (ADR-0013). A hole that removes nothing is
 `hole.misses`; the other codes are `hole.no-target`, `hole.no-points`,
-`hole.diameter`, `hole.depth`, `hole.extent`, `hole.kind`,
+`hole.diameter`, `hole.depth`,
 `hole.counterbore` and `hole.countersink`. A hole across a fillet is the
 Arris gap in `docs/BACKLOG.md`.
 
@@ -292,7 +299,7 @@ each in turn. Its one output slot, `body`, modifies `target`, so it is the
 target slot's next version; `tools` modifies nothing, so every tool's slot
 ends there (a later reader gets `slot.consumed`). A missing target, an
 empty `tools` or an input that is not a body fails as `boolean.no-body`, an
-`op` that is none of the three as `boolean.op`, a lone reference where
+`op` that is none of the three as `feature.choice`, a lone reference where
 the list goes as `input.list`. Version 1 had one `tool` input; `open`
 migrates it to a `tools` list of one (`arrix_doc::migrate::core_types`,
 run after the schema chain on every open), and a version-1 record handed
@@ -307,8 +314,8 @@ default), `yz` or `zx`, `Frame::WORLD_*`'s planes. Both at once is
 type: a world plane is a choice, not a feature.
 
 `core.sketch` stands on its plane the same way: its `plane` input, or the
-world plane its `world` choice names (`sketch.two-bases`,
-`sketch.world`). It has no form parameters; its record's `sketch` is its
+world plane its `world` choice names (`sketch.two-bases`; a word that is no world plane is
+`feature.choice`). It has no form parameters; its record's `sketch` is its
 content. Evaluating it resolves each driving dimension's expression to
 the quantity its constraint measures (a failure names the constraint as
 `Ref::Sketch`; an expression on a constraint with no value is

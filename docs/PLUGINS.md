@@ -4,7 +4,7 @@ The plugin model is ArriX's reason to exist (`SEED.md` §3, §6.3): one
 interface, versioned apart from the app, hosted three ways, and enough of it
 that first-party domains need nothing else. This document is the design of
 `arrix-plugin-api` and `arrix-plugin-host`. Built: the world and its Rust
-traits at 0.4.0 (§One interface), manifests (§The manifest), Tier 0
+traits at 0.5.0 (§One interface), manifests (§The manifest), Tier 0
 hosting (§Three tiers), and the first plugin, `plugins/gears` with
 `gears.spur` (its crate docs state its geometry and tolerance). Each other section becomes true as its
 cycle lands (Tier 0 in C1, Tier 2 and the test kit in the boundary-opened
@@ -26,11 +26,11 @@ API's version. From it come:
   a thin runtime speaking the Tier 2 wire protocol (the boundary-opened
   cycle).
 
-The world as it stands at 0.4.0 (the file is the authority; comments and
+The world as it stands at 0.5.0 (the file is the authority; comments and
 field lists are elided here):
 
 ```wit
-package arrix:plugin@0.4.0;
+package arrix:plugin@0.5.0;
 
 interface types {                                    // SI; no Arris type anywhere
   type id = u64;                                     // arrix-core's typed ids
@@ -66,12 +66,15 @@ interface kernel {                                   // a host service; imported
 }
 
 interface feature {                                  // exported by a plugin that adds features
-  describe: func() -> list<feature-type-spec>;      // id, version, title, params, inputs, output slots
-  // input-kind { plane, region, body, edge, point, axis, tool }; input-spec { name, title, kind, list }
+  describe: func() -> list<feature-type-spec>;      // id, version, title, params, choices, inputs, output slots
+  // input-kind { plane, region, body, edge, point, axis, tool }; input-spec { name, title, kind, list, shown-when }
+  // param-spec { name, title, kind, default, shown-when }; shown-when { choice, values }
+  // choice-spec { name, title, options: list<choice-option>, default: option<string> }
   // slot-spec { name, kind, modifies: option<string> }; record tool { body, op: tool-op }
   // input-value { plane(frame), region(profile), body(body), edge(persistent-ref), point(point), axis(axis), tool(tool) }
   // feature-output { slots, tool: option<tool> }
-  evaluate: func(type-id: string, params: list<param-value>, inputs: list<resolved-input>)
+  evaluate: func(type-id: string, params: list<param-value>, choices: list<choice-value>,
+                 inputs: list<resolved-input>)
             -> result<feature-output, diagnostic>;
 }
 
@@ -89,6 +92,17 @@ world plugin {
   `Ref::Region`) is its `profile` on the sketch's plane, keyed by the
   entities that bound it. Output slots hold a `body` or a `plane`; a
   sketch slot is a built-in's alone (`docs/DATA-MODEL.md` §Features).
+- **Choices and where fields show** (ADR-0018, 0.5.0): a type declares
+  `choices`, each a name, a title, its options (a word and a title) and
+  a default, which is none for a choice whose being unset means something
+  (a datum plane's `world`). The host gives `evaluate` every choice that
+  has a value, the record's or the default (`choice-value`), refuses a
+  name the type does not declare as `feature.unknown-field` and a word it
+  does not list as `feature.choice`, and hashes the record's choices as
+  written. A `param-spec` or `input-spec` may be `shown-when` a choice
+  holds one of some values: that is the form's, and a hidden field is
+  neither shown nor required, its value kept. A form is derived from the
+  spec alone (`docs/UI-RENDERING.md` §Declarative plugin UI).
 - **Bodies as inputs** (ADR-0007, 0.3.0): an input of kind `body` arrives
   as a `body` handle of the feature's own to its slot's version current at
   the feature (an owned handle, not a borrow, ADR-0008), and
@@ -188,7 +202,7 @@ change, reviewed like any other, never a private hook.
   `<plugin-id>.<name>`; all its types register or none do. Each is
   adapted onto `arrix_doc::FeatureType` through the plugin API's traits
   only, with the manifest's `version` as its plugin version (in every
-  input hash). A plugin type takes no choices. A panic in `evaluate` is
+  input hash). A plugin type takes the choices it declares. A panic in `evaluate` is
   caught and becomes the feature's `plugin.panic` diagnostic, and the
   evaluator carries on; natively only, since a wasm32 build aborts on a
   panic. A panic inside a kernel call it made is caught the same way, but
@@ -368,7 +382,8 @@ only, whatever the manifest says, because determinism demands it.
   (ADR-0007, ADR-0008); 0.4.0 list inputs, the `edge`, `point`, `axis`
   and `tool` input kinds, the tool a feature keeps (ADR-0012, ADR-0013),
   and the kernel's `revolve`, `common`, `fillet`, `chamfer`, `copy` and
-  `mirror`.
+  `mirror`; 0.5.0 (breaking) the choices a type declares, `shown-when`,
+  and the choices `evaluate` receives (ADR-0018).
   While it is `0.x`, a minor bump is breaking. Every change to it says its
   semver effect in the commit body (`.agents/rules/git.md`).
 - The host supports one API range at a time and says which in `arrix

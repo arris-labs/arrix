@@ -107,7 +107,7 @@ None new. Previews use the operations the features already call and
   applied; the document's bytes and generation unchanged after any
   preview; a superseded preview's late events are dropped; requests and
   events round-trip through JSON.
-- [ ] **[2]** Step 3: plugin API 0.5, choices declared. `ChoiceSpec`,
+- [x] **[2]** Step 3: plugin API 0.5, choices declared. `ChoiceSpec`,
   `shown_when`, the WIT world and `wit_equality.rs`; every built-in
   declares its choices and where its fields show; the evaluator fills
   defaults and checks names and values. Watch the input hash: filling a
@@ -236,9 +236,16 @@ UI alone on a document whose sketch is drawn in sketch mode:
 - Decided 2026-10-08 (human): a create form is a draft committed by OK
   as one command, Cancel leaving nothing in undo (ADR-0018); the preview
   is in this plan (steps 2 and 9, ADR-0019).
-- ⚠ OPEN 3: whether a bad choice value is checked once by the evaluator
-  (`feature.choice`, the per-type codes retired) or still by each type
-  too. Agent, at step 3, by what the existing tests and goldens hold.
+- Decided 2026-10-08 at step 3 (OPEN 3): a bad choice value is checked
+  once, by the evaluator (`feature.choice`); the per-type codes
+  (`extrude.mode`, `revolve.mode`, `boolean.op`, `hole.extent`,
+  `hole.kind`, `sketch.world`) are retired, and a name no choice declares
+  is `feature.unknown-field` (it was `feature.unknown-choice`). No golden
+  held either. A choice with no default (`ChoiceSpec::default` is an
+  `Option`) stays unset, which a datum plane's and a sketch's `world`
+  needs: unset, they stand on their `plane` input. `evaluate` gained a
+  `choices` argument, which the plan's list left out and ADR-0018 asks
+  for. The input hash covers the record's choices as written.
 - Decided 2026-10-08 at step 2 (OPEN 4, ADR-0019 decision 4): a preview
   waits behind the newest commit's evaluation and meshing and never stops
   it; a commit, a newer preview or a clear stops a running one, and an

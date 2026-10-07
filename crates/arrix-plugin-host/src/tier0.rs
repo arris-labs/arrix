@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use arrix_core::{Diagnostic, Severity};
 use arrix_doc::{FeatureArgs, FeatureType, FeatureTypeId, Registry, RegistryError, TypeOutput};
-use arrix_plugin_api::{Feature, FeatureTypeSpec, Kernel};
+use arrix_plugin_api::{ChoiceValue, Feature, FeatureTypeSpec, Kernel};
 
 use crate::manifest::{Manifest, ManifestError};
 
@@ -49,15 +49,17 @@ impl FeatureType for Tier0Type {
         kernel: &mut dyn Kernel,
         args: &FeatureArgs,
     ) -> Result<TypeOutput, Diagnostic> {
-        if let Some(choice) = args.choices.keys().next() {
-            return Err(error(
-                "feature.unknown-choice",
-                format!("{} has no choice `{choice}`", self.spec.id),
-            ));
-        }
+        let choices: Vec<_> = args
+            .choices
+            .iter()
+            .map(|(name, value)| ChoiceValue {
+                name: name.clone(),
+                value: value.clone(),
+            })
+            .collect();
         let run = AssertUnwindSafe(|| {
             self.feature
-                .evaluate(kernel, &self.spec.id, &args.params, &args.inputs)
+                .evaluate(kernel, &self.spec.id, &args.params, &choices, &args.inputs)
         });
         catch_unwind(run)
             .unwrap_or_else(|payload| {

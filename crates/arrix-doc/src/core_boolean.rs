@@ -9,6 +9,7 @@ use arrix_plugin_api::{
     SlotKind, SlotOutput, SlotSpec,
 };
 
+use crate::core_choice::choice;
 use crate::registry::{FeatureArgs, FeatureType, TypeOutput};
 
 /// `core.boolean`: `op` is `fuse` (the default), `cut` or `common`. Its one
@@ -38,12 +39,14 @@ impl CoreBoolean {
                         title: "Body to modify".into(),
                         kind: InputKind::Body,
                         list: false,
+                        shown_when: None,
                     },
                     InputSpec {
                         name: "tools".into(),
                         title: "Bodies to fuse in, cut away or intersect with".into(),
                         kind: InputKind::Body,
                         list: true,
+                        shown_when: None,
                     },
                 ],
                 outputs: vec![SlotSpec {
@@ -51,6 +54,12 @@ impl CoreBoolean {
                     kind: SlotKind::Body,
                     modifies: Some("target".into()),
                 }],
+                choices: vec![choice(
+                    "op",
+                    "Operation",
+                    &[("fuse", "Fuse"), ("cut", "Cut"), ("common", "Intersect")],
+                    Some("fuse"),
+                )],
             },
         }
     }
@@ -72,12 +81,6 @@ impl FeatureType for CoreBoolean {
         kernel: &mut dyn Kernel,
         args: &FeatureArgs,
     ) -> Result<TypeOutput, Diagnostic> {
-        if let Some(other) = args.choices.keys().find(|k| *k != "op") {
-            return Err(error(
-                "feature.unknown-choice",
-                format!("a boolean has no choice `{other}`"),
-            ));
-        }
         let Some(InputValue::Body(target)) = args.input("target").map(|i| &i.value) else {
             return Err(error(
                 "boolean.no-body",
@@ -104,7 +107,7 @@ impl FeatureType for CoreBoolean {
                 "common" => |k, a, b| k.common(a, b),
                 other => {
                     return Err(error(
-                        "boolean.op",
+                        "feature.choice",
                         format!("`{other}` is not a boolean operation: fuse, cut or common"),
                     ));
                 }

@@ -256,7 +256,7 @@ fn a_boolean_needs_two_bodies_and_a_known_op() {
     for (edit, want) in [
         (clear("tools"), "boolean.no-body"),
         (clear("target"), "boolean.no-body"),
-        (op("union"), "boolean.op"),
+        (op("union"), "feature.choice"),
         (wrong_kind, "input.wrong-kind"),
     ] {
         let e = eval(&edited(&part("fuse"), BOOLEAN, edit));

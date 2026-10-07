@@ -197,6 +197,7 @@ fn run(teeth: f64) -> (Vec<PersistentName>, u64, Vec<KernelCall>) {
             &mut host,
             arrix_gears::SPUR,
             &params(teeth, MM, 8.0 * MM),
+            &[],
             &on_xy(),
         )
         .unwrap();

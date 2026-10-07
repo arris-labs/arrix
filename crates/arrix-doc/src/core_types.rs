@@ -12,6 +12,7 @@ use arrix_sketch::{
     find_regions,
 };
 
+use crate::core_choice::choice;
 use crate::eval::{RegionView, SketchView};
 use crate::registry::{FeatureArgs, FeatureType, SketchArgs, TypeOutput};
 
@@ -47,33 +48,41 @@ impl DatumPlane {
                     title: "Offset".into(),
                     kind: QuantityKind::Length,
                     default: "0 mm".into(),
+                    shown_when: None,
                 }],
                 inputs: vec![InputSpec {
                     name: "plane".into(),
                     title: "Plane or planar face".into(),
                     kind: InputKind::Plane,
                     list: false,
+                    shown_when: None,
                 }],
                 outputs: vec![SlotSpec {
                     name: slot("plane"),
                     kind: SlotKind::Plane,
                     modifies: None,
                 }],
+                choices: vec![world()],
             },
         }
     }
 }
 
+/// The `world` choice of a type that stands on a plane: left unset, it
+/// stands on its `plane` input, or on `xy` with none.
+fn world() -> arrix_plugin_api::ChoiceSpec {
+    choice(
+        "world",
+        "World plane",
+        &[("xy", "XY"), ("yz", "YZ"), ("zx", "ZX")],
+        None,
+    )
+}
+
 /// The plane a datum plane or a sketch stands on: its `plane` input, or,
 /// with none, the world plane its `world` choice names (`xy` by default).
-/// `ty` is the type's name, which prefixes its codes (`sketch.world`).
+/// `ty` is the type's name, which prefixes its codes (`sketch.two-bases`).
 pub(crate) fn stand_on(args: &FeatureArgs, ty: &str, what: &str) -> Result<Frame, Diagnostic> {
-    if let Some(other) = args.choices.keys().find(|k| *k != "world") {
-        return Err(error(
-            "feature.unknown-choice",
-            format!("{what} has no choice `{other}`"),
-        ));
-    }
     let world = args.choices.get("world");
     match (args.input("plane"), world) {
         (Some(_), Some(_)) => Err(error(
@@ -103,7 +112,7 @@ pub(crate) fn stand_on(args: &FeatureArgs, ty: &str, what: &str) -> Result<Frame
                 .map(|(_, f)| *f)
                 .ok_or_else(|| {
                     error(
-                        &format!("{ty}.world"),
+                        "feature.choice",
                         format!("`{word}` is not a world plane: xy, yz or zx"),
                     )
                 })
@@ -164,8 +173,10 @@ impl CoreSketch {
                     title: "Plane or planar face".into(),
                     kind: InputKind::Plane,
                     list: false,
+                    shown_when: None,
                 }],
                 outputs: vec![],
+                choices: vec![world()],
             },
             slots: [SlotName::new("sketch").expect("a literal slot name")],
         }

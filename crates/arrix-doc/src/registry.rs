@@ -131,6 +131,10 @@ pub enum RegistryError {
         slot: SlotName,
         input: String,
     },
+    /// A choice whose default is not one of its options, or a field shown
+    /// under a choice or a value the type does not declare (ADR-0018).
+    #[error("feature type {id}'s form is inconsistent: {what}")]
+    Form { id: FeatureTypeId, what: String },
 }
 
 #[derive(Clone, Default)]
@@ -167,6 +171,9 @@ impl Registry {
             return Err(RegistryError::Duplicate(id));
         }
         let spec = ty.spec();
+        if let Some(what) = form_fault(spec) {
+            return Err(RegistryError::Form { id, what });
+        }
         for slot in &spec.outputs {
             let Some(input) = &slot.modifies else {
                 continue;
@@ -206,6 +213,52 @@ impl Registry {
     }
 }
 
+/// What is wrong with a type's choices and the fields shown under them,
+/// if anything.
+fn form_fault(spec: &FeatureTypeSpec) -> Option<String> {
+    for (i, c) in spec.choices.iter().enumerate() {
+        if spec.choices[..i].iter().any(|o| o.name == c.name) {
+            return Some(format!("choice `{}` is declared twice", c.name));
+        }
+        if c.options.is_empty() {
+            return Some(format!("choice `{}` has no options", c.name));
+        }
+        if let Some(d) = &c.default
+            && !c.options.iter().any(|o| &o.name == d)
+        {
+            return Some(format!(
+                "choice `{}`'s default `{d}` is not an option",
+                c.name
+            ));
+        }
+    }
+    let shown = spec
+        .params
+        .iter()
+        .map(|p| (&p.name, &p.shown_when))
+        .chain(spec.inputs.iter().map(|i| (&i.name, &i.shown_when)));
+    for (field, when) in shown {
+        let Some(when) = when else { continue };
+        let Some(choice) = spec.choices.iter().find(|c| c.name == when.choice) else {
+            return Some(format!(
+                "`{field}` is shown under `{}`, which is not a choice",
+                when.choice
+            ));
+        };
+        if let Some(v) = when
+            .values
+            .iter()
+            .find(|v| !choice.options.iter().any(|o| &o.name == *v))
+        {
+            return Some(format!(
+                "`{field}` is shown when `{}` is `{v}`, which is not an option",
+                when.choice
+            ));
+        }
+    }
+    None
+}
+
 impl std::fmt::Debug for Registry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_list().entries(self.types.keys()).finish()
@@ -236,6 +289,7 @@ mod tests {
             params: vec![],
             inputs: vec![],
             outputs: vec![],
+            choices: vec![],
         }))
     }
 
@@ -305,6 +359,52 @@ mod tests {
     }
 
     #[test]
+    fn a_form_shows_fields_only_under_the_choices_it_declares() {
+        use arrix_core::QuantityKind;
+        use arrix_plugin_api::{ChoiceOption, ChoiceSpec, ParamSpec, ShownWhen};
+        let form = |default: Option<&str>, choice: &str, value: &str| {
+            let spec = Ty(FeatureTypeSpec {
+                id: "test.form".into(),
+                version: 1,
+                title: "Form".into(),
+                params: vec![ParamSpec {
+                    name: "depth".into(),
+                    title: "Depth".into(),
+                    kind: QuantityKind::Length,
+                    default: "1 mm".into(),
+                    shown_when: Some(ShownWhen {
+                        choice: choice.into(),
+                        values: vec![value.into()],
+                    }),
+                }],
+                choices: vec![ChoiceSpec {
+                    name: "extent".into(),
+                    title: "Extent".into(),
+                    options: ["blind", "through"]
+                        .map(|name| ChoiceOption {
+                            name: name.into(),
+                            title: name.into(),
+                        })
+                        .to_vec(),
+                    default: default.map(Into::into),
+                }],
+                inputs: vec![],
+                outputs: vec![],
+            });
+            Arc::new(spec) as Arc<dyn FeatureType>
+        };
+        let mut r = Registry::default();
+        for bad in [
+            form(Some("sideways"), "extent", "blind"),
+            form(Some("blind"), "kind", "blind"),
+            form(Some("blind"), "extent", "deep"),
+        ] {
+            assert!(matches!(r.register(bad), Err(RegistryError::Form { .. })));
+        }
+        r.register(form(None, "extent", "blind")).unwrap();
+    }
+
+    #[test]
     fn a_modifying_slot_names_one_of_its_body_inputs() {
         use arrix_plugin_api::{InputSpec, SlotSpec};
         let spec = |input: InputKind, slot: SlotKind, modifies: &str| {
@@ -318,12 +418,14 @@ mod tests {
                     title: "Target".into(),
                     kind: input,
                     list: false,
+                    shown_when: None,
                 }],
                 outputs: vec![SlotSpec {
                     name: SlotName::new("body").unwrap(),
                     kind: slot,
                     modifies: Some(modifies.into()),
                 }],
+                choices: vec![],
             })) as Arc<dyn FeatureType>
         };
         let mut r = Registry::default();

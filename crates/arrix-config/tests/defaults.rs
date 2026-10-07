@@ -12,6 +12,7 @@ fn spur() -> FeatureTypeSpec {
         title: name.into(),
         kind,
         default: default.into(),
+        shown_when: None,
     };
     FeatureTypeSpec {
         id: "gears.spur".into(),
@@ -24,6 +25,7 @@ fn spur() -> FeatureTypeSpec {
         ],
         inputs: Vec::new(),
         outputs: Vec::new(),
+        choices: vec![],
     }
 }
 

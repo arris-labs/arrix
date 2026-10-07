@@ -8,6 +8,7 @@ use arrix_plugin_api::{
     ParamSpec, SlotKind, SlotOutput, SlotSpec,
 };
 
+use crate::core_choice::{choice, shown_when};
 use crate::core_extrude::{Sweep, place};
 use crate::registry::{FeatureArgs, FeatureType, TypeOutput};
 
@@ -25,11 +26,12 @@ fn error(code: &str, message: impl Into<String>) -> Diagnostic {
 
 impl CoreRevolve {
     pub fn new() -> Self {
-        let input = |name: &str, title: &str, kind| InputSpec {
+        let input = |name: &str, title: &str, kind, shown| InputSpec {
             name: name.into(),
             title: title.into(),
             kind,
             list: false,
+            shown_when: shown,
         };
         Self {
             spec: FeatureTypeSpec {
@@ -41,17 +43,29 @@ impl CoreRevolve {
                     title: "Angle".into(),
                     kind: QuantityKind::Angle,
                     default: "360 deg".into(),
+                    shown_when: None,
                 }],
                 inputs: vec![
-                    input("region", "Sketch region", InputKind::Region),
-                    input("axis", "Axis to turn about", InputKind::Axis),
-                    input("target", "Body to join to or cut", InputKind::Body),
+                    input("region", "Sketch region", InputKind::Region, None),
+                    input("axis", "Axis to turn about", InputKind::Axis, None),
+                    input(
+                        "target",
+                        "Body to join to or cut",
+                        InputKind::Body,
+                        shown_when("mode", &["join", "cut"]),
+                    ),
                 ],
                 outputs: vec![SlotSpec {
                     name: SlotName::new("body").expect("a literal slot name"),
                     kind: SlotKind::Body,
                     modifies: Some("target".into()),
                 }],
+                choices: vec![choice(
+                    "mode",
+                    "Mode",
+                    &[("new", "New body"), ("join", "Join"), ("cut", "Cut")],
+                    Some("new"),
+                )],
             },
         }
     }
@@ -73,12 +87,6 @@ impl FeatureType for CoreRevolve {
         kernel: &mut dyn Kernel,
         args: &FeatureArgs,
     ) -> Result<TypeOutput, Diagnostic> {
-        if let Some(other) = args.choices.keys().find(|k| *k != "mode") {
-            return Err(error(
-                "feature.unknown-choice",
-                format!("a revolve has no choice `{other}`"),
-            ));
-        }
         let mode = args.choices.get("mode").map_or("new", String::as_str);
         let Some(InputValue::Region(profile)) = args.input("region").map(|i| &i.value) else {
             return Err(error(

@@ -14,6 +14,7 @@ use arrix_plugin_api::{
     ParamSpec, SlotKind, SlotOutput, SlotSpec, Tool, ToolOp,
 };
 
+use crate::core_choice::{choice, shown_when};
 use crate::registry::{FeatureArgs, FeatureType, TypeOutput};
 
 /// How far a hole's tool starts outside the sketch plane, so its end is
@@ -40,28 +41,42 @@ fn error(code: &str, message: impl Into<String>) -> Diagnostic {
 
 impl CoreHole {
     pub fn new() -> Self {
-        let length = |name: &str, title: &str, default: &str| ParamSpec {
+        let length = |name: &str, title: &str, default: &str, shown| ParamSpec {
             name: name.into(),
             title: title.into(),
             kind: QuantityKind::Length,
             default: default.into(),
+            shown_when: shown,
         };
+        let counterbore = shown_when("kind", &["counterbore"]);
+        let countersink = shown_when("kind", &["countersink"]);
         Self {
             spec: FeatureTypeSpec {
                 id: "core.hole".into(),
                 version: 1,
                 title: "Hole".into(),
                 params: vec![
-                    length("diameter", "Diameter", "5 mm"),
-                    length("depth", "Depth", "10 mm"),
-                    length("cb-diameter", "Counterbore diameter", "10 mm"),
-                    length("cb-depth", "Counterbore depth", "3 mm"),
-                    length("cs-diameter", "Countersink diameter", "10 mm"),
+                    length("diameter", "Diameter", "5 mm", None),
+                    length("depth", "Depth", "10 mm", shown_when("extent", &["blind"])),
+                    length(
+                        "cb-diameter",
+                        "Counterbore diameter",
+                        "10 mm",
+                        counterbore.clone(),
+                    ),
+                    length("cb-depth", "Counterbore depth", "3 mm", counterbore),
+                    length(
+                        "cs-diameter",
+                        "Countersink diameter",
+                        "10 mm",
+                        countersink.clone(),
+                    ),
                     ParamSpec {
                         name: "cs-angle".into(),
                         title: "Countersink angle".into(),
                         kind: QuantityKind::Angle,
                         default: "90 deg".into(),
+                        shown_when: countersink,
                     },
                 ],
                 inputs: vec![
@@ -70,12 +85,14 @@ impl CoreHole {
                         title: "Body to drill".into(),
                         kind: InputKind::Body,
                         list: false,
+                        shown_when: None,
                     },
                     InputSpec {
                         name: "points".into(),
                         title: "Hole centres".into(),
                         kind: InputKind::Point,
                         list: true,
+                        shown_when: None,
                     },
                 ],
                 outputs: vec![SlotSpec {
@@ -83,6 +100,24 @@ impl CoreHole {
                     kind: SlotKind::Body,
                     modifies: Some("target".into()),
                 }],
+                choices: vec![
+                    choice(
+                        "extent",
+                        "Extent",
+                        &[("blind", "Blind"), ("through", "Through all")],
+                        Some("blind"),
+                    ),
+                    choice(
+                        "kind",
+                        "Kind",
+                        &[
+                            ("simple", "Simple"),
+                            ("counterbore", "Counterbore"),
+                            ("countersink", "Countersink"),
+                        ],
+                        Some("simple"),
+                    ),
+                ],
             },
         }
     }
@@ -174,16 +209,6 @@ impl Shape {
 impl CoreHole {
     /// The shape the record's parameters and choices describe.
     fn shape(args: &FeatureArgs) -> Result<Shape, Diagnostic> {
-        if let Some(other) = args
-            .choices
-            .keys()
-            .find(|k| !matches!(k.as_str(), "extent" | "kind"))
-        {
-            return Err(error(
-                "feature.unknown-choice",
-                format!("a hole has no choice `{other}`"),
-            ));
-        }
         let param = |name: &str| args.param(name).unwrap_or(0.0);
         let radius = param("diameter") / 2.0;
         if radius <= 0.0 {
@@ -195,7 +220,7 @@ impl CoreHole {
             "through" => THROUGH,
             other => {
                 return Err(error(
-                    "hole.extent",
+                    "feature.choice",
                     format!("`{other}` is not a hole's extent: blind or through"),
                 ));
             }
@@ -235,7 +260,7 @@ impl CoreHole {
             }
             other => {
                 return Err(error(
-                    "hole.kind",
+                    "feature.choice",
                     format!("`{other}` is not a kind of hole: simple, counterbore or countersink"),
                 ));
             }

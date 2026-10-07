@@ -264,7 +264,7 @@ fn join_and_cut_need_a_body_target_and_new_takes_none() {
             false,
         ),
         (mode("new"), "extrude.stray-target", true),
-        (mode("sweep"), "extrude.mode", true),
+        (mode("sweep"), "feature.choice", true),
     ] {
         let doc = edited(&part(), BOSS, edit);
         let e = Evaluator::new(Registry::with_core_types()).evaluate(&doc);

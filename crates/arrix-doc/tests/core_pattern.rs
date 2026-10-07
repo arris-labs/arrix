@@ -471,7 +471,7 @@ fn a_pattern_needs_its_target_direction_and_sane_numbers() {
                 choices: BTreeMap::from([("mode".to_string(), Some("x".to_string()))]),
                 ..FeatureEdit::default()
             },
-            "feature.unknown-choice",
+            "feature.unknown-field",
         ),
     ] {
         let e = eval(&edited(&doc, PATTERN, edit));

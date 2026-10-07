@@ -5,7 +5,7 @@
 //
 // SI throughout: metres, radians, kilograms. No Arris type appears here.
 
-package arrix:plugin@0.4.0;
+package arrix:plugin@0.5.0;
 
 interface types {
   // An id: 64 bits, as `arrix-core`'s typed ids carry it.
@@ -121,8 +121,28 @@ interface feature {
   use types.{axis, diagnostic, frame, persistent-ref, point, profile, quantity, quantity-kind};
   use kernel.{body};
 
+  // A field shown only while the type's choice `choice` holds one of
+  // `values` (ADR-0018). A hidden field is neither shown nor required; its
+  // value, if the record has one, is kept.
+  record shown-when { choice: string, values: list<string> }
   // A numeric field; `default` is an expression (`20`, `1 mm`).
-  record param-spec { name: string, title: string, kind: quantity-kind, default: string }
+  record param-spec {
+    name: string,
+    title: string,
+    kind: quantity-kind,
+    default: string,
+    shown-when: option<shown-when>,
+  }
+  record choice-option { name: string, title: string }
+  // One of a few words, kept in the record's choices. `default` is the
+  // option a record that gives none holds; none means the choice left unset
+  // is meaningful of itself (ADR-0018).
+  record choice-spec {
+    name: string,
+    title: string,
+    options: list<choice-option>,
+    default: option<string>,
+  }
   // What an input resolves to: a plane (a datum, a planar face, a world
   // plane), a sketch region as a profile keyed by its entities, a body
   // slot's version current at the feature (ADR-0007), an edge by name, a
@@ -133,7 +153,13 @@ interface feature {
   // A `list` input takes several references: it arrives as one
   // `resolved-input` per element, in the record's order, each with the
   // input's name.
-  record input-spec { name: string, title: string, kind: input-kind, %list: bool }
+  record input-spec {
+    name: string,
+    title: string,
+    kind: input-kind,
+    %list: bool,
+    shown-when: option<shown-when>,
+  }
   enum slot-kind { body, plane }
   // An output slot; `name` is one lower-kebab word. A body slot that
   // `modifies` a body input is that input's slot's next version, not a
@@ -146,12 +172,16 @@ interface feature {
     version: u32,
     title: string,
     params: list<param-spec>,
+    choices: list<choice-spec>,
     inputs: list<input-spec>,
     outputs: list<slot-spec>,
   }
 
   // A parameter's expression, evaluated by the host to SI.
   record param-value { name: string, value: quantity }
+  // A choice's word, the record's or the spec's default; a choice unset
+  // with no default is not given.
+  record choice-value { name: string, value: string }
   // A body input is a handle of the plugin's own to the slot's version,
   // dropped when it is done: an owned handle rather than a borrow, which
   // wit-bindgen's Rust guests cannot take inside a list (ADR-0008).
@@ -179,8 +209,12 @@ interface feature {
   describe: func() -> list<feature-type-spec>;
   // Deterministic: a pure function of its arguments, the kernel's results
   // and the plugin's version.
-  evaluate: func(type-id: string, params: list<param-value>, inputs: list<resolved-input>)
-    -> result<feature-output, diagnostic>;
+  evaluate: func(
+    type-id: string,
+    params: list<param-value>,
+    choices: list<choice-value>,
+    inputs: list<resolved-input>,
+  ) -> result<feature-output, diagnostic>;
 }
 
 world plugin {

@@ -618,9 +618,36 @@ impl Evaluator {
         {
             return Err(unknown("input", name).into());
         }
+        if let Some(name) = record
+            .choices
+            .keys()
+            .find(|k| !spec.choices.iter().any(|c| &c.name == *k))
+        {
+            return Err(unknown("choice", name).into());
+        }
+        let mut choices = BTreeMap::new();
+        for c in &spec.choices {
+            let Some(value) = record.choices.get(&c.name).or(c.default.as_ref()) else {
+                continue;
+            };
+            if !c.options.iter().any(|o| &o.name == value) {
+                let words: Vec<_> = c.options.iter().map(|o| o.name.as_str()).collect();
+                return Err(error(
+                    "feature.choice",
+                    format!(
+                        "`{value}` is not a {} of {}: {}",
+                        c.name,
+                        spec.id,
+                        words.join(", ")
+                    ),
+                )
+                .into());
+            }
+            choices.insert(c.name.clone(), value.clone());
+        }
         let mut reads = Vec::new();
         let mut args = FeatureArgs {
-            choices: record.choices.clone(),
+            choices,
             sketch: record
                 .sketch
                 .as_deref()

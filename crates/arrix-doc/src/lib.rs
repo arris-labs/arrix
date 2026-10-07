@@ -6,6 +6,7 @@ mod bodies;
 mod command;
 mod core_blend;
 mod core_boolean;
+mod core_choice;
 mod core_extrude;
 mod core_hole;
 mod core_mirror;

@@ -37,6 +37,7 @@ impl Block {
             title: name.into(),
             kind: QuantityKind::Length,
             default: default.into(),
+            shown_when: None,
         };
         Block(FeatureTypeSpec {
             id: "test.block".into(),
@@ -48,12 +49,14 @@ impl Block {
                 title: "Plane".into(),
                 kind: InputKind::Plane,
                 list: false,
+                shown_when: None,
             }],
             outputs: vec![SlotSpec {
                 name: slot("body"),
                 kind: SlotKind::Body,
                 modifies: None,
             }],
+            choices: vec![],
         })
     }
 }
@@ -259,8 +262,8 @@ fn a_datum_plane_refuses_two_bases_or_an_unknown_world_plane() {
     let e = Evaluator::new(registry()).evaluate(&doc(&[], vec![both, odd, extra]));
     // Input resolution comes first: the missing feature 9 is a lost reference.
     assert_eq!(failure(&e, 1).code.as_str(), "ref.lost");
-    assert_eq!(failure(&e, 2).code.as_str(), "datum-plane.world");
-    assert_eq!(failure(&e, 3).code.as_str(), "feature.unknown-choice");
+    assert_eq!(failure(&e, 2).code.as_str(), "feature.choice");
+    assert_eq!(failure(&e, 3).code.as_str(), "feature.unknown-field");
 }
 
 #[test]

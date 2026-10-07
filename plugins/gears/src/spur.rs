@@ -28,6 +28,7 @@ pub fn spec() -> FeatureTypeSpec {
         title: title.into(),
         kind,
         default: default.into(),
+        shown_when: None,
     };
     FeatureTypeSpec {
         id: TYPE_ID.into(),
@@ -49,12 +50,14 @@ pub fn spec() -> FeatureTypeSpec {
             title: "Plane".into(),
             kind: InputKind::Plane,
             list: false,
+            shown_when: None,
         }],
         outputs: vec![SlotSpec {
             name: body_slot(),
             kind: SlotKind::Body,
             modifies: None,
         }],
+        choices: vec![],
     }
 }
 

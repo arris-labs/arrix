@@ -36,6 +36,7 @@ fn input(name: &str, kind: InputKind) -> InputSpec {
         title: name.into(),
         kind,
         list: false,
+        shown_when: None,
     }
 }
 
@@ -45,6 +46,7 @@ fn length(name: &str, default: &str) -> ParamSpec {
         title: name.into(),
         kind: QuantityKind::Length,
         default: default.into(),
+        shown_when: None,
     }
 }
 
@@ -56,6 +58,12 @@ fn spec(id: &str, params: Vec<ParamSpec>, inputs: Vec<InputSpec>, outputs: Vec<S
         params,
         inputs,
         outputs,
+        choices: vec![crate::core_choice::choice(
+            "op",
+            "Operation",
+            &[("fuse", "Fuse"), ("cut", "Cut")],
+            None,
+        )],
     })
 }
 
@@ -349,7 +357,7 @@ fn a_suppressed_modifier_is_not_a_version() {
 #[test]
 fn a_failed_modifier_leaves_its_readers_unavailable_not_on_the_earlier_version() {
     let e = eval(&part(vec![modifier(2, "twist", "5 mm"), reader(3)]));
-    assert_eq!(failure(&e, 2).code.as_str(), "test.op");
+    assert_eq!(failure(&e, 2).code.as_str(), "feature.choice");
     let d = failure(&e, 3);
     assert_eq!(d.code.as_str(), "input.unavailable");
     assert!(d.refs.contains(&Ref::Feature(fid(2))), "{d:?}");

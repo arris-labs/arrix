@@ -8,6 +8,7 @@ use arrix_plugin_api::{
     ParamSpec, SlotKind, SlotOutput, SlotSpec, Tool, ToolOp,
 };
 
+use crate::core_choice::{choice, shown_when};
 use crate::registry::{FeatureArgs, FeatureType, TypeOutput};
 
 /// `core.extrude`, by its `mode` choice: `new` (the default) makes a body
@@ -67,8 +68,8 @@ pub(crate) fn place(
             Ok((cut, Some(Tool { body: tool, op })))
         }
         (other, _) => Err(error(
-            &format!("{ty}.mode"),
-            format!("`{other}` is not {what} mode: new, join or cut"),
+            "feature.choice",
+            format!("`{other}` is not a mode of {what}: new, join or cut"),
         )),
     }
 }
@@ -85,6 +86,7 @@ impl CoreExtrude {
                     title: "Distance".into(),
                     kind: QuantityKind::Length,
                     default: "10 mm".into(),
+                    shown_when: None,
                 }],
                 inputs: vec![
                     InputSpec {
@@ -92,12 +94,14 @@ impl CoreExtrude {
                         title: "Sketch region".into(),
                         kind: InputKind::Region,
                         list: false,
+                        shown_when: None,
                     },
                     InputSpec {
                         name: "target".into(),
                         title: "Body to join to or cut".into(),
                         kind: InputKind::Body,
                         list: false,
+                        shown_when: shown_when("mode", &["join", "cut"]),
                     },
                 ],
                 outputs: vec![SlotSpec {
@@ -105,6 +109,12 @@ impl CoreExtrude {
                     kind: SlotKind::Body,
                     modifies: Some("target".into()),
                 }],
+                choices: vec![choice(
+                    "mode",
+                    "Mode",
+                    &[("new", "New body"), ("join", "Join"), ("cut", "Cut")],
+                    Some("new"),
+                )],
             },
         }
     }
@@ -126,12 +136,6 @@ impl FeatureType for CoreExtrude {
         kernel: &mut dyn Kernel,
         args: &FeatureArgs,
     ) -> Result<TypeOutput, Diagnostic> {
-        if let Some(other) = args.choices.keys().find(|k| *k != "mode") {
-            return Err(error(
-                "feature.unknown-choice",
-                format!("an extrude has no choice `{other}`"),
-            ));
-        }
         let mode = args.choices.get("mode").map_or("new", String::as_str);
         let Some(InputValue::Region(profile)) = args.input("region").map(|i| &i.value) else {
             return Err(error(

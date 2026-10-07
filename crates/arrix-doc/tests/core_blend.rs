@@ -399,7 +399,7 @@ fn a_blend_needs_its_target_and_edges_and_names_an_edge_of_the_body() {
                 choices: BTreeMap::from([("mode".to_string(), Some("x".to_string()))]),
                 ..FeatureEdit::default()
             },
-            "feature.unknown-choice",
+            "feature.unknown-field",
         ),
         (
             FeatureEdit {

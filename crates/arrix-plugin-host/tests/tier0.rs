@@ -10,9 +10,10 @@ use arrix_doc::{
     Registry, SlotView, apply, expr::Expr,
 };
 use arrix_plugin_api::{
-    CurveKey, DVec2, Diagnostic, Feature, FeatureId, FeatureOutput, FeatureTypeSpec, Id, InputKind,
-    InputSpec, InputValue, Kernel, OutputValue, ParamSpec, ParamValue, Profile, ProfileLoop,
-    QuantityKind, Ref, ResolvedInput, SlotKind, SlotName, SlotOutput, SlotSpec,
+    ChoiceOption, ChoiceSpec, ChoiceValue, CurveKey, DVec2, Diagnostic, Feature, FeatureId,
+    FeatureOutput, FeatureTypeSpec, Id, InputKind, InputSpec, InputValue, Kernel, OutputValue,
+    ParamSpec, ParamValue, Profile, ProfileLoop, QuantityKind, Ref, ResolvedInput, SlotKind,
+    SlotName, SlotOutput, SlotSpec,
 };
 use arrix_plugin_host::{HostError, register_tier0};
 
@@ -49,14 +50,27 @@ impl Feature for Demo {
                 title: "Radius".into(),
                 kind: QuantityKind::Length,
                 default: "2 mm".into(),
+                shown_when: None,
             }],
             inputs: vec![InputSpec {
                 name: "plane".into(),
                 title: "Plane".into(),
                 kind: InputKind::Plane,
                 list: false,
+                shown_when: None,
             }],
             outputs: vec![body.clone()],
+            choices: vec![ChoiceSpec {
+                name: "thickness".into(),
+                title: "Thickness".into(),
+                options: ["thin", "thick"]
+                    .map(|name| ChoiceOption {
+                        name: name.into(),
+                        title: name.into(),
+                    })
+                    .to_vec(),
+                default: Some("thin".into()),
+            }],
         };
         vec![spec("disc"), spec("stack"), spec("washer"), spec("boom")]
     }
@@ -66,6 +80,7 @@ impl Feature for Demo {
         kernel: &mut dyn Kernel,
         type_id: &str,
         params: &[ParamValue],
+        choices: &[ChoiceValue],
         inputs: &[ResolvedInput],
     ) -> Result<FeatureOutput, Diagnostic> {
         if type_id.ends_with(".boom") {
@@ -75,6 +90,10 @@ impl Feature for Demo {
             unreachable!("the demo's one input is a plane");
         };
         let r = params[0].value.si;
+        let thick = choices
+            .iter()
+            .any(|c| c.name == "thickness" && c.value == "thick");
+        let height = if thick { 2e-3 } else { 1e-3 };
         let mut disc = |key: u64, radius: f64, below: f64, height: f64| {
             let circle = ProfileLoop::Circle {
                 key: CurveKey(Id(key)),
@@ -84,7 +103,7 @@ impl Feature for Demo {
             let on = Profile::new(plane.offset(-below), circle, vec![]).unwrap();
             kernel.extrude(&on, height)
         };
-        let mut body = disc(1, r, 0.0, 1e-3)?;
+        let mut body = disc(1, r, 0.0, height)?;
         if type_id.ends_with(".stack") {
             let top = disc(2, r / 2.0, -1e-3, 1e-3)?;
             body = kernel.fuse(&body, &top)?;
@@ -108,7 +127,7 @@ fn demo() -> Arc<dyn Feature> {
 
 fn registry(version: &str) -> Registry {
     let mut r = Registry::with_core_types();
-    register_tier0(&mut r, &manifest("demo", version, "^0.4"), demo()).unwrap();
+    register_tier0(&mut r, &manifest("demo", version, "^0.5"), demo()).unwrap();
     r
 }
 
@@ -169,7 +188,7 @@ fn hash(registry: Registry, d: &Document, feature: u64) -> InputHash {
 #[test]
 fn every_type_registers_under_the_plugins_namespace() {
     let mut r = Registry::with_core_types();
-    let ids = register_tier0(&mut r, &manifest("demo", "0.1.0", "^0.4"), demo()).unwrap();
+    let ids = register_tier0(&mut r, &manifest("demo", "0.1.0", "^0.5"), demo()).unwrap();
     let ids: Vec<_> = ids.iter().map(FeatureTypeId::as_str).collect();
     assert_eq!(ids, ["demo.disc", "demo.stack", "demo.washer", "demo.boom"]);
     let all: Vec<_> = r.ids().map(FeatureTypeId::as_str).collect();
@@ -201,7 +220,7 @@ fn a_plugin_that_does_not_fit_is_refused_whole() {
     let before: Vec<_> = r.ids().cloned().collect();
     let foreign = Arc::new(Demo { prefix: "other" });
     assert!(matches!(
-        register_tier0(&mut r, &manifest("demo", "0.1.0", "^0.4"), foreign),
+        register_tier0(&mut r, &manifest("demo", "0.1.0", "^0.5"), foreign),
         Err(HostError::Namespace { .. })
     ));
     // Built against a plugin API before this host's (ADR-0006, ADR-0007).
@@ -211,7 +230,7 @@ fn a_plugin_that_does_not_fit_is_refused_whole() {
             Err(HostError::Api { .. })
         ));
     }
-    let tier1 = manifest("demo", "0.1.0", "^0.4").replace("tier = 0", "tier = 1");
+    let tier1 = manifest("demo", "0.1.0", "^0.5").replace("tier = 0", "tier = 1");
     assert!(matches!(
         register_tier0(&mut r, &tier1, demo()),
         Err(HostError::NotTier0 { tier: 1, .. })
@@ -221,9 +240,9 @@ fn a_plugin_that_does_not_fit_is_refused_whole() {
         Err(HostError::Manifest(_))
     ));
     assert_eq!(r.ids().cloned().collect::<Vec<_>>(), before);
-    register_tier0(&mut r, &manifest("demo", "0.1.0", "^0.4"), demo()).unwrap();
+    register_tier0(&mut r, &manifest("demo", "0.1.0", "^0.5"), demo()).unwrap();
     assert!(matches!(
-        register_tier0(&mut r, &manifest("demo", "0.1.0", "^0.4"), demo()),
+        register_tier0(&mut r, &manifest("demo", "0.1.0", "^0.5"), demo()),
         Err(HostError::Registry(_))
     ));
 }
@@ -272,15 +291,40 @@ fn a_panicking_plugin_is_a_diagnostic_not_a_crash() {
     }
 }
 
-#[test]
-fn a_plugin_type_takes_no_choices() {
+fn thickness(value: &str) -> FeatureRecord {
     let mut disc = on_plane(2, "demo.disc");
-    disc.choices.insert("world".into(), "xy".into());
-    let e = Evaluator::new(registry("0.1.0")).evaluate(&doc(vec![disc]));
-    let Some(FeatureOutcome::Failed { diagnostic, .. }) = e.outcome(FeatureId(Id(2))) else {
-        panic!("{:?}", e.events)
+    disc.choices.insert("thickness".into(), value.into());
+    disc
+}
+
+#[test]
+fn a_plugin_type_takes_the_choices_it_declares() {
+    let volume = |disc: FeatureRecord| {
+        let e = Evaluator::new(registry("0.1.0")).evaluate(&doc(vec![disc]));
+        let Some(SlotView::Body(m)) = e.slot(FeatureId(Id(2)), "body") else {
+            panic!("{:?}", e.events)
+        };
+        m.volume
     };
-    assert_eq!(diagnostic.code.as_str(), "feature.unknown-choice");
+    let (thin, thick) = (volume(on_plane(2, "demo.disc")), volume(thickness("thick")));
+    assert!((thick / thin - 2.0).abs() < 1e-9, "{thin} {thick}");
+    assert_eq!(thin, volume(thickness("thin")), "thin is the default");
+}
+
+#[test]
+fn a_plugin_type_refuses_a_choice_it_does_not_declare_or_a_word_it_does_not_list() {
+    let mut world = on_plane(2, "demo.disc");
+    world.choices.insert("world".into(), "xy".into());
+    for (record, code) in [
+        (world, "feature.unknown-field"),
+        (thickness("fat"), "feature.choice"),
+    ] {
+        let e = Evaluator::new(registry("0.1.0")).evaluate(&doc(vec![record]));
+        let Some(FeatureOutcome::Failed { diagnostic, .. }) = e.outcome(FeatureId(Id(2))) else {
+            panic!("{:?}", e.events)
+        };
+        assert_eq!(diagnostic.code.as_str(), code);
+    }
 }
 
 #[test]

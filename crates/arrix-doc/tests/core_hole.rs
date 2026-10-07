@@ -327,9 +327,9 @@ fn a_hole_needs_its_target_and_points_and_sane_sizes() {
     for (edit, want) in [
         (clear("target"), "hole.no-target"),
         (clear("points"), "hole.no-points"),
-        (choice("extent", "x"), "hole.extent"),
-        (choice("kind", "x"), "hole.kind"),
-        (choice("mode", "x"), "feature.unknown-choice"),
+        (choice("extent", "x"), "feature.choice"),
+        (choice("kind", "x"), "feature.choice"),
+        (choice("mode", "x"), "feature.unknown-field"),
         (param("diameter", "0 mm"), "hole.diameter"),
         (param("depth", "0 mm"), "hole.depth"),
     ] {

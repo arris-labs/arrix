@@ -12,8 +12,8 @@ pub mod involute;
 mod spur;
 
 use arrix_plugin_api::{
-    Diagnostic, Feature, FeatureOutput, FeatureTypeSpec, Kernel, ParamValue, ResolvedInput,
-    Severity,
+    ChoiceValue, Diagnostic, Feature, FeatureOutput, FeatureTypeSpec, Kernel, ParamValue,
+    ResolvedInput, Severity,
 };
 
 pub use spur::TYPE_ID as SPUR;
@@ -34,6 +34,7 @@ impl Feature for Gears {
         kernel: &mut dyn Kernel,
         type_id: &str,
         params: &[ParamValue],
+        _choices: &[ChoiceValue],
         inputs: &[ResolvedInput],
     ) -> Result<FeatureOutput, Diagnostic> {
         match type_id {

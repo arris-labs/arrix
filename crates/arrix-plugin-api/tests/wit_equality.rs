@@ -55,6 +55,16 @@ impl<T: Mirror> Mirror for Vec<T> {
     }
 }
 
+impl<T: Mirror> Mirror for Option<T> {
+    type Wit = Option<T::Wit>;
+    fn to_wit(&self) -> Self::Wit {
+        self.as_ref().map(T::to_wit)
+    }
+    fn from_wit(w: Self::Wit) -> Self {
+        w.map(T::from_wit)
+    }
+}
+
 fn round_trip<T: Mirror + PartialEq + std::fmt::Debug>(v: &T) {
     assert_eq!(&T::from_wit(v.to_wit()), v);
 }
@@ -481,12 +491,14 @@ impl Mirror for api::ParamSpec {
             title,
             kind,
             default,
+            shown_when,
         } = self;
         wf::ParamSpec {
             name: name.clone(),
             title: title.clone(),
             kind: kind.to_wit(),
             default: default.clone(),
+            shown_when: shown_when.to_wit(),
         }
     }
     fn from_wit(w: wf::ParamSpec) -> Self {
@@ -495,13 +507,92 @@ impl Mirror for api::ParamSpec {
             title,
             kind,
             default,
+            shown_when,
         } = w;
         api::ParamSpec {
             name,
             title,
             kind: QuantityKind::from_wit(kind),
             default,
+            shown_when: Option::from_wit(shown_when),
         }
+    }
+}
+
+impl Mirror for api::ShownWhen {
+    type Wit = wf::ShownWhen;
+    fn to_wit(&self) -> wf::ShownWhen {
+        let api::ShownWhen { choice, values } = self;
+        wf::ShownWhen {
+            choice: choice.clone(),
+            values: values.clone(),
+        }
+    }
+    fn from_wit(w: wf::ShownWhen) -> Self {
+        let wf::ShownWhen { choice, values } = w;
+        api::ShownWhen { choice, values }
+    }
+}
+
+impl Mirror for api::ChoiceOption {
+    type Wit = wf::ChoiceOption;
+    fn to_wit(&self) -> wf::ChoiceOption {
+        let api::ChoiceOption { name, title } = self;
+        wf::ChoiceOption {
+            name: name.clone(),
+            title: title.clone(),
+        }
+    }
+    fn from_wit(w: wf::ChoiceOption) -> Self {
+        let wf::ChoiceOption { name, title } = w;
+        api::ChoiceOption { name, title }
+    }
+}
+
+impl Mirror for api::ChoiceSpec {
+    type Wit = wf::ChoiceSpec;
+    fn to_wit(&self) -> wf::ChoiceSpec {
+        let api::ChoiceSpec {
+            name,
+            title,
+            options,
+            default,
+        } = self;
+        wf::ChoiceSpec {
+            name: name.clone(),
+            title: title.clone(),
+            options: options.to_wit(),
+            default: default.clone(),
+        }
+    }
+    fn from_wit(w: wf::ChoiceSpec) -> Self {
+        let wf::ChoiceSpec {
+            name,
+            title,
+            options,
+            default,
+        } = w;
+        api::ChoiceSpec {
+            name,
+            title,
+            options: Vec::from_wit(options),
+            default,
+        }
+    }
+}
+
+impl Mirror for api::ChoiceValue {
+    type Wit = wf::ChoiceValue;
+    fn to_wit(&self) -> wf::ChoiceValue {
+        let api::ChoiceValue { name, value } = self;
+        wf::ChoiceValue {
+            name: name.clone(),
+            value: value.clone(),
+        }
+    }
+    fn from_wit(w: wf::ChoiceValue) -> Self {
+        let wf::ChoiceValue { name, value } = w;
+        api::ChoiceValue { name, value }
     }
 }
 
@@ -539,12 +630,14 @@ impl Mirror for api::InputSpec {
             title,
             kind,
             list,
+            shown_when,
         } = self;
         wf::InputSpec {
             name: name.clone(),
             title: title.clone(),
             kind: kind.to_wit(),
             list: *list,
+            shown_when: shown_when.to_wit(),
         }
     }
     fn from_wit(w: wf::InputSpec) -> Self {
@@ -553,12 +646,14 @@ impl Mirror for api::InputSpec {
             title,
             kind,
             list,
+            shown_when,
         } = w;
         api::InputSpec {
             name,
             title,
             kind: api::InputKind::from_wit(kind),
             list,
+            shown_when: Option::from_wit(shown_when),
         }
     }
 }
@@ -615,6 +710,7 @@ impl Mirror for api::FeatureTypeSpec {
             version,
             title,
             params,
+            choices,
             inputs,
             outputs,
         } = self;
@@ -623,6 +719,7 @@ impl Mirror for api::FeatureTypeSpec {
             version: *version,
             title: title.clone(),
             params: params.to_wit(),
+            choices: choices.to_wit(),
             inputs: inputs.to_wit(),
             outputs: outputs.to_wit(),
         }
@@ -633,6 +730,7 @@ impl Mirror for api::FeatureTypeSpec {
             version,
             title,
             params,
+            choices,
             inputs,
             outputs,
         } = w;
@@ -641,6 +739,7 @@ impl Mirror for api::FeatureTypeSpec {
             version,
             title,
             params: Vec::from_wit(params),
+            choices: Vec::from_wit(choices),
             inputs: Vec::from_wit(inputs),
             outputs: Vec::from_wit(outputs),
         }
@@ -878,12 +977,32 @@ fn offset_type() -> api::FeatureTypeSpec {
             title: "Distance".into(),
             kind: QuantityKind::Length,
             default: "10 mm".into(),
+            shown_when: Some(api::ShownWhen {
+                choice: "side".into(),
+                values: vec!["above".into()],
+            }),
+        }],
+        choices: vec![api::ChoiceSpec {
+            name: "side".into(),
+            title: "Side".into(),
+            options: vec![
+                api::ChoiceOption {
+                    name: "above".into(),
+                    title: "Above".into(),
+                },
+                api::ChoiceOption {
+                    name: "below".into(),
+                    title: "Below".into(),
+                },
+            ],
+            default: Some("above".into()),
         }],
         inputs: vec![api::InputSpec {
             name: "plane".into(),
             title: "Plane".into(),
             kind: api::InputKind::Plane,
             list: false,
+            shown_when: None,
         }],
         outputs: vec![api::SlotSpec {
             name: SlotName::new("plane").unwrap(),
@@ -903,6 +1022,7 @@ impl api::Feature for Offset {
         _kernel: &mut dyn api::Kernel,
         type_id: &str,
         params: &[api::ParamValue],
+        choices: &[api::ChoiceValue],
         inputs: &[api::ResolvedInput],
     ) -> Result<api::FeatureOutput, Diagnostic> {
         let refuse = |what: &str| {
@@ -911,6 +1031,9 @@ impl api::Feature for Offset {
         if type_id != "test.offset" {
             return refuse("unknown type");
         }
+        let below = choices
+            .iter()
+            .any(|c| c.name == "side" && c.value == "below");
         let (Some(distance), Some(api::InputValue::Plane(plane))) = (
             params.iter().find(|p| p.name == "distance"),
             inputs.iter().find(|i| i.name == "plane").map(|i| &i.value),
@@ -920,7 +1043,11 @@ impl api::Feature for Offset {
         Ok(api::FeatureOutput {
             slots: vec![api::SlotOutput {
                 name: SlotName::new("plane").unwrap(),
-                value: api::OutputValue::Plane(plane.offset(distance.value.si)),
+                value: api::OutputValue::Plane(plane.offset(if below {
+                    -distance.value.si
+                } else {
+                    distance.value.si
+                })),
             }],
             tool: None,
         })
@@ -939,6 +1066,7 @@ impl wf::Guest for Exported {
     fn evaluate(
         type_id: String,
         params: Vec<wf::ParamValue>,
+        choices: Vec<wf::ChoiceValue>,
         inputs: Vec<wf::ResolvedInput>,
     ) -> Result<wf::FeatureOutput, wt::Diagnostic> {
         let mut kernel = WitKernel::default();
@@ -951,6 +1079,7 @@ impl wf::Guest for Exported {
             &mut kernel,
             &type_id,
             &Vec::from_wit(params),
+            &Vec::from_wit(choices),
             &inputs,
         );
         match out {
@@ -974,14 +1103,15 @@ impl api::Feature for Imported {
         _kernel: &mut dyn api::Kernel,
         type_id: &str,
         params: &[api::ParamValue],
+        choices: &[api::ChoiceValue],
         inputs: &[api::ResolvedInput],
     ) -> Result<api::FeatureOutput, Diagnostic> {
         // The host's handles would enter the plugin's table here; natively
         // no body exists to hand over, so this arm is held at compile time.
         let mut bodies = WitKernel::default();
         let inputs = inputs.iter().map(|i| input_to_wit(i, &mut bodies));
-        let (params, inputs) = (params.to_vec().to_wit(), inputs.collect());
-        <Exported as wf::Guest>::evaluate(type_id.to_owned(), params, inputs)
+        let (params, choices) = (params.to_vec().to_wit(), choices.to_vec().to_wit());
+        <Exported as wf::Guest>::evaluate(type_id.to_owned(), params, choices, inputs.collect())
             .map(output_from_wit)
             .map_err(Diagnostic::from_wit)
     }
@@ -1106,6 +1236,10 @@ fn every_type_round_trips_through_the_world() {
             title: "In".into(),
             kind,
             list: kind == api::InputKind::Edge,
+            shown_when: (kind == api::InputKind::Body).then(|| api::ShownWhen {
+                choice: "mode".into(),
+                values: vec!["join".into(), "cut".into()],
+            }),
         });
     }
     round_trip(&Axis {
@@ -1142,10 +1276,16 @@ fn a_feature_behaves_the_same_through_the_world() {
         value: api::InputValue::Plane(tilted()),
     }];
     let mut kernel = WitKernel::default();
-    for type_id in ["test.offset", "test.other"] {
-        let direct = Offset.evaluate(&mut kernel, type_id, &params, &inputs);
-        let through = Imported.evaluate(&mut kernel, type_id, &params, &inputs);
-        assert_eq!(through, direct, "{type_id}");
+    for side in ["above", "below"] {
+        let choices = [api::ChoiceValue {
+            name: "side".into(),
+            value: side.into(),
+        }];
+        for type_id in ["test.offset", "test.other"] {
+            let direct = Offset.evaluate(&mut kernel, type_id, &params, &choices, &inputs);
+            let through = Imported.evaluate(&mut kernel, type_id, &params, &choices, &inputs);
+            assert_eq!(through, direct, "{type_id} {side}");
+        }
     }
 }
 
@@ -1205,13 +1345,17 @@ const COVERED: &[(&str, &[&str], &[&str])] = &[
     (
         "feature",
         &[
+            "shown-when",
             "param-spec",
+            "choice-option",
+            "choice-spec",
             "input-kind",
             "input-spec",
             "slot-kind",
             "slot-spec",
             "feature-type-spec",
             "param-value",
+            "choice-value",
             "input-value",
             "resolved-input",
             "tool-op",
@@ -1257,11 +1401,11 @@ fn the_world_is_exactly_what_is_covered() {
     // `types` only through the `use`s.
     assert_eq!(
         names(&world.imports),
-        BTreeSet::from(["arrix:plugin/kernel@0.4.0", "arrix:plugin/types@0.4.0"].map(String::from))
+        BTreeSet::from(["arrix:plugin/kernel@0.5.0", "arrix:plugin/types@0.5.0"].map(String::from))
     );
     assert_eq!(
         names(&world.exports),
-        BTreeSet::from(["arrix:plugin/feature@0.4.0".to_owned()])
+        BTreeSet::from(["arrix:plugin/feature@0.5.0".to_owned()])
     );
 
     let mut found = BTreeSet::new();

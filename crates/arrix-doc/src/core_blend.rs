@@ -55,6 +55,7 @@ impl CoreBlend {
                     title: size_title.into(),
                     kind: QuantityKind::Length,
                     default: "1 mm".into(),
+                    shown_when: None,
                 }],
                 inputs: vec![
                     InputSpec {
@@ -62,12 +63,14 @@ impl CoreBlend {
                         title: "Body to blend".into(),
                         kind: InputKind::Body,
                         list: false,
+                        shown_when: None,
                     },
                     InputSpec {
                         name: "edges".into(),
                         title: "Edges".into(),
                         kind: InputKind::Edge,
                         list: true,
+                        shown_when: None,
                     },
                 ],
                 outputs: vec![SlotSpec {
@@ -75,6 +78,7 @@ impl CoreBlend {
                     kind: SlotKind::Body,
                     modifies: Some("target".into()),
                 }],
+                choices: vec![],
             },
         }
     }
@@ -99,12 +103,6 @@ impl FeatureType for CoreBlend {
         args: &FeatureArgs,
     ) -> Result<TypeOutput, Diagnostic> {
         let noun = self.noun();
-        if let Some(other) = args.choices.keys().next() {
-            return Err(error(
-                "feature.unknown-choice",
-                format!("a {noun} has no choice `{other}`"),
-            ));
-        }
         let Some(InputValue::Body(target)) = args.input("target").map(|i| &i.value) else {
             return Err(error(
                 &format!("{noun}.no-target"),

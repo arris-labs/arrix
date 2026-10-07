@@ -311,9 +311,9 @@ fn a_revolve_needs_its_region_axis_and_a_sensible_angle_and_mode() {
         (clear("axis"), "revolve.no-axis"),
         (param("0 deg"), "revolve.angle"),
         (param("400 deg"), "revolve.angle"),
-        (choice("mode", "spin"), "revolve.mode"),
+        (choice("mode", "spin"), "feature.choice"),
         (choice("mode", "join"), "revolve.no-target"),
-        (choice("depth", "1"), "feature.unknown-choice"),
+        (choice("depth", "1"), "feature.unknown-field"),
         (target, "revolve.stray-target"),
         (wrong_axis, "input.wrong-kind"),
     ] {

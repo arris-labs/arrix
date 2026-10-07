@@ -12,6 +12,7 @@ fn ty(id: &str, title: &str) -> FeatureTypeSpec {
         params: Vec::new(),
         inputs: Vec::new(),
         outputs: Vec::new(),
+        choices: vec![],
     }
 }
 

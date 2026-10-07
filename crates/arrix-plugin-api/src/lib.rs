@@ -7,13 +7,15 @@
 //! one of `arrix-core`'s, it is re-exported rather than mirrored, so a plugin
 //! names it through this crate and the host passes it without conversion.
 //!
-//! Built so far (0.4.0): the `types`, `kernel` (extrude, revolve, fuse,
+//! Built so far (0.5.0): the `types`, `kernel` (extrude, revolve, fuse,
 //! cut, common, fillet, chamfer, copy, mirror, names, face frames, mass
 //! properties) and `feature` interfaces; 0.2 added region references and
 //! region inputs (ADR-0006), 0.3 body inputs, slots that modify them, and
 //! `fuse` and `cut` (ADR-0007), 0.4 list inputs and the `edge`, `point`,
 //! `axis` and `tool` kinds (ADR-0012), the tool a feature keeps
-//! (ADR-0013), and the part-feature operations of the kernel.
+//! (ADR-0013), and the part-feature operations of the kernel, 0.5 choices
+//! a feature type declares, fields shown only under a choice, and the
+//! choices an `evaluate` receives (ADR-0018).
 
 mod feature;
 mod kernel;
@@ -26,8 +28,9 @@ pub use arrix_core::{
     Severity, SketchEntityId, SlotName, TopoKind, Unit,
 };
 pub use feature::{
-    Feature, FeatureOutput, FeatureTypeSpec, InputKind, InputSpec, InputValue, OutputValue,
-    ParamSpec, ParamValue, Point, ResolvedInput, SlotKind, SlotOutput, SlotSpec, Tool, ToolOp,
+    ChoiceOption, ChoiceSpec, ChoiceValue, Feature, FeatureOutput, FeatureTypeSpec, InputKind,
+    InputSpec, InputValue, OutputValue, ParamSpec, ParamValue, Point, ResolvedInput, ShownWhen,
+    SlotKind, SlotOutput, SlotSpec, Tool, ToolOp,
 };
 pub use kernel::{Body, Kernel, MassProperties};
 

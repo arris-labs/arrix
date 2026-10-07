@@ -336,6 +336,7 @@ fn with_pad() -> Registry {
     let mut r = Registry::with_core_types();
     r.register(std::sync::Arc::new(Pad(
         arrix_plugin_api::FeatureTypeSpec {
+            choices: vec![],
             id: "test.pad".into(),
             version: 1,
             title: "Pad".into(),
@@ -344,12 +345,14 @@ fn with_pad() -> Registry {
                 title: "Height".into(),
                 kind: QuantityKind::Length,
                 default: "5 mm".into(),
+                shown_when: None,
             }],
             inputs: vec![InputSpec {
                 name: "region".into(),
                 title: "Region".into(),
                 kind: InputKind::Region,
                 list: false,
+                shown_when: None,
             }],
             outputs: vec![SlotSpec {
                 name: SlotName::new("body").unwrap(),

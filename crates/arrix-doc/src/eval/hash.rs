@@ -141,7 +141,9 @@ impl InputHash {
             type_version: ty.spec().version,
             plugin_version: ty.plugin_version(),
             params,
-            choices: &args.choices,
+            // As written: a default the record leaves out is the type's
+            // version's, not a change of the record's.
+            choices: &record.choices,
             inputs,
             sketch: args.sketch.as_ref().map(|s| &s.sketch),
         })

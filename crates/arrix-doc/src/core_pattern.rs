@@ -123,6 +123,7 @@ impl CorePattern {
             title: "Count".into(),
             kind: QuantityKind::Count,
             default: "3".into(),
+            shown_when: None,
         }];
         params.push(match pattern {
             Pattern::Linear => ParamSpec {
@@ -130,12 +131,14 @@ impl CorePattern {
                 title: "Spacing".into(),
                 kind: QuantityKind::Length,
                 default: "10 mm".into(),
+                shown_when: None,
             },
             Pattern::Circular => ParamSpec {
                 name: "angle".into(),
                 title: "Angle".into(),
                 kind: QuantityKind::Angle,
                 default: "360 deg".into(),
+                shown_when: None,
             },
         });
         let input = |name: &str, title: &str, kind, list| InputSpec {
@@ -143,6 +146,7 @@ impl CorePattern {
             title: title.into(),
             kind,
             list,
+            shown_when: None,
         };
         Self {
             pattern,
@@ -161,6 +165,7 @@ impl CorePattern {
                     kind: SlotKind::Body,
                     modifies: Some("target".into()),
                 }],
+                choices: vec![],
             },
         }
     }
@@ -234,12 +239,6 @@ impl FeatureType for CorePattern {
         kernel: &mut dyn Kernel,
         args: &FeatureArgs,
     ) -> Result<TypeOutput, Diagnostic> {
-        if let Some(other) = args.choices.keys().next() {
-            return Err(error(
-                "feature.unknown-choice",
-                format!("a pattern has no choice `{other}`"),
-            ));
-        }
         let Some(InputValue::Body(target)) = args.input("target").map(|i| &i.value) else {
             return Err(error(
                 "pattern.no-target",
