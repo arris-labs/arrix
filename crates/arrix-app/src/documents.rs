@@ -142,6 +142,9 @@ pub struct OpenDocument {
     /// The sketch being edited, while there is one: session state, one
     /// sketch per tab.
     pub sketch: Option<SketchMode>,
+    /// The form open in the property card, while there is one: a create
+    /// form's draft. Session state, one per tab.
+    pub form: Option<crate::form::Form>,
     /// Whether the camera has been fitted to the bodies: it is once, on
     /// the first mesh, and never again, so a later edit does not take the
     /// view away from the user.
@@ -205,6 +208,7 @@ impl OpenDocument {
             replica: Replica::default(),
             view: ViewState::default(),
             sketch: None,
+            form: None,
             framed: false,
             mesh: MeshProgress::default(),
             finished_at: None,

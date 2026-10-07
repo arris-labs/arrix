@@ -83,6 +83,8 @@ the command registry and the setting specs; a test holds it fresh. Do not edit.
 | `core.sketch.constrain.x-axis` | On X axis |  | sketch | core.sketch / Place |
 | `core.sketch.constrain.y-axis` | On Y axis |  | sketch | core.sketch / Place |
 | `core.sketch.tool.cancel` | End the drawing | escape | sketch-tool |  |
+| `core.form.ok` | Create the feature | enter | form |  |
+| `core.form.cancel` | Cancel the form | escape | form |  |
 | `core.ribbon.sketch` | Show the Sketch tab |  |  |  |
 | `core.ribbon.part` | Show the Part tab |  |  |  |
 | `core.ribbon.gears` | Show the Gears tab |  |  |  |
@@ -97,6 +99,7 @@ the command registry and the setting specs; a test holds it fresh. Do not edit.
 
 - `part`: the document is shown and no sketch is being edited
 - `sketch`: a sketch is being edited
+- `form`: a property form is open and no text field has focus; its keys win over `sketch-tool`'s
 - `sketch-tool`: a sketch is being edited with a drawing tool; its keys win over `sketch`'s
 - `palette`: the command palette is open
 - `text`: a text field has focus; only bindings that name it fire

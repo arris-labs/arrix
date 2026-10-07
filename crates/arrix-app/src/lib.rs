@@ -8,6 +8,7 @@ mod debug;
 #[cfg(not(target_arch = "wasm32"))]
 mod document_files;
 mod documents;
+mod form;
 mod keys;
 mod palette;
 mod sketch_constrain;
@@ -24,8 +25,8 @@ pub use debug::DebugState;
 
 use arrix_config::{
     CONFIG_RELOAD, CommandRegistry, Config, ConfigDiagnostic, ConfigSource, DOCUMENT_CLOSE,
-    DOCUMENT_NEW, DOCUMENT_NEXT, DOCUMENT_PREVIOUS, EDIT_REDO, EDIT_UNDO, Keymap, MemorySource,
-    PALETTE_CLOSE, PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN,
+    DOCUMENT_NEW, DOCUMENT_NEXT, DOCUMENT_PREVIOUS, EDIT_REDO, EDIT_UNDO, FORM_CANCEL, FORM_OK,
+    Keymap, MemorySource, PALETTE_CLOSE, PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN,
     PANEL_PROPERTIES_TOGGLE, PANEL_TREE_TOGGLE, ParamDefaults, SELECTION_CLEAR, SKETCH_ARC,
     SKETCH_CIRCLE, SKETCH_CONSTRUCTION, SKETCH_CREATE, SKETCH_DELETE, SKETCH_DIMENSION,
     SKETCH_EDIT, SKETCH_EXTEND, SKETCH_FINISH, SKETCH_LINE, SKETCH_MIRROR, SKETCH_OFFSET,
@@ -59,6 +60,9 @@ struct Session {
     /// one: nothing fails silently.
     notice: Option<String>,
     gestures: Gestures,
+    /// How many forms this session has opened: names each one's text
+    /// buffers.
+    forms_opened: u64,
     /// When, on egui's clock, a dwell under way completes: a frame is
     /// asked for then, since a pointer at rest sends nothing.
     wake_at: Option<f64>,
@@ -183,6 +187,7 @@ impl ArrixApp {
                 hovered_command: None,
                 notice: None,
                 gestures: Gestures::default(),
+                forms_opened: 0,
                 wake_at: None,
             },
             drawn: None,
@@ -363,6 +368,7 @@ impl ArrixApp {
             document_open: !self.documents.is_empty(),
             sketching: mode.is_some(),
             tool: mode.map(|m| m.drawing.tool.command()),
+            form_open: self.form_open(),
             sketch_selected: self.selected_sketch().is_some(),
             sketch_selection: self
                 .active_document()
@@ -514,7 +520,7 @@ impl ArrixApp {
                     .collect(),
             },
             cards: self.cards(),
-            form: None,
+            form: self.form_view(),
             status: StatusView {
                 hint: self.hint(),
                 generation: self
@@ -544,14 +550,14 @@ impl ArrixApp {
             .map_or(self.session.cards, |d| d.cards);
         CardsView {
             // `auto` shows the tree once the document has a part, and the
-            // property card never: no feature is being edited yet.
+            // property card while a form is open.
             tree: shown(
                 toggles.tree,
                 "ui.panel.tree",
                 self.active_document()
                     .is_some_and(|d| !d.replica.document().parts().is_empty()),
             ),
-            properties: shown(toggles.properties, "ui.panel.properties", false),
+            properties: shown(toggles.properties, "ui.panel.properties", self.form_open()),
         }
     }
 
@@ -611,6 +617,7 @@ impl ArrixApp {
                 | UiIntent::SketchDragStarted { .. }
                 | UiIntent::SketchDragMoved { .. }
                 | UiIntent::DimensionEdited { .. }
+                | UiIntent::FieldEdited { .. }
         );
         if gesture {
             self.open_gesture();
@@ -672,15 +679,14 @@ impl ArrixApp {
                 }
             }
             UiIntent::Hovered { name } => self.view_mut().hover = name,
-            // The property card's form: no form is open yet (step 5).
-            UiIntent::FieldEdited { .. }
+            intent @ (UiIntent::FieldEdited { .. }
             | UiIntent::FieldCommitted { .. }
             | UiIntent::NameCommitted { .. }
             | UiIntent::ChoiceSelected { .. }
             | UiIntent::ReferenceFieldActivated { .. }
             | UiIntent::ReferenceRemoved { .. }
             | UiIntent::FormOk
-            | UiIntent::FormCancelled => {}
+            | UiIntent::FormCancelled) => self.form_intent(intent),
         }
     }
 
@@ -742,7 +748,13 @@ impl ArrixApp {
             EDIT_UNDO => self.edit(OpenDocument::undo),
             EDIT_REDO => self.edit(OpenDocument::redo),
             CONFIG_RELOAD => self.reload(),
+            FORM_OK => self.form_ok(),
+            FORM_CANCEL => self.form_cancel(),
             other => {
+                if let Some(ty) = other.strip_suffix(".create") {
+                    self.open_create_form(ty);
+                    return;
+                }
                 if let Some(kind) = sketch_constrain::Kind::of_command(other) {
                     self.constrain(kind);
                 }
@@ -836,6 +848,9 @@ impl ArrixApp {
             .is_some_and(|m| m.field.is_some());
         if ctx.text_edit_focused() || field_open {
             return vec!["text"];
+        }
+        if self.form_open() {
+            contexts.push("form");
         }
         match self.context().tool {
             Some(tool) if tool != SKETCH_SELECT => contexts.extend(["sketch-tool", "sketch"]),

@@ -306,10 +306,15 @@ fn text_field(
 ) -> Option<String> {
     let buffer_id = Id::new(("arrix.form.buffer", &form.id, name));
     let mut buffer: Buffer = ui.data_mut(|d| d.get_temp(buffer_id)).unwrap_or_default();
-    if buffer.seen != shown || buffer.text.is_empty() && !shown.is_empty() {
+    if buffer.seen != shown {
+        // The view moved. If it moved to what was typed (the draft took the
+        // edit), the box is as it was; if it moved elsewhere (an undo with
+        // the form open), the box follows it.
+        if buffer.text != shown {
+            buffer.text = shown.to_owned();
+            buffer.dirty = false;
+        }
         buffer.seen = shown.to_owned();
-        buffer.text = shown.to_owned();
-        buffer.dirty = false;
     }
     let edit = ui.add(
         egui::TextEdit::singleline(&mut buffer.text)

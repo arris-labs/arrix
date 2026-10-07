@@ -87,6 +87,9 @@ pub const CONSTRAIN_KINDS: &[(&str, &str, &str, &[&str])] = &[
 /// Escape while a drawing tool is active: ends what it is drawing, or with
 /// nothing pending returns to the select tool.
 pub const SKETCH_TOOL_CANCEL: &str = "core.sketch.tool.cancel";
+/// A create form's OK and Cancel, bound in the `form` context.
+pub const FORM_OK: &str = "core.form.ok";
+pub const FORM_CANCEL: &str = "core.form.cancel";
 /// A new, empty document in a new tab.
 pub const DOCUMENT_NEW: &str = "core.document.new";
 /// Undoing and redoing the author's last change to the shown document.
@@ -284,6 +287,16 @@ impl CommandRegistry {
             listed: false,
             ..document_command(SKETCH_TOOL_CANCEL, "End the drawing", &["escape"])
         });
+        for (id, title, keys) in [
+            (FORM_OK, "Create the feature", &["enter"][..]),
+            (FORM_CANCEL, "Cancel the form", &["escape"][..]),
+        ] {
+            commands.push(CommandSpec {
+                when: Some("form".into()),
+                listed: false,
+                ..document_command(id, title, keys)
+            });
+        }
         // One command per tab, so the palette and a key can open it.
         for tab in &tabs {
             commands.push(command(

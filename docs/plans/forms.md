@@ -124,7 +124,7 @@ None new. Previews use the operations the features already call and
   `ReferenceFieldActivated`, `ReferenceRemoved`, `FormOk`,
   `FormCancelled`. A kittest test renders a form of every field kind
   headless; `arrix-ui` names no doc type (the layer lint).
-- [ ] **[2]** Step 5: the create form. `<type>.create` opens the property
+- [x] **[2]** Step 5: the create form. `<type>.create` opens the property
   card with a draft from the spec and `ArrixApp::effective_params`;
   a field commit is checked by `Expr::quantity` against the replica's
   parameters and the spec's kind, a refusal keeping the text with the

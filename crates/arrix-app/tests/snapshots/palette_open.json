@@ -169,6 +169,16 @@
         "command": "core.sketch.tool.cancel",
         "key": "escape",
         "when": "sketch-tool"
+      },
+      {
+        "command": "core.form.ok",
+        "key": "enter",
+        "when": "form"
+      },
+      {
+        "command": "core.form.cancel",
+        "key": "escape",
+        "when": "form"
       }
     ],
     "layout": {

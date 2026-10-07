@@ -7,10 +7,10 @@ use std::sync::Arc;
 
 use crate::sketch_constrain::{Kind, Shape};
 use arrix_config::{
-    CommandRegistry, CommandSpec, SKETCH_ARC, SKETCH_CIRCLE, SKETCH_CONSTRUCTION, SKETCH_CREATE,
-    SKETCH_DELETE, SKETCH_DIMENSION, SKETCH_EDIT, SKETCH_EXTEND, SKETCH_FINISH, SKETCH_LINE,
-    SKETCH_MIRROR, SKETCH_OFFSET, SKETCH_RECTANGLE, SKETCH_SELECT, SKETCH_TOOL_CANCEL, SKETCH_TRIM,
-    Settings,
+    CommandRegistry, CommandSpec, FORM_CANCEL, FORM_OK, SKETCH_ARC, SKETCH_CIRCLE,
+    SKETCH_CONSTRUCTION, SKETCH_CREATE, SKETCH_DELETE, SKETCH_DIMENSION, SKETCH_EDIT,
+    SKETCH_EXTEND, SKETCH_FINISH, SKETCH_LINE, SKETCH_MIRROR, SKETCH_OFFSET, SKETCH_RECTANGLE,
+    SKETCH_SELECT, SKETCH_TOOL_CANCEL, SKETCH_TRIM, Settings,
 };
 use arrix_doc::Registry;
 use arrix_plugin_api::FeatureTypeSpec;
@@ -50,6 +50,8 @@ pub struct Context {
     pub tool: Option<&'static str>,
     /// The tree's selection is a sketch that can be opened.
     pub sketch_selected: bool,
+    /// A form is open in the property card.
+    pub form_open: bool,
     /// Something is selected in the open sketch.
     pub sketch_selection: bool,
     /// What the open sketch's selection holds, counted.
@@ -63,6 +65,7 @@ pub fn needs(command: &CommandSpec, cx: Context) -> Option<&'static str> {
         return Some("needs an open document");
     }
     match command.id.as_str() {
+        FORM_OK | FORM_CANCEL if !cx.form_open => Some("needs an open form"),
         SKETCH_FINISH if !cx.sketching => Some("needs sketch mode"),
         SKETCH_EDIT if cx.sketching => Some("finish the sketch first"),
         SKETCH_EDIT if !cx.sketch_selected => Some("needs a sketch selected in the tree"),

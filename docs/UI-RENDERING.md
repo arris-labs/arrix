@@ -49,7 +49,7 @@ over the viewport that exist only while they show: `ui.panel.tree` and
 `ui.panel.properties` are `auto`, `shown` or `hidden`, and the
 `core.panel.*.toggle` commands flip a card for the session over the setting.
 `auto` is the tree once the document has a part, and the property card while a
-feature is edited. The status line's left side is help text: the title, keys
+form is open. The status line's left side is help text: the title, keys
 and what it needs of the ribbon button or palette row under the pointer,
 else what to do next.
 
@@ -72,10 +72,11 @@ else what to do next.
   replaces its command's defaults and an empty `key = []` unbinds it. A
   bad entry is one diagnostic with file and line and is left out, so the
   rest still applies. `when` is one context name: `part`, `sketch`,
-  `sketch-tool`, `palette` or `text`; a binding naming an active context
+  `form`, `sketch-tool`, `palette` or `text`; a binding naming an active context
   beats a global one, of two active contexts the more specific wins
-  (`text`, then `sketch-tool` over `sketch`: Escape ends a drawing before
-  it finishes the sketch), and while a text field has focus only `text`
+  (`text`, then `form`, then `sketch-tool` over `sketch`: Escape cancels
+  an open form before it ends a drawing, and ends a drawing before it
+  finishes the sketch), and while a text field has focus only `text`
   bindings fire. `arrix-app`
   turns each egui key press (not its repeats) into a chord, resolves it,
   and runs the command the way a ribbon button does. `debug_state()`
@@ -249,6 +250,29 @@ A gizmo's drag is a preview until release, and the release is one command
 built by the plugin from the handle's final value. Validation runs on the
 form's own rules while typing and in the plugin on commit; a rejected
 commit leaves the field showing the error, not the old value.
+
+**Forms as built** (ADR-0018). A form is derived from the feature type's
+`FeatureTypeSpec` and nothing else, so a plugin's is a built-in's: the
+spec's choices (a combo each; one with no default may be cleared), then its
+inputs (a reference field each), then its parameters (an expression, with
+the unit it is measured in when it names none), each in the spec's order and
+each only while its `shown_when` choice holds one of the listed values.
+`<type>.create` (every type but `core.sketch`, which is made and edited in
+sketch mode) opens a **create form** in the property card: a draft on the
+document's tab, session state, seeded with the type's spec and the user's
+parameter defaults (`ArrixApp::effective_params`) and named with the first
+free `<Title> <n>` of the part. A field commit is checked by the form's own
+rules, `Expr::quantity` of the field's kind against the document's
+parameters as the replica last heard them; a refusal keeps the text in its
+field with the expression's code and reason beneath it, and issues nothing.
+OK is one `AddFeature` at the end of the part (a `Group` with `AddPart` in a
+document with no part, as `core.sketch.create` places a sketch), selects the
+new feature in the tree and closes the card's form; OK with a refused field
+open says why in the status line and adds nothing. Cancel and Escape drop
+the draft and issue none; Enter is OK while no field has focus
+(`core.form.ok` and `core.form.cancel`, bound in the `form` context). A
+form does not open in sketch mode (the status line says to finish the
+sketch). Reference fields mark the active one and take no pick yet.
 
 Tier 0 drawing its own egui is an escape hatch decided by ADR when a real
 plugin needs it, not before.

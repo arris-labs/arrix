@@ -376,6 +376,28 @@ impl ArrixApp {
         }
     }
 
+    /// `text` as an expression of `kind`, evaluated against the active
+    /// document's parameters, as the replica last heard their values.
+    pub(crate) fn evaluate_text(
+        &self,
+        text: &str,
+        kind: QuantityKind,
+    ) -> Result<(Expr, arrix_core::Quantity), ExprError> {
+        let Some(document) = self.documents.get(self.active) else {
+            let expr = Expr::parse(text)?;
+            return expr.quantity(kind, &|_| None, &|_| None).map(|q| (expr, q));
+        };
+        let params = document.replica.document().params();
+        let finished = document.replica.finished().map(|(_, v)| v);
+        let kinds = |name: &str| params.values().find(|p| p.name == name).map(|p| p.kind);
+        let values = |name: &str| {
+            let (pid, _) = params.iter().find(|(_, p)| p.name == name)?;
+            finished?.get(pid)?.as_ref().ok().map(|q| q.si)
+        };
+        let expr = Expr::parse(text)?;
+        expr.quantity(kind, &kinds, &values).map(|q| (expr, q))
+    }
+
     /// `text` as an expression of `kind`: its value in SI, and the text to
     /// keep with the record, none when it names no parameter. A parameter
     /// resolves from the replica's last finished values.
@@ -384,20 +406,11 @@ impl ArrixApp {
         text: &str,
         kind: QuantityKind,
     ) -> Result<(f64, Option<String>), String> {
-        let document = self
-            .documents
-            .get(self.active)
-            .ok_or_else(|| "No document is open.".to_owned())?;
-        let params = document.replica.document().params();
-        let finished = document.replica.finished().map(|(_, v)| v);
-        let kinds = |name: &str| params.values().find(|p| p.name == name).map(|p| p.kind);
-        let values = |name: &str| {
-            let (pid, _) = params.iter().find(|(_, p)| p.name == name)?;
-            finished?.get(pid)?.as_ref().ok().map(|q| q.si)
-        };
-        let expr = Expr::parse(text).map_err(|e| e.to_string())?;
-        let quantity = expr
-            .quantity(kind, &kinds, &values)
+        if self.documents.get(self.active).is_none() {
+            return Err("No document is open.".to_owned());
+        }
+        let (expr, quantity) = self
+            .evaluate_text(text, kind)
             .map_err(|e: ExprError| e.to_string())?;
         let keep = (!expr.names().is_empty()).then(|| text.trim().to_owned());
         Ok((quantity.si, keep))

@@ -15,13 +15,17 @@ use crate::{CommandRegistry, ConfigDiagnostic, ConfigSource, KEYBINDINGS_TOML};
 /// The keymap contexts a binding's `when` names, with what each means. A
 /// binding with no `when` applies everywhere, except in `text`. Where two
 /// active contexts bind the same key, the more specific one wins: `text`
-/// over `sketch-tool` over `sketch`.
+/// over `form` over `sketch-tool` over `sketch`.
 pub const CONTEXTS: &[(&str, &str)] = &[
     (
         "part",
         "the document is shown and no sketch is being edited",
     ),
     ("sketch", "a sketch is being edited"),
+    (
+        "form",
+        "a property form is open and no text field has focus; its keys win over `sketch-tool`'s",
+    ),
     (
         "sketch-tool",
         "a sketch is being edited with a drawing tool; its keys win over `sketch`'s",
