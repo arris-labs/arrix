@@ -5,6 +5,9 @@ mod commands;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod config_files;
 mod debug;
+#[cfg(not(target_arch = "wasm32"))]
+mod document_files;
+mod documents;
 mod keys;
 mod palette;
 mod theme;
@@ -21,7 +24,8 @@ use arrix_plugin_api::FeatureTypeSpec;
 use arrix_ui::{
     CardsView, DocumentTabsView, ShellLayout, ShellView, StatusView, TreeView, UiIntent,
 };
-use arrix_viewport::{BodyKey, GpuMesh, OrbitCamera, Renderer, Scene};
+use arrix_viewport::{BodyKey, Renderer};
+use documents::{OpenDocument, ViewState};
 use palette::Palette;
 
 /// Client-side state that is not in the document (SEED.md §6.1 rule 4).
@@ -59,16 +63,15 @@ pub struct ArrixApp {
     last_poll: f64,
     /// What the last frame drew, for [`ArrixApp::debug_state`].
     drawn: Option<Drawn>,
-    /// The 3D view; `None` without a wgpu render state (a renderer other
+    /// The renderer; `None` without a wgpu render state (a renderer other
     /// than wgpu), where the viewport stays an empty panel.
-    view3d: Option<View3d>,
-}
-
-/// The renderer, and what it draws: the bodies and the camera.
-struct View3d {
-    renderer: Renderer,
-    scene: Scene<GpuMesh>,
-    camera: OrbitCamera,
+    renderer: Option<Renderer>,
+    /// What the viewport shows while no document is open.
+    idle_view: ViewState,
+    /// The open documents, in the order they were opened, and which one is
+    /// shown (an index; session state, no command).
+    documents: Vec<OpenDocument>,
+    active: usize,
 }
 
 struct Drawn {
@@ -137,21 +140,78 @@ impl ArrixApp {
                 hovered_command: None,
             },
             drawn: None,
-            view3d: cc.wgpu_render_state.as_ref().map(|rs| View3d {
-                renderer: Renderer::new(&rs.device, rs.target_format),
-                scene: Scene::default(),
-                camera: OrbitCamera::default(),
-            }),
+            renderer: cc
+                .wgpu_render_state
+                .as_ref()
+                .map(|rs| Renderer::new(&rs.device, rs.target_format)),
+            idle_view: ViewState::default(),
+            documents: Vec::new(),
+            active: 0,
         }
     }
 
-    /// Shows `mesh` as `key`'s body, as a `Meshed` event will once a
-    /// document is open (plans/viewport-port step 7). Until then it is how a
-    /// test or the scratch render puts a mesh on screen. Without a wgpu
+    /// Opens the document `source` holds, named `path`, and shows it: its
+    /// session starts and the evaluation and meshes arrive over the next
+    /// frames (docs/CONCURRENCY-WASM.md §Roles and threads). Fails with the
+    /// reason when it does not open; nothing changes then.
+    pub fn open(
+        &mut self,
+        path: &str,
+        source: &impl arrix_doc::DocumentSource,
+    ) -> Result<(), String> {
+        let title = path
+            .trim_end_matches(['/', '\\'])
+            .rsplit(['/', '\\'])
+            .next()
+            .unwrap_or(path);
+        let document = OpenDocument::open(title, path, source, commands::feature_types())?;
+        self.documents.push(document);
+        self.active = self.documents.len() - 1;
+        Ok(())
+    }
+
+    /// [`Self::open`] on a document directory or an `.arrx` file.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn open_path(&mut self, path: &std::path::Path) -> Result<(), String> {
+        let source = document_files::PathSource::read(path)?;
+        self.open(&path.to_string_lossy(), &source)
+    }
+
+    fn active_document(&self) -> Option<&OpenDocument> {
+        self.documents.get(self.active)
+    }
+
+    fn context(&self) -> commands::Context {
+        commands::Context {
+            document_open: !self.documents.is_empty(),
+        }
+    }
+
+    /// Takes in what each session has said since the last frame. A document
+    /// still waiting for its meshes asks for another frame soon; one that
+    /// has said everything does not, so an idle app does not repaint.
+    fn drain_documents(&mut self, ctx: &egui::Context) {
+        const POLL: std::time::Duration = std::time::Duration::from_millis(16);
+        let mut waiting = false;
+        for document in &mut self.documents {
+            document.drain(self.renderer.as_ref());
+            waiting |= !document.settled();
+        }
+        if waiting {
+            ctx.request_repaint_after(POLL);
+        }
+    }
+
+    /// Shows `mesh` as `key`'s body in the active view, as a `Meshed` event
+    /// does: how a test puts a hand-made mesh on screen. Without a wgpu
     /// render state it does nothing.
     pub fn show_mesh(&mut self, key: &BodyKey, mesh: &RenderMesh) {
-        if let Some(v) = &mut self.view3d {
-            v.scene.set_body(v.renderer.device(), key, mesh);
+        if let Some(renderer) = &self.renderer {
+            let view = match self.documents.get_mut(self.active) {
+                Some(d) => &mut d.view,
+                None => &mut self.idle_view,
+            };
+            view.scene.set_body(renderer.device(), key, mesh);
         }
     }
 
@@ -172,20 +232,23 @@ impl ArrixApp {
                 &self.commands,
                 &self.settings,
                 &self.session.ribbon_tab,
-                commands::Context::default(),
+                self.context(),
             ),
             palette: self
                 .session
                 .palette
                 .as_ref()
-                .map(|p| p.view(&self.commands, &self.keymap, commands::Context::default())),
+                .map(|p| p.view(&self.commands, &self.keymap, self.context())),
             tree: TreeView::default(),
             documents: DocumentTabsView::default(),
             cards: self.cards(),
             status: StatusView {
                 hint: self.hint(),
-                generation: 0,
-                diagnostics: self.config_diagnostics.len(),
+                generation: self
+                    .active_document()
+                    .map_or(0, |d| d.replica.generation().0),
+                diagnostics: self.config_diagnostics.len()
+                    + self.active_document().map_or(0, |d| d.problems.len()),
                 length_unit: "mm".into(),
                 angle_unit: "deg".into(),
             },
@@ -213,13 +276,19 @@ impl ArrixApp {
     /// The status line's help text: the hovered command, its keys and why
     /// it is off; else what to do on an empty start.
     fn hint(&self) -> String {
-        let cx = commands::Context::default();
+        let cx = self.context();
         let hovered = self
             .session
             .hovered_command
             .as_deref()
             .and_then(|id| self.commands.command(id));
         let Some(spec) = hovered else {
+            if let Some(document) = self.active_document() {
+                return match document.settled() {
+                    true => document.title.clone(),
+                    false => format!("{}: evaluating…", document.title),
+                };
+            }
             let keys = self.keymap.keys_of(PALETTE_OPEN);
             return match keys.first() {
                 Some(key) => format!("No document is open. {key} opens the command palette."),
@@ -258,7 +327,7 @@ impl ArrixApp {
     /// Runs a command, from a button or a key. One that doesn't apply in the
     /// current state does nothing.
     fn run(&mut self, command: &str) {
-        let cx = commands::Context::default();
+        let cx = self.context();
         let Some(spec) = self.commands.command(command) else {
             return;
         };
@@ -393,14 +462,20 @@ impl ArrixApp {
 impl eframe::App for ArrixApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.poll_config(ui.ctx());
+        self.drain_documents(ui.ctx());
         self.run_keys(ui.ctx());
         self.apply_theme(ui);
         let window = ui.max_rect();
         let view = self.shell_view();
+        let documents = &self.documents;
+        let view_state = documents
+            .get(self.active)
+            .map_or(&self.idle_view, |d| &d.view);
+        let renderer = &mut self.renderer;
         let response = arrix_ui::shell(ui, &view, |ui| {
-            if let Some(v) = &mut self.view3d {
+            if let Some(renderer) = renderer {
                 let rect = ui.max_rect();
-                v.renderer.paint(ui.painter(), rect, &v.scene, &v.camera);
+                renderer.paint(ui.painter(), rect, &view_state.scene, &view_state.camera);
             }
         });
         self.drawn = Some(Drawn {

@@ -1,7 +1,7 @@
 //! The renderer on a fixture mesh, apart from any document
 //! (plans/viewport-port step 6).
 
-use crate::{fixture, harness};
+use crate::{fixture, harness, snapshot};
 
 /// The pixel at the centre of the viewport's rect.
 fn centre_pixel(
@@ -57,5 +57,32 @@ fn a_mesh_draws_and_draws_identically() {
             harness::render(h) == drawn,
             "a second app instance rendered different pixels"
         );
+    });
+}
+
+/// The slice, opened: its one final body (the pocketed plate) meshed
+/// refined and framed by the camera, the generation unchanged, settled.
+/// Pinned after reading the frame (`scripts/snapshot-baseline`).
+#[test]
+fn slice_viewport() {
+    harness::with_app("slice_viewport", |h| {
+        harness::open_settled(h, "tests/docs/slice");
+        let d = h.state().debug_state();
+        let evaluation = d.evaluation.expect("a document is open");
+        assert!(evaluation.finished && evaluation.settled);
+        assert!(evaluation.problems.is_empty(), "{:?}", evaluation.problems);
+        assert_eq!(d.bodies.len(), 1, "{evaluation:?}");
+        let before = harness::render(h);
+        h.run_steps(5);
+        assert!(
+            harness::render(h) == before,
+            "a settled document draws the same frame"
+        );
+        assert_eq!(
+            h.state().debug_state().evaluation.map(|e| e.generation),
+            Some(evaluation.generation),
+            "meshing is not an edit"
+        );
+        snapshot::check(h, "slice_viewport");
     });
 }

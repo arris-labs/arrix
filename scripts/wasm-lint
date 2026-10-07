@@ -33,11 +33,12 @@ PERMITTED = {
     # The session and evaluator threads (docs/CONCURRENCY-WASM.md §Roles and
     # threads); a web worker in C4.
     "thread": ("crates/arrix-doc/src/executor",),
-    # The app's native file dialog and config files, and the plugin host
+    # The app's native file dialog, config files and document files, and the plugin host
     # (manifests, Tier 1 and Tier 2 on native).
     "fs": (
         "crates/arrix-app/src/file_dialog",
         "crates/arrix-app/src/config_files",
+        "crates/arrix-app/src/document_files",
         "crates/arrix-plugin-host/",
     ),
 }

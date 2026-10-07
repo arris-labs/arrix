@@ -24,6 +24,7 @@ arrix-gears.workspace = true
 arrix-plugin-host.workspace = true
 arrix-viewport.workspace = true
 arrix-ui.workspace = true
+web-time.workspace = true
 egui.workspace = true
 eframe.workspace = true
 # `debug_state()` (docs/UI-RENDERING.md §Visual debugging).

@@ -87,6 +87,43 @@ pub fn settle(harness: &mut Harness<'_, ArrixApp>) {
     harness.run();
 }
 
+/// Opens the document at `path`, relative to the workspace root, and steps
+/// until its session has said everything about it: evaluated, and every
+/// body meshed refined (`debug_state().evaluation.settled`). The session's
+/// threads run on their own clock, so this polls; it fails after a minute.
+pub fn open_settled(harness: &mut Harness<'_, ArrixApp>, path: &str) {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    harness
+        .state_mut()
+        .open_path(&root.join(path))
+        .unwrap_or_else(|err| panic!("{err}"));
+    wait_settled(harness);
+}
+
+/// Steps until the active document is settled.
+pub fn wait_settled(harness: &mut Harness<'_, ArrixApp>) {
+    let started = web_time::Instant::now();
+    loop {
+        // `run` would fail on the repaints the pending document asks for.
+        harness.step();
+        let settled = harness
+            .state()
+            .debug_state()
+            .evaluation
+            .is_some_and(|e| e.settled);
+        if settled {
+            harness.run();
+            return;
+        }
+        assert!(
+            started.elapsed() < std::time::Duration::from_secs(60),
+            "the document did not settle: {}",
+            harness.state().debug_state_json()
+        );
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+}
+
 /// Steps and renders `frames` frames.
 #[allow(dead_code, reason = "no scenario needs rendered input frames yet")]
 pub fn pump_rendered(harness: &mut Harness<'_, ArrixApp>, frames: usize) {

@@ -160,7 +160,7 @@ All present in the pinned `arris` 0.5:
   paint callback into an offscreen target in the viewport rect. Proven in
   the scratch render with a fixture `RenderMesh` under lavapipe: visible,
   and two renders pixel-identical. The wasm build stays green.
-- [ ] **[2]** 7 — The app opens a document: `ArrixApp::open(source)` hosts a
+- [x] **[2]** 7 — The app opens a document: `ArrixApp::open(source)` hosts a
   `LocalSession`, drains its subscription each frame without blocking,
   keeps a replica and feeds `Meshed` into the scene; `arrix-app <path>` on
   native; the camera frames the bodies on the first mesh. `debug_state()`
@@ -308,3 +308,18 @@ build included.
   `Meshed` handling calls it. The proof is `viewport::a_mesh_draws_and_draws_identically`
   on a hand-made fixture box (`tests/visual/fixture.rs`), not a golden:
   the first viewport golden is step 7's `slice_viewport`.
+- Found in step 7: `ArrixApp::open(path, source)` and `open_path` (a
+  directory or an `.arrx`, read in `document_files.rs`, a new place the
+  wasm lint permits to name `std::fs`). A document is settled once its
+  evaluation has finished and every coarse mesh has its refined one
+  (counted per generation); a part with no final body never says so, so
+  that case settles one wall-clock second after `Finished`, on
+  `web_time`, since egui's clock runs ahead of it under kittest. Scenarios
+  poll `debug_state().evaluation.settled` (`harness::open_settled`),
+  stepping rather than running because a pending document keeps asking
+  for repaints. Bodies the new generation no longer has leave the scene
+  when its refined meshes start; a generation with *no* final body
+  leaves the old ones until the next one with a body (a limit, to be
+  fixed with the evaluator saying "meshed" explicitly, if it matters).
+  The new `debug_state()` fields are omitted when empty, so the shell
+  goldens are unchanged.
