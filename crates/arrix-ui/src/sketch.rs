@@ -163,6 +163,9 @@ pub struct SketchView {
     /// over the viewport.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub preview: Option<crate::SketchPreviewView>,
+    /// The field a dimension's value is typed in, while one is open.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub field: Option<crate::DimensionFieldView>,
 }
 
 /// The map from the sketch's plane to the screen: a homography, so it is
@@ -639,6 +642,7 @@ mod tests {
             hover: None,
             selected: vec![],
             preview: None,
+            field: None,
         }
     }
 

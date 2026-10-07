@@ -251,6 +251,16 @@ pub enum UiIntent {
     /// The button went up: the drag is one command, or none when nothing
     /// moved.
     SketchDragEnded,
+    /// A double-click in the open sketch, on an item or on none: on a
+    /// dimension's label it opens the field its value is typed in. Session
+    /// state, no command.
+    SketchDoubleClicked { hit: Option<crate::SketchHit> },
+    /// A dimension's field was committed, by Enter or by losing focus: the
+    /// text is an expression for the dimension's value. One command, or
+    /// none when the text is the value it has or does not make one.
+    DimensionCommitted { constraint: String, text: String },
+    /// A dimension's field was dismissed with Escape. Session state.
+    DimensionCancelled,
     /// The pointer is over this face, edge or vertex, or over nothing: the
     /// hover becomes it. Session state, no command.
     Hovered {

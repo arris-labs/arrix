@@ -14,6 +14,7 @@ use web_time::Instant;
 
 use crate::ArrixApp;
 use crate::documents::OpenDocument;
+use crate::sketch_dimension::FieldState;
 use crate::sketch_drag::ActiveDrag;
 use crate::sketch_tools::{Drawing, Tool};
 use crate::sketch_view::{SketchOverlay, Solved, describe, plane_transform, sketch_view};
@@ -61,6 +62,8 @@ pub struct SketchMode {
     pub drawing: Drawing,
     /// The drag under way, when the button is down on a point or a curve.
     pub drag: Option<ActiveDrag>,
+    /// The field a dimension's value is typed in, when one is open.
+    pub field: Option<FieldState>,
 }
 
 impl SketchMode {
@@ -74,6 +77,7 @@ impl SketchMode {
             hover: None,
             drawing: Drawing::default(),
             drag: None,
+            field: None,
         }
     }
 
@@ -375,10 +379,11 @@ impl ArrixApp {
         view.hover = mode.hover.clone();
         view.selected = mode.selection.iter().map(ToString::to_string).collect();
         view.preview = mode.drawing.preview(&solved.sketch);
+        view.field = self.field_view(&view);
         Some(SketchOverlay {
             view,
             plane: mode.plane?,
-            picks: mode.drawing.tool == Tool::Select,
+            picks: !mode.drawing.tool.draws(),
         })
     }
 
@@ -401,7 +406,11 @@ impl ArrixApp {
         let Some(mode) = self.active_sketch_mut() else {
             return;
         };
-        if mode.drawing.tool != Tool::Select {
+        if mode.drawing.tool == Tool::Dimension {
+            self.dimension_click(hit, extend, pointer);
+            return;
+        }
+        if mode.drawing.tool.draws() {
             if let Some(pointer) = pointer {
                 self.draw_click(pointer);
             }

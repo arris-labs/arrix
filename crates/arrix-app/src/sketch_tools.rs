@@ -7,7 +7,9 @@
 //! draft before it and after: both carry the resolved values of the
 //! sketch's expressions, so only what the click made rides along.
 
-use arrix_config::{SKETCH_ARC, SKETCH_CIRCLE, SKETCH_LINE, SKETCH_RECTANGLE, SKETCH_SELECT};
+use arrix_config::{
+    SKETCH_ARC, SKETCH_CIRCLE, SKETCH_DIMENSION, SKETCH_LINE, SKETCH_RECTANGLE, SKETCH_SELECT,
+};
 use arrix_sketch::{
     Constraint, Draft, Entity, EntityId, GlyphKind, Inferred, Point, PointId, Sketch, Snap,
     SnapQuery, commit_inferences, snap_search,
@@ -34,10 +36,20 @@ pub enum Tool {
     Rectangle,
     Circle,
     Arc,
+    Dimension,
 }
 
 impl Tool {
     /// The tool's command id.
+    /// Whether the tool draws geometry under a snap, rather than picking
+    /// what is there.
+    pub fn draws(self) -> bool {
+        matches!(
+            self,
+            Self::Line | Self::Rectangle | Self::Circle | Self::Arc
+        )
+    }
+
     pub fn command(self) -> &'static str {
         match self {
             Self::Select => SKETCH_SELECT,
@@ -45,6 +57,7 @@ impl Tool {
             Self::Rectangle => SKETCH_RECTANGLE,
             Self::Circle => SKETCH_CIRCLE,
             Self::Arc => SKETCH_ARC,
+            Self::Dimension => SKETCH_DIMENSION,
         }
     }
 
@@ -55,6 +68,7 @@ impl Tool {
             Self::Rectangle => "Rectangle",
             Self::Circle => "Circle",
             Self::Arc => "Arc",
+            Self::Dimension => "Dimension",
         }
     }
 }
@@ -93,6 +107,8 @@ pub struct Drawing {
     /// Points and lines acquired as alignment sources.
     pub acquired_points: Vec<PointId>,
     pub acquired_lines: Vec<EntityId>,
+    /// The dimension tool's picks so far, in the order made.
+    pub picks: Vec<arrix_sketch::SketchEntityId>,
     /// What the pointer rests on, and since when.
     dwell: Option<(arrix_sketch::SketchEntityId, f64)>,
 }
@@ -200,7 +216,7 @@ impl Drawing {
 
     /// The preview of the pointer's snap: what the next click draws.
     pub fn preview(&self, sketch: &Sketch) -> Option<SketchPreviewView> {
-        let pointer = self.pointer.filter(|_| self.tool != Tool::Select)?;
+        let pointer = self.pointer.filter(|_| self.tool.draws())?;
         let snap = self.snap(sketch, &pointer);
         let cursor = [snap.uv.0, snap.uv.1];
         let radius = matches!(self.pending, Some(Pending::Centre { .. }));
@@ -287,6 +303,12 @@ impl Drawing {
                 format!("{name}: click where the arc ends.")
             }
             (Tool::Arc, Some(_)) => format!("{name}: click a point the arc passes through."),
+            (Tool::Dimension, _) => match self.picks.len() {
+                0 => format!("{name}: click a line, a circle or arc, or a point."),
+                _ => format!(
+                    "{name}: pick another, or click where the label goes. Shift makes a diameter."
+                ),
+            },
             (Tool::Select, _) => String::new(),
         }
     }
@@ -383,7 +405,7 @@ fn draw(drawing: &mut Drawing, draft: &mut Draft, snap: &Snap, tol: f64) -> bool
     let at = [snap.uv.0, snap.uv.1];
     let near = |p: Uv| (p[0] - at[0]).hypot(p[1] - at[1]) <= tol;
     match (drawing.tool, drawing.pending.take()) {
-        (Tool::Select, _) => false,
+        (Tool::Select | Tool::Dimension, _) => false,
         (
             Tool::Line,
             None
@@ -690,7 +712,12 @@ impl ArrixApp {
         let Some(mode) = self.active_sketch_mut() else {
             return;
         };
-        if mode.drawing.pending.take().is_none() {
+        let picked = !mode.drawing.picks.is_empty();
+        if picked {
+            mode.drawing.picks.clear();
+            mode.selection.clear();
+        }
+        if mode.drawing.pending.take().is_none() && !picked {
             self.set_tool(Tool::Select);
         }
     }
@@ -704,7 +731,7 @@ impl ArrixApp {
             mode.drawing.pointer = pointer;
             return;
         };
-        if mode.drawing.tool == Tool::Select {
+        if !mode.drawing.tool.draws() {
             mode.drawing.pointer = pointer;
             return;
         }

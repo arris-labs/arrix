@@ -286,3 +286,73 @@ pub fn run_command(h: &mut Harness<'_, ArrixApp>, title: &str) {
     h.key_press(Key::Enter);
     h.run_steps(3);
 }
+
+/// A double-click at `uv`: two clicks close together.
+pub fn double_click(h: &mut Harness<'_, ArrixApp>, uv: [f64; 2]) {
+    // Clicks closer in time than this to the pair would make a triple.
+    h.run_steps(35);
+    let pos = at(h, uv);
+    h.event(egui::Event::PointerMoved(pos));
+    h.step();
+    for pressed in [true, false, true, false] {
+        h.event(egui::Event::PointerButton {
+            pos,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: Modifiers::NONE,
+        });
+        h.step();
+    }
+    h.run_steps(3);
+}
+
+/// The sketch's dimensions as the view draws them, `(kind, text,
+/// reference, label at in millimetres)`.
+pub fn dimensions(h: &Harness<'_, ArrixApp>) -> Vec<(String, String, bool, [f64; 2])> {
+    h.state()
+        .debug_state()
+        .sketch_view
+        .map(|v| {
+            v.dimensions
+                .into_iter()
+                .map(|d| (d.kind, d.text, d.reference, d.at.map(|x| x / MM)))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Types `text` into the field that is open, then Enter.
+pub fn type_and_enter(h: &mut Harness<'_, ArrixApp>, text: &str) {
+    h.event(egui::Event::Text(text.to_owned()));
+    h.run_steps(2);
+    h.key_press(Key::Enter);
+    h.run_steps(4);
+}
+
+/// The open field's error, if it has one.
+pub fn field_error(h: &Harness<'_, ArrixApp>) -> Option<String> {
+    h.state().debug_state().sketch_view?.field?.error
+}
+
+/// The length of the sketch's lowest horizontal run of points, in
+/// millimetres: what a bottom edge measures.
+pub fn bottom_edge_mm(h: &Harness<'_, ArrixApp>, y_mm: f64) -> Option<f64> {
+    let view = h.state().debug_state().sketch_view?;
+    let xs: Vec<f64> = view
+        .points
+        .iter()
+        .filter(|p| (p.at[1] / MM - y_mm).abs() < 1e-3)
+        .map(|p| p.at[0] / MM)
+        .collect();
+    let (lo, hi) = xs
+        .iter()
+        .fold((f64::MAX, f64::MIN), |(l, u), x| (l.min(*x), u.max(*x)));
+    (xs.len() >= 2).then_some(hi - lo)
+}
+
+pub fn field_open(h: &Harness<'_, ArrixApp>) -> bool {
+    h.state()
+        .debug_state()
+        .sketch_view
+        .is_some_and(|v| v.field.is_some())
+}

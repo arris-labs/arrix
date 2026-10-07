@@ -11,6 +11,7 @@ mod documents;
 mod keys;
 mod palette;
 mod sketch_constrain;
+mod sketch_dimension;
 mod sketch_drag;
 mod sketch_mode;
 mod sketch_tools;
@@ -25,14 +26,15 @@ use arrix_config::{
     DOCUMENT_NEW, DOCUMENT_NEXT, DOCUMENT_PREVIOUS, EDIT_REDO, EDIT_UNDO, Keymap, MemorySource,
     PALETTE_CLOSE, PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN,
     PANEL_PROPERTIES_TOGGLE, PANEL_TREE_TOGGLE, ParamDefaults, SELECTION_CLEAR, SKETCH_ARC,
-    SKETCH_CIRCLE, SKETCH_CONSTRUCTION, SKETCH_CREATE, SKETCH_DELETE, SKETCH_EDIT, SKETCH_FINISH,
-    SKETCH_LINE, SKETCH_RECTANGLE, SKETCH_SELECT, SKETCH_TOOL_CANCEL, Settings, Theme, VIEW_FRONT,
-    VIEW_HOME, VIEW_ISO, VIEW_PROJECTION_TOGGLE, VIEW_RIGHT, VIEW_TOP,
+    SKETCH_CIRCLE, SKETCH_CONSTRUCTION, SKETCH_CREATE, SKETCH_DELETE, SKETCH_DIMENSION,
+    SKETCH_EDIT, SKETCH_FINISH, SKETCH_LINE, SKETCH_RECTANGLE, SKETCH_SELECT, SKETCH_TOOL_CANCEL,
+    Settings, Theme, VIEW_FRONT, VIEW_HOME, VIEW_ISO, VIEW_PROJECTION_TOGGLE, VIEW_RIGHT, VIEW_TOP,
 };
 use arrix_core::{FeatureId, IdMinter, RenderMesh};
 use arrix_plugin_api::FeatureTypeSpec;
 use arrix_ui::{
-    CardsView, DocumentTab, DocumentTabsView, ShellLayout, ShellView, StatusView, UiIntent,
+    CardsView, DocumentTab, DocumentTabsView, FieldEvent, ShellLayout, ShellView, StatusView,
+    UiIntent,
 };
 use arrix_viewport::{BodyKey, Renderer, StandardView};
 use documents::{CardToggles, OpenDocument, PickFor, ViewState};
@@ -647,6 +649,11 @@ impl ArrixApp {
             UiIntent::SketchDragStarted { hit, pointer } => self.drag_started(hit, pointer),
             UiIntent::SketchDragMoved { pointer } => self.drag_moved(pointer),
             UiIntent::SketchDragEnded => self.drag_ended(),
+            UiIntent::SketchDoubleClicked { hit } => self.open_dimension_field(hit),
+            UiIntent::DimensionCommitted { constraint, text } => {
+                self.commit_dimension(&constraint, &text);
+            }
+            UiIntent::DimensionCancelled => self.close_dimension_field(),
             UiIntent::TreeFeatureSelected { feature } => {
                 if let Ok(feature) = feature.parse::<FeatureId>() {
                     self.view_mut().feature_selection = Some(feature);
@@ -709,6 +716,7 @@ impl ArrixApp {
             SKETCH_RECTANGLE => self.set_tool(sketch_tools::Tool::Rectangle),
             SKETCH_CIRCLE => self.set_tool(sketch_tools::Tool::Circle),
             SKETCH_ARC => self.set_tool(sketch_tools::Tool::Arc),
+            SKETCH_DIMENSION => self.set_tool(sketch_tools::Tool::Dimension),
             SKETCH_TOOL_CANCEL => self.cancel_tool(),
             SKETCH_CONSTRUCTION => self.toggle_construction(),
             EDIT_UNDO => self.edit(OpenDocument::undo),
@@ -797,9 +805,17 @@ impl ArrixApp {
         }
         let mut contexts = Vec::new();
         // Not `egui_wants_keyboard_input`: that is any focused widget, a tab
-        // reached by Tab included, and would silence every key.
-        if ctx.text_edit_focused() {
-            contexts.push("text");
+        // reached by Tab included, and would silence every key. A focused
+        // text field owns the keyboard: the letters of a dimension's
+        // expression are not the sketch's tool keys.
+        // An open dimension field counts though Escape, which egui takes
+        // focus away with before any key is read, has just left it.
+        let field_open = self
+            .active_document()
+            .and_then(|d| d.sketch.as_ref())
+            .is_some_and(|m| m.field.is_some());
+        if ctx.text_edit_focused() || field_open {
+            return vec!["text"];
         }
         match self.context().tool {
             Some(tool) if tool != SKETCH_SELECT => contexts.extend(["sketch-tool", "sketch"]),
@@ -899,6 +915,21 @@ impl eframe::App for ArrixApp {
                     SketchDrag::Ended => UiIntent::SketchDragEnded,
                 });
                 ui.ctx().request_repaint();
+            }
+            if let Some(hit) = pointer.double_click {
+                self.apply(UiIntent::SketchDoubleClicked { hit });
+                ui.ctx().request_repaint();
+            }
+            match pointer.field {
+                Some(FieldEvent::Commit { constraint, text }) => {
+                    self.apply(UiIntent::DimensionCommitted { constraint, text });
+                    ui.ctx().request_repaint();
+                }
+                Some(FieldEvent::Cancel) => {
+                    self.apply(UiIntent::DimensionCancelled);
+                    ui.ctx().request_repaint();
+                }
+                None => {}
             }
             if let Some((hit, extend, at)) = pointer.click {
                 self.apply(UiIntent::SketchClicked {

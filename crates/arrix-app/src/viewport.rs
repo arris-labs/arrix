@@ -4,7 +4,9 @@
 //! here issues a command.
 
 use arrix_ui::viewcube::{self, ViewCubeAction, arrows};
-use arrix_ui::{CardsView, PlanePointer, PlaneToScreen, SketchHit, paint_sketch, viewcube_rect};
+use arrix_ui::{
+    CardsView, FieldEvent, PlanePointer, PlaneToScreen, SketchHit, paint_sketch, viewcube_rect,
+};
 use arrix_viewport::{Highlights, OrbitCamera, Renderer, StandardView};
 use web_time::Instant;
 
@@ -32,6 +34,10 @@ pub struct SketchPointer {
     pub click: Option<(Option<SketchHit>, bool, Option<PlanePointer>)>,
     /// What the left button's drag did this frame, with the select tool.
     pub drag: Vec<SketchDrag>,
+    /// A double-click, with what was under it.
+    pub double_click: Option<Option<SketchHit>>,
+    /// What was done with the dimension field this frame.
+    pub field: Option<FieldEvent>,
 }
 
 /// One step of a drag with the left button in the sketch.
@@ -156,8 +162,16 @@ pub fn show(
         if overlay.picks && response.drag_stopped_by(egui::PointerButton::Primary) {
             drag.push(SketchDrag::Ended);
         }
+        let double_click = response
+            .double_clicked()
+            .then(|| response.interact_pointer_pos())
+            .flatten()
+            .filter(|_| overlay.picks)
+            .map(hit);
         sketch_pointer = Some(SketchPointer {
             drag,
+            double_click,
+            field: None,
             hover: now.filter(|h| *h != overlay.view.hover).or(hover
                 .is_none()
                 .then_some(None)
@@ -166,6 +180,10 @@ pub fn show(
             click: click.map(|at| (hit(at), shift_at_release(ui), in_plane(at))),
         });
         paint_sketch(&ui.painter_at(rect), &to_screen, &overlay.view);
+        let field = arrix_ui::dimension_field(ui, &to_screen, overlay.view.field.as_ref());
+        if let Some(pointer) = &mut sketch_pointer {
+            pointer.field = field;
+        }
     }
     if cube {
         let camera = &view.camera;

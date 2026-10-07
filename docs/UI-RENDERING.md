@@ -348,6 +348,30 @@ turns to face the plane in orthographic projection.
   selected curves construction, or solid when every one already is. The
   dimension kinds and the datum distance, angle and symmetry are the
   dimension tool's, or are gated (`docs/DATA-MODEL.md` §Sketches).
+- **Dimensions** are the dimension tool's (`core.sketch.dimension`, D)
+  and a label's field. The tool picks points and curves (the picks are
+  drawn selected): a line is its length, a circle or arc a radius (shift
+  at the placing click, a diameter), two points a horizontal distance when
+  the label is placed above or below them and a vertical one beside, a
+  point and a line the distance to it, two lines the distance between them
+  when parallel and the angle otherwise. A click that is not a pick the
+  picks can grow by places the label there: one `SketchEdit` holding the
+  dimension at the value the geometry measures. One the sketch already
+  holds (the candidate check says redundant) is placed as a reference
+  dimension, measured and not driving, and the status line says so.
+  A double-click on a driving dimension's label opens its field over it,
+  the text selected. The text is an expression of the dimension's
+  quantity: it may name a parameter of the document, resolved from the
+  replica's last finished values, and a number takes its unit
+  (`45 mm`). Enter or losing focus commits: the draft is solved with the
+  value, and the change, the constraint (its expression kept when it names
+  a parameter) and the positions the solve gave, is one `SketchEdit`. A
+  text that does not parse, names nothing, has the wrong unit, or a solve
+  that fails leaves the field open with the reason and issues nothing;
+  the value the dimension already has issues nothing; Escape dismisses it.
+  A focused field owns the keyboard: no sketch key fires while one is
+  open. When a parameter changes in the document the sketch is evaluated
+  again and the label follows, with no command from sketch mode.
 - **The drag** is the select tool's: the left button down on a point or a
   curve and moved starts a `DragSession` over the solved draft (a point
   that is fixed, a glyph and a dimension are not dragged; a curve is

@@ -48,6 +48,8 @@ pub const SKETCH_LINE: &str = "core.sketch.line";
 pub const SKETCH_RECTANGLE: &str = "core.sketch.rectangle";
 pub const SKETCH_CIRCLE: &str = "core.sketch.circle";
 pub const SKETCH_ARC: &str = "core.sketch.arc";
+/// The dimension tool: picks, then a click that places the label.
+pub const SKETCH_DIMENSION: &str = "core.sketch.dimension";
 /// Toggling the selected curves between solid and construction.
 pub const SKETCH_CONSTRUCTION: &str = "core.sketch.construction";
 /// The constraint commands: `core.sketch.constrain.<kind>`, one per kind
@@ -228,6 +230,14 @@ impl CommandRegistry {
                 ..document_command(id, title, keys)
             });
         }
+        commands.push(CommandSpec {
+            ribbon: Some(RibbonPlacement {
+                tab: CORE_SKETCH_TAB.into(),
+                group: "Dimension".into(),
+            }),
+            when: Some("sketch".into()),
+            ..document_command(SKETCH_DIMENSION, "Dimension", &["d"])
+        });
         commands.push(CommandSpec {
             ribbon: Some(RibbonPlacement {
                 tab: CORE_SKETCH_TAB.into(),

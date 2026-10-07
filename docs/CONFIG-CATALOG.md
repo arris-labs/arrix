@@ -59,6 +59,7 @@ the command registry and the setting specs; a test holds it fresh. Do not edit.
 | `core.sketch.rectangle` | Rectangle | r | sketch | core.sketch / Draw |
 | `core.sketch.circle` | Circle | c | sketch | core.sketch / Draw |
 | `core.sketch.arc` | Arc | a | sketch | core.sketch / Draw |
+| `core.sketch.dimension` | Dimension | d | sketch | core.sketch / Dimension |
 | `core.sketch.construction` | Construction | q | sketch | core.sketch / Draw |
 | `core.sketch.constrain.coincident` | Coincident |  | sketch | core.sketch / Constrain |
 | `core.sketch.constrain.horizontal` | Horizontal | h | sketch | core.sketch / Constrain |

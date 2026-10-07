@@ -169,6 +169,7 @@ pub fn sketch_view(solved: &Solved) -> SketchView {
         hover: None,
         selected: Vec::new(),
         preview: None,
+        field: None,
     }
 }
 
@@ -310,7 +311,7 @@ fn glyph(sketch: &Sketch, record: &ConstraintRecord, flagged: bool) -> Vec<Const
 }
 
 /// A value as shown: millimetres, or degrees.
-fn quantity(kind: QuantityKind, value: f64) -> String {
+pub fn format_quantity(kind: QuantityKind, value: f64) -> String {
     let (shown, unit) = match kind {
         QuantityKind::Angle => (value.to_degrees(), "deg"),
         _ => (value * 1e3, "mm"),
@@ -423,7 +424,7 @@ fn dimension(
     let at = record
         .display_pos
         .map_or_else(|| mid(from, to), |(u, v)| [u, v]);
-    let measured = quantity(value_kind, value);
+    let measured = format_quantity(value_kind, value);
     let text = match &record.expr {
         Some(expr) => format!("{expr} = {measured}"),
         None => measured,
@@ -488,7 +489,7 @@ pub fn describe(solved: &Solved, hit: &arrix_ui::SketchHit) -> String {
                 .unzip();
             let value = text
                 .flatten()
-                .map(|(k, v)| format!(" ({})", quantity(k, v)))
+                .map(|(k, v)| format!(" ({})", format_quantity(k, v)))
                 .unwrap_or_default();
             format!("{} dimension{value}", words(&kind.unwrap_or_default()))
         }

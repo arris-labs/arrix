@@ -4,6 +4,7 @@
 mod palette;
 mod shell;
 mod sketch;
+mod sketch_field;
 mod sketch_preview;
 mod theme;
 pub mod view;
@@ -15,6 +16,7 @@ pub use sketch::{
     SketchCurveView, SketchHit, SketchPointView, SketchStatusView, SketchView, SolverState,
     hit_test, paint_sketch,
 };
+pub use sketch_field::{DimensionFieldView, FieldEvent, dimension_field};
 pub use sketch_preview::{SketchPreviewView, SnapGlyphView};
 pub use theme::{Rgba, ThemeView};
 pub use view::{

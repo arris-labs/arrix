@@ -184,7 +184,7 @@ Complexity: **[1]** routine; **[2]** careful; **[3]** unproven.
   redundant or conflicting one is refused with the reason in the status
   line and no command. `core.sketch.construction` (Q) toggles the
   selection's flag. Tests per kind family; one command or none.
-- [ ] **[2]** Step 11 — Dimensions as expressions. The dimension tool
+- [x] **[2]** Step 11 — Dimensions as expressions. The dimension tool
   makes distance, horizontal and vertical distance, point–line,
   parallel-lines, radius, diameter and angle dimensions from the picks the
   kind needs, placed by a click; one that would over-constrain is placed
@@ -337,7 +337,13 @@ accepted, and the step 1 drag benchmark asserts its budget.
   with no tool yet (`SymmetricAcrossDatum`, `Block`, `PointOnPerpBisector`,
   the arc length, the clearance distances and the datum distance and
   angle) are step 15's list to gate once step 11 has made its dimensions.
-- ⚠ OPEN 4: a dimension that would over-constrain: placed as a reference
-  dimension (shown, not driving), or refused with the reason. Default
-  proposed: reference, as the ported code did. Agent, by step 11, unless
-  the human objects.
+- OPEN 4 (closed at step 11, the agent's default, unobjected): reference
+  dimension, said in the status line.
+- Finding (step 11): a driving dimension is made at the value the geometry
+  measures, so typing the number its label shows rounded is a change of
+  micrometres, and a command; a dimension already set to a value issues
+  nothing when it is typed again. Two bugs of the key path surfaced: the
+  keymap fired `sketch`-context keys (h, d, escape) while a text field was
+  focused, and egui drops focus on Escape before a key is read; a focused
+  or open dimension field now makes `text` the only context. A double-click
+  needs more than 0.3 s from the click before it, or egui reports a triple.
