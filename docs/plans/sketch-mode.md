@@ -206,7 +206,7 @@ Complexity: **[1]** routine; **[2]** careful; **[3]** unproven.
   distance typed in a field (an expression) with its preview, one command;
   mirror of the selection about a picked line, one command. Tests as
   step 12's.
-- [ ] **[2]** Step 14 — Regions shaded. The draft's arrangement's faces
+- [x] **[2]** Step 14 — Regions shaded. The draft's arrangement's faces
   (non-construction curves) filled under the curves, a hovered region
   outlined, each region's key in `SketchView` and `debug_state()`, the
   same keys `Ref::Region` stores. Test: the shaded keys equal what
@@ -347,6 +347,14 @@ accepted, and the step 1 drag benchmark asserts its budget.
   `typed_quantity` the dimension field uses (the parameter test is step
   16's document); mirror about a datum axis has no pick and waits for a
   scenario.
+- Finding (step 14): the regions are cached on the solved draft and
+  rebuilt on each drag frame; the rebuild is the arrangement's, not the
+  solver's, and is not in the 4 ms budget (a sketch of mostly curves, like
+  the gear, pays it per frame: measure before the acceptance run). The
+  region fill is the ported trapezoid decomposition, since egui fills
+  convex paths only. The hover is by the pointer's position and only when
+  no item is under it, not a hit kind: a region is not selectable here
+  (the forms' profile pick will be).
 - OPEN 4 (closed at step 11, the agent's default, unobjected): reference
   dimension, said in the status line.
 - Finding (step 11): a driving dimension is made at the value the geometry

@@ -460,7 +460,19 @@ turns to face the plane in orthographic projection.
   trim, extend, offset and mirror are each one.
 - **Regions** are shaded from the sketch's planar arrangement, and the
   region a profile pick stores is the one shaded (`docs/DATA-MODEL.md`
-  §Sketches).
+  §Sketches). The app keeps the draft's faces beside it
+  (`arrix_sketch::find_region_outlines`, the evaluator's own call, so a
+  draft equal to the saved sketch has the evaluator's regions, keys
+  included) and recomputes them when the draft changes, a drag frame
+  included. `SketchView.regions` carries each region's key (the JSON
+  `Ref::Region` stores), its hole count and, off the debug state, its
+  boundary in plane-local metres; the viewport fills it under the curves
+  as a band-by-band trapezoid mesh (egui's path fill is convex-only and
+  has no holes), so a plate with a bore is shaded around the bore and the
+  disc in the bore is a region of its own. Construction curves bound
+  nothing, and an open curve shades nothing. With the select tool and
+  nothing else under it the pointer's innermost region is
+  `hover_region`, outlined.
 - **Constraint kinds reachable from the UI are the only ones a document
   holds.** Enabled: coincident, horizontal, vertical, horizontal and
   vertical alignment of two points, parallel, perpendicular, equal,

@@ -385,6 +385,13 @@ impl ArrixApp {
             .or_else(|| self.offset_preview())
             .or_else(|| mirror_preview(mode, &solved.sketch));
         view.field = self.field_view(&view);
+        if mode.drawing.tool == Tool::Select && mode.hover.is_none() && mode.drag.is_none() {
+            view.hover_region = mode
+                .drawing
+                .pointer
+                .and_then(|p| solved.region_at(p.at))
+                .map(|region| crate::sketch_view::region_key(&region.key));
+        }
         Some(SketchOverlay {
             view,
             plane: mode.plane?,

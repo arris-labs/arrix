@@ -5,12 +5,12 @@
 
 use arrix_core::{Frame, QuantityKind};
 use arrix_sketch::{
-    Constraint, ConstraintRecord, DatumEntity, Diagnostics, Entity, EntityConstraintState, Sketch,
-    SketchEntityId, SketchStatus,
+    Constraint, ConstraintRecord, DatumEntity, Diagnostics, Entity, EntityConstraintState, Region,
+    Sketch, SketchEntityId, SketchStatus, find_region_outlines,
 };
 use arrix_ui::{
     ConstraintGlyphView, CurveShape, DimensionView, DofState, PlaneToScreen, SketchCurveView,
-    SketchPointView, SketchStatusView, SketchView, SolverState,
+    SketchPointView, SketchRegionView, SketchStatusView, SketchView, SolverState,
 };
 use arrix_viewport::OrbitCamera;
 
@@ -41,17 +41,44 @@ pub struct Solved {
     pub awaiting: Option<arrix_doc::Generation>,
     pub sketch: Sketch,
     pub diagnostics: Diagnostics,
+    /// The faces of the sketch's arrangement, largest first, with the
+    /// boundaries they are shaded and tested by: what the evaluator's
+    /// regions are for the same sketch. Kept by [`Self::refresh_regions`].
+    pub regions: Vec<(Region, arrix_sketch::RegionOutline)>,
 }
 
 impl Solved {
     pub fn new(generation: arrix_doc::Generation, mut sketch: Sketch) -> Self {
         let (_, diagnostics) = Diagnostics::evaluate(&mut sketch);
+        let regions = find_region_outlines(&sketch);
         Self {
             generation,
             awaiting: None,
             sketch,
             diagnostics,
+            regions,
         }
+    }
+
+    /// The regions again, after the draft was moved in place (a drag frame).
+    pub fn refresh_regions(&mut self) {
+        self.regions = find_region_outlines(&self.sketch);
+    }
+
+    /// The innermost region `at` (plane-local metres) is in: the smallest
+    /// that holds it, since a region inside a hole is a region of its own.
+    pub fn region_at(&self, at: Uv) -> Option<&Region> {
+        self.regions
+            .iter()
+            .filter(|(_, outline)| outline.contains(at))
+            .min_by(|(a, _), (b, _)| {
+                a.profile
+                    .outer
+                    .signed_area
+                    .abs()
+                    .total_cmp(&b.profile.outer.signed_area.abs())
+            })
+            .map(|(region, _)| region)
     }
 
     /// The draft an edit submitted against `base` left, until the
@@ -170,7 +197,27 @@ pub fn sketch_view(solved: &Solved) -> SketchView {
         selected: Vec::new(),
         preview: None,
         field: None,
+        regions: solved
+            .regions
+            .iter()
+            .map(|(region, outline)| SketchRegionView {
+                key: region_key(&region.key),
+                holes: outline.holes.len(),
+                outer: outline.outer.iter().copied().map(uv).collect(),
+                hole_rings: outline
+                    .holes
+                    .iter()
+                    .map(|ring| ring.iter().copied().map(uv).collect())
+                    .collect(),
+            })
+            .collect(),
+        hover_region: None,
     }
+}
+
+/// A region's key as the document stores it: its JSON.
+pub fn region_key(key: &arrix_core::RegionKey) -> String {
+    serde_json::to_string(key).unwrap_or_default()
 }
 
 fn pos(sketch: &Sketch, id: SketchEntityId) -> Option<Uv> {

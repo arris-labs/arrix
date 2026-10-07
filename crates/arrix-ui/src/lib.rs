@@ -6,6 +6,7 @@ mod shell;
 mod sketch;
 mod sketch_field;
 mod sketch_preview;
+mod sketch_regions;
 mod theme;
 pub mod view;
 pub mod viewcube;
@@ -18,6 +19,7 @@ pub use sketch::{
 };
 pub use sketch_field::{DimensionFieldView, FieldEvent, dimension_field};
 pub use sketch_preview::{SketchPreviewView, SnapGlyphView};
+pub use sketch_regions::SketchRegionView;
 pub use theme::{Rgba, ThemeView};
 pub use view::{
     CardsView, DocumentTab, DocumentTabsView, FeatureState, PaletteEntry, PaletteView,

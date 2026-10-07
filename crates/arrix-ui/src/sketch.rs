@@ -166,6 +166,14 @@ pub struct SketchView {
     /// The field a dimension's value is typed in, while one is open.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub field: Option<crate::DimensionFieldView>,
+    /// The closed regions, shaded under everything else, largest first;
+    /// the keys are what a feature stores to take one.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub regions: Vec<crate::SketchRegionView>,
+    /// The key of the region the pointer is in, when nothing else is
+    /// under it: session state, outlined.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hover_region: Option<String>,
 }
 
 /// The map from the sketch's plane to the screen: a homography, so it is
@@ -308,6 +316,12 @@ pub fn paint_sketch(painter: &egui::Painter, to_screen: &PlaneToScreen, view: &S
             .is_some_and(|h| h.kind == kind && h.id == id)
     };
     let selected = |id: &str| view.selected.iter().any(|s| s == id);
+    crate::sketch_regions::paint_regions(
+        painter,
+        to_screen,
+        &view.regions,
+        view.hover_region.as_deref(),
+    );
     for curve in &view.curves {
         let mut stroke = Stroke::new(1.75, curve.state.colour());
         if selected(&curve.id) {
@@ -643,6 +657,8 @@ mod tests {
             selected: vec![],
             preview: None,
             field: None,
+            regions: Vec::new(),
+            hover_region: None,
         }
     }
 

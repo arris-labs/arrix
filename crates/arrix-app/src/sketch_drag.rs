@@ -95,6 +95,7 @@ impl ArrixApp {
             .session
             .step(&mut solved.sketch, pointer.at[0], pointer.at[1]);
         drag.solve_us = u64::try_from(started.elapsed().as_micros()).unwrap_or(u64::MAX);
+        solved.refresh_regions();
         drag.frames += 1;
         drag.blocked = frame.blocked || !frame.converged;
     }
@@ -130,6 +131,7 @@ impl ArrixApp {
             Err(reason) => {
                 if let Some(solved) = document.sketch.as_mut().and_then(|m| m.solved.as_mut()) {
                     solved.sketch = drag.before;
+                    solved.refresh_regions();
                 }
                 self.session.notice = Some(reason);
             }
