@@ -147,16 +147,39 @@ rule).
   `StatusView` (the help text, generation, diagnostics count, display units,
   config diagnostics included) and a `ThemeView` (the 16 roles as colours, and the
   dark or light base), which `arrix-ui` turns into egui `Visuals`; `arrix-ui`
-  does not depend on `arrix-config`. The property card is empty until forms
-  exist.
+  does not depend on `arrix-config`. The property card holds the shell's
+  `FormView` while a form is open (below), and says "Nothing is being
+  edited" otherwise.
+- **`FormView`** (`arrix_ui::form`, ADR-0018) is a feature type's form as
+  data: an id naming the form being edited (a different id starts every
+  text buffer afresh), the type's title, whether it is a create form (OK
+  and Cancel) or an edit form, the feature's name, its `FeatureState` and
+  diagnostic (code and message), a read-only reason, and the fields the
+  spec's `shown_when` leaves shown, in the spec's order. A `FormField` is
+  a name (the spec's), a title, a message (why its text was refused) and a
+  `FieldValue`: `Quantity { text, unit }` (an expression; the unit names
+  what the text is measured in with none; a count has none), `Choice {
+  selected, options, clearable }` (a combo; `clearable` where the choice
+  has no default), or `Reference { takes, values, list, active }` (each
+  value a row with a remove button and a lost one in red; the active field
+  is the one a pick fills). One renderer, `arrix_ui::form`, draws every
+  type's form, so a plugin's is a built-in's. A text box's buffer is the
+  renderer's, kept in egui memory by form id and field name: it follows
+  the view's text when that changes (an undo with the form open) and keeps
+  what was typed when it does not (a refused text stays with its reason);
+  Enter or leaving the box commits, Escape puts the view's text back.
 - **The shell's layout** is a function of the window size and of which cards
   show: the ribbon 88 points high, the tab strip 24, the status line 20, and
   a card at a fixed width (the tree 240, the properties 280) pinned 8 points
   inside the viewport's top-left or top-right corner; cards are not draggable.
   `arrix_ui::shell` returns where each region landed (`None` for a card not
   showing), which `debug_state()` reports.
-- **Intents** are what a user did, in view terms: `UiIntent::FieldCommitted
-  { form, field, text }`, `CommandInvoked { command }` (a ribbon button, a palette row or a key),
+- **Intents** are what a user did, in view terms: the form's `FieldEdited
+  { field, text }` (uncommitted), `FieldCommitted { field, text }`,
+  `NameCommitted { text }`, `ChoiceSelected { field, value }` (`None`
+  clears a choice that may be unset), `ReferenceFieldActivated { field }`,
+  `ReferenceRemoved { field, index }`, `FormOk` and `FormCancelled`;
+  `CommandInvoked { command }` (a ribbon button, a palette row or a key),
   `RibbonTabSelected { tab }`, `PaletteQuery { text }`, `PaletteClosed`,
   `DocumentTabSelected { index }`, `DocumentTabClosed { index }`,
   `Picked { name }`, `Hovered { name }`, `TreeFeatureSelected { feature }`,

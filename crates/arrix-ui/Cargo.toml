@@ -18,4 +18,5 @@ glam.workspace = true
 serde.workspace = true
 
 [dev-dependencies]
+egui_kittest.workspace = true
 web-time.workspace = true

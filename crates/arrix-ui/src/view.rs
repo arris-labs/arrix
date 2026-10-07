@@ -18,6 +18,9 @@ pub struct ShellView {
     /// Which cards float over the viewport this frame.
     pub cards: CardsView,
     pub status: StatusView,
+    /// The property card's form, when one is open.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub form: Option<crate::FormView>,
     /// The command palette, when it is open.
     pub palette: Option<PaletteView>,
 }
@@ -263,6 +266,31 @@ pub enum UiIntent {
     DimensionCancelled,
     /// The open field's text changed, uncommitted.
     DimensionEdited { constraint: String, text: String },
+    /// A form field's text changed, uncommitted. Session state: a create
+    /// form's draft follows it, an edit form's document does not.
+    FieldEdited { field: String, text: String },
+    /// A form field's text was committed, by Enter or by leaving the box:
+    /// an expression for the field's value. A create form's draft takes it;
+    /// an edit form's is one command, or none when the text is the value it
+    /// has or the form's rules refuse it.
+    FieldCommitted { field: String, text: String },
+    /// A form's name field was committed.
+    NameCommitted { text: String },
+    /// A choice was picked in a form, or cleared (`None`) where it may be
+    /// left unset.
+    ChoiceSelected {
+        field: String,
+        value: Option<String>,
+    },
+    /// A reference field of a form was clicked: it becomes the field a pick
+    /// fills. Session state, no command.
+    ReferenceFieldActivated { field: String },
+    /// The value at `index` of a reference field was removed.
+    ReferenceRemoved { field: String, index: usize },
+    /// A create form's OK: one command that adds the feature.
+    FormOk,
+    /// A create form's Cancel, or Escape: the draft goes, no command.
+    FormCancelled,
     /// The pointer is over this face, edge or vertex, or over nothing: the
     /// hover becomes it. Session state, no command.
     Hovered {

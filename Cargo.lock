@@ -521,6 +521,7 @@ dependencies = [
  "arrix-plugin-api",
  "arrix-viewport",
  "egui",
+ "egui_kittest",
  "glam 0.33.10",
  "serde",
  "web-time",

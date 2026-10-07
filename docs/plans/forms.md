@@ -115,7 +115,7 @@ None new. Previews use the operations the features already call and
   the frozen goldens (`crates/arrix-cli/tests/golden/`) must stay byte
   equal, or the diff is read and the reason written in the commit.
   `gears` to `^0.5`; the backlog line is already gone.
-- [ ] **[2]** Step 4: `FormView` and its renderer in `arrix-ui`: a header
+- [x] **[2]** Step 4: `FormView` and its renderer in `arrix-ui`: a header
   (type title, name field, state and diagnostic), quantity and count
   fields (expression text, unit hint, per-field message), choice
   combos, single and list reference fields (each value a row with a

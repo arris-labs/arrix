@@ -95,7 +95,7 @@ pub fn shell(
     let properties = view
         .cards
         .properties
-        .then(|| properties_card(ui.ctx(), viewport));
+        .then(|| properties_card(ui.ctx(), viewport, view.form.as_ref(), &mut intents));
     if let Some(view) = &view.palette {
         crate::palette::palette(ui.ctx(), view, &mut intents, &mut hovered_command);
     }
@@ -301,16 +301,24 @@ fn feature_row(ui: &mut egui::Ui, feature: &TreeFeature, intents: &mut Vec<UiInt
     }
 }
 
-fn properties_card(ctx: &egui::Context, viewport: egui::Rect) -> egui::Rect {
+fn properties_card(
+    ctx: &egui::Context,
+    viewport: egui::Rect,
+    form: Option<&crate::FormView>,
+    intents: &mut Vec<UiIntent>,
+) -> egui::Rect {
     card(
         ctx,
         "arrix.properties",
         viewport,
         true,
         PROPERTIES_WIDTH,
-        |ui| {
-            ui.heading("Properties");
-            ui.weak("Nothing is being edited");
+        |ui| match form {
+            Some(form) => intents.extend(crate::form(ui, form)),
+            None => {
+                ui.heading("Properties");
+                ui.weak("Nothing is being edited");
+            }
         },
     )
 }

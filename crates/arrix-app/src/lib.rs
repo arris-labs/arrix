@@ -514,6 +514,7 @@ impl ArrixApp {
                     .collect(),
             },
             cards: self.cards(),
+            form: None,
             status: StatusView {
                 hint: self.hint(),
                 generation: self
@@ -671,6 +672,15 @@ impl ArrixApp {
                 }
             }
             UiIntent::Hovered { name } => self.view_mut().hover = name,
+            // The property card's form: no form is open yet (step 5).
+            UiIntent::FieldEdited { .. }
+            | UiIntent::FieldCommitted { .. }
+            | UiIntent::NameCommitted { .. }
+            | UiIntent::ChoiceSelected { .. }
+            | UiIntent::ReferenceFieldActivated { .. }
+            | UiIntent::ReferenceRemoved { .. }
+            | UiIntent::FormOk
+            | UiIntent::FormCancelled => {}
         }
     }
 

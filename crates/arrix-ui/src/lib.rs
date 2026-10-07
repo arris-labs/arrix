@@ -1,6 +1,7 @@
 //! egui widgets over plain view types, and the declarative-UI renderer. Never
 //! names a document or sketch type (docs/UI-RENDERING.md §View types).
 
+mod form;
 mod palette;
 mod shell;
 mod sketch;
@@ -11,6 +12,9 @@ mod theme;
 pub mod view;
 pub mod viewcube;
 
+pub use form::{
+    ChoiceOptionView, FieldValue, FormDiagnostic, FormField, FormView, ReferenceValueView, form,
+};
 pub use shell::{ShellLayout, ShellResponse, shell, viewcube_rect};
 pub use sketch::{
     ConstraintGlyphView, CurveShape, DimensionView, DofState, HitKind, PlaneToScreen,
