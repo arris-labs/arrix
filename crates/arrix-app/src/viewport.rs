@@ -29,13 +29,15 @@ fn pose(camera: &OrbitCamera) -> ([f32; 3], f32, f32, f32) {
 
 /// Draws the viewport into `ui`'s rect: the view's scene through
 /// `renderer` (an app without a wgpu render state draws nothing), the cube
-/// over it, and takes the pointer's gestures. A pick a click or a resting
+/// over it (when `cube`: an empty start has nothing to turn, and shows
+/// nothing else, ADR-0017), and takes the pointer's gestures. A pick a click or a resting
 /// pointer asked for is left in `view.pick`.
 pub fn show(
     ui: &mut egui::Ui,
     view: &mut ViewState,
     renderer: Option<&mut Renderer>,
     cards: &CardsView,
+    cube: bool,
 ) -> Frame {
     let rect = ui.max_rect();
     // The viewport's own response: a card over it is a layer above and
@@ -94,17 +96,19 @@ pub fn show(
     }
 
     // Painted after the scene, so over it.
-    let camera = &view.camera;
-    let cube = viewcube::viewcube(
-        ui,
-        viewcube_rect(rect, cards),
-        camera.yaw,
-        camera.pitch,
-        camera.projection,
-    );
-    if let Some(action) = cube.action {
-        view.apply_cube(action);
-        ui.ctx().request_repaint();
+    if cube {
+        let camera = &view.camera;
+        let cube = viewcube::viewcube(
+            ui,
+            viewcube_rect(rect, cards),
+            camera.yaw,
+            camera.pitch,
+            camera.projection,
+        );
+        if let Some(action) = cube.action {
+            view.apply_cube(action);
+            ui.ctx().request_repaint();
+        }
     }
 
     // What is under a pointer that has not moved changed with the camera.

@@ -196,7 +196,7 @@ All present in the pinned `arris` 0.5:
   `core.view.*` commands with default keys. Scenario: the
   ViewCube's top face clicked, the camera's matrices in the golden.
   Catalog regenerated.
-- [ ] **[2]** 13 — The acceptance scenario `viewport_accept` and the
+- [x] **[2]** 13 — The acceptance scenario `viewport_accept` and the
   budgets: a UI frame with the slice on screen measured and printed
   (16 ms, reported), the numbers written to
   `docs/CONCURRENCY-WASM.md` §Budgets.
@@ -207,8 +207,8 @@ All present in the pinned `arris` 0.5:
 empty start first, showing only the ribbon, the viewport, the empty tab
 strip and the status line with its start hint (`layout` has no cards);
 then the slice and the gear opened as two tabs, the slice active; settled,
-both of the slice's bodies
-drawn with refined meshes (`bodies` counts and bounds in the golden), the
+the slice's one final body (the pocketed plate)
+drawn with a refined mesh (`bodies` counts and bounds in the golden), the
 tree card showing the slice's features all ok and no property card; a
 click on the plate's top face selects its persistent name; a ViewCube
 click turns the camera to the top view; Escape clears the selection; the

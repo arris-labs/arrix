@@ -182,13 +182,26 @@ measured number written here.
 
 | What | Target |
 |---|---|
-| A UI frame with the C1 acceptance part on screen | ≤ 16 ms |
+| A UI frame with the C1 acceptance part on screen | ≤ 16 ms; measured 0.09 ms median |
 | Applying a command (authority and replica) | ≤ 1 ms |
 | One sketch-drag solve on a 200-entity sketch | ≤ 4 ms, on the UI thread; measured 34 ms |
 | First coarse mesh after a parameter edit of the acceptance part | ≤ 150 ms |
 | Cancellation latency once A3 lands | ≤ 50 ms |
 | Save and load of the acceptance document | ≤ 100 ms each |
 | `arrix eval` throughput over the scenario documents | reported, no target yet |
+
+The UI frame was measured with the slice (its one pocketed body, refined,
+1,788 triangles) and its tree card on screen at 1440 × 900: the app's frame as the CPU does it, which is the view built,
+egui's layout and paint, the viewport's draw preparation and the ViewCube,
+plus egui's tessellation, and not the GPU (lavapipe says nothing about
+one). Median 0.09 ms, p95 0.10 ms, at rest and with a middle drag
+orbiting the camera (which re-asks for the hover pick each frame), in the
+dev profile (optimised, with debug info) on a Ryzen 9 7950X
+(`cargo test -p arrix-app --test visual -- ui_frame_budget --nocapture`,
+reported, not asserted). The scene's cost is the GPU's: a body is one draw
+and its meshes are uploaded once, so the UI thread's frame does not grow
+with the triangle count; the GPU side is measured when a reference GPU is
+in CI.
 
 The sketch drag was measured on a 199-entity sketch (a 9 × 10 grid of
 10 mm cells, one connected subsystem of 220 variables, its far corner

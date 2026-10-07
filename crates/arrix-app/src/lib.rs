@@ -665,7 +665,13 @@ impl eframe::App for ArrixApp {
         let renderer = self.renderer.as_mut();
         let mut frame = None;
         let response = arrix_ui::shell(ui, &view, |ui| {
-            frame = Some(viewport::show(ui, view_state, renderer, &view.cards));
+            frame = Some(viewport::show(
+                ui,
+                view_state,
+                renderer,
+                &view.cards,
+                !view.documents.tabs.is_empty(),
+            ));
         });
         let hover_left = frame.is_some_and(|f| f.hover_left);
         self.drawn = Some(Drawn {

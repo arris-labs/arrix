@@ -24,7 +24,7 @@ fn generation(h: &Harness<'_>) -> Option<u64> {
     h.state().debug_state().evaluation.map(|e| e.generation)
 }
 
-fn click(h: &mut Harness<'_>, at: egui::Pos2) {
+pub fn click(h: &mut Harness<'_>, at: egui::Pos2) {
     h.hover_at(at);
     h.step();
     h.drag_at(at);
