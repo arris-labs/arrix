@@ -30,9 +30,9 @@ renders as an image. Revert your edits to that file before committing: it
 is tracked, and its default body is the startup state.
 
 **Pinning a state against regressions** → a scenario in
-`crates/arrix-app/tests/visual/main.rs`, one golden per scenario in
-`crates/arrix-app/tests/snapshots/<name>.json`. Today there is one,
-`empty_shell`.
+`crates/arrix-app/tests/visual/` (one module per area: `viewport`,
+`highlight`, `camera`, `accept`, …), one golden per scenario in
+`crates/arrix-app/tests/snapshots/<name>.json`.
 
 ```sh
 cargo test -p arrix-app --test visual
@@ -50,8 +50,10 @@ A golden is text, never an image:
 - `debug_state`: the app's `debug_state()`, keys sorted, floats rounded to
   six places. Today: `window` (`[w, h]` in points), `layout` (each shell
   region as `[min_x, min_y, max_x, max_y]`), `shell` (the `ShellView` the
-  frame was drawn from: ribbon tabs and the open one, tree parts, status).
-  The viewport, sketch and evaluation fields join as those land.
+  frame was drawn from: ribbon tabs and the open one, tree parts, status),
+  and for the active document `evaluation`, `bodies`, `camera` (with its
+  `view_proj`), `selection`, `hover` and `picking`, each omitted while
+  empty. The sketch fields join as those land.
 - `coarse_frame`: the frame reduced to 16×16-pixel cells of mean RGB, one
   string of six hex digits per cell per row (`cell`, `size`, `rows`). A
   cell the frame's edge cuts short averages what it holds: 1440×900 is
@@ -125,6 +127,10 @@ Helpers are in `crates/arrix-app/tests/visual/harness.rs`, the golden in
 | the real app at the reference size, skipping without lavapipe | `harness::with_app(name, \|h\| …)` |
 | settle until egui stops asking for repaints | `harness::settle(h)` |
 | anything that needs the GPU to have run | `harness::pump_rendered(h, n)` |
+| open a document and wait until it is meshed refined | `harness::open_settled(h, "tests/docs/slice")` (`_without(h, path, &["gears"])` leaves a plugin out) |
+| where a world point is on screen | `h.state().screen_point([x, y, z])` |
+| click, hover, drag in the viewport | `set_render_every_step(true)`, then the helpers in `tests/visual/viewport.rs` (`click`) and `camera.rs`; wait on `debug_state().picking` |
+| finish a camera flight | `h.state_mut().skip_animations()` |
 | the frame | `harness::render(h)` |
 | compare against the golden | `snapshot::check(h, name)` |
 | the state dump | `h.state().debug_state()` / `debug_state_json()` |
@@ -132,15 +138,19 @@ Helpers are in `crates/arrix-app/tests/visual/harness.rs`, the golden in
 ## Pitfalls
 
 1. **`Harness::step` does no GPU work.** Only `render` runs the paint
-   callbacks. Anything that depends on a rendered frame (picking, from M3)
-   needs `pump_rendered`.
+   callbacks. Anything that depends on a rendered frame (picking, hover)
+   needs `pump_rendered` or `set_render_every_step(true)`; an answered pick
+   is drawn by the frame after it, so step once more before reading pixels
+   or the status hint. The harness's `drop_at` removes the pointer and so
+   clears hover: hover again before asserting a hint.
 2. **A click is one event per rendered frame.** A press and a release
    queued into one step produce a click frame that is computed and thrown
    away.
 3. **Evaluation is asynchronous** (from M1): settle before asserting, or
    the frame shows a half-built model.
-4. **No wall clock reaches a pixel.** Never start a camera animation in a
-   test; turn animations off; no frame-time readout.
+4. **No wall clock reaches a pixel.** A camera flight is finished with
+   `skip_animations` before anything is read; no frame-time readout. A
+   document with repaints pending never lets `run()` finish: `run_steps`.
 5. **Scenarios run one at a time.** `with_app` holds the GPU lock;
    concurrent lavapipe devices crash inside the driver. Go through it.
 6. **A skip is loud, not green.** Without a CPU adapter a scenario prints

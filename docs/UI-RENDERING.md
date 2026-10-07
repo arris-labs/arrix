@@ -123,10 +123,12 @@ rule).
   snapshot, the latest events and session state: `TreeView`, `FormView`,
   `RibbonView`, `PaletteView`, `DiagnosticsView`, `SketchView`,
   `SceneView`. They are serialisable, which is what makes them testable
-  and what a thin client would receive. Built so far: `ShellView`, holding
+  and what a thin client would receive. The scene is the viewport's own
+  (`arrix_viewport`, fed `RenderMesh`es), and the camera is session state
+  that `debug_state()` reports; neither is a view type of `arrix-ui`. Built so far: `ShellView`, holding
   a `RibbonView` (tabs, the open one, and its groups of buttons with
   whether each is enabled), a `PaletteView` (the query, results and
-  selection, while open), a `TreeView` (parts), a `DocumentTabsView`
+  selection, while open), a `TreeView` (each part's features with their `FeatureState`), a `DocumentTabsView`
   (the open documents), a `CardsView` (which cards show), a
   `StatusView` (the help text, generation, diagnostics count, display units,
   config diagnostics included) and a `ThemeView` (the 16 roles as colours, and the
@@ -141,7 +143,10 @@ rule).
   showing), which `debug_state()` reports.
 - **Intents** are what a user did, in view terms: `UiIntent::FieldCommitted
   { form, field, text }`, `CommandInvoked { command }` (a ribbon button, a palette row or a key),
-  `RibbonTabSelected { tab }`, `PaletteQuery { text }`, `PaletteClosed`, `Picked { name }`, `Hovered { name }`.
+  `RibbonTabSelected { tab }`, `PaletteQuery { text }`, `PaletteClosed`,
+  `DocumentTabSelected { index }`, `DocumentTabClosed { index }`,
+  `Picked { name }`, `Hovered { name }`. The ViewCube returns a
+  `ViewCubeAction` of its own, which the app applies to its camera.
   `arrix-app` turns an intent into a `CommandEnvelope`, or into a change of
   session state (selection, camera), which issues no command.
 
@@ -425,7 +430,11 @@ the way in.
   number is wrong, not only that a pixel is. Built so far: the window
   size, the rect of each shell region (`layout`), the `ShellView` drawn
   (`shell`), the effective theme's name, the keymap in force and the config
-  diagnostics; the rest joins as its part of the app is built.
+  diagnostics; for the active document its `evaluation` (generation,
+  finished, settled), `bodies` (counts and bounds), `camera` (pose,
+  projection and the 16 numbers of its view-projection), `selection`,
+  `hover` and whether a `picking` is in flight, each left out while empty;
+  the sketch joins as its part of the app is built.
 - **A mesh without a document**: `ArrixApp::show_mesh(key, mesh)` puts a
   `RenderMesh` on screen as a `Meshed` event will; the scenarios' fixture
   box (`tests/visual/fixture.rs`) pins the renderer apart from the kernel.
@@ -441,8 +450,13 @@ the way in.
   (`.agents/rules/git.md`).
 - **Pitfalls** the harness encodes, so no one relearns them: a frame step
   without a render does no GPU work; a click is one event per rendered
-  frame; evaluation is asynchronous, so settle before asserting; never
-  start a camera animation in a test.
+  frame; evaluation is asynchronous, so settle before asserting; a camera
+  flight runs on a wall clock, so a test finishes it with
+  `ArrixApp::skip_animations`; an answered pick is drawn by the frame after
+  it, so step once before reading pixels or the hint; the harness's `drop_at`
+  removes the pointer, which clears hover, so hover again before asserting a
+  hint; a document with repaints pending never lets `run()` finish, so use
+  `run_steps`.
 - The `visual-debug` skill (`.agents/skills/visual-debug/SKILL.md`) is
   the agent's how-to: scratch or scenario, reading the golden, the knobs,
   the baseline before any refresh, and these pitfalls.

@@ -24,6 +24,9 @@ idea is not brainstormed twice.
 - A project config layer beside a document, and the trust model it needs before it may rebind keys or name anything that runs (ADR-0015; plans/configurable-shell)
 - Config profiles: named sets of settings, keymap and theme switched together (plans/configurable-shell)
 - A settings UI that writes the user's TOML through `toml_edit`, keeping their comments and order (ADR-0015; plans/configurable-shell)
+- Mouse bindings in the keymap: the viewport's gestures (orbit, pan, zoom, pick) are fixed now (plans/viewport-port step 12)
+- The evaluator saying "meshed" explicitly, so a generation with no final body clears the old bodies from the scene instead of leaving them until the next one with a body (plans/viewport-port step 7)
+- The GPU side of the frame budget, measured on a reference GPU in CI; lavapipe says nothing about one (plans/viewport-port step 13)
 
 ## Rejected
 

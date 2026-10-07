@@ -155,6 +155,10 @@ remote mode is built.
 | Evaluator | authority | evaluates snapshots, calls the kernel, tessellates | anything egui |
 | Plugin processes | — | Tier 2 plugins, one process each (the boundary-opened cycle) | — |
 
+Each open document is its own session and evaluator pair, with the client's
+replica, scene, camera and selection beside it (ADR-0017); the UI thread is
+the one client of all of them.
+
 The executor, cancellation, the wasm story and budgets are in
 `docs/CONCURRENCY-WASM.md`.
 

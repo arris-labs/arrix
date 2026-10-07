@@ -28,20 +28,17 @@ skills for the idea → plan → work → retire → close-cycle pipeline live i
 design docs of `SEED.md` §10.2 are written, with C1 in full in
 `docs/ROADMAP.md` (M0 gate and harness → M1 the document and a plugin
 feature → M2 part features and naming → M3 the app → M4 exchange and batch).
-**C1 M0 landed 2026-09-26:** the workspace, the gate, the headless visual
-harness on an empty shell, `arrix eval` on an empty document. **C1 M1
-landed 2026-10-02**, in three plans: the document, evaluator and
-`LocalSession`, `gears.spur` as a Tier 0 plugin feature; the ported
-sketcher and region references; bodies as inputs, extrude and boolean,
-frozen results and states, schema 2 and the `.arrx` zip, plugin API 0.3,
-`arris` 0.4. The accept is green. **C1 M2 landed 2026-10-07**, in two
-plans: naming at the kernel (revolve, blends, copies), the fixture export,
-`arris` 0.5; then every core feature type, list inputs, projection into a
-sketch, schema 3, plugin API 0.4, and the naming accept
-(`cargo test -p arrix-cli --test naming_scenarios`). **C1 M3 plan 1
-landed 2026-10-07** (`configurable-shell`, ADR-0015, ADR-0016): the shell is
-data, configured by TOML (`arrix config check`, `arrix describe`, reload).
-**Now:** M3's next plan, the viewport port, to be planned.
+**C1 M0 landed 2026-09-26** (workspace, gate, headless visual harness).
+**M1 landed 2026-10-02:** the document, evaluator and `LocalSession`, the
+ported sketcher, bodies, frozen results, `gears.spur` as a Tier 0 plugin
+(`arris` 0.4). **M2 landed 2026-10-07:** naming at the kernel and every core
+feature type (`arris` 0.5; `cargo test -p arrix-cli --test naming_scenarios`).
+**M3 plans 1 and 2 landed 2026-10-07:** the shell as TOML data
+(`configurable-shell`, ADR-0015, ADR-0016); the minimal shell and the wgpu
+viewport with picking, hover, selection, camera and ViewCube
+(`viewport-port`, ADR-0017; `cargo test -p arrix-app --test visual
+viewport_accept`).
+**Now:** M3's next plan (sketch mode, or the forms), to be planned.
 
 ## Rules that are not derivable from the code
 
