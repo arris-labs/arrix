@@ -29,6 +29,9 @@ pub enum Style {
 pub struct Highlights<'a> {
     pub hover: Option<&'a PersistentName>,
     pub selection: Option<&'a PersistentName>,
+    /// More entities drawn as the selection is: what a form's reference
+    /// fields hold.
+    pub marked: &'a [PersistentName],
 }
 
 /// Where each entity of a mesh sits in its body's buffers.

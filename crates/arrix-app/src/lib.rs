@@ -9,6 +9,7 @@ mod debug;
 mod document_files;
 mod documents;
 mod form;
+mod form_pick;
 mod keys;
 mod palette;
 mod sketch_constrain;
@@ -63,6 +64,9 @@ struct Session {
     /// How many forms this session has opened: names each one's text
     /// buffers.
     forms_opened: u64,
+    /// Whether shift is held, as of the frame's start: a tree click that
+    /// picks into a list field adds to it.
+    shift: bool,
     /// When, on egui's clock, a dwell under way completes: a frame is
     /// asked for then, since a pointer at rest sends nothing.
     wake_at: Option<f64>,
@@ -188,6 +192,7 @@ impl ArrixApp {
                 notice: None,
                 gestures: Gestures::default(),
                 forms_opened: 0,
+                shift: false,
                 wake_at: None,
             },
             drawn: None,
@@ -650,7 +655,11 @@ impl ArrixApp {
                 }
             }
             UiIntent::DocumentTabClosed { index } => self.close_document(index),
-            UiIntent::Picked { name } => self.view_mut().selection = name,
+            UiIntent::Picked { name } => {
+                if !self.form_pick_topo(name.clone()) {
+                    self.view_mut().selection = name;
+                }
+            }
             UiIntent::SketchHovered { hit } => self.hover_sketch(hit),
             UiIntent::SketchClicked {
                 hit,
@@ -670,7 +679,9 @@ impl ArrixApp {
                 self.edit_dimension_field(&constraint, text);
             }
             UiIntent::TreeFeatureSelected { feature } => {
-                if let Ok(feature) = feature.parse::<FeatureId>() {
+                if let Ok(feature) = feature.parse::<FeatureId>()
+                    && !self.form_pick_feature(feature)
+                {
                     self.view_mut().feature_selection = Some(feature);
                 }
             }
@@ -895,6 +906,8 @@ impl eframe::App for ArrixApp {
         self.drain_documents(ui.ctx());
         self.run_keys(ui.ctx());
         self.apply_theme(ui);
+        self.session.shift = ui.input(|i| i.modifiers.shift);
+        let marks = self.form_marks();
         let window = ui.max_rect();
         let view = self.shell_view();
         let overlay = self.sketch_overlay();
@@ -902,6 +915,7 @@ impl eframe::App for ArrixApp {
             Some(d) => &mut d.view,
             None => &mut self.idle_view,
         };
+        view_state.marked = marks;
         let renderer = self.renderer.as_mut();
         let mut frame = None;
         let response = arrix_ui::shell(ui, &view, |ui| {

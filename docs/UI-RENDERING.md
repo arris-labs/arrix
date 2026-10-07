@@ -272,7 +272,24 @@ open says why in the status line and adds nothing. Cancel and Escape drop
 the draft and issue none; Enter is OK while no field has focus
 (`core.form.ok` and `core.form.cancel`, bound in the `form` context). A
 form does not open in sketch mode (the status line says to finish the
-sketch). Reference fields mark the active one and take no pick yet.
+sketch). A create form opens with its first reference field active.
+
+**References are picked.** The active reference field decides what a pick
+means (`form_pick.rs`): in the viewport a face is a `plane` (`Ref::Topo`)
+or, for a `body` field, the body it is on (`Ref::Slot` of the key the scene
+holds it by), an edge is an `edge` or an `axis` (whether it is straight is
+the evaluator's to say), a vertex a `point`; in the tree a datum plane is a
+`plane` (`Ref::Slot`), any feature a `tool` (`Ref::Feature`) and a feature
+that makes a body a `body`. A pick that fits nothing says in the status line
+what the field takes, changes nothing and selects nothing, and while a field
+is active a click in the scene or the tree is a pick, never a selection.
+A list field takes shift-click to add a reference or, when it holds it,
+remove it; without shift a pick replaces the list. Each value is a row with
+a remove button. A create form's picks change the draft; an edit form's
+each is one `EditFeature`, an equal value none. The selection when
+`<type>.create` runs seeds the form: the scene's, then the tree's, each into
+the first empty field it fits. What the fields hold in the scene is drawn as
+the selection is (`Highlights::marked`).
 
 An **edit form** is the same renderer over an existing feature: a double
 click on a tree row (`TreeFeatureActivated`) of any feature that is neither

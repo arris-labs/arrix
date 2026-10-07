@@ -351,6 +351,13 @@ impl<M> Scene<M> {
         })
     }
 
+    /// The body that holds `name`'s entity, if a visible one does.
+    pub fn body_of(&self, name: &PersistentName) -> Option<&BodyKey> {
+        self.visible()
+            .find(|entry| entry.names.find(name).is_some())
+            .map(|entry| &entry.key)
+    }
+
     /// The box of every visible body in the world.
     pub fn bounds(&self) -> Option<Aabb> {
         self.visible()

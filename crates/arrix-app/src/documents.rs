@@ -43,6 +43,12 @@ pub struct ViewState {
     /// The last pick asked for, until its read-back arrives, and what it
     /// was asked for.
     pub pick: Option<(PendingPick, PickFor)>,
+    /// Whether shift was held at the last click in the viewport: a pick
+    /// into a list field adds to it.
+    pub click_extend: bool,
+    /// What the open form's reference fields hold, drawn as the selection
+    /// is. Set every frame from the form.
+    pub marked: Vec<PersistentName>,
 }
 
 /// What a pick is for: a click selects, the pointer resting hovers.

@@ -141,7 +141,7 @@ None new. Previews use the operations the features already call and
   a refused text none; the form is rebuilt from the replica each frame,
   so an undo or redo with it open shows the document's values
   (principle 4); deleting the feature by undo closes it.
-- [ ] **[2]** Step 7: references picked in the scene and the tree. The
+- [x] **[2]** Step 7: references picked in the scene and the tree. The
   active reference field filters what a pick means: a planar face to a
   `plane` (`Ref::Topo`), a face of a body to its `body` slot
   (`Ref::Slot` of the slot the scene keys it by), an edge to an `edge`, a

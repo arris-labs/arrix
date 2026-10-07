@@ -335,6 +335,12 @@ impl Renderer {
             (highlights.selection, Style::Selection),
         ]
         .into_iter()
+        .chain(
+            highlights
+                .marked
+                .iter()
+                .map(|n| (Some(n), Style::Selection)),
+        )
         .filter_map(|(name, style)| {
             let at = scene.locate(name?)?;
             let entry = scene.visible().nth(at.body)?;

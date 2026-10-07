@@ -95,6 +95,9 @@ pub fn show(
         .clicked()
         .then(|| response.interact_pointer_pos())
         .flatten();
+    if click.is_some() {
+        view.click_extend = ui.input(|i| i.modifiers.shift);
+    }
     let hover = response.hover_pos();
     // The pointer is held down for a drag (the cube's included), which is
     // not a hover.
@@ -118,6 +121,7 @@ pub fn show(
         let highlights = Highlights {
             hover: view.hover.as_ref(),
             selection: view.selection.as_ref(),
+            marked: &view.marked,
         };
         let pick = renderer.paint(
             ui.painter(),

@@ -9,7 +9,7 @@
 
 use std::collections::BTreeMap;
 
-use arrix_core::{FeatureId, PartId, QuantityKind};
+use arrix_core::{FeatureId, Input, PartId, QuantityKind, Ref};
 use arrix_doc::expr::Expr;
 use arrix_doc::{Command, FeatureEdit, FeatureRecord, FeatureTypeId, Part};
 use arrix_plugin_api::{FeatureTypeSpec, InputKind, ShownWhen};
@@ -23,13 +23,13 @@ use crate::documents::OpenDocument;
 #[derive(Clone, Debug)]
 pub struct Form {
     /// The feature an edit form edits; none for a create form.
-    edit: Option<FeatureId>,
+    pub(crate) edit: Option<FeatureId>,
     /// An edit form's name as committed, until the record says it.
     renamed: Option<String>,
     /// Names the form for the renderer's text buffers; a new form has a
     /// new one.
     id: String,
-    spec: FeatureTypeSpec,
+    pub(crate) spec: FeatureTypeSpec,
     name: String,
     /// A create form: every parameter's text, as typed. An edit form: the
     /// texts committed or refused that the record does not say yet; the
@@ -40,8 +40,11 @@ pub struct Form {
     /// A create form's choices the user made; the rest hold the spec's
     /// default. An edit form's are the record's.
     choices: BTreeMap<String, String>,
+    /// A create form's references, by input. An edit form's are the
+    /// record's.
+    pub(crate) inputs: BTreeMap<String, Input>,
     /// The reference field a pick fills.
-    active: Option<String>,
+    pub(crate) active: Option<String>,
 }
 
 /// What a quantity of `kind` is measured in when its text names no unit.
@@ -55,7 +58,7 @@ fn unit_hint(kind: QuantityKind) -> &'static str {
 }
 
 /// What an input takes, in words, for a field that is asking.
-fn takes(kind: InputKind) -> &'static str {
+pub(crate) fn takes(kind: InputKind) -> &'static str {
     match kind {
         InputKind::Plane => "plane or planar face",
         InputKind::Region => "sketch region",
@@ -85,6 +88,7 @@ impl Form {
             texts: params.into_iter().collect(),
             refused: BTreeMap::new(),
             choices: BTreeMap::new(),
+            inputs: BTreeMap::new(),
             active: None,
         }
     }
@@ -100,6 +104,7 @@ impl Form {
             texts: BTreeMap::new(),
             refused: BTreeMap::new(),
             choices: BTreeMap::new(),
+            inputs: BTreeMap::new(),
             active: None,
         }
     }
@@ -129,7 +134,7 @@ impl Form {
     /// The form as the card draws it: the choices first (they decide what
     /// else shows), then the inputs, then the parameters, each in the
     /// spec's order.
-    pub fn view(&self, record: Option<&FeatureRecord>) -> FormView {
+    pub fn view(&self, record: Option<&FeatureRecord>, label: &dyn Fn(&Ref) -> String) -> FormView {
         let mut fields = Vec::new();
         for c in &self.spec.choices {
             fields.push(FormField {
@@ -161,7 +166,20 @@ impl Form {
                 title: i.title.clone(),
                 value: FieldValue::Reference {
                     takes: takes(i.kind).to_owned(),
-                    values: Vec::<ReferenceValueView>::new(),
+                    values: self
+                        .held(record)
+                        .get(&i.name)
+                        .map(|input| {
+                            input
+                                .refs()
+                                .iter()
+                                .map(|r| ReferenceValueView {
+                                    label: label(r),
+                                    lost: false,
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default(),
                     list: i.list,
                     active: self.active.as_deref() == Some(i.name.as_str()),
                 },
@@ -199,6 +217,25 @@ impl Form {
         }
     }
 
+    /// The references held: the record's, else the draft's.
+    pub(crate) fn held<'a>(
+        &'a self,
+        record: Option<&'a FeatureRecord>,
+    ) -> &'a BTreeMap<String, Input> {
+        record.map_or(&self.inputs, |r| &r.inputs)
+    }
+
+    /// The reference fields the choices leave shown, in the spec's order.
+    pub(crate) fn shown_inputs<'a>(
+        &'a self,
+        record: Option<&'a FeatureRecord>,
+    ) -> impl Iterator<Item = &'a arrix_plugin_api::InputSpec> {
+        self.spec
+            .inputs
+            .iter()
+            .filter(move |i| self.shown(record, &i.shown_when))
+    }
+
     /// What parameter `name`'s field shows: what was typed and the record
     /// does not say yet, else the record's.
     fn text(&self, record: Option<&FeatureRecord>, name: &str) -> String {
@@ -231,7 +268,7 @@ impl Form {
             name: self.name.clone(),
             params,
             choices: self.choices.clone(),
-            inputs: BTreeMap::new(),
+            inputs: self.inputs.clone(),
             suppressed: false,
             sketch: None,
             frozen: None,
@@ -240,7 +277,10 @@ impl Form {
 }
 
 /// The record of `feature` in the document the tab holds.
-fn feature_record(document: &OpenDocument, feature: FeatureId) -> Option<&FeatureRecord> {
+pub(crate) fn feature_record(
+    document: &OpenDocument,
+    feature: FeatureId,
+) -> Option<&FeatureRecord> {
     document
         .replica
         .document()
@@ -279,10 +319,13 @@ impl ArrixApp {
             .expect("an unbounded range has a free name");
         self.session.forms_opened += 1;
         let id = format!("new:{}:{}", spec.id, self.session.forms_opened);
-        let form = Form::create(id, spec, name, params);
+        let mut form = Form::create(id, spec, name, params);
+        let first = form.shown_inputs(None).next().map(|i| i.name.clone());
+        form.active = first;
         if let Some(document) = self.documents.get_mut(self.active) {
             document.form = Some(form);
         }
+        self.seed_form();
     }
 
     /// `TreeFeatureActivated` on a feature that is neither a sketch nor a
@@ -312,9 +355,11 @@ impl ArrixApp {
     pub(crate) fn form_view(&self) -> Option<FormView> {
         let document = self.active_document()?;
         let form = document.form.as_ref()?;
+        let doc = document.replica.document();
+        let label = |r: &Ref| crate::form_pick::label(doc, r);
         match form.edit {
-            Some(feature) => Some(form.view(Some(feature_record(document, feature)?))),
-            None => Some(form.view(None)),
+            Some(feature) => Some(form.view(Some(feature_record(document, feature)?), &label)),
+            None => Some(form.view(None, &label)),
         }
     }
 
@@ -383,15 +428,14 @@ impl ArrixApp {
                     form.active = Some(field);
                 }
             }
-            // Nothing picks into a field yet, so nothing is there to remove.
-            UiIntent::ReferenceRemoved { .. } => {}
+            UiIntent::ReferenceRemoved { field, index } => self.remove_reference(&field, index),
             UiIntent::FormOk => self.form_ok(),
             UiIntent::FormCancelled => self.form_cancel(),
             _ => {}
         }
     }
 
-    fn form_mut(&mut self) -> Option<&mut Form> {
+    pub(crate) fn form_mut(&mut self) -> Option<&mut Form> {
         self.documents.get_mut(self.active)?.form.as_mut()
     }
 
@@ -493,7 +537,7 @@ impl ArrixApp {
 
     /// One `EditFeature`; a refusal goes to the status line, and the
     /// form keeps showing the record.
-    fn edit_feature(&mut self, feature: FeatureId, edit: FeatureEdit) -> bool {
+    pub(crate) fn edit_feature(&mut self, feature: FeatureId, edit: FeatureEdit) -> bool {
         let Some(document) = self.documents.get_mut(self.active) else {
             return false;
         };
