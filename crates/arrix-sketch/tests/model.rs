@@ -212,6 +212,28 @@ fn a_conic_does_not_deserialise_on_the_default_build() {
     assert!(serde_json::from_str::<Constraint>(c).is_err());
 }
 
+#[cfg(not(feature = "unreached"))]
+#[test]
+fn a_kind_without_a_tool_does_not_deserialise_on_the_default_build() {
+    let id = |n: u32| format!("{n:013}");
+    let (p, q, r, e) = (id(1), id(2), id(3), id(4));
+    for c in [
+        format!(r#"{{"symmetric_across_datum":{{"a":"{p}","b":"{q}","datum":"axis_x"}}}}"#),
+        format!(r#"{{"block":{{"entity":"{e}"}}}}"#),
+        format!(r#"{{"point_on_perp_bisector":{{"point":"{p}","a":"{q}","b":"{r}"}}}}"#),
+        format!(r#"{{"arc_length":{{"arc":"{e}","value":0.01}}}}"#),
+        format!(r#"{{"angle_points":{{"a":"{p}","vertex":"{q}","b":"{r}","value":1.0}}}}"#),
+        format!(r#"{{"distance_to_axis_x":{{"point":"{p}","value":0.01}}}}"#),
+        format!(r#"{{"distance_to_axis_y":{{"point":"{p}","value":0.01}}}}"#),
+        format!(r#"{{"distance_point_circle":{{"point":"{p}","circle":"{e}","value":0.01}}}}"#),
+        format!(r#"{{"distance_to_datum":{{"point":"{p}","datum":"origin","value":0.01}}}}"#),
+        format!(r#"{{"angle_with_datum":{{"line":"{e}","datum":"axis_x","value":1.0}}}}"#),
+    ] {
+        let err = serde_json::from_str::<Constraint>(&c).unwrap_err();
+        assert!(err.to_string().contains("unknown variant"), "{c}: {err}");
+    }
+}
+
 // ─── constraint helpers ──────────────────────────────────────────────────
 
 #[test]
@@ -257,29 +279,35 @@ fn s47_constraint_helper_methods() {
     assert_eq!(c_symm_pts.referenced_points(), vec![p1, p2, p3]);
     assert!(!c_symm_pts.is_dimensional());
 
-    let c_perp_bis = Constraint::point_on_perp_bisector(p1, p2, p3);
-    assert_eq!(c_perp_bis.residual_count(), 1);
-    assert_eq!(c_perp_bis.referenced_points(), vec![p1, p2, p3]);
+    #[cfg(feature = "unreached")]
+    {
+        let c_perp_bis = Constraint::point_on_perp_bisector(p1, p2, p3);
+        assert_eq!(c_perp_bis.residual_count(), 1);
+        assert_eq!(c_perp_bis.referenced_points(), vec![p1, p2, p3]);
 
-    let mut c_arc_len = Constraint::arc_length(e1, 0.05);
-    assert_eq!(c_arc_len.residual_count(), 1);
-    assert!(c_arc_len.set_dimensional_value(0.07));
-    assert_eq!(c_arc_len.dimensional_value(), Some(0.07));
-    assert_eq!(c_arc_len.referenced_entities(), vec![e1]);
+        let mut c_arc_len = Constraint::arc_length(e1, 0.05);
+        assert_eq!(c_arc_len.residual_count(), 1);
+        assert!(c_arc_len.set_dimensional_value(0.07));
+        assert_eq!(c_arc_len.dimensional_value(), Some(0.07));
+        assert_eq!(c_arc_len.referenced_entities(), vec![e1]);
 
-    assert_eq!(Constraint::block(e1).referenced_entities(), vec![e1]);
+        assert_eq!(Constraint::block(e1).referenced_entities(), vec![e1]);
 
-    let mut c_ang_pts = Constraint::angle_points(p1, p2, p3, 1.57);
-    assert_eq!(c_ang_pts.dimension_kind(), Some(QuantityKind::Angle));
-    assert!(c_ang_pts.set_dimensional_value(0.785));
-    assert_eq!(c_ang_pts.dimensional_value(), Some(0.785));
+        let mut c_ang_pts = Constraint::angle_points(p1, p2, p3, 1.57);
+        assert_eq!(c_ang_pts.dimension_kind(), Some(QuantityKind::Angle));
+        assert!(c_ang_pts.set_dimensional_value(0.785));
+        assert_eq!(c_ang_pts.dimensional_value(), Some(0.785));
+    }
 
-    for mut c in [
+    #[cfg_attr(not(feature = "unreached"), allow(unused_mut))]
+    let mut dimensions = vec![Constraint::distance_circle_circle(e1, e2, 0.04)];
+    #[cfg(feature = "unreached")]
+    dimensions.extend([
         Constraint::distance_to_axis_x(p1, 0.04),
         Constraint::distance_to_axis_y(p1, 0.04),
-        Constraint::distance_circle_circle(e1, e2, 0.04),
         Constraint::distance_point_circle(p1, e1, 0.04),
-    ] {
+    ]);
+    for mut c in dimensions {
         assert_eq!(c.dimensional_value(), Some(0.04));
         assert!(c.set_dimensional_value(0.06));
         assert_eq!(c.dimensional_value(), Some(0.06));

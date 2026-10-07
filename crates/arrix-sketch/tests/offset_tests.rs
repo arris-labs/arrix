@@ -768,8 +768,9 @@ fn constrained_line_and_arc() -> (Draft, EntityId) {
         line: l,
         circle: arc,
     });
-    s.add_constraint(Constraint::DistanceToAxisX {
-        point: p2,
+    s.add_constraint(Constraint::HorizontalDistance {
+        a: p0,
+        b: p2,
         value: end.0,
     });
     (s, l)

@@ -870,9 +870,9 @@ interaction).
   a constraint with a value, driving or reference, and its value is an
   expression, so it can name a parameter. The kinds a document can hold
   are the kinds the UI can create (`docs/UI-RENDERING.md` §Sketch mode
-  lists them); the solver knows more, behind the `conics` and
-  `snells-law` gates, and a document holding a gated kind does not
-  deserialise.
+  lists them); the solver knows more, behind the `conics`, `snells-law`
+  and `unreached` gates (`unreached` is the kinds sketch mode has no tool
+  for), and a document holding a gated kind does not deserialise.
 - **The last solved positions are recipe.** They are the solver's starting
   point, and with a nonlinear solver the starting point selects which of
   several solutions it lands on. Stored positions make re-solving

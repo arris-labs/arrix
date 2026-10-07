@@ -22,7 +22,9 @@ use std::collections::BTreeMap;
 use arrix_core::LENGTH_TOLERANCE;
 
 use super::ModifyError;
-use crate::constraint::{Constraint, DatumEntity};
+use crate::constraint::Constraint;
+#[cfg(feature = "unreached")]
+use crate::constraint::DatumEntity;
 use crate::draft::Draft;
 use crate::entity::{Entity, Point};
 use crate::ids::{ConstraintId, EntityId, PointId};
@@ -34,7 +36,8 @@ pub enum MirrorAxis {
     /// A drawn or construction line: its whole carrier, not only the segment.
     Line(EntityId),
     /// [`DatumEntity::AxisX`] or [`DatumEntity::AxisY`]; the origin is not an
-    /// axis.
+    /// axis. Behind `unreached`: the app mirrors about a line only.
+    #[cfg(feature = "unreached")]
     Datum(DatumEntity),
 }
 
@@ -197,8 +200,11 @@ struct Reflection {
 impl Reflection {
     fn of(sketch: &Sketch, axis: MirrorAxis) -> Result<Self, ModifyError> {
         let (origin, dir) = match axis {
+            #[cfg(feature = "unreached")]
             MirrorAxis::Datum(DatumEntity::AxisX) => ([0.0, 0.0], [1.0, 0.0]),
+            #[cfg(feature = "unreached")]
             MirrorAxis::Datum(DatumEntity::AxisY) => ([0.0, 0.0], [0.0, 1.0]),
+            #[cfg(feature = "unreached")]
             MirrorAxis::Datum(DatumEntity::Origin) => return Err(ModifyError::NoAxis),
             MirrorAxis::Line(id) => {
                 let Some(Entity::Line { start, end }) = sketch.entities.get(&id) else {
@@ -240,6 +246,7 @@ impl Reflection {
                 (Constraint::PointOnLine { point, line }, MirrorAxis::Line(axis)) => {
                     *point == p && *line == axis
                 }
+                #[cfg(feature = "unreached")]
                 (
                     Constraint::PointOnDatum { point, datum }
                     | Constraint::CoincidentToDatum { point, datum },
@@ -252,6 +259,7 @@ impl Reflection {
     fn hold(&self, point: PointId) -> Constraint {
         match self.axis {
             MirrorAxis::Line(line) => Constraint::PointOnLine { point, line },
+            #[cfg(feature = "unreached")]
             MirrorAxis::Datum(datum) => Constraint::PointOnDatum { point, datum },
         }
     }
@@ -259,6 +267,7 @@ impl Reflection {
     fn symmetric(&self, a: PointId, b: PointId) -> Constraint {
         match self.axis {
             MirrorAxis::Line(mirror) => Constraint::Symmetric { a, b, mirror },
+            #[cfg(feature = "unreached")]
             MirrorAxis::Datum(datum) => Constraint::SymmetricAcrossDatum { a, b, datum },
         }
     }

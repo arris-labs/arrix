@@ -28,6 +28,7 @@ fn test_point_on_datum_origin_and_axes() {
     assert!((sk3.points()[&p3].x).abs() < 1e-6);
 }
 
+#[cfg(feature = "unreached")]
 #[test]
 fn test_distance_to_datum_and_angle_with_datum() {
     let mut sk = Draft::seeded(1);
@@ -65,6 +66,7 @@ fn test_distance_to_datum_and_angle_with_datum() {
     assert!((ep.y - expected_y).abs() < 1e-5);
 }
 
+#[cfg(feature = "unreached")]
 #[test]
 fn test_symmetric_across_datum() {
     let mut sk = Draft::seeded(1);

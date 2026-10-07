@@ -40,6 +40,7 @@ use super::system::*;
 use super::*;
 
 mod basic;
+#[cfg(feature = "unreached")]
 mod block;
 #[cfg(feature = "conics")]
 mod conics;
@@ -412,6 +413,7 @@ pub(super) fn arc_points(sketch: &Sketch, arc: EntityId) -> Option<(PointId, Poi
 
 /// The one dispatch site: every constraint kind resolves to exactly one
 /// evaluator, and the compiler enforces that a new kind gets one.
+#[cfg_attr(not(feature = "unreached"), allow(unused_variables))]
 pub(crate) fn eval_constraint(
     sketch: &Sketch,
     c: &Constraint,
@@ -434,6 +436,7 @@ pub(crate) fn eval_constraint(
         Constraint::SymmetricPoints { a, b, center } => {
             basic::symmetric_points(sketch, a, b, center, out)
         }
+        #[cfg(feature = "unreached")]
         Constraint::PointOnPerpBisector { point: p, a, b } => {
             basic::point_on_perp_bisector(sketch, p, a, b, out)
         }
@@ -468,6 +471,7 @@ pub(crate) fn eval_constraint(
             dimensions::distance_parallel_lines(sketch, a, b, value, out)
         }
         Constraint::Angle { a, b, value } => dimensions::angle(sketch, a, b, value, out),
+        #[cfg(feature = "unreached")]
         Constraint::AnglePoints {
             a,
             vertex,
@@ -476,16 +480,20 @@ pub(crate) fn eval_constraint(
         } => dimensions::angle_points(sketch, a, vertex, b, value, out),
         Constraint::Radius { target, value } => dimensions::radius(sketch, target, value, out),
         Constraint::Diameter { target, value } => dimensions::diameter(sketch, target, value, out),
+        #[cfg(feature = "unreached")]
         Constraint::ArcLength { arc, value } => dimensions::arc_length(sketch, arc, value, out),
+        #[cfg(feature = "unreached")]
         Constraint::DistanceToAxisX { point: p, value } => {
             dimensions::distance_to_axis_x(sketch, p, value, out)
         }
+        #[cfg(feature = "unreached")]
         Constraint::DistanceToAxisY { point: p, value } => {
             dimensions::distance_to_axis_y(sketch, p, value, out)
         }
         Constraint::DistanceCircleCircle { a, b, value } => {
             dimensions::distance_circle_circle(sketch, a, b, value, out)
         }
+        #[cfg(feature = "unreached")]
         Constraint::DistancePointCircle {
             point: p,
             circle,
@@ -496,14 +504,17 @@ pub(crate) fn eval_constraint(
         | Constraint::CoincidentToDatum { point: p, datum } => {
             datum::point_on_datum(sketch, p, datum, out)
         }
+        #[cfg(feature = "unreached")]
         Constraint::DistanceToDatum {
             point: p,
             datum,
             value,
         } => datum::distance_to_datum(sketch, p, datum, value, out),
+        #[cfg(feature = "unreached")]
         Constraint::AngleWithDatum { line, datum, value } => {
             datum::angle_with_datum(sketch, line, datum, value, out)
         }
+        #[cfg(feature = "unreached")]
         Constraint::SymmetricAcrossDatum { a, b, datum } => {
             datum::symmetric_across_datum(sketch, a, b, datum, out)
         }
@@ -543,6 +554,7 @@ pub(crate) fn eval_constraint(
             conics::bspline_curvature(sketch, bspline, u, value, out)
         }
 
+        #[cfg(feature = "unreached")]
         Constraint::Block { entity } => block::block(sketch, entity, blocked_targets, out),
     }
 }

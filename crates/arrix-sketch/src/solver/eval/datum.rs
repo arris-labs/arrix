@@ -22,6 +22,8 @@ pub(super) fn point_on_datum(
     }
 }
 
+#[cfg(feature = "unreached")]
+#[cfg(feature = "unreached")]
 pub(super) fn distance_to_datum(
     sketch: &Sketch,
     p: PointId,
@@ -55,6 +57,8 @@ pub(super) fn distance_to_datum(
     }
 }
 
+#[cfg(feature = "unreached")]
+#[cfg(feature = "unreached")]
 pub(super) fn angle_with_datum(
     sketch: &Sketch,
     line: EntityId,
@@ -91,6 +95,8 @@ pub(super) fn angle_with_datum(
     });
 }
 
+#[cfg(feature = "unreached")]
+#[cfg(feature = "unreached")]
 pub(super) fn symmetric_across_datum(
     sketch: &Sketch,
     a: PointId,

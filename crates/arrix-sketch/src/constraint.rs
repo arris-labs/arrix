@@ -1,8 +1,9 @@
 //! Geometric and dimensional constraints (docs/DATA-MODEL.md §Sketches).
 //! Values are SI, metres and radians; a unit is only how a value is typed
 //! or shown. The enabled kinds are the ones M3's sketch mode reaches; the
-//! conic kinds sit behind `conics` and `SnellsLaw` behind `snells-law`,
-//! and a default build does not read them.
+//! kinds it has no tool for sit behind `unreached`, the conic kinds behind
+//! `conics` and `SnellsLaw` behind `snells-law`, and a default build does
+//! not read them.
 
 use serde::{Deserialize, Serialize};
 
@@ -87,16 +88,20 @@ pub enum Constraint {
         center: PointId,
     },
     /// Point lies on the perpendicular bisector of segment `a`-`b` (1 residual: dist(p,a)^2 - dist(p,b)^2 == 0).
+    #[cfg(feature = "unreached")]
     PointOnPerpBisector {
         point: PointId,
         a: PointId,
         b: PointId,
     },
     /// Arc length dimension: s = R * theta (1 residual).
+    #[cfg(feature = "unreached")]
     ArcLength { arc: EntityId, value: f64 },
     /// Block/lock all degrees of freedom of an entity relative to sketch coordinates (2, 3, 4, or 6 residuals).
+    #[cfg(feature = "unreached")]
     Block { entity: EntityId },
     /// Angle between 3 points with vertex at `vertex` (1 residual).
+    #[cfg(feature = "unreached")]
     AnglePoints {
         a: PointId,
         vertex: PointId,
@@ -104,8 +109,10 @@ pub enum Constraint {
         value: f64,
     },
     /// Distance from point to datum Vertical Axis X=0 (1 residual: |p.x| == value).
+    #[cfg(feature = "unreached")]
     DistanceToAxisX { point: PointId, value: f64 },
     /// Distance from point to datum Horizontal Axis Y=0 (1 residual: |p.y| == value).
+    #[cfg(feature = "unreached")]
     DistanceToAxisY { point: PointId, value: f64 },
     /// Perimeter clearance distance between two circles/arcs (1 residual).
     DistanceCircleCircle {
@@ -114,6 +121,7 @@ pub enum Constraint {
         value: f64,
     },
     /// Clearance distance from a point to a circle/arc perimeter (1 residual).
+    #[cfg(feature = "unreached")]
     DistancePointCircle {
         point: PointId,
         circle: EntityId,
@@ -131,18 +139,21 @@ pub enum Constraint {
     /// Point lies on datum (Origin: (0,0), AxisX: y=0, AxisY: x=0).
     PointOnDatum { point: PointId, datum: DatumEntity },
     /// Perpendicular distance from a point to a datum axis (or Euclidean distance to origin).
+    #[cfg(feature = "unreached")]
     DistanceToDatum {
         point: PointId,
         datum: DatumEntity,
         value: f64,
     },
     /// Angle between a line entity and a datum axis (AxisX: horizontal, AxisY: vertical), in radians.
+    #[cfg(feature = "unreached")]
     AngleWithDatum {
         line: EntityId,
         datum: DatumEntity,
         value: f64,
     },
     /// Points `a` and `b` are symmetric across a datum axis (or point-symmetric about origin).
+    #[cfg(feature = "unreached")]
     SymmetricAcrossDatum {
         a: PointId,
         b: PointId,
@@ -237,6 +248,7 @@ impl Constraint {
         Self::PointOnDatum { point, datum }
     }
 
+    #[cfg(feature = "unreached")]
     pub fn distance_to_datum(point: PointId, datum: DatumEntity, value: f64) -> Self {
         Self::DistanceToDatum {
             point,
@@ -245,10 +257,12 @@ impl Constraint {
         }
     }
 
+    #[cfg(feature = "unreached")]
     pub fn angle_with_datum(line: EntityId, datum: DatumEntity, value: f64) -> Self {
         Self::AngleWithDatum { line, datum, value }
     }
 
+    #[cfg(feature = "unreached")]
     pub fn symmetric_across_datum(a: PointId, b: PointId, datum: DatumEntity) -> Self {
         Self::SymmetricAcrossDatum { a, b, datum }
     }
@@ -261,18 +275,22 @@ impl Constraint {
         Self::SymmetricPoints { a, b, center }
     }
 
+    #[cfg(feature = "unreached")]
     pub fn point_on_perp_bisector(point: PointId, a: PointId, b: PointId) -> Self {
         Self::PointOnPerpBisector { point, a, b }
     }
 
+    #[cfg(feature = "unreached")]
     pub fn arc_length(arc: EntityId, value: f64) -> Self {
         Self::ArcLength { arc, value }
     }
 
+    #[cfg(feature = "unreached")]
     pub fn block(entity: EntityId) -> Self {
         Self::Block { entity }
     }
 
+    #[cfg(feature = "unreached")]
     pub fn angle_points(a: PointId, vertex: PointId, b: PointId, value: f64) -> Self {
         Self::AnglePoints {
             a,
@@ -282,10 +300,12 @@ impl Constraint {
         }
     }
 
+    #[cfg(feature = "unreached")]
     pub fn distance_to_axis_x(point: PointId, value: f64) -> Self {
         Self::DistanceToAxisX { point, value }
     }
 
+    #[cfg(feature = "unreached")]
     pub fn distance_to_axis_y(point: PointId, value: f64) -> Self {
         Self::DistanceToAxisY { point, value }
     }
@@ -294,6 +314,7 @@ impl Constraint {
         Self::DistanceCircleCircle { a, b, value }
     }
 
+    #[cfg(feature = "unreached")]
     pub fn distance_point_circle(point: PointId, circle: EntityId, value: f64) -> Self {
         Self::DistancePointCircle {
             point,
@@ -399,8 +420,9 @@ impl Constraint {
             | Self::Fix { .. }
             | Self::Midpoint { .. }
             | Self::Symmetric { .. }
-            | Self::SymmetricPoints { .. }
-            | Self::SymmetricAcrossDatum { .. } => 2,
+            | Self::SymmetricPoints { .. } => 2,
+            #[cfg(feature = "unreached")]
+            Self::SymmetricAcrossDatum { .. } => 2,
             #[cfg(feature = "conics")]
             Self::InternalAlignment { .. } | Self::PointOnBSpline { .. } => 2,
             Self::PointOnDatum { datum, .. } | Self::CoincidentToDatum { datum, .. } => match datum
@@ -408,6 +430,7 @@ impl Constraint {
                 DatumEntity::Origin => 2,
                 DatumEntity::AxisX | DatumEntity::AxisY => 1,
             },
+            #[cfg(feature = "unreached")]
             Self::Block { .. } => 4,
             Self::Horizontal { .. }
             | Self::Vertical { .. }
@@ -428,12 +451,13 @@ impl Constraint {
             | Self::Diameter { .. }
             | Self::PointOnLine { .. }
             | Self::PointOnCircle { .. }
-            | Self::PointOnPerpBisector { .. }
+            | Self::DistanceCircleCircle { .. } => 1,
+            #[cfg(feature = "unreached")]
+            Self::PointOnPerpBisector { .. }
             | Self::ArcLength { .. }
             | Self::AnglePoints { .. }
             | Self::DistanceToAxisX { .. }
             | Self::DistanceToAxisY { .. }
-            | Self::DistanceCircleCircle { .. }
             | Self::DistancePointCircle { .. }
             | Self::DistanceToDatum { .. }
             | Self::AngleWithDatum { .. } => 1,
@@ -497,11 +521,15 @@ impl Constraint {
             | Self::Angle { value, .. }
             | Self::Radius { value, .. }
             | Self::Diameter { value, .. }
-            | Self::ArcLength { value, .. }
+            | Self::DistanceCircleCircle { value, .. } => {
+                *value = new_val;
+                true
+            }
+            #[cfg(feature = "unreached")]
+            Self::ArcLength { value, .. }
             | Self::AnglePoints { value, .. }
             | Self::DistanceToAxisX { value, .. }
             | Self::DistanceToAxisY { value, .. }
-            | Self::DistanceCircleCircle { value, .. }
             | Self::DistancePointCircle { value, .. }
             | Self::DistanceToDatum { value, .. }
             | Self::AngleWithDatum { value, .. } => {
@@ -594,18 +622,24 @@ impl Constraint {
             Self::PointOnCircle { point, circle } => r().p(point).e(circle),
             Self::Fix { point, .. } => r().p(point),
             Self::SymmetricPoints { a, b, center } => r().p(a).p(b).p(center),
+            #[cfg(feature = "unreached")]
             Self::PointOnPerpBisector { point, a, b } => r().p(point).p(a).p(b),
+            #[cfg(feature = "unreached")]
             Self::ArcLength { arc, value } => r().e(arc).len(value),
+            #[cfg(feature = "unreached")]
             Self::Block { entity } => r().e(entity),
+            #[cfg(feature = "unreached")]
             Self::AnglePoints {
                 a,
                 vertex,
                 b,
                 value,
             } => r().p(a).p(vertex).p(b).ang(value),
+            #[cfg(feature = "unreached")]
             Self::DistanceToAxisX { point, value } | Self::DistanceToAxisY { point, value } => {
                 r().p(point).len(value)
             }
+            #[cfg(feature = "unreached")]
             Self::DistancePointCircle {
                 point,
                 circle,
@@ -626,12 +660,15 @@ impl Constraint {
             Self::PointOnDatum { point, datum } | Self::CoincidentToDatum { point, datum } => {
                 r().p(point).d(datum)
             }
+            #[cfg(feature = "unreached")]
             Self::DistanceToDatum {
                 point,
                 datum,
                 value,
             } => r().p(point).d(datum).len(value),
+            #[cfg(feature = "unreached")]
             Self::AngleWithDatum { line, datum, value } => r().e(line).d(datum).ang(value),
+            #[cfg(feature = "unreached")]
             Self::SymmetricAcrossDatum { a, b, datum } => r().p(a).p(b).d(datum),
             #[cfg(feature = "conics")]
             Self::PointOnEllipse { point, ellipse } => r().p(point).e(ellipse),

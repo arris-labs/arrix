@@ -212,7 +212,7 @@ Complexity: **[1]** routine; **[2]** careful; **[3]** unproven.
   same keys `Ref::Region` stores. Test: the shaded keys equal what
   `core.extrude`'s region input resolves for the saved sketch; a hole drawn
   inside a region splits it in the view as the evaluator does.
-- [ ] **[2]** Step 15 — The kinds without a tool gated: the enabled list
+- [x] **[2]** Step 15 — The kinds without a tool gated: the enabled list
   of `docs/UI-RENDERING.md` §Sketch mode checked against steps 10 and 11,
   each kind left over moved behind a gate (`unreached`, off by default, its
   code and tests in the all-features build, as `conics`); every test
@@ -355,6 +355,20 @@ accepted, and the step 1 drag benchmark asserts its budget.
   convex paths only. The hover is by the pointer's position and only when
   no item is under it, not a hit kind: a region is not selectable here
   (the forms' profile pick will be).
+- Finding (step 15): ten kinds are behind `unreached` (block, point on a
+  perpendicular bisector, symmetric across a datum, arc length,
+  three-point angle, distance to the X and Y axes, to a datum and point to
+  circle, angle with a datum), and so is `MirrorAxis::Datum`, whose only
+  output was `SymmetricAcrossDatum`. `DistanceCircleCircle` stays: offset
+  writes it. No fixture, golden or test document holds a gated kind, so
+  no schema bump. `arrix-app` needs no feature of its own: it named the
+  gated kinds only in wildcard-backed match arms, which are deleted. Tests
+  that were built on a gated kind run in the all-features build only; the
+  datum-axis mirror suite and the gradient oracle's rows for these kinds
+  are the larger part, and a few fixtures (the plate in `determinism`, the
+  offset fixtures, the inference plate) were rewritten with reachable
+  kinds (`HorizontalDistance` from the origin point, `Distance` between
+  bolt holes) so they stay in the default build.
 - OPEN 4 (closed at step 11, the agent's default, unobjected): reference
   dimension, said in the status line.
 - Finding (step 11): a driving dimension is made at the value the geometry

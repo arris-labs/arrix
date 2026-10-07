@@ -318,6 +318,7 @@ fn wanted_an_arm_walked_through_its_fixed_end_keeps_its_side() {
     assert!((dist(&s, b0, tip) - 25.0 * MM).abs() < 1e-3 * MM);
 }
 
+#[cfg(feature = "unreached")]
 /// The same flip by three points: `AnglePoints` at a fixed vertex, the
 /// free arm's end walked through the vertex to the mirror side.
 #[test]

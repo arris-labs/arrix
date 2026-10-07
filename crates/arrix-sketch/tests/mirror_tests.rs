@@ -2,14 +2,20 @@
 //! copy, and what that leaves: no new degree of freedom, a solve that moves
 //! nothing, a copy that follows its original, and twice the area.
 
+#[cfg(feature = "unreached")]
+use arrix_sketch::DatumEntity;
 use arrix_sketch::Draft;
-use arrix_sketch::modify::{self, MirrorAxis, MirrorEdit, ModifyError};
+#[cfg(feature = "unreached")]
+use arrix_sketch::find_profiles;
+#[cfg(feature = "unreached")]
+use arrix_sketch::modify::ModifyError;
+use arrix_sketch::modify::{self, MirrorAxis, MirrorEdit};
 use arrix_sketch::{
-    Constraint, DatumEntity, Diagnostics, Entity, EntityId, Point, PointId, Sketch, SketchStatus,
-    find_profiles,
+    Constraint, Diagnostics, Entity, EntityId, Point, PointId, Sketch, SketchStatus,
 };
 
 const TOL: f64 = 1e-9;
+#[cfg(feature = "unreached")]
 const AXIS_Y: MirrorAxis = MirrorAxis::Datum(DatumEntity::AxisY);
 
 fn pos(s: &Sketch, p: PointId) -> [f64; 2] {
@@ -32,6 +38,7 @@ fn line(s: &mut Draft, a: PointId, b: PointId) -> EntityId {
     s.add_entity(Entity::Line { start: a, end: b })
 }
 
+#[cfg(feature = "unreached")]
 fn flip_x(p: [f64; 2]) -> [f64; 2] {
     [-p[0], p[1]]
 }
@@ -90,6 +97,7 @@ fn assert_mirror_holds(s: &mut Draft, selection: &[EntityId], axis: MirrorAxis) 
     edit
 }
 
+#[cfg(feature = "unreached")]
 fn set_value(s: &mut Draft, of: impl Fn(&Constraint) -> bool, to: f64) {
     let id = *s
         .constraints()
@@ -103,6 +111,7 @@ fn set_value(s: &mut Draft, of: impl Fn(&Constraint) -> bool, to: f64) {
     }
 }
 
+#[cfg(feature = "unreached")]
 fn copy_of(edit: &MirrorEdit, p: PointId) -> PointId {
     edit.points
         .iter()
@@ -111,6 +120,7 @@ fn copy_of(edit: &MirrorEdit, p: PointId) -> PointId {
         .unwrap_or_else(|| panic!("{p} was not copied"))
 }
 
+#[cfg(feature = "unreached")]
 /// A 30 mm line off the Y axis, fixed at one end, horizontal and dimensioned.
 #[test]
 fn a_line_is_copied_across_a_datum_axis_and_follows_its_original() {
@@ -149,6 +159,7 @@ fn a_line_is_copied_across_a_datum_axis_and_follows_its_original() {
     assert!(near(pos(&s, end), [-0.060, 0.005]), "{:?}", pos(&s, end));
 }
 
+#[cfg(feature = "unreached")]
 #[test]
 fn a_circle_keeps_its_radius_by_an_equal_row() {
     let mut s = Draft::seeded(1);
@@ -181,6 +192,7 @@ fn a_circle_keeps_its_radius_by_an_equal_row() {
     assert!(near(pos(&s, center), [-0.020, 0.010]));
 }
 
+#[cfg(feature = "unreached")]
 /// A quarter arc about a fixed centre, counter-clockwise from 0° to 90°.
 #[test]
 fn an_arc_swaps_its_ends_so_its_sense_and_sweep_survive() {
@@ -221,6 +233,7 @@ fn an_arc_swaps_its_ends_so_its_sense_and_sweep_survive() {
     assert_eq!(solve(&mut s).status, SketchStatus::FullyConstrained);
 }
 
+#[cfg(feature = "unreached")]
 #[test]
 fn a_polyline_shares_its_mirrored_corners() {
     let mut s = Draft::seeded(1);
@@ -242,6 +255,7 @@ fn a_polyline_shares_its_mirrored_corners() {
 
 /// Half a bracket: a U open toward the Y axis, both ends on it. `held` says
 /// whether the top end is held on the axis by a row, or only by position.
+#[cfg(feature = "unreached")]
 fn bracket_half(held: bool) -> (Draft, [PointId; 4], Vec<EntityId>) {
     let mut s = Draft::seeded(1);
     let a = s.add_point(Point::fixed(0.0, 0.0));
@@ -267,6 +281,7 @@ fn bracket_half(held: bool) -> (Draft, [PointId; 4], Vec<EntityId>) {
     (s, [a, b, c, d], l)
 }
 
+#[cfg(feature = "unreached")]
 #[test]
 fn geometry_touching_the_axis_shares_its_point_and_holds_it_there() {
     // Held by a row already, or fixed: shared, and nothing new holds it.
@@ -300,6 +315,7 @@ fn geometry_touching_the_axis_shares_its_point_and_holds_it_there() {
     assert_eq!(solve(&mut s).status, SketchStatus::FullyConstrained);
 }
 
+#[cfg(feature = "unreached")]
 #[test]
 fn a_half_and_its_mirror_make_twice_the_area() {
     // Open to the axis: the mirror closes it into one region of twice the
@@ -368,6 +384,7 @@ fn a_line_axis_in_the_selection_is_dropped_from_it() {
     assert_eq!(solve(&mut s).status, SketchStatus::FullyConstrained);
 }
 
+#[cfg(feature = "unreached")]
 #[test]
 fn a_construction_curve_is_copied_as_construction() {
     let mut s = Draft::seeded(1);
@@ -377,6 +394,7 @@ fn a_construction_curve_is_copied_as_construction() {
     assert!(s.is_construction(edit.pairs[0].1));
 }
 
+#[cfg(feature = "unreached")]
 #[test]
 fn nothing_to_mirror_or_no_axis_leaves_the_sketch_untouched() {
     let mut s = Draft::seeded(1);

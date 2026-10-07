@@ -4,7 +4,9 @@
 //! moves nothing and that the sketch's DoF is no higher than the table
 //! allows: what it had, plus the rows of what was dropped.
 
-use std::f64::consts::{FRAC_PI_2, PI};
+use std::f64::consts::FRAC_PI_2;
+#[cfg(feature = "unreached")]
+use std::f64::consts::PI;
 
 use arrix_sketch::Draft;
 use arrix_sketch::modify::{self, Cut, TrimEdit, Verdict};
@@ -193,6 +195,7 @@ fn corpus() -> Vec<Row> {
                 center: free(s, 0.0, 0.0),
             }
         }),
+        #[cfg(feature = "unreached")]
         row!(K::PointOnPerpBisector, Line, POINT, |s, t| {
             Constraint::PointOnPerpBisector {
                 point: free(s, 0.0, 4.0),
@@ -200,6 +203,7 @@ fn corpus() -> Vec<Row> {
                 b: t.end,
             }
         }),
+        #[cfg(feature = "unreached")]
         row!(K::AnglePoints, Line, POINT, |s, t| {
             Constraint::AnglePoints {
                 a: t.start,
@@ -208,12 +212,14 @@ fn corpus() -> Vec<Row> {
                 value: FRAC_PI_2,
             }
         }),
+        #[cfg(feature = "unreached")]
         row!(K::DistanceToAxisX, Line, POINT, |_s, t| {
             Constraint::DistanceToAxisX {
                 point: t.end,
                 value: 0.01,
             }
         }),
+        #[cfg(feature = "unreached")]
         row!(K::DistanceToAxisY, Line, POINT, |_s, t| {
             Constraint::DistanceToAxisY {
                 point: t.end,
@@ -226,6 +232,7 @@ fn corpus() -> Vec<Row> {
                 datum: DatumEntity::AxisX,
             }
         }),
+        #[cfg(feature = "unreached")]
         row!(K::DistanceToDatum, Line, POINT, |_s, t| {
             Constraint::DistanceToDatum {
                 point: t.end,
@@ -233,6 +240,7 @@ fn corpus() -> Vec<Row> {
                 value: 0.01,
             }
         }),
+        #[cfg(feature = "unreached")]
         row!(K::SymmetricAcrossDatum, Line, POINT, |_s, t| {
             Constraint::SymmetricAcrossDatum {
                 a: t.start,
@@ -268,6 +276,7 @@ fn corpus() -> Vec<Row> {
             b: fixed_line(s, [-10.0, 6.0], [-10.0, 12.0]),
             value: FRAC_PI_2
         }),
+        #[cfg(feature = "unreached")]
         row!(K::AngleWithDatum, Upright, CARRIER, |_s, t| {
             Constraint::AngleWithDatum {
                 line: t.id,
@@ -328,6 +337,7 @@ fn corpus() -> Vec<Row> {
                 }
             }
         ),
+        #[cfg(feature = "unreached")]
         row!(
             K::Block,
             Line,
@@ -388,6 +398,7 @@ fn corpus() -> Vec<Row> {
                 value: 0.01,
             }
         }),
+        #[cfg(feature = "unreached")]
         row!(K::DistancePointCircle, Arc, CARRIER, |s, t| {
             Constraint::DistancePointCircle {
                 point: free(s, 0.0, -8.0),
@@ -395,6 +406,7 @@ fn corpus() -> Vec<Row> {
                 value: 0.003,
             }
         }),
+        #[cfg(feature = "unreached")]
         row!(
             K::ArcLength,
             Arc,
@@ -412,12 +424,14 @@ fn corpus() -> Vec<Row> {
             line: fixed_line(s, [-10.0, -5.0], [10.0, -5.0]),
             circle: t.id
         }),
+        #[cfg(feature = "unreached")]
         row!(
             K::Block,
             Arc,
             &[(Shortened, Kept), (Split, Copied)],
             |_s, t| { Constraint::Block { entity: t.id } }
         ),
+        #[cfg(feature = "unreached")]
         row!(K::Block, Circle, CIRCLE, |_s, t| Constraint::Block {
             entity: t.id
         }),
@@ -453,17 +467,27 @@ enum K {
     Midpoint,
     Fix,
     SymmetricPoints,
+    #[cfg(feature = "unreached")]
     PointOnPerpBisector,
+    #[cfg(feature = "unreached")]
     ArcLength,
+    #[cfg(feature = "unreached")]
     Block,
+    #[cfg(feature = "unreached")]
     AnglePoints,
+    #[cfg(feature = "unreached")]
     DistanceToAxisX,
+    #[cfg(feature = "unreached")]
     DistanceToAxisY,
     DistanceCircleCircle,
+    #[cfg(feature = "unreached")]
     DistancePointCircle,
     PointOnDatum,
+    #[cfg(feature = "unreached")]
     DistanceToDatum,
+    #[cfg(feature = "unreached")]
     AngleWithDatum,
+    #[cfg(feature = "unreached")]
     SymmetricAcrossDatum,
     CoincidentToDatum,
 }
@@ -497,17 +521,27 @@ fn kind_of(c: &Constraint) -> K {
         Constraint::Midpoint { .. } => K::Midpoint,
         Constraint::Fix { .. } => K::Fix,
         Constraint::SymmetricPoints { .. } => K::SymmetricPoints,
+        #[cfg(feature = "unreached")]
         Constraint::PointOnPerpBisector { .. } => K::PointOnPerpBisector,
+        #[cfg(feature = "unreached")]
         Constraint::ArcLength { .. } => K::ArcLength,
+        #[cfg(feature = "unreached")]
         Constraint::Block { .. } => K::Block,
+        #[cfg(feature = "unreached")]
         Constraint::AnglePoints { .. } => K::AnglePoints,
+        #[cfg(feature = "unreached")]
         Constraint::DistanceToAxisX { .. } => K::DistanceToAxisX,
+        #[cfg(feature = "unreached")]
         Constraint::DistanceToAxisY { .. } => K::DistanceToAxisY,
         Constraint::DistanceCircleCircle { .. } => K::DistanceCircleCircle,
+        #[cfg(feature = "unreached")]
         Constraint::DistancePointCircle { .. } => K::DistancePointCircle,
         Constraint::PointOnDatum { .. } => K::PointOnDatum,
+        #[cfg(feature = "unreached")]
         Constraint::DistanceToDatum { .. } => K::DistanceToDatum,
+        #[cfg(feature = "unreached")]
         Constraint::AngleWithDatum { .. } => K::AngleWithDatum,
+        #[cfg(feature = "unreached")]
         Constraint::SymmetricAcrossDatum { .. } => K::SymmetricAcrossDatum,
         Constraint::CoincidentToDatum { .. } => K::CoincidentToDatum,
         #[cfg(any(feature = "conics", feature = "snells-law"))]
@@ -515,7 +549,10 @@ fn kind_of(c: &Constraint) -> K {
     }
 }
 
+#[cfg(feature = "unreached")]
 const KIND_COUNT: usize = 38;
+#[cfg(not(feature = "unreached"))]
+const KIND_COUNT: usize = 28;
 
 #[test]
 fn the_corpus_has_a_row_for_every_kind() {

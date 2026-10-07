@@ -632,8 +632,9 @@ fn line_and_arc(d: f64, filter: bool) -> (Probe, Vec<String>) {
         value: R,
     });
     s.add_constraint(Constraint::Tangent { line, circle: arc });
-    s.add_constraint(Constraint::DistanceToAxisX {
-        point: p2,
+    s.add_constraint(Constraint::HorizontalDistance {
+        a: p0,
+        b: p2,
         value: end.0,
     });
     let mut probe = Probe::new(s);

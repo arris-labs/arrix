@@ -5,8 +5,8 @@
 
 use arrix_core::{Frame, QuantityKind};
 use arrix_sketch::{
-    Constraint, ConstraintRecord, DatumEntity, Diagnostics, Entity, EntityConstraintState, Region,
-    Sketch, SketchEntityId, SketchStatus, find_region_outlines,
+    Constraint, ConstraintRecord, Diagnostics, Entity, EntityConstraintState, Region, Sketch,
+    SketchEntityId, SketchStatus, find_region_outlines,
 };
 use arrix_ui::{
     ConstraintGlyphView, CurveShape, DimensionView, DofState, PlaneToScreen, SketchCurveView,
@@ -313,10 +313,7 @@ fn symbol(constraint: &Constraint) -> &'static str {
         Constraint::PointOnLine { .. } | Constraint::PointOnCircle { .. } => "on",
         Constraint::Midpoint { .. } => "M",
         Constraint::Fix { .. } => "F",
-        Constraint::Block { .. } => "B",
-        Constraint::PointOnPerpBisector { .. } => "pb",
         Constraint::PointOnDatum { .. } | Constraint::CoincidentToDatum { .. } => "O",
-        Constraint::SymmetricAcrossDatum { .. } => "S",
         _ => "?",
     }
 }
@@ -438,34 +435,7 @@ fn dimension(
             }
         }
         Constraint::Angle { .. } => (a(0)?, a(1)?),
-        Constraint::AnglePoints { .. } => (p(0)?, p(2)?),
-        Constraint::ArcLength { .. } => {
-            let id = *refs.entities.first()?;
-            let (s, e) = sketch.entity(id)?.arc_ends()?;
-            (pos(sketch, s)?, pos(sketch, e)?)
-        }
-        Constraint::DistanceToAxisX { .. } => {
-            let q = p(0)?;
-            (q, [0.0, q[1]])
-        }
-        Constraint::DistanceToAxisY { .. } => {
-            let q = p(0)?;
-            (q, [q[0], 0.0])
-        }
-        Constraint::DistanceToDatum { datum, .. } => {
-            let q = p(0)?;
-            (
-                q,
-                match datum {
-                    DatumEntity::Origin => [0.0, 0.0],
-                    DatumEntity::AxisX => [q[0], 0.0],
-                    DatumEntity::AxisY => [0.0, q[1]],
-                },
-            )
-        }
-        Constraint::AngleWithDatum { .. } => (a(0)?, [0.0, 0.0]),
         Constraint::DistanceCircleCircle { .. } => (centre_of(0)?, centre_of(1)?),
-        Constraint::DistancePointCircle { .. } => (p(0)?, centre_of(0)?),
         _ => return None,
     };
     let at = record

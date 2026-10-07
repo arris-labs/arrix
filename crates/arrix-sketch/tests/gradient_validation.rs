@@ -63,19 +63,29 @@ fn variant_tag(c: &Constraint) -> &'static str {
         Constraint::Midpoint { .. } => "Midpoint",
         Constraint::Fix { .. } => "Fix",
         Constraint::SymmetricPoints { .. } => "SymmetricPoints",
+        #[cfg(feature = "unreached")]
         Constraint::PointOnPerpBisector { .. } => "PointOnPerpBisector",
+        #[cfg(feature = "unreached")]
         Constraint::ArcLength { .. } => "ArcLength",
+        #[cfg(feature = "unreached")]
         Constraint::Block { .. } => "Block",
+        #[cfg(feature = "unreached")]
         Constraint::AnglePoints { .. } => "AnglePoints",
+        #[cfg(feature = "unreached")]
         Constraint::DistanceToAxisX { .. } => "DistanceToAxisX",
+        #[cfg(feature = "unreached")]
         Constraint::DistanceToAxisY { .. } => "DistanceToAxisY",
         Constraint::DistanceCircleCircle { .. } => "DistanceCircleCircle",
+        #[cfg(feature = "unreached")]
         Constraint::DistancePointCircle { .. } => "DistancePointCircle",
         #[cfg(feature = "snells-law")]
         Constraint::SnellsLaw { .. } => "SnellsLaw",
         Constraint::PointOnDatum { .. } => "PointOnDatum",
+        #[cfg(feature = "unreached")]
         Constraint::DistanceToDatum { .. } => "DistanceToDatum",
+        #[cfg(feature = "unreached")]
         Constraint::AngleWithDatum { .. } => "AngleWithDatum",
+        #[cfg(feature = "unreached")]
         Constraint::SymmetricAcrossDatum { .. } => "SymmetricAcrossDatum",
         Constraint::CoincidentToDatum { .. } => "CoincidentToDatum",
         #[cfg(feature = "conics")]
@@ -123,17 +133,27 @@ const ALL_TAGS: &[&str] = &[
     "Midpoint",
     "Fix",
     "SymmetricPoints",
+    #[cfg(feature = "unreached")]
     "PointOnPerpBisector",
+    #[cfg(feature = "unreached")]
     "ArcLength",
+    #[cfg(feature = "unreached")]
     "Block",
+    #[cfg(feature = "unreached")]
     "AnglePoints",
+    #[cfg(feature = "unreached")]
     "DistanceToAxisX",
+    #[cfg(feature = "unreached")]
     "DistanceToAxisY",
     "DistanceCircleCircle",
+    #[cfg(feature = "unreached")]
     "DistancePointCircle",
     "PointOnDatum",
+    #[cfg(feature = "unreached")]
     "DistanceToDatum",
+    #[cfg(feature = "unreached")]
     "AngleWithDatum",
+    #[cfg(feature = "unreached")]
     "SymmetricAcrossDatum",
     "CoincidentToDatum",
 ];
@@ -294,11 +314,13 @@ fn check_branch_margins(sketch: &Sketch) {
                     "Angle",
                 );
             }
+            #[cfg(feature = "unreached")]
             Constraint::AnglePoints { a, vertex, b, .. } => {
                 let (v, pa, pb) = (pt(&vertex), pt(&a), pt(&b));
                 let theta = signed_angle((pa.x - v.x, pa.y - v.y), (pb.x - v.x, pb.y - v.y));
                 assert_angle(theta, &[CUSP_ZERO, CUSP_PI], "AnglePoints");
             }
+            #[cfg(feature = "unreached")]
             Constraint::ArcLength { arc, .. } => {
                 let Entity::Arc { center, start, end } = &sketch.entities()[&arc] else {
                     panic!("ArcLength on a non-arc");
@@ -355,6 +377,7 @@ fn check_branch_margins(sketch: &Sketch) {
                     assert_radii_differ(ra, rb, "DistanceCircleCircle (internal)");
                 }
             }
+            #[cfg(feature = "unreached")]
             Constraint::DistancePointCircle {
                 point: p, circle, ..
             } => {
@@ -1000,6 +1023,7 @@ fn test_gradient_validation_all_variants() {
         check_sketch!(sk, true, 140);
     }
 
+    #[cfg(feature = "unreached")]
     // 26. PointOnPerpBisector
     {
         let mut sk = Draft::seeded(1);
@@ -1014,6 +1038,7 @@ fn test_gradient_validation_all_variants() {
         check_sketch!(sk, 141);
     }
 
+    #[cfg(feature = "unreached")]
     // 27. ArcLength
     {
         let mut sk = Draft::seeded(1);
@@ -1025,6 +1050,7 @@ fn test_gradient_validation_all_variants() {
         check_sketch!(sk, 142);
     }
 
+    #[cfg(feature = "unreached")]
     // 28. Block (Point, Line, Circle, Arc)
     {
         // Point
@@ -1053,6 +1079,7 @@ fn test_gradient_validation_all_variants() {
         check_sketch!(sk, 146);
     }
 
+    #[cfg(feature = "unreached")]
     // 29. AnglePoints
     {
         let mut sk = Draft::seeded(1);
@@ -1068,6 +1095,7 @@ fn test_gradient_validation_all_variants() {
         check_sketch!(sk, 147);
     }
 
+    #[cfg(feature = "unreached")]
     // 30. DistanceToAxisX
     {
         let mut sk = Draft::seeded(1);
@@ -1079,6 +1107,7 @@ fn test_gradient_validation_all_variants() {
         check_sketch!(sk, 148);
     }
 
+    #[cfg(feature = "unreached")]
     // 31. DistanceToAxisY
     {
         let mut sk = Draft::seeded(1);
@@ -1137,6 +1166,7 @@ fn test_gradient_validation_all_variants() {
         check_sketch!(sk, 153);
     }
 
+    #[cfg(feature = "unreached")]
     // 33. DistancePointCircle (Circle / Arc)
     {
         // Circle
@@ -1241,6 +1271,7 @@ fn test_gradient_validation_all_variants() {
         check_sketch!(sk3, 161);
     }
 
+    #[cfg(feature = "unreached")]
     // 36. DistanceToDatum (Origin, AxisX, AxisY)
     {
         let mut sk = Draft::seeded(1);
@@ -1271,6 +1302,7 @@ fn test_gradient_validation_all_variants() {
         check_sketch!(sk3, 164);
     }
 
+    #[cfg(feature = "unreached")]
     // 37. AngleWithDatum (AxisX, AxisY)
     {
         let mut sk = Draft::seeded(1);
@@ -1292,6 +1324,7 @@ fn test_gradient_validation_all_variants() {
         check_sketch!(sk2, 166);
     }
 
+    #[cfg(feature = "unreached")]
     // 38. SymmetricAcrossDatum (AxisX, AxisY, Origin)
     {
         let mut sk = Draft::seeded(1);
@@ -1499,6 +1532,7 @@ fn test_gradient_validation_all_variants() {
 
 #[test]
 fn test_degenerate_cases() {
+    #[cfg(feature = "unreached")]
     // 1. CircleRadius var at negative x: column flips sign
     {
         let mut sk = Draft::seeded(1);
@@ -1515,6 +1549,7 @@ fn test_degenerate_cases() {
         assert_eq!(j[2][r_col], -1.0);
     }
 
+    #[cfg(feature = "unreached")]
     // 2. CircleRadius var at |x| <= LENGTH_TOLERANCE: column is zero
     {
         let mut sk = Draft::seeded(1);
@@ -1535,6 +1570,7 @@ fn test_degenerate_cases() {
         assert_eq!(j[2][r_col], 0.0);
     }
 
+    #[cfg(feature = "unreached")]
     // 3. Block with no snapshot: rows entirely empty
     {
         let mut sk = Draft::seeded(1);
@@ -1728,16 +1764,20 @@ fn test_gradient_stress_randomized_geometry() {
             });
             sk.add_constraint(Constraint::HorizontalDistance { a, b, value: 0.03 });
             sk.add_constraint(Constraint::VerticalDistance { a, b, value: 0.03 });
+            #[cfg(feature = "unreached")]
             sk.add_constraint(Constraint::DistanceToAxisX {
                 point: a,
                 value: 0.02,
             });
+            #[cfg(feature = "unreached")]
             sk.add_constraint(Constraint::DistanceToAxisY {
                 point: a,
                 value: 0.02,
             });
             sk.add_constraint(Constraint::SymmetricPoints { a, b, center: v });
+            #[cfg(feature = "unreached")]
             sk.add_constraint(Constraint::PointOnPerpBisector { point: v, a, b });
+            #[cfg(feature = "unreached")]
             sk.add_constraint(Constraint::AnglePoints {
                 a,
                 vertex: v,
@@ -1801,6 +1841,7 @@ fn test_gradient_stress_randomized_geometry() {
                 b: e1,
                 mirror: l1,
             });
+            #[cfg(feature = "unreached")]
             sk.add_constraint(Constraint::Block { entity: l2 });
             stress_compare(&sk, &format!("lines #{i}"), &mut stats);
         }
@@ -1850,17 +1891,21 @@ fn test_gradient_stress_randomized_geometry() {
                     point: q,
                     circle: e,
                 });
+                #[cfg(feature = "unreached")]
                 sk.add_constraint(Constraint::DistancePointCircle {
                     point: q,
                     circle: e,
                     value: 0.01,
                 });
             }
+            #[cfg(feature = "unreached")]
             sk.add_constraint(Constraint::ArcLength {
                 arc: a1,
                 value: 0.02,
             });
+            #[cfg(feature = "unreached")]
             sk.add_constraint(Constraint::Block { entity: c1 });
+            #[cfg(feature = "unreached")]
             sk.add_constraint(Constraint::Block { entity: a1 });
             stress_compare(&sk, &format!("circles #{i}"), &mut stats);
         }
@@ -1951,6 +1996,7 @@ fn test_gradient_stress_randomized_geometry() {
                 point: centre,
                 line,
             });
+            #[cfg(feature = "unreached")]
             sk.add_constraint(Constraint::PointOnPerpBisector {
                 point: centre,
                 a: centre,

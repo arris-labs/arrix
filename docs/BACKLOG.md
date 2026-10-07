@@ -12,6 +12,7 @@ idea is not brainstormed twice.
 - Replay of public feature-history datasets through the batch API as an Arris corpus source, each dataset's licence checked first (`SEED.md` §6.6)
 - Parameter-sweep continuity checks over the batch API: volume, area and topology across a swept parameter, a jump reported as a failure (`SEED.md` §6.6)
 - Sketch mode's remaining ports: the sketch fillet, auto-constrain with validation's gap closing, and the constraint descriptions, when M3's sketch mode reaches them (plans/c1-m1-sketch steps 4 and 6)
+- Mirror's engine tests about a line axis: the suite is built on datum-axis fixtures, which run in the all-features build only since `MirrorAxis::Datum` went behind `unreached`, so the default build holds one engine-level line-axis test (plans/sketch-mode step 15)
 - The sketch drag on a sketch of mostly nonlinear rows (a 200-line zigzag, each line's length and perpendicular to the last: 300 ms a frame): a sparse null-space basis for the tangent step, and fewer follow iterations when the cursor is out of reach (plans/sketch-mode step 1, `docs/CONCURRENCY-WASM.md` §Budgets)
 - A frozen feature that modified a body input: its `modifies` is unknown without its type, so it cannot be a version; none exists in M1, and a plugin that modifies bodies needs the stored slot's target recorded (plans/c1-m1-slice step 14)
 - A short ADR recording that a modifying slot is a version only while its input is set, if the rule should live in ADR-0007 and not only in `docs/DATA-MODEL.md` §Bodies across features (plans/c1-m1-slice step 6)

@@ -193,10 +193,12 @@ pub enum BlockedTarget {
     },
 }
 
+#[cfg_attr(not(feature = "unreached"), allow(unused_variables))]
 pub fn constraint_residual_count(c: &Constraint, sketch: &Sketch) -> usize {
     match c {
         // A `Block` freezes every DoF the entity has, so its row count is the
         // entity's, not the constraint's.
+        #[cfg(feature = "unreached")]
         Constraint::Block { entity } => match sketch.entities.get(entity) {
             Some(Entity::Point(_)) => 2,
             Some(Entity::Line { .. }) => 4,

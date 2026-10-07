@@ -477,17 +477,18 @@ turns to face the plane in orthographic projection.
   holds.** Enabled: coincident, horizontal, vertical, horizontal and
   vertical alignment of two points, parallel, perpendicular, equal,
   concentric, tangent (line–circle, circle–circle), symmetric about a
-  line and about a point, point on line, point on circle, point on a
-  perpendicular bisector, midpoint, fix, block; the sketch-origin and
-  axis kinds (point on, coincident with, distance to, angle with and
-  symmetric across a datum; distance to the X and Y axes); dimensions:
-  distance, horizontal and vertical distance, point–line, parallel-lines,
-  point–circle and circle–circle distance, angle, three-point angle,
-  radius, diameter, arc length. The conic and spline kinds are behind
-  `conics` and `SnellsLaw` behind `snells-law`, their code and tests run
-  in the all-features build, until a scenario reaches them (`SEED.md`
-  §8.2 rule 7). A kind M3's sketch mode leaves without a tool is gated
-  then.
+  line and about a point, point on line, point on circle, midpoint, fix;
+  a point on or coincident with the sketch origin and on either axis;
+  dimensions: distance, horizontal and vertical distance, point–line,
+  parallel-lines, angle, radius, diameter, and the circle–circle
+  clearance that offset writes. Behind `unreached`, off by default: block,
+  point on a perpendicular bisector, symmetric across a datum, arc
+  length, three-point angle, distance to the X and Y axes and to a
+  datum, angle with a datum, point–circle clearance, and mirroring about a
+  datum axis. The conic and spline kinds are behind `conics` and
+  `SnellsLaw` behind `snells-law`. Their code and tests run in the
+  all-features build until a scenario reaches them (`SEED.md` §8.2 rule
+  7); a document holding one does not deserialise, and no fixture does.
 
 ## The viewport
 

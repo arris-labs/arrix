@@ -36,6 +36,7 @@ enum Side {
         a: EntityId,
         b: EntityId,
     },
+    #[cfg(feature = "unreached")]
     AnglePoints {
         a: PointId,
         vertex: PointId,
@@ -51,6 +52,7 @@ impl Side {
     fn of(c: &Constraint) -> Option<Self> {
         match *c {
             Constraint::Angle { a, b, .. } => Some(Self::Angle { a, b }),
+            #[cfg(feature = "unreached")]
             Constraint::AnglePoints { a, vertex, b, .. } => {
                 Some(Self::AnglePoints { a, vertex, b })
             }
@@ -73,6 +75,7 @@ impl Side {
             Self::Angle { a, b } => {
                 line_pair_dirs(sketch, a, b).map_or(0.0, |(_, _, da, db)| angle(da, db))
             }
+            #[cfg(feature = "unreached")]
             Self::AnglePoints { a, vertex, b } => {
                 let (pa, pv, pb) = (point(sketch, a), point(sketch, vertex), point(sketch, b));
                 angle((pa.x - pv.x, pa.y - pv.y), (pb.x - pv.x, pb.y - pv.y))

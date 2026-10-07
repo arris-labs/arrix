@@ -49,12 +49,14 @@ fn skewed_plate() -> Draft {
         target: bore,
         value: 0.01,
     });
-    s.add_constraint(Constraint::DistanceToAxisX {
-        point: c,
+    s.add_constraint(Constraint::VerticalDistance {
+        a: origin,
+        b: c,
         value: 0.02,
     });
-    s.add_constraint(Constraint::DistanceToAxisY {
-        point: c,
+    s.add_constraint(Constraint::HorizontalDistance {
+        a: origin,
+        b: c,
         value: 0.015,
     });
     let (_, _, _, arc) = s.add_arc(0.03, 0.02, 0.036, 0.021, 0.024, 0.021);

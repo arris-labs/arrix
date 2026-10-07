@@ -29,8 +29,6 @@
 #[allow(clippy::disallowed_types, reason = "native-only verdict clock")]
 use std::time::Instant;
 
-use std::f64::consts::FRAC_PI_2;
-
 use arrix_sketch::{
     CandidateVerdict, Constraint, DatumEntity, Diagnostics, Draft, DragSession, Entity, EntityId,
     Inferred, Point, PointId, Sketch, SketchStatus, SnapQuery, commit_inferences, snap_search,
@@ -751,11 +749,11 @@ fn plate() -> (Draft, [PointId; 4], PointId, [PointId; 2], PointId) {
             a: pair[0].1,
             b: pair[1].1,
         });
-        s.add_constraint(Constraint::AnglePoints {
+        // Adjacent holes of a square on the bolt circle.
+        s.add_constraint(Constraint::Distance {
             a: pair[0].0,
-            vertex: center,
             b: pair[1].0,
-            value: FRAC_PI_2,
+            value: 2.0 * off,
         });
     }
     s.add_constraint(Constraint::HorizontalPoints {

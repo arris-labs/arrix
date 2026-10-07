@@ -5,7 +5,9 @@
 
 use arrix_core::LENGTH_TOLERANCE;
 
-use crate::constraint::{Constraint, ConstraintPriority};
+#[cfg(feature = "unreached")]
+use crate::constraint::Constraint;
+use crate::constraint::ConstraintPriority;
 use crate::dsu::Dsu;
 use crate::entity::Entity;
 use crate::ids::{ConstraintId, EntityId, PointId};
@@ -73,6 +75,7 @@ impl Pin {
 }
 
 /// A blocked entity's frozen pose, one arm per entity.
+#[cfg(feature = "unreached")]
 fn blocked_target(sketch: &Sketch, entity: &Entity) -> Option<BlockedTarget> {
     let pt = |id: &PointId| sketch.points.get(id);
     match entity {
@@ -194,7 +197,9 @@ impl System {
             }
         }
 
+        #[cfg_attr(not(feature = "unreached"), allow(unused_mut))]
         let mut blocked_targets = std::collections::BTreeMap::new();
+        #[cfg(feature = "unreached")]
         for record in sketch.constraints.values() {
             if !record.is_active || !record.is_driving {
                 continue;
@@ -413,6 +418,7 @@ impl System {
     ) {
         let mut owners = Vec::new();
         let mut priorities = Vec::new();
+        #[cfg_attr(not(feature = "unreached"), allow(unused_mut))]
         let mut targets = std::collections::BTreeMap::new();
         for &cid in cids {
             if let Some(record) = sketch.constraints.get(&cid) {
@@ -421,6 +427,7 @@ impl System {
                     owners.push(ResidualOwner::Constraint { id: cid, slot });
                     priorities.push(record.priority);
                 }
+                #[cfg(feature = "unreached")]
                 if let Constraint::Block { entity } = record.constraint
                     && let Some(target) = self.blocked_targets.get(&entity)
                 {

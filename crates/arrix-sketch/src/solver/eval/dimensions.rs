@@ -117,6 +117,8 @@ pub(super) fn angle(
     });
 }
 
+#[cfg(feature = "unreached")]
+#[cfg(feature = "unreached")]
 pub(super) fn angle_points(
     sketch: &Sketch,
     a: PointId,
@@ -166,6 +168,8 @@ pub(super) fn diameter(
     });
 }
 
+#[cfg(feature = "unreached")]
+#[cfg(feature = "unreached")]
 pub(super) fn arc_length(sketch: &Sketch, arc: EntityId, value: f64, out: &mut ConstraintEval<'_>) {
     let Some((center, start, end)) = arc_points(sketch, arc) else {
         out.zeros(1);
@@ -207,6 +211,8 @@ pub(super) fn arc_length(sketch: &Sketch, arc: EntityId, value: f64, out: &mut C
     });
 }
 
+#[cfg(feature = "unreached")]
+#[cfg(feature = "unreached")]
 pub(super) fn distance_to_axis_x(
     sketch: &Sketch,
     p: PointId,
@@ -218,6 +224,8 @@ pub(super) fn distance_to_axis_x(
     out.row(x.abs() - value, |g| g.pt(p, x.signum(), 0.0));
 }
 
+#[cfg(feature = "unreached")]
+#[cfg(feature = "unreached")]
 pub(super) fn distance_to_axis_y(
     sketch: &Sketch,
     p: PointId,
@@ -274,6 +282,8 @@ pub(super) fn distance_circle_circle(
     });
 }
 
+#[cfg(feature = "unreached")]
+#[cfg(feature = "unreached")]
 pub(super) fn distance_point_circle(
     sketch: &Sketch,
     p: PointId,

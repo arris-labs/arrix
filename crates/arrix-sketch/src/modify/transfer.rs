@@ -66,12 +66,14 @@ pub fn verdict(c: &Constraint, cut: Cut, line: bool) -> Verdict {
     match (c, cut) {
         (_, Cut::Deleted) => Verdict::Dropped,
         // What measured the span: a line's length, an arc's sweep.
+        #[cfg(feature = "unreached")]
         (K::ArcLength { .. }, _) => Verdict::Dropped,
         (K::Equal { .. }, _) if line => Verdict::Dropped,
         // A split keeps both original ends, so the old midpoint is still
         // theirs; a shortened line lost one of them.
         (K::Midpoint { .. }, Cut::Split) => Verdict::Retargeted,
         (K::Midpoint { .. }, _) => Verdict::Dropped,
+        #[cfg(feature = "unreached")]
         (K::Block { .. }, Cut::Split) => Verdict::Copied,
         // Everything else measures the carrier, which a trim does not move.
         _ => Verdict::Kept,
@@ -190,6 +192,7 @@ fn follow_joint(sketch: &Sketch, c: &Constraint, cut: &CutEntity) -> Option<Cons
 fn rename_entity(c: &Constraint, from: EntityId, to: EntityId) -> Constraint {
     let swap = |e: EntityId| if e == from { to } else { e };
     match *c {
+        #[cfg(feature = "unreached")]
         Constraint::Block { entity } => Constraint::Block {
             entity: swap(entity),
         },

@@ -317,6 +317,8 @@ pub(super) fn symmetric_points(
     });
 }
 
+#[cfg(feature = "unreached")]
+#[cfg(feature = "unreached")]
 pub(super) fn point_on_perp_bisector(
     sketch: &Sketch,
     p: PointId,
