@@ -5,9 +5,12 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::ThemeView;
+
 /// Everything the shell draws in one frame.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ShellView {
+    pub theme: ThemeView,
     pub ribbon: RibbonView,
     pub tree: TreeView,
     pub status: StatusView,

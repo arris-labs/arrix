@@ -106,10 +106,31 @@
         "generation": 0,
         "length_unit": "mm"
       },
+      "theme": {
+        "accent": "#005c80",
+        "accent_text": "#c0deff",
+        "border": "#3c3c3c",
+        "button": "#3c3c3c",
+        "button_active": "#373737",
+        "button_hover": "#464646",
+        "dark": true,
+        "error": "#ff0000",
+        "field": "#0a0a0a",
+        "link": "#5aaaff",
+        "name": "dark",
+        "panel": "#1b1b1b",
+        "text": "#8c8c8c",
+        "text_active": "#ffffff",
+        "text_hover": "#f0f0f0",
+        "text_widget": "#b4b4b4",
+        "warn": "#ff8f00",
+        "window": "#1b1b1b"
+      },
       "tree": {
         "parts": []
       }
     },
+    "theme": "dark",
     "window": [
       1440.0,
       900.0

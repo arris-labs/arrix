@@ -1,0 +1,25 @@
+# The built-in dark theme: egui's own dark look, as it was before themes.
+base = "dark"
+
+[vars]
+ground = "#1b1b1b"
+sunken = "#0a0a0a"
+line = "#3c3c3c"
+
+[colors]
+panel = "$ground"
+window = "$ground"
+field = "$sunken"
+text = "#8c8c8c"
+text-widget = "#b4b4b4"
+text-hover = "#f0f0f0"
+text-active = "#ffffff"
+border = "$line"
+button = "#3c3c3c"
+button-hover = "#464646"
+button-active = "#373737"
+accent = "#005c80"
+accent-text = "#c0deff"
+link = "#5aaaff"
+warn = "#ff8f00"
+error = "#ff0000"

@@ -14,6 +14,9 @@ pub struct DebugState {
     /// The window, `[width, height]` in points.
     pub window: Option<[f64; 2]>,
     pub layout: Option<LayoutDebug>,
+    /// The effective theme's name: what `ui.theme` got, or `dark` when it
+    /// could not be had.
+    pub theme: String,
     pub shell: Option<ShellView>,
     /// The keymap in force: each key, its command and its context.
     pub keymap: Vec<Binding>,
@@ -50,6 +53,7 @@ impl ArrixApp {
             return DebugState {
                 window: None,
                 layout: None,
+                theme: self.theme.name.clone(),
                 shell: None,
                 keymap: self.keymap.bindings().to_vec(),
                 config_diagnostics: self.config_diagnostics.clone(),
@@ -57,6 +61,7 @@ impl ArrixApp {
         };
         let l = &drawn.layout;
         DebugState {
+            theme: self.theme.name.clone(),
             window: Some([round6(drawn.window.width()), round6(drawn.window.height())]),
             layout: Some(LayoutDebug {
                 ribbon: rect(l.ribbon),

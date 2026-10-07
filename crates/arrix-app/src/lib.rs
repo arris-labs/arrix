@@ -5,12 +5,13 @@ mod commands;
 mod debug;
 mod keys;
 mod palette;
+mod theme;
 
 pub use debug::DebugState;
 
 use arrix_config::{
     CommandRegistry, ConfigDiagnostic, ConfigSource, Keymap, MemorySource, PALETTE_CLOSE,
-    PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN, Settings,
+    PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN, Settings, Theme,
 };
 use arrix_ui::{ShellLayout, ShellView, StatusView, TreeView, UiIntent};
 use palette::Palette;
@@ -28,6 +29,7 @@ pub struct ArrixApp {
     commands: CommandRegistry,
     settings: Settings,
     keymap: Keymap,
+    theme: Theme,
     /// What the config files got wrong, for `debug_state()` and the status bar.
     config_diagnostics: Vec<ConfigDiagnostic>,
     /// What the last frame drew, for [`ArrixApp::debug_state`].
@@ -47,15 +49,20 @@ impl ArrixApp {
     }
 
     /// The app on the configuration `source` holds over the built-in one.
-    pub fn with_config(_cc: &eframe::CreationContext<'_>, source: &impl ConfigSource) -> Self {
+    pub fn with_config(cc: &eframe::CreationContext<'_>, source: &impl ConfigSource) -> Self {
         let commands = commands::command_registry(&commands::feature_types());
         let (settings, mut config_diagnostics) = Settings::load(source);
         let (keymap, keymap_diagnostics) = Keymap::load(source, &commands);
         config_diagnostics.extend(keymap_diagnostics);
+        let (theme, theme_diagnostics) = Theme::load(settings.string("ui.theme"), source);
+        config_diagnostics.extend(theme_diagnostics);
+        let visuals = theme::view(&theme).visuals(&cc.egui_ctx.global_style().visuals);
+        cc.egui_ctx.set_visuals(visuals);
         Self {
             commands,
             settings,
             keymap,
+            theme,
             config_diagnostics,
             session: Session {
                 ribbon_tab: "core.sketch".into(),
@@ -69,6 +76,7 @@ impl ArrixApp {
     /// from M1, of the document and its events).
     fn shell_view(&self) -> ShellView {
         ShellView {
+            theme: theme::view(&self.theme),
             ribbon: commands::ribbon(
                 &self.commands,
                 &self.settings,
@@ -171,6 +179,18 @@ impl ArrixApp {
         contexts
     }
 
+    /// Makes the theme the look of this frame, and of the floating windows
+    /// after it. A change of theme shows here; the first frame's is set at
+    /// creation, where it costs no repaint.
+    fn apply_theme(&self, ui: &mut egui::Ui) {
+        let current = ui.ctx().global_style().visuals.clone();
+        let visuals = theme::view(&self.theme).visuals(&current);
+        if current != visuals {
+            ui.ctx().set_visuals(visuals.clone());
+        }
+        ui.style_mut().visuals = visuals;
+    }
+
     fn run_keys(&mut self, ctx: &egui::Context) {
         let contexts = self.key_contexts(ctx);
         for chord in keys::pressed(ctx) {
@@ -188,6 +208,7 @@ impl ArrixApp {
 impl eframe::App for ArrixApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.run_keys(ui.ctx());
+        self.apply_theme(ui);
         let window = ui.max_rect();
         let view = self.shell_view();
         let response = arrix_ui::shell(ui, &view, |_ui| {});

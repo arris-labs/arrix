@@ -25,6 +25,16 @@ impl<'a> File<'a> {
         ConfigDiagnostic::error(self.path, self.text, Some(span.start), code, message)
     }
 
+    /// A warning at the start of `span`.
+    pub fn warning(
+        &self,
+        span: std::ops::Range<usize>,
+        code: &str,
+        message: impl Into<String>,
+    ) -> ConfigDiagnostic {
+        ConfigDiagnostic::warning(self.path, self.text, Some(span.start), code, message)
+    }
+
     /// The file's tables, as far as they parsed.
     pub fn parse(&self) -> Parsed<'a> {
         let (table, errors) = DeTable::parse_recoverable(self.text);

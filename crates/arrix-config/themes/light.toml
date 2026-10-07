@@ -1,0 +1,24 @@
+# The built-in light theme: egui's own light look.
+base = "light"
+
+[vars]
+ground = "#f8f8f8"
+line = "#bebebe"
+
+[colors]
+panel = "$ground"
+window = "$ground"
+field = "#ffffff"
+text = "#505050"
+text-widget = "#3c3c3c"
+text-hover = "#000000"
+text-active = "#000000"
+border = "$line"
+button = "#e6e6e6"
+button-hover = "#dcdcdc"
+button-active = "#a5a5a5"
+accent = "#90d1ff"
+accent-text = "#00537d"
+link = "#009bff"
+warn = "#ff6400"
+error = "#ff0000"

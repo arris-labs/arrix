@@ -205,7 +205,7 @@ None. No step calls the kernel.
   - It is session state and issues no document command.
   - `debug_state()` reports the query and its results.
   - New snapshot scenario: `palette_open` with a query.
-- [ ] **[2]** Step 6: themes.
+- [x] **[2]** Step 6: themes.
   - The theme format: `vars` with references, and `colors` by role. A
     missing role falls back to the built-in theme's role, with a
     diagnostic.
@@ -330,6 +330,14 @@ The whole gate is green, the wasm build included.
   rebindable, and the keymap needs no special case for the palette.
 - ⚠ OPEN 4 (answered): the user may hide any tab, core ones included,
   since the palette still reaches every command.
+- Step 6 found: a theme is `base` (`dark` or `light`: the toolkit's look for
+  what the roles don't cover), `[vars]` and `[colors]`, over 16 roles
+  (`THEME_ROLES`); colours are `#rgb`, `#rrggbb` or `#rrggbbaa`, and a var is
+  referenced as `"$name"`. A missing role is one warning per file naming all
+  of them. The theme never touches `text_cursor.blink`: the test harness
+  turns it off for determinism, and the first version, which reset it,
+  changed the palette's pixels. The app sets the theme at creation (no extra
+  first-frame repaint) and again when it changes.
 - Step 3 found: `arrix-app` needs its own Tier 0 registration list to
   know the feature types (like the CLI's), so the layer lint gains the
   `arrix-app` → `arrix-gears` edge. A plugin's tab is titled from its id

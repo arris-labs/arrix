@@ -8,6 +8,7 @@
 //! reach a drawn pixel.
 
 use arrix_app::ArrixApp;
+use arrix_config::{ConfigSource, MemorySource};
 use egui_kittest::Harness;
 
 /// The window every scenario renders into. The goldens encode it.
@@ -71,11 +72,11 @@ fn gpu_lock() -> std::sync::MutexGuard<'static, ()> {
 
 /// Builds the real app over `egui_kittest`'s wgpu renderer, exactly as
 /// `eframe::run_native` would construct it, and settles it.
-fn app_harness(size: egui::Vec2) -> Harness<'static, ArrixApp> {
+fn app_harness(size: egui::Vec2, source: &impl ConfigSource) -> Harness<'static, ArrixApp> {
     let mut harness = Harness::builder()
         .with_size(size)
         .wgpu()
-        .build_eframe(|cc| ArrixApp::new(cc));
+        .build_eframe(|cc| ArrixApp::with_config(cc, source));
     settle(&mut harness);
     harness
 }
@@ -98,11 +99,20 @@ pub fn pump_rendered(harness: &mut Harness<'_, ArrixApp>, frames: usize) {
 /// Runs `body` against the real app at [`SIZE`], skipping without a
 /// reference adapter.
 pub fn with_app(name: &str, body: impl FnOnce(&mut Harness<'_, ArrixApp>)) {
+    with_config(name, &MemorySource::default(), body);
+}
+
+/// [`with_app`] on the config files `source` holds.
+pub fn with_config(
+    name: &str,
+    source: &impl ConfigSource,
+    body: impl FnOnce(&mut Harness<'_, ArrixApp>),
+) {
     if !can_render(name) {
         return;
     }
     let _gpu = gpu_lock();
-    let mut harness = app_harness(SIZE);
+    let mut harness = app_harness(SIZE, source);
     body(&mut harness);
 }
 

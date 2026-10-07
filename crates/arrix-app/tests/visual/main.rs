@@ -74,3 +74,12 @@ fn palette_open() {
         snapshot::check(h, "palette_open");
     });
 }
+
+/// The built-in light theme: the same shell in the other look.
+#[test]
+fn light_theme() {
+    let source = arrix_config::MemorySource::with([("settings.toml", "[ui]\ntheme = \"light\"\n")]);
+    harness::with_config("light_theme", &source, |h| {
+        snapshot::check(h, "light_theme")
+    });
+}

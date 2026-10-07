@@ -29,6 +29,28 @@ impl ConfigDiagnostic {
         code: &str,
         message: impl Into<String>,
     ) -> Self {
+        Self::new(Severity::Error, file, text, offset, code, message)
+    }
+
+    /// Like [`Self::error`], for what the app worked around.
+    pub(crate) fn warning(
+        file: &str,
+        text: &str,
+        offset: Option<usize>,
+        code: &str,
+        message: impl Into<String>,
+    ) -> Self {
+        Self::new(Severity::Warning, file, text, offset, code, message)
+    }
+
+    fn new(
+        severity: Severity,
+        file: &str,
+        text: &str,
+        offset: Option<usize>,
+        code: &str,
+        message: impl Into<String>,
+    ) -> Self {
         let (line, column) = match offset {
             Some(at) => {
                 let (line, column) = line_column(text, at);
@@ -40,7 +62,7 @@ impl ConfigDiagnostic {
             file: file.to_owned(),
             line,
             column,
-            diagnostic: Diagnostic::new(Severity::Error, code, message)
+            diagnostic: Diagnostic::new(severity, code, message)
                 .expect("a config diagnostic code is well-formed"),
         }
     }
