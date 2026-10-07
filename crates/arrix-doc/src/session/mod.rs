@@ -9,6 +9,9 @@
 //! caller; nothing here mints, so nothing here needs entropy.
 
 mod local;
+mod preview;
+#[cfg(test)]
+mod preview_tests;
 #[cfg(test)]
 mod tests;
 
@@ -27,14 +30,31 @@ use crate::document::Document;
 use crate::eval::{BodySlot, EvalEvent, FeatureOutcome};
 use crate::open::{MemorySource, open};
 use crate::save::save;
+pub use preview::{PreviewBody, PreviewId, PreviewTag};
 
 /// What a client asks of the authority.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Request {
     Submit(CommandEnvelope),
-    Undo { author: AuthorId },
-    Redo { author: AuthorId },
+    Undo {
+        author: AuthorId,
+    },
+    Redo {
+        author: AuthorId,
+    },
+    /// Evaluates the document with the envelope's command applied, never
+    /// applying it (ADR-0019): refused or stale as its submit would be, and
+    /// otherwise answered `Previewing`, its events following. It supersedes
+    /// the session's previous preview, whoever took it.
+    Preview {
+        preview: PreviewId,
+        envelope: CommandEnvelope,
+    },
+    /// Drops `author`'s preview, if it is the session's: its events stop.
+    ClearPreview {
+        author: AuthorId,
+    },
 }
 
 /// BLAKE3 over a document's saved files, as 64 hex digits: equal
@@ -108,6 +128,27 @@ pub enum SessionEvent {
         detail: MeshDetail,
         mesh: Result<RenderMesh, Diagnostic>,
     },
+    /// A preview's evaluation (ADR-0019): the document at `generation` with
+    /// the preview's command applied. Every feature's outcome, every
+    /// parameter's value, and the final bodies, each saying whether it
+    /// differs from `generation`'s own; a `PreviewMeshed` follows for each
+    /// that does. Not part of the document: a replica ignores it.
+    Previewed {
+        tag: PreviewTag,
+        generation: Generation,
+        events: Vec<EvalEvent>,
+        params: ParamValues,
+        bodies: Vec<PreviewBody>,
+    },
+    /// A body a preview changed, meshed: every one coarse first, then every
+    /// one refined, as `Meshed` does for a generation.
+    PreviewMeshed {
+        tag: PreviewTag,
+        part: PartId,
+        slot: BodySlot,
+        detail: MeshDetail,
+        mesh: Result<RenderMesh, Diagnostic>,
+    },
 }
 
 /// The events a subscription receives, until the session ends.
@@ -136,6 +177,14 @@ pub trait Session {
 
     fn redo(&self, author: AuthorId) -> Result<Outcome, Rejected> {
         self.request(Request::Redo { author })
+    }
+
+    fn preview(&self, preview: PreviewId, envelope: CommandEnvelope) -> Result<Outcome, Rejected> {
+        self.request(Request::Preview { preview, envelope })
+    }
+
+    fn clear_preview(&self, author: AuthorId) -> Result<Outcome, Rejected> {
+        self.request(Request::ClearPreview { author })
     }
 }
 
@@ -245,7 +294,9 @@ impl Replica {
                     self.finished = Some((*generation, params.clone()));
                 }
             }
-            SessionEvent::Meshed { .. } => {}
+            SessionEvent::Meshed { .. }
+            | SessionEvent::Previewed { .. }
+            | SessionEvent::PreviewMeshed { .. } => {}
         }
         Ok(())
     }

@@ -16,7 +16,7 @@ ADRs record why it is that way.
 | [`ROADMAP.md`](ROADMAP.md) | Cycles with goal / in / out / accept; the risk register | Design, C1 in progress |
 | [`CONFIG-CATALOG.md`](CONFIG-CATALOG.md) | Generated reference: every command, setting, theme role and feature parameter default there is to configure; a test holds it fresh (`UPDATE_SNAPSHOTS=1 cargo test -p arrix-cli catalog` regenerates it) | Generated |
 | [`BACKLOG.md`](BACKLOG.md) | One line per raw idea; rejected ones with the reason | Live |
-| [`adr/`](adr/README.md) | Architecture decision records | 18 |
+| [`adr/`](adr/README.md) | Architecture decision records | 19 |
 | [`ideas/`](ideas/) | Brainstorms awaiting a decision (from `ideas/TEMPLATE.md`) | Empty |
 | [`plans/`](plans/) | Active plans, at most two (from `plans/TEMPLATE.md`) | Empty |
 

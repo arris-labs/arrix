@@ -125,7 +125,7 @@ day 0:
 
 The boundary is the `Session` trait in `arrix-doc`: `request(Request) ->
 Result<Outcome, Rejected>` (a `Request` is a submitted `CommandEnvelope`,
-or an author's undo or redo) and `subscribe() -> EventStream`, whose
+an author's undo or redo, or a preview or its clearing, ADR-0019) and `subscribe() -> EventStream`, whose
 `SessionEvent`s are `opened` (the document at subscription, as its
 directory form's files: the JSON ones as text, the frozen results' blobs as
 bytes), each `applied` change (from which each client
@@ -133,7 +133,10 @@ keeps its own `Replica` of the document, `docs/CONCURRENCY-WASM.md`
 §Roles and threads), each feature's `evaluated` outcome, each
 `finished` evaluation, and then each final body's `meshed` mesh, coarse
 and refined (`docs/CONCURRENCY-WASM.md` §Tessellation), these three with
-their generation, and
+their generation, then, while a preview is the session's, its `previewed`
+evaluation (every feature's outcome, the parameters and the final bodies,
+each saying whether the preview changed it) and a `preview_meshed` mesh
+of each body it changed, both with its `PreviewTag`, and
 `save() -> MemorySource`, the directory form with each plugin feature's
 latest frozen result merged in when it is current (ADR-0009): the
 evaluator hands those out beside its events, never inside them, and the
@@ -145,6 +148,13 @@ through JSON and back on every run, so nothing unserialisable can creep
 across. A `Rejected` answer crosses in-process only; its wire form comes
 with remote mode. No network code exists until
 remote mode is built.
+
+A **preview** (ADR-0019) is the document evaluated with a command applied
+that is never applied: `Request::Preview { preview, envelope }` is checked
+as its submit would be and answered `Previewing`, makes no generation and
+no undo entry, and its events carry the client's `PreviewId`. One preview
+per session: a newer one, `ClearPreview` or an applied change ends it, and
+its events stop there.
 
 ## Threads
 

@@ -57,9 +57,11 @@ scenario drives it through the UI.
   applied to the document; it is session state, not a command, issues no
   generation, and is superseded by the next preview or cleared. Its
   outcome and meshes come as events tagged with the preview's own counter.
-- `docs/ARCHITECTURE.md` §The protocol boundary: `Request::Preview { base,
-  command }` and `Request::ClearPreview`, `SessionEvent::previewed` and
-  preview-tagged `meshed`, round-tripped through JSON like every request.
+- `docs/ARCHITECTURE.md` §The protocol boundary: `Request::Preview {
+  preview, envelope }` (the envelope carries the base) and
+  `Request::ClearPreview`, answered `Outcome::Previewing`;
+  `SessionEvent::previewed` and `preview_meshed` (its own variant, not a
+  tag on `meshed`: step 2), round-tripped through JSON like every request.
 - `arrix-plugin-api` **0.5.0, breaking** (a minor while 0.x): `ChoiceSpec`
   and `FeatureTypeSpec::choices`; `shown_when` on `ParamSpec` and
   `InputSpec`. The WIT world, the equality test, `plugins/gears`
@@ -93,7 +95,7 @@ None new. Previews use the operations the features already call and
 
 - [x] **[1]** Step 1: ADR-0018 (forms are the feature type's spec), with
   the product scenario it serves; the ADR index.
-- [ ] **[3]** Step 2: previews in the session, headless, and ADR-0019
+- [x] **[3]** Step 2: previews in the session, headless, and ADR-0019
   (a preview is a speculative evaluation) written from what the step
   establishes, OPEN 4 included. `Request::Preview`
   evaluates the base snapshot with the command applied on the evaluator,
@@ -164,7 +166,10 @@ None new. Previews use the operations the features already call and
   `Request::Preview`; the viewport draws the previewed part in place of
   the current one (bodies a preview replaces hidden, new or changed ones
   in a preview tint) and the form's header shows the preview's
-  diagnostic; Cancel and OK clear it. The preview issues no command
+  diagnostic; Cancel and OK clear it. An applied change ends the
+  session's preview (ADR-0019), so a draft still open previews again
+  against the new generation; `PreviewBody::changed` says which bodies to
+  tint, and a generation body missing from the list is hidden. The preview issues no command
   (gesture count 0 per field) and survives a slow evaluation without
   blocking the UI. `debug_state()` reports the preview's state and
   bodies. A scenario of an extrude's preview and its committed result
@@ -234,6 +239,7 @@ UI alone on a document whose sketch is drawn in sketch mode:
 - ⚠ OPEN 3: whether a bad choice value is checked once by the evaluator
   (`feature.choice`, the per-type codes retired) or still by each type
   too. Agent, at step 3, by what the existing tests and goldens hold.
-- ⚠ OPEN 4: what the preview does while the evaluator is still on the
-  last commit: queued behind it or cancelled by the next commit. Agent
-  proposes and decides in step 2, written in ADR-0019.
+- Decided 2026-10-08 at step 2 (OPEN 4, ADR-0019 decision 4): a preview
+  waits behind the newest commit's evaluation and meshing and never stops
+  it; a commit, a newer preview or a clear stops a running one, and an
+  applied change ends it.

@@ -51,6 +51,9 @@ pub enum Outcome {
     /// The command's effect equals the current state: nothing applied, no
     /// undo entry.
     NoOp,
+    /// A preview was taken (ADR-0019): nothing applied, and its events
+    /// follow on the subscription.
+    Previewing,
 }
 
 /// Why nothing was applied.
@@ -124,6 +127,15 @@ impl Authority {
         stacks.undo.push(entry);
         stacks.redo.clear();
         Ok(Outcome::Applied(Box::new(change)))
+    }
+
+    /// The document as `envelope` would leave it, without applying it: a
+    /// preview's (ADR-0019), refused or stale as a submit would be. No
+    /// generation, stamp or undo entry is made.
+    pub fn speculate(&self, envelope: &CommandEnvelope) -> Result<Document, Rejected> {
+        let applied = apply(&self.document, &envelope.command)?;
+        self.check_fresh(&applied.touched, envelope.base)?;
+        Ok(applied.document)
     }
 
     /// Applies `author`'s newest inverse, unless another author has since

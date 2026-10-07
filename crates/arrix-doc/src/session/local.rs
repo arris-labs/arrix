@@ -1,13 +1,15 @@
 //! Local mode: the authority on the session thread and the evaluator on
 //! its worker, both through the executor, talking to clients over
 //! channels (docs/CONCURRENCY-WASM.md §Roles and threads). The kernel never
-//! runs on the caller's thread.
+//! runs on the caller's thread. A preview (ADR-0019) is the worker's too,
+//! behind the newest commit.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use std::sync::mpsc::{Receiver, Sender, TryRecvError, channel};
+use std::sync::mpsc::{Receiver, Sender, channel};
 
-use super::{DocHash, EventStream, Request, Session, SessionEvent, files};
+use super::preview::{self, Job, PreviewJob, Queue};
+use super::{DocHash, EventStream, PreviewTag, Request, Session, SessionEvent, files};
 use crate::authority::{Authority, Generation, Outcome, Rejected};
 use crate::eval::EvalEvent;
 use arrix_core::{FeatureId, MeshDetail};
@@ -36,8 +38,6 @@ enum Msg {
     Stop,
 }
 
-type Snapshot = (Generation, Arc<Document>);
-
 /// A session in this process. Dropping it stops both threads, the worker
 /// after the feature it is evaluating.
 pub struct LocalSession {
@@ -51,13 +51,13 @@ impl LocalSession {
     /// can be spawned (wasm32 until C4).
     pub fn open(document: Document, registry: Registry) -> std::io::Result<Self> {
         let (inbox, rx) = channel();
-        let (snapshots, snapshot_rx) = channel();
+        let (jobs, job_rx) = channel();
         let publish = inbox.clone();
         let worker = executor::spawn("arrix-evaluator", move || {
-            evaluate(Evaluator::new(registry), &snapshot_rx, &publish);
+            evaluate(Evaluator::new(registry), &job_rx, &publish);
         })?;
         let thread = executor::spawn("arrix-session", move || {
-            serve(Authority::new(document), &rx, snapshots, worker);
+            serve(Authority::new(document), &rx, jobs, worker);
         })?;
         Ok(Self {
             inbox,
@@ -104,20 +104,18 @@ impl Drop for LocalSession {
 }
 
 /// The session thread: applies requests in arrival order, publishes each
-/// change, then hands the evaluator the new snapshot.
-fn serve(
-    mut authority: Authority,
-    inbox: &Receiver<Msg>,
-    snapshots: Sender<Snapshot>,
-    worker: Worker,
-) {
+/// change, then hands the evaluator the new snapshot. A preview's events
+/// reach subscribers only while it is the session's preview: a newer
+/// preview, a clear or an applied change ends it.
+fn serve(mut authority: Authority, inbox: &Receiver<Msg>, jobs: Sender<Job>, worker: Worker) {
     let mut subscribers: Vec<Sender<SessionEvent>> = Vec::new();
     // ADR-0009: the latest result of each plugin feature, and the input
     // hash each feature last evaluated under, with its generation.
     let mut kept: BTreeMap<FeatureId, Arc<Frozen>> = BTreeMap::new();
     let mut hashes: BTreeMap<FeatureId, (Generation, InputHash)> = BTreeMap::new();
-    let snapshot = |a: &Authority| (a.generation(), Arc::new(a.document().clone()));
-    let _ = snapshots.send(snapshot(&authority));
+    let mut previewing: Option<PreviewTag> = None;
+    let snapshot = |a: &Authority| Job::Commit((a.generation(), Arc::new(a.document().clone())));
+    let _ = jobs.send(snapshot(&authority));
     while let Ok(msg) = inbox.recv() {
         match msg {
             Msg::Request(request, reply) => {
@@ -125,6 +123,28 @@ fn serve(
                     Request::Submit(envelope) => authority.submit(&envelope),
                     Request::Undo { author } => authority.undo(author),
                     Request::Redo { author } => authority.redo(author),
+                    Request::Preview { preview, envelope } => {
+                        authority.speculate(&envelope).map(|doc| {
+                            let tag = PreviewTag {
+                                author: envelope.author,
+                                preview,
+                            };
+                            previewing = Some(tag);
+                            let _ = jobs.send(Job::Preview(PreviewJob {
+                                tag,
+                                generation: authority.generation(),
+                                doc: Arc::new(doc),
+                            }));
+                            Outcome::Previewing
+                        })
+                    }
+                    Request::ClearPreview { author } => {
+                        if previewing.is_some_and(|t| t.author == author) {
+                            previewing = None;
+                            let _ = jobs.send(Job::ClearPreview);
+                        }
+                        Ok(Outcome::NoOp)
+                    }
                 };
                 if let Ok(Outcome::Applied(change)) = &result {
                     let hash = cfg!(debug_assertions).then(|| DocHash::of(authority.document()));
@@ -133,7 +153,8 @@ fn serve(
                         hash,
                     };
                     subscribers.retain(|s| s.send(event.clone()).is_ok());
-                    let _ = snapshots.send(snapshot(&authority));
+                    previewing = None;
+                    let _ = jobs.send(snapshot(&authority));
                 }
                 let _ = reply.send(result);
             }
@@ -149,16 +170,24 @@ fn serve(
                 }
             }
             Msg::Publish(event) => {
-                if let SessionEvent::Evaluated {
-                    generation,
-                    event:
-                        EvalEvent {
-                            feature,
-                            outcome: FeatureOutcome::Ok { hash, .. },
-                        },
-                } = &event
-                {
-                    hashes.insert(*feature, (*generation, *hash));
+                match &event {
+                    SessionEvent::Evaluated {
+                        generation,
+                        event:
+                            EvalEvent {
+                                feature,
+                                outcome: FeatureOutcome::Ok { hash, .. },
+                            },
+                    } => {
+                        hashes.insert(*feature, (*generation, *hash));
+                    }
+                    SessionEvent::Previewed { tag, .. }
+                    | SessionEvent::PreviewMeshed { tag, .. }
+                        if previewing != Some(*tag) =>
+                    {
+                        continue;
+                    }
+                    _ => {}
                 }
                 subscribers.retain(|s| s.send(event.clone()).is_ok());
             }
@@ -179,91 +208,70 @@ fn serve(
             Msg::Stop => break,
         }
     }
-    // The worker stops once its snapshot channel is closed.
-    drop(snapshots);
+    // The worker stops once its job channel is closed.
+    drop(jobs);
     drop(worker);
 }
 
-/// The newest snapshot queued after `current`, or `current`; `None` once
-/// the session thread has gone.
-fn newest(snapshots: &Receiver<Snapshot>, mut current: Snapshot) -> Option<Snapshot> {
-    loop {
-        match snapshots.try_recv() {
-            Ok(s) => current = s,
-            Err(TryRecvError::Empty) => return Some(current),
-            Err(TryRecvError::Disconnected) => return None,
-        }
-    }
-}
-
-/// The evaluator worker: evaluates the newest snapshot, publishing each
-/// feature's event as it is made, and starts over on a newer one between
-/// features. The cache makes starting over cheap.
-fn evaluate(mut evaluator: Evaluator, snapshots: &Receiver<Snapshot>, publish: &Sender<Msg>) {
-    let mut next = None;
-    loop {
-        let queued = match next.take() {
-            Some(s) => s,
-            None => match snapshots.recv() {
-                Ok(s) => s,
-                Err(_) => return,
-            },
-        };
-        let Some((generation, doc)) = newest(snapshots, queued) else {
-            return;
-        };
-        let mut gone = false;
-        let done = evaluator.evaluate_while(&doc, |event| {
-            let event = SessionEvent::Evaluated {
-                generation,
-                event: event.clone(),
-            };
-            let _ = publish.send(Msg::Publish(event));
-            match snapshots.try_recv() {
-                Ok(s) => next = Some(s),
-                Err(TryRecvError::Empty) => {}
-                Err(TryRecvError::Disconnected) => gone = true,
-            }
-            next.is_none() && !gone
-        });
-        if gone {
-            return;
-        }
-        let _ = publish.send(Msg::Freeze(evaluator.frozen().clone()));
-        if let Some(evaluation) = done {
-            let finished = SessionEvent::Finished {
-                generation,
-                params: evaluation.params,
-            };
-            let _ = publish.send(Msg::Publish(finished));
-            if mesh_finals(&mut evaluator, generation, snapshots, publish, &mut next) {
+/// The evaluator worker: evaluates the newest commit's snapshot,
+/// publishing each feature's event as it is made, and starts over on a
+/// newer one between features; the cache makes starting over cheap. A
+/// preview waits until the newest commit is evaluated and meshed, and
+/// gives way to anything newer (ADR-0019).
+fn evaluate(mut evaluator: Evaluator, jobs: &Receiver<Job>, publish: &Sender<Msg>) {
+    let mut queue = Queue::new(jobs);
+    // The final bodies of the newest commit's finished evaluation, which a
+    // preview's bodies are told changed or not against.
+    let mut committed = Vec::new();
+    while queue.wait() {
+        if let Some((generation, doc)) = queue.commit.take() {
+            let done = evaluator.evaluate_while(&doc, |event| {
+                let event = SessionEvent::Evaluated {
+                    generation,
+                    event: event.clone(),
+                };
+                let _ = publish.send(Msg::Publish(event));
+                queue.poll();
+                queue.commit.is_none() && !queue.gone
+            });
+            if queue.gone {
                 return;
             }
+            let _ = publish.send(Msg::Freeze(evaluator.frozen().clone()));
+            if let Some(evaluation) = done {
+                committed = evaluator.final_bodies().to_vec();
+                let finished = SessionEvent::Finished {
+                    generation,
+                    params: evaluation.params,
+                };
+                let _ = publish.send(Msg::Publish(finished));
+                mesh_finals(&mut evaluator, generation, &mut queue, publish);
+            }
+        } else if let Some(job) = queue.preview.take() {
+            let mut send = |event| {
+                let _ = publish.send(Msg::Publish(event));
+            };
+            preview::run(&mut evaluator, job, &committed, &mut queue, &mut send);
         }
     }
 }
 
 /// Meshes the final bodies of the evaluation of `generation`, every body
 /// coarse and then every body refined, publishing each as it is made.
-/// Stops between meshes when a newer snapshot is queued, which it leaves
-/// in `next`; returns `true` once the session thread has gone.
+/// Stops between meshes when a newer commit is queued, or the session
+/// thread has gone.
 fn mesh_finals(
     evaluator: &mut Evaluator,
     generation: Generation,
-    snapshots: &Receiver<Snapshot>,
+    queue: &mut Queue,
     publish: &Sender<Msg>,
-    next: &mut Option<Snapshot>,
-) -> bool {
+) {
     let finals = evaluator.final_bodies().to_vec();
     for detail in [MeshDetail::Coarse, MeshDetail::Refined] {
         for body in &finals {
-            match snapshots.try_recv() {
-                Ok(s) => {
-                    *next = Some(s);
-                    return false;
-                }
-                Err(TryRecvError::Empty) => {}
-                Err(TryRecvError::Disconnected) => return true,
+            queue.poll();
+            if queue.commit.is_some() || queue.gone {
+                return;
             }
             let event = SessionEvent::Meshed {
                 generation,
@@ -275,5 +283,4 @@ fn mesh_finals(
             let _ = publish.send(Msg::Publish(event));
         }
     }
-    false
 }

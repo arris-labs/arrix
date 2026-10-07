@@ -247,7 +247,8 @@ impl OpenDocument {
                 self.applied += 1;
                 Ok(true)
             }
-            Ok(Outcome::NoOp) => Ok(false),
+            // A preview is not counted: it applies nothing (ADR-0019).
+            Ok(Outcome::NoOp | Outcome::Previewing) => Ok(false),
             Err(rejected) => Err(rejected.to_string()),
         }
     }

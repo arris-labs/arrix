@@ -76,6 +76,14 @@ preclude (`SEED.md` §6.1). Locally all three are in one process.
   every body coarse first, then every body refined, each a `Meshed` event
   of its generation. A newer snapshot stops it between meshes, and a
   version the evaluator's cache holds keeps its meshes.
+- **Previews come after commits** (ADR-0019). A preview waits until the
+  newest commit is evaluated and meshed, and never stops it; a running
+  preview stops between features or meshes for a commit, a newer preview
+  or a clear, and a commit drops a waiting one, which was taken on an older
+  document. It evaluates on the same evaluator and cache, so the command
+  applied after it is a cache hit, and only the bodies it changed against
+  the newest commit's are meshed. Its plugin results are not kept for a
+  save.
 
 ## Determinism
 

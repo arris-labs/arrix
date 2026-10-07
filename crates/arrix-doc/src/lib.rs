@@ -50,7 +50,7 @@ pub use open::{DOCUMENT_JSON, DocumentSource, MemorySource, OpenError, PARAMS_JS
 pub use registry::{FeatureArgs, FeatureType, Registry, RegistryError, SketchArgs, TypeOutput};
 pub use save::{save, to_json};
 pub use session::{
-    DocHash, EventStream, LocalSession, ParamValues, Replica, ReplicaError, Request, Session,
-    SessionEvent,
+    DocHash, EventStream, LocalSession, ParamValues, PreviewBody, PreviewId, PreviewTag, Replica,
+    ReplicaError, Request, Session, SessionEvent,
 };
 pub use zip::{ZipError, from_zip, open_zip, save_zip, to_zip};

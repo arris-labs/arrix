@@ -630,6 +630,7 @@ proptest! {
             match auth.submit(&env(ALICE, auth.generation().0, c)).unwrap() {
                 Outcome::Applied(_) => states.push(auth.document().clone()),
                 Outcome::NoOp => prop_assert_eq!(&a.document, &doc),
+                Outcome::Previewing => unreachable!("a submit is never a preview"),
             }
         }
         for want in states.iter().rev().skip(1) {
