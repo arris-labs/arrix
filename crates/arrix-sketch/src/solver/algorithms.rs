@@ -258,24 +258,30 @@ fn gain_ratio(actual: f64, predicted: f64) -> f64 {
 }
 
 /// Leaves `x` in the sketch and reports on it: the primary residual, and
-/// the rank and DoF of the Jacobian there.
+/// the rank and DoF of the Jacobian there if `compute_rank`, else 0 and 0.
 fn finish(
     sys: &System,
     sketch: &mut Sketch,
     x: &[f64],
     iterations: usize,
     converged_below: f64,
+    compute_rank: bool,
 ) -> SubsystemSolveResult {
     sys.unpack_into(x, sketch);
     let r = sys.residuals_of(sketch);
     let norm = primary_residual_norm(&r, &sys.residual_priorities);
-    let rank = matrix_rank(&jacobian(sys, sketch, x).to_dense());
+    let (rank, dof) = if compute_rank {
+        let rank = matrix_rank(&jacobian(sys, sketch, x).to_dense());
+        (rank, sys.n_vars() as i32 - rank as i32)
+    } else {
+        (0, 0)
+    };
     SubsystemSolveResult {
         converged: norm < converged_below,
         iterations,
         residual_norm: norm,
         rank,
-        dof: sys.n_vars() as i32 - rank as i32,
+        dof,
     }
 }
 
@@ -286,6 +292,7 @@ pub(crate) fn solve_system_dogleg(
     residual_tol: f64,
     step_tol: f64,
     sketch_scaled_trust: bool,
+    compute_rank: bool,
 ) -> SubsystemSolveResult {
     let n = sys.n_vars();
     if n == 0 {
@@ -312,7 +319,7 @@ pub(crate) fn solve_system_dogleg(
 
     sys.unpack_into(&x, sketch);
     if residual_norm(&sys.residuals_of(sketch)) < residual_tol {
-        let mut done = finish(sys, sketch, &x, 0, f64::INFINITY);
+        let mut done = finish(sys, sketch, &x, 0, f64::INFINITY, compute_rank);
         done.converged = true;
         return done;
     }
@@ -381,7 +388,14 @@ pub(crate) fn solve_system_dogleg(
         }
     }
 
-    finish(sys, sketch, &x, iterations, residual_tol * 100.0)
+    finish(
+        sys,
+        sketch,
+        &x,
+        iterations,
+        residual_tol * 100.0,
+        compute_rank,
+    )
 }
 
 pub(crate) fn solve_system_lm(
@@ -390,6 +404,7 @@ pub(crate) fn solve_system_lm(
     max_iterations: usize,
     residual_tol: f64,
     step_tol: f64,
+    compute_rank: bool,
 ) -> SubsystemSolveResult {
     let n = sys.n_vars();
     let m = sys.n_residuals();
@@ -530,10 +545,12 @@ pub(crate) fn solve_system_lm(
     let r_final_raw = sys.residuals_of(sketch);
     let final_primary_norm = primary_residual_norm(&r_final_raw, &sys.residual_priorities);
 
-    let j_rows = jacobian(sys, sketch, &x);
-    let j = j_rows.to_dense();
-    let rank = matrix_rank(&j);
-    let dof = n as i32 - rank as i32;
+    let (rank, dof) = if compute_rank {
+        let rank = matrix_rank(&jacobian(sys, sketch, &x).to_dense());
+        (rank, n as i32 - rank as i32)
+    } else {
+        (0, 0)
+    };
 
     SubsystemSolveResult {
         converged: final_primary_norm < residual_tol * 100.0,
@@ -579,6 +596,7 @@ pub(crate) fn solve_system(
             options.max_iterations,
             options.residual_tol,
             options.step_tol,
+            options.compute_rank,
         )
     };
     match options.algorithm {
@@ -590,6 +608,7 @@ pub(crate) fn solve_system(
                 options.residual_tol,
                 options.step_tol,
                 options.sketch_scaled_trust,
+                options.compute_rank,
             );
             if res.converged {
                 res
@@ -695,7 +714,10 @@ pub fn solve(sketch: &mut Sketch) -> SolveResult {
 /// during a drag). A frame that fails leaves the sketch as it was, and the
 /// result describes the solve that was rolled back.
 pub fn solve_with_drag(sketch: &mut Sketch, point: PointId, x: f64, y: f64) -> SolveResult {
-    DragSession::new(sketch, point).frame(sketch, x, y).0
+    DragSession::new(sketch, point)
+        .with_rank()
+        .frame(sketch, x, y)
+        .0
 }
 
 #[cfg(test)]
@@ -747,7 +769,7 @@ mod tests {
     fn first_step_length(sketch_scaled_trust: bool) -> f64 {
         let (mut sketch, sys) = stretched_line();
         let x0 = sys.pack(&sketch);
-        solve_system_dogleg(&sys, &mut sketch, 1, 1e-9, 1e-12, sketch_scaled_trust);
+        solve_system_dogleg(&sys, &mut sketch, 1, 1e-9, 1e-12, sketch_scaled_trust, true);
         let x1 = sys.pack(&sketch);
         let d: Vec<f64> = x0.iter().zip(&x1).map(|(a, b)| b - a).collect();
         residual_norm(&d)

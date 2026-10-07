@@ -22,14 +22,12 @@ use crate::ids::{EntityId, PointId};
 use crate::sketch::Sketch;
 
 use super::algorithms::{
-    SubsystemSolveResult, dot, primary_residual_norm, solve_normal, solve_partitioned,
-    solve_subsystem, solve_system,
+    SubsystemSolveResult, primary_residual_norm, solve_partitioned, solve_subsystem, solve_system,
 };
 use super::guard::BranchGuard;
-use super::jacobian::jacobian;
-use super::linalg::row_space_basis;
 use super::residuals::residual_norm;
 use super::system::{Pin, System};
+use super::tangent::tangent_step;
 use super::{SolveResult, SolverOptions};
 
 /// Tangent-step-and-retract rounds one frame may spend on its pin.
@@ -135,6 +133,7 @@ impl DragSession {
         let system = System::build_with_pins(sketch, &pins);
         let options = SolverOptions {
             sketch_scaled_trust: true,
+            compute_rank: false,
             ..SolverOptions::default()
         };
         let primary =
@@ -147,6 +146,14 @@ impl DragSession {
             grab,
             options,
         }
+    }
+
+    /// The session with each frame's rank and DoF reported, for the
+    /// one-frame [`crate::solve_with_drag`]; a frame of the app's drag
+    /// reads neither, and skips the analysis.
+    pub(crate) fn with_rank(mut self) -> Self {
+        self.options.compute_rank = true;
+        self
     }
 
     /// One frame: what the drag holds pulled toward the cursor at `(x, y)`
@@ -287,61 +294,4 @@ fn follow_pin(
         }
     }
     res
-}
-
-/// The smallest step that, to first order, leaves every primary residual
-/// where it is and cuts the pin's error the most: the Gauss–Newton step for
-/// the drag-priority rows, projected onto the primary Jacobian's null
-/// space. `None` if the projected system cannot be solved.
-fn tangent_step(sys: &System, sketch: &Sketch, x: &[f64]) -> Option<Vec<f64>> {
-    let n = sys.n_vars();
-    let dense = jacobian(sys, sketch, x).to_dense();
-    let r = sys.residuals_of(sketch);
-    let (mut primary, mut soft, mut e) = (Vec::new(), Vec::new(), Vec::new());
-    for ((row, p), ri) in dense.into_iter().zip(&sys.residual_priorities).zip(r) {
-        if *p == ConstraintPriority::Primary {
-            primary.push(row);
-        } else {
-            soft.push(row);
-            e.push(ri);
-        }
-    }
-    let basis = row_space_basis(&primary);
-    for row in &mut soft {
-        for q in &basis {
-            let d = dot(row, q);
-            row.iter_mut().zip(q).for_each(|(a, b)| *a -= d * b);
-        }
-    }
-    // Minimum-norm least squares of `A t = −e`, solved in an orthonormal
-    // basis `P` of `A`'s row space: `t = Pᵀ y` with `(A Pᵀ) y = −e`. A
-    // direction the constraints lock is simply not in `P`; damping
-    // `A Aᵀ` instead would divide round-off by the damping and step along it.
-    let p = row_space_basis(&soft);
-    let r = p.len();
-    if r == 0 {
-        return None;
-    }
-    let m: Vec<Vec<f64>> = soft
-        .iter()
-        .map(|row| p.iter().map(|q| dot(row, q)).collect())
-        .collect();
-    let mut mtm = vec![0.0; r * r];
-    let mut y = vec![0.0; r];
-    for (mi, ei) in m.iter().zip(&e) {
-        for a in 0..r {
-            y[a] -= mi[a] * ei;
-            for b in 0..r {
-                mtm[a * r + b] += mi[a] * mi[b];
-            }
-        }
-    }
-    if !solve_normal(&mut mtm, &mut y, r) {
-        return None;
-    }
-    let mut t = vec![0.0; n];
-    for (q, ya) in p.iter().zip(&y) {
-        t.iter_mut().zip(q).for_each(|(ti, qi)| *ti += ya * qi);
-    }
-    Some(t)
 }

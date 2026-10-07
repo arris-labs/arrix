@@ -222,10 +222,12 @@ fn stretchy_grid(rows: usize, cols: usize) -> (Draft, arrix_sketch::PointId) {
 }
 
 /// One drag frame on a 200-entity sketch against the 4 ms budget
-/// (docs/CONCURRENCY-WASM.md §Budgets): measured and reported, not gated.
-/// Run it with `--release --nocapture` for the number the budget means.
+/// (docs/CONCURRENCY-WASM.md §Budgets), gated on the median: about 0.4 ms
+/// in release and 0.7 ms in the dev profile on the reference machine, so
+/// the gate holds a shared CI runner's noise. Run it with `--release
+/// --nocapture` for the number the budget means.
 #[test]
-fn a_drag_frame_on_a_200_entity_sketch_is_measured() {
+fn a_drag_frame_on_a_200_entity_sketch_is_within_its_budget() {
     let (mut sk, corner) = stretchy_grid(9, 10);
     let entities = sk.entities().len();
     assert!(entities >= 199, "{entities} entities");
@@ -246,6 +248,64 @@ fn a_drag_frame_on_a_200_entity_sketch_is_measured() {
     println!(
         "Benchmark: drag frame on {entities} entities, {} points: median {:.3} ms, worst {:.3} ms",
         sk.points().len(),
+        ms(frames_ns[frames_ns.len() / 2]),
+        ms(frames_ns[frames_ns.len() - 1]),
+    );
+    let median = ms(frames_ns[frames_ns.len() / 2]);
+    assert!(
+        median <= 4.0,
+        "the drag frame's median, {median:.3} ms, is over 4 ms"
+    );
+}
+
+/// A zigzag of 200 lines, each 10 mm long and perpendicular to the one
+/// before, joined end to end and fixed at the first point: every row but
+/// the joins is nonlinear, so the drag's elimination of simple rows
+/// (`solver/tangent.rs`) leaves most of the system dense. The worst case
+/// for the drag beside `stretchy_grid`'s usual one.
+fn zigzag(lines: usize) -> (Draft, arrix_sketch::PointId) {
+    const LEN: f64 = 0.01;
+    let mut sk = Draft::seeded(1);
+    let h = LEN * std::f64::consts::FRAC_1_SQRT_2;
+    let mut prev: Option<(arrix_sketch::PointId, arrix_sketch::EntityId)> = None;
+    let mut first = None;
+    let mut last = None;
+    for i in 0..lines {
+        let x = i as f64 * h;
+        let (y0, y1) = if i % 2 == 0 { (0.0, h) } else { (h, 0.0) };
+        let (a, b, line) = sk.add_line(x, y0, x + h, y1);
+        first.get_or_insert(a);
+        sk.add_constraint(Constraint::Distance { a, b, value: LEN });
+        if let Some((end, before)) = prev {
+            sk.add_constraint(Constraint::Coincident { a: end, b: a });
+            sk.add_constraint(Constraint::Perpendicular { a: before, b: line });
+        }
+        prev = Some((b, line));
+        last = Some(b);
+    }
+    sk.point_mut(first.unwrap()).unwrap().fixed = true;
+    (sk, last.unwrap())
+}
+
+/// The zigzag's far end dragged: measured and reported, not gated (the
+/// gate is the grid's, the shape of a drawn part).
+#[test]
+fn a_drag_frame_on_a_nonlinear_200_entity_sketch_is_measured() {
+    let (mut sk, end) = zigzag(200);
+    let mut session = arrix_sketch::DragSession::new(&sk, end);
+    let start = sk.point(end).unwrap().pos();
+    let mut frames_ns = Vec::new();
+    for i in 1..=10 {
+        let t = f64::from(i) * 0.0005;
+        let clock = Instant::now();
+        session.step(&mut sk, start[0] - t, start[1] + t);
+        frames_ns.push(clock.elapsed().as_nanos());
+    }
+    frames_ns.sort_unstable();
+    let ms = |ns: u128| ns as f64 / 1e6;
+    println!(
+        "Benchmark: drag frame on a nonlinear zigzag of {} entities: median {:.3} ms, worst {:.3} ms",
+        sk.entities().len(),
         ms(frames_ns[frames_ns.len() / 2]),
         ms(frames_ns[frames_ns.len() - 1]),
     );

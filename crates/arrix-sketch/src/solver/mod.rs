@@ -62,6 +62,12 @@ pub struct SolverOptions {
     /// of at 1 m. The drag path sets it; `solve` does not, because on
     /// a rescaled plate (a parameter edit's jump) it changes the outcome.
     pub sketch_scaled_trust: bool,
+    /// Report each solve's rank and DoF, a dense rank analysis of the
+    /// Jacobian at the end. A drag frame reads neither and the analysis
+    /// alone costs more than the frame's budget on a 200-entity sketch
+    /// (docs/CONCURRENCY-WASM.md §Budgets), so the drag path turns it off;
+    /// the result's `rank` and `dof` are then 0.
+    pub compute_rank: bool,
 }
 
 impl Default for SolverOptions {
@@ -72,6 +78,7 @@ impl Default for SolverOptions {
             residual_tol: RESIDUAL_TOL,
             step_tol: STEP_TOL,
             sketch_scaled_trust: false,
+            compute_rank: true,
         }
     }
 }
@@ -215,6 +222,7 @@ pub(crate) mod jacobian;
 pub(crate) mod linalg;
 pub(crate) mod residuals;
 pub(crate) mod system;
+mod tangent;
 
 pub use algorithms::{solve, solve_with_drag, solve_with_options};
 pub use drag::{DragFrame, DragSession};

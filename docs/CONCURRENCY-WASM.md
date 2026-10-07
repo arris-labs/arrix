@@ -184,7 +184,7 @@ measured number written here.
 |---|---|
 | A UI frame with the C1 acceptance part on screen | ≤ 16 ms; measured 0.09 ms median |
 | Applying a command (authority and replica) | ≤ 1 ms |
-| One sketch-drag solve on a 200-entity sketch | ≤ 4 ms, on the UI thread; measured 34 ms |
+| One sketch-drag solve on a 200-entity sketch | ≤ 4 ms, on the UI thread; gated, measured 0.38 ms median |
 | First coarse mesh after a parameter edit of the acceptance part | ≤ 150 ms |
 | Cancellation latency once A3 lands | ≤ 50 ms |
 | Save and load of the acceptance document | ≤ 100 ms each |
@@ -203,14 +203,25 @@ and its meshes are uploaded once, so the UI thread's frame does not grow
 with the triangle count; the GPU side is measured when a reference GPU is
 in CI.
 
-The sketch drag was measured on a 199-entity sketch (a 9 × 10 grid of
-10 mm cells, one connected subsystem of 220 variables, its far corner
-dragged): 34 ms median per frame in a release build on a Ryzen 9 7950X,
-61 ms in the dev profile, 8.5 times the target
-(`crates/arrix-sketch/tests/solver_benchmarks.rs`, reported, not
-asserted). M3's sketch-mode plan profiles it before the target becomes a
-gate; the dense null-space basis and the retract per follow iteration
-are the suspects.
+The sketch drag is measured on a 199-entity sketch (a 9 × 10 grid of
+10 mm cells, every line horizontal or vertical, one connected subsystem of
+218 variables, its far corner dragged): 0.38 ms median per frame in a
+release build on a Ryzen 9 7950X, 0.7 ms in the dev profile, and the test
+asserts the 4 ms median in both
+(`crates/arrix-sketch/tests/solver_benchmarks.rs`). It was 34 ms. A drag
+frame reports no rank (`SolverOptions::compute_rank`), whose dense analysis
+alone cost 5.6 ms per solve; and the tangent step eliminates the rows of
+two equal and opposite entries (a coincidence, a horizontal, a vertical) by
+merging their variables, and the rows of one entry by holding theirs,
+before the dense null-space work, which then grows with the sketch's
+freedom and not its size (`solver/tangent.rs`; exact in arithmetic, the
+positions within 1e-8 m of the unreduced solver's).
+
+A sketch of nonlinear rows is still over: a zigzag of 200 lines, each with
+a length and perpendicular to the last, drags at 300 ms median per frame
+(7.2 s before; reported, not gated), a dense 400-variable basis of about
+30 ms per follow iteration and about 13 iterations a frame on a chain that
+cannot reach the cursor (`docs/BACKLOG.md`).
 
 ## Open questions
 

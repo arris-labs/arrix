@@ -235,8 +235,9 @@ orthographic projection.
   model that transfer its constraints, each row they add kept only if
   the insert-time check (`Sketch::check_candidate`) passes, with hover
   previews from the same pieces. The same sketch solved twice gives
-  bit-identical positions. The drag is over its frame budget as
-  measured (`docs/CONCURRENCY-WASM.md` §Budgets).
+  bit-identical positions. The drag is inside its frame budget on a
+  drawn part's sketch, and over it on one of mostly nonlinear rows
+  (`docs/CONCURRENCY-WASM.md` §Budgets).
 - **Inference is one engine** in `arrix-sketch`, ported with sketch mode
   in M3, as are the sketch fillet, auto-constrain and the constraint
   descriptions: a search over candidate
