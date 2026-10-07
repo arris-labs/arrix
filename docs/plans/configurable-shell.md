@@ -255,7 +255,7 @@ None. No step calls the kernel.
   - Changed files are noticed by a polled modification check (⚠ OPEN 3).
   - Tests: a reload against a temporary directory, and an unreadable
     directory giving the defaults plus a diagnostic.
-- [ ] **[2]** Step 11: the acceptance scenario (below), pinned as a visual
+- [x] **[2]** Step 11: the acceptance scenario (below), pinned as a visual
   scenario and a CLI test.
 
 ## Acceptance
@@ -369,3 +369,11 @@ The whole gate is green, the wasm build included.
   while it has such a source. `ArrixApp::with_config_source` keeps the source
   for `core.config.reload`; `with_config(&impl)` is the fixed, built-in-or-
   memory form the earlier tests use. `ArrixApp::native` is `main`'s entry.
+- Step 11 found: both acceptance checks read the same fixtures,
+  `tests/config/user` (the user's three files, with `ctrl+r` bound to reload
+  beside the moved palette) and `tests/config/user-broken` (the one
+  `settings.toml` that replaces the user's with a number for `ui.theme`, the
+  diagnostic at line 4). The scenario starts on a directory holding only the
+  reload key. Read: `target/snapshots/configured_shell.png` shows the ribbon
+  without Part and with Gears, the teal theme, and the palette open on
+  `ctrl+p`; `ctrl+k` does nothing.

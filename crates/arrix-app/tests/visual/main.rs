@@ -83,3 +83,75 @@ fn light_theme() {
         snapshot::check(h, "light_theme")
     });
 }
+
+/// Copies the files of `from` over `to`, directories included.
+fn copy_tree(from: &std::path::Path, to: &std::path::Path) {
+    std::fs::create_dir_all(to).expect("create a directory");
+    for entry in std::fs::read_dir(from).expect("read a fixture directory") {
+        let entry = entry.expect("a directory entry");
+        let at = to.join(entry.file_name());
+        if entry.file_type().expect("a file type").is_dir() {
+            copy_tree(&entry.path(), &at);
+        } else {
+            std::fs::copy(entry.path(), at).expect("copy a fixture");
+        }
+    }
+}
+
+/// The acceptance of plans/configurable-shell: the app starts on an empty
+/// config directory, the user's files (`tests/config/user`) arrive and
+/// `core.config.reload` applies them, and then one wrong key leaves the app
+/// up with that key on its default and one diagnostic.
+#[test]
+fn configured_shell() {
+    let config = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/config");
+    let temp = std::env::temp_dir().join(format!("arrix-configured-shell-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&temp);
+    std::fs::create_dir_all(&temp).expect("create the config directory");
+    // The reload command is on a key the user's files don't move.
+    std::fs::write(
+        temp.join("keybindings.toml"),
+        "[[bind]]\nkey = \"ctrl+r\"\ncommand = \"core.config.reload\"\n",
+    )
+    .expect("write the starting keymap");
+    harness::with_config_dir("configured_shell", &temp, |h| {
+        assert_eq!(h.state().debug_state().theme, "dark");
+        copy_tree(&config.join("user"), &temp);
+        h.key_press_modifiers(egui::Modifiers::CTRL, egui::Key::R);
+        h.run();
+        let d = h.state().debug_state();
+        assert_eq!(d.theme, "mine");
+        assert!(
+            d.config_diagnostics.is_empty(),
+            "{:?}",
+            d.config_diagnostics
+        );
+        h.key_press_modifiers(egui::Modifiers::CTRL, egui::Key::K);
+        h.run();
+        assert!(h.state().debug_state().shell.unwrap().palette.is_none());
+        h.key_press_modifiers(egui::Modifiers::CTRL, egui::Key::P);
+        h.run();
+        snapshot::check(h, "configured_shell");
+
+        // One wrong key, then a reload.
+        std::fs::copy(
+            config.join("user-broken/settings.toml"),
+            temp.join("settings.toml"),
+        )
+        .expect("write the broken settings");
+        h.key_press(egui::Key::Escape);
+        h.run();
+        assert!(h.state().debug_state().shell.unwrap().palette.is_none());
+        h.key_press_modifiers(egui::Modifiers::CTRL, egui::Key::R);
+        h.run();
+        let d = h.state().debug_state();
+        assert_eq!(d.theme, "dark", "the broken key has its default");
+        assert_eq!(d.config_diagnostics.len(), 1);
+        assert_eq!(d.config_diagnostics[0].file, "settings.toml");
+        assert_eq!(d.config_diagnostics[0].line, Some(4));
+        let shell = d.shell.expect("a frame ran");
+        assert_eq!(shell.status.diagnostics, 1);
+        assert!(!shell.ribbon.tabs.iter().any(|t| t.id == "core.part"));
+    });
+    let _ = std::fs::remove_dir_all(&temp);
+}

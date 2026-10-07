@@ -161,3 +161,17 @@ pub fn scenario_directory(name: &str, files: &MemorySource) {
          rerun with UPDATE_SNAPSHOTS=1 and read the diff"
     );
 }
+
+/// Copies the files of `from` over `to`, directories included.
+pub fn copy_tree(from: &Path, to: &Path) {
+    std::fs::create_dir_all(to).unwrap();
+    for entry in std::fs::read_dir(from).unwrap() {
+        let entry = entry.unwrap();
+        let at = to.join(entry.file_name());
+        if entry.file_type().unwrap().is_dir() {
+            copy_tree(&entry.path(), &at);
+        } else {
+            std::fs::copy(entry.path(), at).unwrap();
+        }
+    }
+}

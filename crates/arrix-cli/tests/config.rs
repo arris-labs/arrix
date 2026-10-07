@@ -215,3 +215,48 @@ fn schema_prints_one_json_schema_per_file_kind() {
     }
     assert_eq!(arrix(&["config", "schema", "nope"]).status.code(), Some(2));
 }
+
+/// The acceptance scenario's directories, as the app's `configured_shell`
+/// scenario uses them: the user's files check clean, and the one wrong edit
+/// (`tests/config/user-broken`) is the one diagnostic the app reports.
+#[test]
+fn the_acceptance_directories_check_as_the_app_sees_them() {
+    let clean = arrix(&["config", "check", "--dir", "tests/config/user"]);
+    assert_eq!(clean.status.code(), Some(0), "{}", stdout(&clean));
+    assert!(clean.stdout.is_empty());
+
+    let temp = std::env::temp_dir().join(format!("arrix-cli-user-broken-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&temp);
+    common::copy_tree(&workspace().join("tests/config/user"), &temp);
+    std::fs::copy(
+        workspace().join("tests/config/user-broken/settings.toml"),
+        temp.join("settings.toml"),
+    )
+    .unwrap();
+    let broken = arrix(&["config", "check", "--dir", temp.to_str().unwrap()]);
+    let _ = std::fs::remove_dir_all(&temp);
+    assert_eq!(broken.status.code(), Some(1));
+    let lines: Vec<serde_json::Value> = stdout(&broken)
+        .lines()
+        .map(|l| serde_json::from_str(l).unwrap())
+        .collect();
+    assert_eq!(lines.len(), 1, "{lines:?}");
+    assert_eq!(lines[0]["file"], "settings.toml");
+    assert_eq!(lines[0]["line"], 4);
+    assert_eq!(lines[0]["code"], "config.type");
+}
+
+#[test]
+fn describe_shows_the_users_rebound_palette_and_theme() {
+    let out = arrix(&["describe", "--json", "--dir", "tests/config/user"]);
+    let d: serde_json::Value = serde_json::from_str(&stdout(&out)).unwrap();
+    assert_eq!(d["theme"]["effective"], "mine");
+    let palette = d["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["id"] == "core.palette.open")
+        .unwrap();
+    assert_eq!(palette["keys"], serde_json::json!(["ctrl+p"]));
+    assert_eq!(palette["default_keys"], serde_json::json!(["ctrl+k"]));
+}

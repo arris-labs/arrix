@@ -1,0 +1,8 @@
+# The palette moves from ctrl+k to ctrl+p; ctrl+r reloads the configuration.
+[[bind]]
+key = "ctrl+p"
+command = "core.palette.open"
+
+[[bind]]
+key = "ctrl+r"
+command = "core.config.reload"

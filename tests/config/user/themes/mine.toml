@@ -1,0 +1,25 @@
+# A user's theme: a teal look over the dark base, every role set.
+base = "dark"
+
+[vars]
+ground = "#0f2a2e"
+sunken = "#061719"
+line = "#2f6f78"
+
+[colors]
+panel = "$ground"
+window = "$ground"
+field = "$sunken"
+text = "#8fc2c9"
+text-widget = "#b5dde2"
+text-hover = "#e8fafc"
+text-active = "#ffffff"
+border = "$line"
+button = "#1d4d55"
+button-hover = "#25636d"
+button-active = "#17393f"
+accent = "#c26a00"
+accent-text = "#ffe2b8"
+link = "#5ad1e6"
+warn = "#ffb000"
+error = "#ff4d4d"

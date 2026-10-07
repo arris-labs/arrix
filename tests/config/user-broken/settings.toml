@@ -1,0 +1,7 @@
+# What the user's settings.toml becomes after one wrong edit: the theme gets
+# a number. It replaces ../user/settings.toml in the acceptance scenario.
+[ui]
+theme = 3
+
+[ui.ribbon]
+hidden-tabs = ["core.part"]

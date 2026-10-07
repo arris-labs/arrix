@@ -116,6 +116,28 @@ pub fn with_config(
     body(&mut harness);
 }
 
+/// [`with_app`] on the config directory `dir`, which the app keeps to
+/// reload from: the scenario edits the files, then runs `core.config.reload`.
+pub fn with_config_dir(
+    name: &str,
+    dir: &std::path::Path,
+    body: impl FnOnce(&mut Harness<'_, ArrixApp>),
+) {
+    if !can_render(name) {
+        return;
+    }
+    let _gpu = gpu_lock();
+    let dir = dir.to_path_buf();
+    let mut harness = Harness::builder()
+        .with_size(SIZE)
+        .wgpu()
+        .build_eframe(move |cc| {
+            ArrixApp::with_config_source(cc, Box::new(arrix_app::config_files::ConfigDir::new(dir)))
+        });
+    settle(&mut harness);
+    body(&mut harness);
+}
+
 /// Renders the current frame.
 pub fn render(harness: &mut Harness<'_, ArrixApp>) -> image::RgbaImage {
     harness.render().expect("render")

@@ -1,4 +1,8 @@
-# A user's configuration: a plugin's parameter default, and a ribbon tab gone.
+# A user's configuration: the Part tab hidden, their own theme, and a
+# plugin's parameter default.
+[ui]
+theme = "mine"
+
 [ui.ribbon]
 hidden-tabs = ["core.part"]
 
