@@ -56,3 +56,4 @@ Each rejected option and the one-line reason it lost.
 - [ADR-0015](0015-the-shell-is-configured-by-user-files.md): the shell is data, configured by the user's TOML files, failing soft; config never reaches `evaluate`
 - [ADR-0016](0016-the-agentic-user.md): the agentic user: invest in what agents can't rebuild, five constraints above it; the boundary opened before C2
 - [ADR-0017](0017-the-minimal-shell.md): the minimal shell: two docked bars, tree and property cards over the viewport, document tabs, panel modes `auto`/`shown`/`hidden`
+- [ADR-0018](0018-forms-are-the-feature-types-spec.md): a feature type's form is its spec; choices declared with `shown_when`, plugin API 0.5; a create form is a draft committed by OK as one command
