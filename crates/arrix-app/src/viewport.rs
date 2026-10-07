@@ -4,11 +4,12 @@
 //! here issues a command.
 
 use arrix_ui::viewcube::{self, ViewCubeAction, arrows};
-use arrix_ui::{CardsView, viewcube_rect};
+use arrix_ui::{CardsView, paint_sketch, viewcube_rect};
 use arrix_viewport::{Highlights, OrbitCamera, Renderer, StandardView};
 use web_time::Instant;
 
 use crate::documents::{PickFor, ViewState};
+use crate::sketch_view::{SketchOverlay, plane_transform};
 
 /// What a frame of the viewport left for the app to do.
 pub struct Frame {
@@ -30,7 +31,7 @@ fn pose(camera: &OrbitCamera) -> ([f32; 3], f32, f32, f32) {
 /// Draws the viewport into `ui`'s rect: the view's scene through
 /// `renderer` (an app without a wgpu render state draws nothing), the cube
 /// over it (when `cube`: an empty start has nothing to turn, and shows
-/// nothing else, ADR-0017), and takes the pointer's gestures. A pick a click or a resting
+/// nothing else, ADR-0017), the open sketch over the scene, and takes the pointer's gestures. A pick a click or a resting
 /// pointer asked for is left in `view.pick`.
 pub fn show(
     ui: &mut egui::Ui,
@@ -38,6 +39,7 @@ pub fn show(
     renderer: Option<&mut Renderer>,
     cards: &CardsView,
     cube: bool,
+    sketch: Option<&SketchOverlay>,
 ) -> Frame {
     let rect = ui.max_rect();
     // The viewport's own response: a card over it is a layer above and
@@ -96,6 +98,11 @@ pub fn show(
     }
 
     // Painted after the scene, so over it.
+    if let Some(overlay) = sketch
+        && let Some(to_screen) = plane_transform(&view.camera, rect, &overlay.plane)
+    {
+        paint_sketch(&ui.painter_at(rect), &to_screen, &overlay.view);
+    }
     if cube {
         let camera = &view.camera;
         let cube = viewcube::viewcube(

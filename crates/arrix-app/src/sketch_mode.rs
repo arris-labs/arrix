@@ -12,10 +12,30 @@ use web_time::Instant;
 
 use crate::ArrixApp;
 use crate::documents::OpenDocument;
+use crate::sketch_view::{SketchOverlay, Solved, sketch_view};
 
 /// How wide the view is, in metres from the centre, when there is no body
 /// to frame a sketch against.
-const EMPTY_RADIUS: f32 = 0.1;
+const EMPTY_RADIUS: f64 = 0.1;
+
+/// The least a sketch's view is fitted to, in metres, so a lone point is
+/// not zoomed into.
+const MIN_RADIUS: f64 = 0.01;
+
+/// The centre and half-diagonal, with a margin, of a sketch's points, in
+/// plane-local metres; `None` for a sketch with none.
+fn extent(sketch: &arrix_sketch::Sketch) -> Option<([f64; 2], f64)> {
+    let mut points = sketch.points().values().map(arrix_sketch::Point::pos);
+    let first = points.next()?;
+    let (lo, hi) = points.fold((first, first), |(lo, hi), p| {
+        (
+            [lo[0].min(p[0]), lo[1].min(p[1])],
+            [hi[0].max(p[0]), hi[1].max(p[1])],
+        )
+    });
+    let centre = [(lo[0] + hi[0]) / 2.0, (lo[1] + hi[1]) / 2.0];
+    Some((centre, 0.65 * (hi[0] - lo[0]).hypot(hi[1] - lo[1])))
+}
 
 /// The sketch being edited in a tab.
 #[derive(Clone, Debug)]
@@ -24,6 +44,11 @@ pub struct SketchMode {
     /// The camera as it was before the sketch turned it, set once the
     /// view has turned; finishing flies back to it.
     saved: Option<OrbitCamera>,
+    /// The sketch as last evaluated and solved, which the overlay draws;
+    /// made again when a newer evaluation of it arrives.
+    pub solved: Option<Solved>,
+    /// The plane it stands on, as last evaluated.
+    pub plane: Option<arrix_core::Frame>,
 }
 
 impl SketchMode {
@@ -31,6 +56,8 @@ impl SketchMode {
         Self {
             feature,
             saved: None,
+            solved: None,
+            plane: None,
         }
     }
 
@@ -235,16 +262,18 @@ impl ArrixApp {
         }
     }
 
-    /// Turns each tab's camera square to its sketch's plane, in
-    /// orthographic projection, once the plane is known: the evaluation of
-    /// a new sketch arrives a frame or so after its command.
-    pub(crate) fn turn_to_sketches(&mut self) {
+    /// Keeps each tab's open sketch in step with its evaluation: the
+    /// solved draft is made again when a newer evaluation of the sketch
+    /// arrives, and the camera turns square to its plane, in orthographic
+    /// projection, the first time one has (the evaluation of a new sketch
+    /// arrives a frame or so after its command). A sketch an undo took
+    /// away ends sketch mode.
+    pub(crate) fn follow_sketches(&mut self) {
         for document in &mut self.documents {
             let Some(mode) = &mut document.sketch else {
                 continue;
             };
             if mode.turned() {
-                // An undo took the sketch away: there is nothing to edit.
                 let held = document
                     .replica
                     .document()
@@ -253,10 +282,10 @@ impl ArrixApp {
                     .any(|p| p.features.contains_key(&mode.feature));
                 if !held {
                     document.leave_sketch();
+                    continue;
                 }
-                continue;
             }
-            let Some((_, FeatureOutcome::Ok { slots, .. })) =
+            let Some((generation, FeatureOutcome::Ok { slots, .. })) =
                 document.replica.outcome(mode.feature)
             else {
                 continue;
@@ -266,6 +295,17 @@ impl ArrixApp {
             else {
                 continue;
             };
+            if mode
+                .solved
+                .as_ref()
+                .is_none_or(|s| s.generation != generation)
+            {
+                mode.solved = Some(Solved::new(generation, view.sketch.clone()));
+                mode.plane = Some(view.plane);
+            }
+            if mode.turned() {
+                continue;
+            }
             let plane = view.plane;
             let camera = &mut document.view.camera;
             mode.saved = Some(camera.clone());
@@ -277,13 +317,35 @@ impl ArrixApp {
             } else {
                 normal.y.atan2(normal.x)
             };
-            let origin = plane.origin().as_vec3();
-            let radius = match document.view.scene.bounding_sphere() {
-                Some((centre, radius)) => (centre - origin).length() + radius,
-                None => EMPTY_RADIUS,
-            };
+            // Fits the sketch's own extent; an empty one gets a default view
+            // from the plane's origin.
+            let (centre, radius) = mode
+                .solved
+                .as_ref()
+                .and_then(|s| extent(&s.sketch))
+                .map_or(([0.0, 0.0], EMPTY_RADIUS), |(c, r)| (c, r.max(MIN_RADIUS)));
+            let at = plane.point(arrix_core::DVec2::new(centre[0], centre[1]));
             camera.projection = Projection::Orthographic;
-            camera.animate_home_with_orientation(origin, radius.max(EMPTY_RADIUS), yaw, pitch);
+            camera.animate_home_with_orientation(at.as_vec3(), radius as f32, yaw, pitch);
         }
+    }
+
+    /// The degrees of freedom and solver state of the shown document's open
+    /// sketch, for the status line.
+    pub(crate) fn sketch_status(&self) -> Option<arrix_ui::SketchStatusView> {
+        let solved = self.active_document()?.sketch.as_ref()?.solved.as_ref()?;
+        Some(arrix_ui::SketchStatusView {
+            dof: solved.diagnostics.dof,
+            state: crate::sketch_view::solver_state(&solved.diagnostics),
+        })
+    }
+
+    /// What the viewport draws of the shown document's open sketch.
+    pub(crate) fn sketch_overlay(&self) -> Option<SketchOverlay> {
+        let mode = self.active_document()?.sketch.as_ref()?;
+        Some(SketchOverlay {
+            view: sketch_view(mode.solved.as_ref()?),
+            plane: mode.plane?,
+        })
     }
 }

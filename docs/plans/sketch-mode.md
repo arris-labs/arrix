@@ -137,7 +137,7 @@ Complexity: **[1]** routine; **[2]** careful; **[3]** unproven.
   with no tool active), which issues no command. Scenario
   `sketch_enter` (empty document, create, finish): goldens and the counts
   (one command, then none).
-- [ ] **[2]** Step 5 — `SketchView` and the overlay. The app builds it
+- [x] **[2]** Step 5 — `SketchView` and the overlay. The app builds it
   from the draft solved, with the solver's `Diagnostics` (each entity's
   state: under, fully, over-constrained, conflicting); `arrix-ui` paints
   points, curves (construction dashed), constraint glyphs beside what they
@@ -290,6 +290,10 @@ accepted, and the step 1 drag benchmark asserts its budget.
   scenario). A tilted plane's axes are not on the screen's, the turntable
   camera keeping Z up; a face-on camera with a roll waits for a scenario
   that needs it.
+- Finding (step 5): nothing edits a sketch yet, so `sketch_view` shows the
+  slice's pocket sketch as opened; the edited states are the later steps'
+  scenarios. The overlay's colours are constants in `arrix-ui`, not theme
+  roles: roles for them wait until the sketch's look has settled.
 - ⚠ OPEN 3: the arc tool's gesture: centre, start, end; three points
   (start, end, through); or both, the second sharing the button. Default
   proposed: three-point, as the most common, with tangent arcs left out.

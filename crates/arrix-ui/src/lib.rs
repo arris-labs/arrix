@@ -3,11 +3,16 @@
 
 mod palette;
 mod shell;
+mod sketch;
 mod theme;
 pub mod view;
 pub mod viewcube;
 
 pub use shell::{ShellLayout, ShellResponse, shell, viewcube_rect};
+pub use sketch::{
+    ConstraintGlyphView, CurveShape, DimensionView, DofState, PlaneToScreen, SketchCurveView,
+    SketchPointView, SketchStatusView, SketchView, SolverState, paint_sketch,
+};
 pub use theme::{Rgba, ThemeView};
 pub use view::{
     CardsView, DocumentTab, DocumentTabsView, FeatureState, PaletteEntry, PaletteView,

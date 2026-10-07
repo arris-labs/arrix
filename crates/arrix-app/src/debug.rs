@@ -40,6 +40,9 @@ pub struct DebugState {
     /// The sketch open in the active document, in sketch mode.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sketch: Option<SketchModeDebug>,
+    /// What the viewport draws of it, in plane-local metres.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sketch_view: Option<arrix_ui::SketchView>,
     /// How many commands the last gesture submitted (SEED.md §8.2: one,
     /// or none where nothing changed); absent before any gesture.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -142,6 +145,7 @@ impl ArrixApp {
                 hover: None,
                 picking: false,
                 sketch: None,
+                sketch_view: None,
                 gesture_commands: self.session.gestures.last,
                 keymap: self.keymap.bindings().to_vec(),
                 config_diagnostics: self.config_diagnostics.clone(),
@@ -208,6 +212,7 @@ impl ArrixApp {
                     feature: mode.feature.to_string(),
                     turned: mode.turned(),
                 }),
+            sketch_view: self.sketch_overlay().map(|o| o.view),
             gesture_commands: self.session.gestures.last,
             keymap: self.keymap.bindings().to_vec(),
             config_diagnostics: self.config_diagnostics.clone(),

@@ -169,6 +169,10 @@ pub struct StatusView {
     /// scale on stored values (docs/DATA-MODEL.md §Parameters and expressions).
     pub length_unit: String,
     pub angle_unit: String,
+    /// The degrees of freedom and solver state of the sketch open in sketch
+    /// mode.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sketch: Option<crate::SketchStatusView>,
 }
 
 /// What the user did, in view terms. `arrix-app` turns an intent into a

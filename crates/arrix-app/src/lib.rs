@@ -11,6 +11,7 @@ mod documents;
 mod keys;
 mod palette;
 mod sketch_mode;
+mod sketch_view;
 mod theme;
 mod viewport;
 
@@ -360,7 +361,7 @@ impl ArrixApp {
             document.drain(self.renderer.as_ref());
             waiting |= !document.settled();
         }
-        self.turn_to_sketches();
+        self.follow_sketches();
         if waiting {
             ctx.request_repaint_after(POLL);
         }
@@ -499,6 +500,7 @@ impl ArrixApp {
                     + self.active_document().map_or(0, |d| d.problems.len()),
                 length_unit: "mm".into(),
                 angle_unit: "deg".into(),
+                sketch: self.sketch_status(),
             },
         }
     }
@@ -797,6 +799,7 @@ impl eframe::App for ArrixApp {
         self.apply_theme(ui);
         let window = ui.max_rect();
         let view = self.shell_view();
+        let overlay = self.sketch_overlay();
         let view_state = match self.documents.get_mut(self.active) {
             Some(d) => &mut d.view,
             None => &mut self.idle_view,
@@ -810,6 +813,7 @@ impl eframe::App for ArrixApp {
                 renderer,
                 &view.cards,
                 !view.documents.tabs.is_empty(),
+                overlay.as_ref(),
             ));
         });
         let hover_left = frame.is_some_and(|f| f.hover_left);

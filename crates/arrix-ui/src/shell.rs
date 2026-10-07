@@ -178,6 +178,10 @@ fn status_ui(ui: &mut egui::Ui, status: &StatusView) {
         ui.label(&status.hint);
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             ui.label(format!("{}, {}", status.length_unit, status.angle_unit));
+            if let Some(sketch) = &status.sketch {
+                ui.separator();
+                ui.label(format!("{} DoF, {}", sketch.dof, sketch.state.label()));
+            }
             ui.separator();
             ui.label(format!("{} diagnostics", status.diagnostics));
             ui.separator();

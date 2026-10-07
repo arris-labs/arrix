@@ -253,6 +253,24 @@ turns to face the plane in orthographic projection.
   In sketch mode the `sketch` context is active in place of `part`, so the
   view keys are off.
 
+- **The overlay is a `SketchView`**, built by the app from the sketch as
+  last evaluated and solved again (`Diagnostics::evaluate`, a draft made
+  anew when a newer evaluation of the sketch arrives): its points and
+  curves (a line, a circle, or an arc counter-clockwise from its start) in
+  plane-local metres, each with its constraint state (under-constrained,
+  fully, fixed, conflicting), construction curves, a mark beside each
+  entity a geometric constraint holds, each dimension's label (the value in
+  mm or deg, with its expression in front when it has one) and leader, and
+  the DoF and the solver state (under-constrained, fully constrained,
+  over-constrained, did not converge) that the status line shows.
+  `arrix-ui` paints it through a `PlaneToScreen` the app hands it, a
+  homography built from the camera and the plane's frame, so it is exact
+  in both projections and inverts (a screen point to the plane, for
+  picking). Leaders stand 6 mm off what they measure, away from the middle
+  of the sketch, and have no extension lines yet. The view is in
+  `debug_state()` (`sketch_view`), which is how a scenario reads it.
+  The camera fits the sketch's own points, a hundred millimetres for an
+  empty one.
 - **The solver runs on the UI thread**, the one sanctioned exception to
   "the kernel never runs on the UI thread" (`SEED.md` §6.1): sketches are
   small, and a drag must follow the cursor in the same frame. It has a

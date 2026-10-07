@@ -96,3 +96,23 @@ fn sketch_enter() {
         snapshot::check(h, "sketch_left");
     });
 }
+
+/// The slice's sketches opened in sketch mode: the overlay holds their
+/// points, curves, constraint glyphs and dimension labels, with the DoF and
+/// solver state in the status line.
+#[test]
+fn sketch_view() {
+    harness::with_app("sketch_view", |h| {
+        harness::open_settled(h, "tests/docs/slice");
+        // Sketch 5 is the pocket's: a rectangle with its dimensions.
+        h.get_by_label("Sketch 5").click();
+        h.run_steps(3);
+        h.get_by_label("Edit sketch").click();
+        h.run_steps(3);
+        wait_turned(h);
+        h.event(egui::Event::PointerMoved(egui::pos2(900.0, 60.0)));
+        h.run_steps(3);
+        harness::wait_settled(h);
+        snapshot::check(h, "sketch_view");
+    });
+}
