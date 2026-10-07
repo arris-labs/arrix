@@ -418,6 +418,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "arrix-config"
+version = "0.0.0"
+dependencies = [
+ "arrix-core",
+ "serde",
+ "serde_json",
+ "toml",
+]
+
+[[package]]
 name = "arrix-core"
 version = "0.0.0"
 dependencies = [

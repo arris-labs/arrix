@@ -40,6 +40,8 @@ ALLOWED = {
     "arrix-plugin-host": {"arrix-core", "arrix-doc", "arrix-plugin-api"},
     "arrix-viewport": {"arrix-core"},
     "arrix-ui": {"arrix-core", "arrix-viewport", "arrix-plugin-api"},
+    # The user's configuration (ADR-0015): plain data, no UI, no document.
+    "arrix-config": {"arrix-core", "arrix-plugin-api"},
     "arrix-app": {
         "arrix-core",
         "arrix-kernel",
@@ -49,6 +51,7 @@ ALLOWED = {
         "arrix-plugin-host",
         "arrix-viewport",
         "arrix-ui",
+        "arrix-config",
     },
     # The CLI's Tier 0 registration list names each compiled-in plugin; its
     # scenario tests draw sketches (`arrix-sketch`, dev only).
@@ -60,6 +63,7 @@ ALLOWED = {
         "arrix-kernel",
         "arrix-plugin-api",
         "arrix-gears",
+        "arrix-config",
     },
 }
 # Every package under plugins/: the plugin API alone, first-party included.

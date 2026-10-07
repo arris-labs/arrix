@@ -36,6 +36,7 @@ unless an ADR says otherwise.
 | `arrix-plugin-host` | tier 0/1/2 hosting, manifests, capabilities, the frozen fallback | core, doc, plugin-api | `toml`, `semver`, `wasmtime` (native, C3) |
 | `arrix-viewport` | wgpu scene, ID-buffer picking, overlays, camera (ported) | core | `wgpu`, `egui-wgpu` |
 | `arrix-ui` | egui widgets over plain view types; the declarative-UI renderer | core, viewport, plugin-api (UI types only) | `egui` |
+| `arrix-config` | the user's configuration (ADR-0015): setting specs, the layered model (built-in defaults, then the user's directory), each file's diagnostics with its file and line; reads no files (a `ConfigSource` hands it bytes); never reaches the document or `evaluate`. Built: the settings. Read by app and cli; not by `arrix-ui`, which gets plain view data | core, plugin-api | `toml`, `serde` |
 | `arrix-app` | the binary: the shell, the command registry, translation between document and view types | all of the above | `eframe` |
 | `arrix-cli` | headless open / eval / export / run / test; its Tier 0 registration list | core, doc, plugin-host, kernel, plugin-api and sketch (its tests), and each compiled-in plugin (`arrix-gears`) | `clap` |
 | `plugins/*` | first-party plugins: `gears` (C1), `robotics` (by C3) | plugin-api **only** | — |

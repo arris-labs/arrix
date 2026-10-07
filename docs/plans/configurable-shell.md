@@ -153,7 +153,7 @@ None. No step calls the kernel.
     - the project layer with trust
     - profiles
     - a settings UI over `toml_edit`
-- [ ] **[2]** Step 2: create the `arrix-config` crate: setting specs, the
+- [x] **[2]** Step 2: create the `arrix-config` crate: setting specs, the
   layered model and `ConfigSource`.
   - A `SettingSpec` has an id, kind, default and doc. The first settings:
     - `ui.theme`
