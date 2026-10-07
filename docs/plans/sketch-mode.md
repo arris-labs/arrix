@@ -202,7 +202,7 @@ Complexity: **[1]** routine; **[2]** careful; **[3]** unproven.
   (`arrix_sketch::modify` previews); a click commits it, constraints
   transferred, one command. Tests over the ported cases, each one command
   and the preview equal to the commit.
-- [ ] **[2]** Step 13 — Offset and mirror: offset of a selected chain by a
+- [x] **[2]** Step 13 — Offset and mirror: offset of a selected chain by a
   distance typed in a field (an expression) with its preview, one command;
   mirror of the selection about a picked line, one command. Tests as
   step 12's.
@@ -337,6 +337,16 @@ accepted, and the step 1 drag benchmark asserts its budget.
   with no tool yet (`SymmetricAcrossDatum`, `Block`, `PointOnPerpBisector`,
   the arc length, the clearance distances and the datum distance and
   angle) are step 15's list to gate once step 11 has made its dimensions.
+- Finding (step 13): the distance field previews as it is typed, which
+  needed the field to say when its text changed (`FieldEvent::Edited`, a
+  non-gesture intent); the field's target is a dimension or an offset's
+  chain. A click on the curve says nothing of a side, so the field opens at
+  `1 mm`, a negative distance being the other. Mirror takes its axis from
+  the hover, not from the drawn curves, so a construction line serves. A
+  parameter in an offset's expression goes through the same
+  `typed_quantity` the dimension field uses (the parameter test is step
+  16's document); mirror about a datum axis has no pick and waits for a
+  scenario.
 - OPEN 4 (closed at step 11, the agent's default, unobjected): reference
   dimension, said in the status line.
 - Finding (step 11): a driving dimension is made at the value the geometry

@@ -8,8 +8,8 @@
 //! sketch's expressions, so only what the click made rides along.
 
 use arrix_config::{
-    SKETCH_ARC, SKETCH_CIRCLE, SKETCH_DIMENSION, SKETCH_EXTEND, SKETCH_LINE, SKETCH_RECTANGLE,
-    SKETCH_SELECT, SKETCH_TRIM,
+    SKETCH_ARC, SKETCH_CIRCLE, SKETCH_DIMENSION, SKETCH_EXTEND, SKETCH_LINE, SKETCH_MIRROR,
+    SKETCH_OFFSET, SKETCH_RECTANGLE, SKETCH_SELECT, SKETCH_TRIM,
 };
 use arrix_sketch::{
     Constraint, Draft, Entity, EntityId, GlyphKind, Inferred, Point, PointId, Sketch, Snap,
@@ -40,6 +40,8 @@ pub enum Tool {
     Dimension,
     Trim,
     Extend,
+    Offset,
+    Mirror,
 }
 
 impl Tool {
@@ -63,6 +65,8 @@ impl Tool {
             Self::Dimension => SKETCH_DIMENSION,
             Self::Trim => SKETCH_TRIM,
             Self::Extend => SKETCH_EXTEND,
+            Self::Offset => SKETCH_OFFSET,
+            Self::Mirror => SKETCH_MIRROR,
         }
     }
 
@@ -76,6 +80,8 @@ impl Tool {
             Self::Dimension => "Dimension",
             Self::Trim => "Trim",
             Self::Extend => "Extend",
+            Self::Offset => "Offset",
+            Self::Mirror => "Mirror",
         }
     }
 }
@@ -321,6 +327,12 @@ impl Drawing {
             },
             (Tool::Trim, _) => format!("{name}: click the piece to remove."),
             (Tool::Extend, _) => format!("{name}: click the end to reach out from."),
+            (Tool::Offset, _) => format!(
+                "{name}: click a line, arc or circle, then type the distance; a negative one is the other side."
+            ),
+            (Tool::Mirror, _) => {
+                format!("{name}: click the line to mirror the selected curves about.")
+            }
             (Tool::Select, _) => String::new(),
         }
     }
@@ -417,7 +429,15 @@ fn draw(drawing: &mut Drawing, draft: &mut Draft, snap: &Snap, tol: f64) -> bool
     let at = [snap.uv.0, snap.uv.1];
     let near = |p: Uv| (p[0] - at[0]).hypot(p[1] - at[1]) <= tol;
     match (drawing.tool, drawing.pending.take()) {
-        (Tool::Select | Tool::Dimension | Tool::Trim | Tool::Extend, _) => false,
+        (
+            Tool::Select
+            | Tool::Dimension
+            | Tool::Trim
+            | Tool::Extend
+            | Tool::Offset
+            | Tool::Mirror,
+            _,
+        ) => false,
         (
             Tool::Line,
             None

@@ -16,6 +16,7 @@ use crate::ArrixApp;
 use crate::documents::OpenDocument;
 use crate::sketch_dimension::FieldState;
 use crate::sketch_drag::ActiveDrag;
+use crate::sketch_modify::mirror_preview;
 use crate::sketch_tools::{Drawing, Tool};
 use crate::sketch_view::{SketchOverlay, Solved, describe, plane_transform, sketch_view};
 
@@ -378,7 +379,11 @@ impl ArrixApp {
         let mut view = sketch_view(solved);
         view.hover = mode.hover.clone();
         view.selected = mode.selection.iter().map(ToString::to_string).collect();
-        view.preview = mode.drawing.preview(&solved.sketch);
+        view.preview = mode
+            .drawing
+            .preview(&solved.sketch)
+            .or_else(|| self.offset_preview())
+            .or_else(|| mirror_preview(mode, &solved.sketch));
         view.field = self.field_view(&view);
         Some(SketchOverlay {
             view,
@@ -410,7 +415,11 @@ impl ArrixApp {
             self.dimension_click(hit, extend, pointer);
             return;
         }
-        if matches!(mode.drawing.tool, Tool::Trim | Tool::Extend) {
+        if mode.drawing.tool == Tool::Mirror {
+            self.mirror_click(hit);
+            return;
+        }
+        if matches!(mode.drawing.tool, Tool::Trim | Tool::Extend | Tool::Offset) {
             if let Some(pointer) = pointer {
                 self.modify_click(pointer);
             }
@@ -433,6 +442,10 @@ impl ArrixApp {
             (None, false) => mode.selection.clear(),
             (None, true) => {}
         }
+    }
+
+    pub(crate) fn active_sketch(&self) -> Option<&SketchMode> {
+        self.documents.get(self.active)?.sketch.as_ref()
     }
 
     pub(crate) fn active_sketch_mut(&mut self) -> Option<&mut SketchMode> {

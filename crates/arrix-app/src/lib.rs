@@ -28,9 +28,9 @@ use arrix_config::{
     PALETTE_CLOSE, PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN,
     PANEL_PROPERTIES_TOGGLE, PANEL_TREE_TOGGLE, ParamDefaults, SELECTION_CLEAR, SKETCH_ARC,
     SKETCH_CIRCLE, SKETCH_CONSTRUCTION, SKETCH_CREATE, SKETCH_DELETE, SKETCH_DIMENSION,
-    SKETCH_EDIT, SKETCH_EXTEND, SKETCH_FINISH, SKETCH_LINE, SKETCH_RECTANGLE, SKETCH_SELECT,
-    SKETCH_TOOL_CANCEL, SKETCH_TRIM, Settings, Theme, VIEW_FRONT, VIEW_HOME, VIEW_ISO,
-    VIEW_PROJECTION_TOGGLE, VIEW_RIGHT, VIEW_TOP,
+    SKETCH_EDIT, SKETCH_EXTEND, SKETCH_FINISH, SKETCH_LINE, SKETCH_MIRROR, SKETCH_OFFSET,
+    SKETCH_RECTANGLE, SKETCH_SELECT, SKETCH_TOOL_CANCEL, SKETCH_TRIM, Settings, Theme, VIEW_FRONT,
+    VIEW_HOME, VIEW_ISO, VIEW_PROJECTION_TOGGLE, VIEW_RIGHT, VIEW_TOP,
 };
 use arrix_core::{FeatureId, IdMinter, RenderMesh};
 use arrix_plugin_api::FeatureTypeSpec;
@@ -609,6 +609,7 @@ impl ArrixApp {
                 | UiIntent::SketchPointerMoved { .. }
                 | UiIntent::SketchDragStarted { .. }
                 | UiIntent::SketchDragMoved { .. }
+                | UiIntent::DimensionEdited { .. }
         );
         if gesture {
             self.open_gesture();
@@ -656,6 +657,9 @@ impl ArrixApp {
                 self.commit_dimension(&constraint, &text);
             }
             UiIntent::DimensionCancelled => self.close_dimension_field(),
+            UiIntent::DimensionEdited { constraint, text } => {
+                self.edit_dimension_field(&constraint, text);
+            }
             UiIntent::TreeFeatureSelected { feature } => {
                 if let Ok(feature) = feature.parse::<FeatureId>() {
                     self.view_mut().feature_selection = Some(feature);
@@ -721,6 +725,8 @@ impl ArrixApp {
             SKETCH_DIMENSION => self.set_tool(sketch_tools::Tool::Dimension),
             SKETCH_TRIM => self.set_tool(sketch_tools::Tool::Trim),
             SKETCH_EXTEND => self.set_tool(sketch_tools::Tool::Extend),
+            SKETCH_OFFSET => self.set_tool(sketch_tools::Tool::Offset),
+            SKETCH_MIRROR => self.set_tool(sketch_tools::Tool::Mirror),
             SKETCH_TOOL_CANCEL => self.cancel_tool(),
             SKETCH_CONSTRUCTION => self.toggle_construction(),
             EDIT_UNDO => self.edit(OpenDocument::undo),
@@ -927,6 +933,10 @@ impl eframe::App for ArrixApp {
             match pointer.field {
                 Some(FieldEvent::Commit { constraint, text }) => {
                     self.apply(UiIntent::DimensionCommitted { constraint, text });
+                    ui.ctx().request_repaint();
+                }
+                Some(FieldEvent::Edited { constraint, text }) => {
+                    self.apply(UiIntent::DimensionEdited { constraint, text });
                     ui.ctx().request_repaint();
                 }
                 Some(FieldEvent::Cancel) => {

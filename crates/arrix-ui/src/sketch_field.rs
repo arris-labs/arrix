@@ -27,7 +27,16 @@ pub struct DimensionFieldView {
 /// What the field was asked.
 #[derive(Clone, Debug, PartialEq)]
 pub enum FieldEvent {
-    Commit { constraint: String, text: String },
+    Commit {
+        constraint: String,
+        text: String,
+    },
+    /// The text changed and nothing was committed: a field that previews
+    /// what it would do (an offset's distance) reads it as it is typed.
+    Edited {
+        constraint: String,
+        text: String,
+    },
     Cancel,
 }
 
@@ -83,6 +92,12 @@ pub fn dimension_field(
                 );
                 if let Some(error) = &field.error {
                     ui.colored_label(Color32::from_rgb(255, 120, 100), error);
+                }
+                if edit.changed() {
+                    event = Some(FieldEvent::Edited {
+                        constraint: field.id.clone(),
+                        text: text.clone(),
+                    });
                 }
                 if edit.lost_focus() {
                     event = Some(if ui.input(|i| i.key_pressed(Key::Escape)) {

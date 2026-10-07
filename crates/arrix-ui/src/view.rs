@@ -261,6 +261,8 @@ pub enum UiIntent {
     DimensionCommitted { constraint: String, text: String },
     /// A dimension's field was dismissed with Escape. Session state.
     DimensionCancelled,
+    /// The open field's text changed, uncommitted.
+    DimensionEdited { constraint: String, text: String },
     /// The pointer is over this face, edge or vertex, or over nothing: the
     /// hover becomes it. Session state, no command.
     Hovered {

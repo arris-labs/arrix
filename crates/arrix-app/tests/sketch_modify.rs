@@ -119,3 +119,92 @@ fn a_click_that_changes_nothing_issues_nothing() {
     assert_eq!(gesture(&h), Some(0));
     assert_eq!(hint(&h), "there is no crossing to reach.");
 }
+
+const MIRROR: &str = "core.sketch.mirror";
+
+#[test]
+fn an_offset_is_previewed_as_it_is_typed_and_is_one_command() {
+    let mut h = with_rectangle();
+    let before = h.state().saved().unwrap().0;
+    h.key_press(Key::O);
+    h.run_steps(2);
+    click(&mut h, [35.0, 15.0]);
+    assert!(field_open(&h), "a click on the chain opens the distance");
+    assert_eq!(gesture(&h), Some(0), "opening the field is no command");
+
+    // Typed, previewed, not yet drawn: the loop 5 mm outside.
+    h.event(egui::Event::Text("5 mm".to_owned()));
+    h.run_steps(3);
+    let corners = previewed(&h);
+    for corner in [[15.0, 10.0], [55.0, 10.0], [55.0, 40.0], [15.0, 40.0]] {
+        assert!(corners.contains(&corner), "{corner:?} in {corners:?}");
+        assert!(point_at(&h, corner).is_none(), "the preview draws no point");
+    }
+
+    h.key_press(Key::Enter);
+    h.run_steps(4);
+    assert_eq!(gesture(&h), Some(1));
+    wait(&mut h, "the offset was drawn", |h| {
+        point_at(h, [15.0, 10.0]).is_some()
+    });
+    for corner in corners {
+        assert!(point_at(&h, corner).is_some(), "{corner:?} is committed");
+    }
+    assert!(!field_open(&h));
+
+    h.key_press_modifiers(Modifiers::CTRL, Key::Z);
+    h.run_steps(3);
+    assert_eq!(
+        h.state().saved().unwrap().0,
+        before,
+        "undo is byte for byte"
+    );
+}
+
+#[test]
+fn an_offset_of_nothing_a_chain_can_take_issues_nothing() {
+    let mut h = with_rectangle();
+    h.key_press(Key::O);
+    h.run_steps(2);
+    click(&mut h, [35.0, 15.0]);
+    h.event(egui::Event::Text("0 mm".to_owned()));
+    h.run_steps(2);
+    h.key_press(Key::Enter);
+    h.run_steps(3);
+    assert_eq!(gesture(&h), Some(0));
+    assert!(field_open(&h), "the field stays with the reason");
+    assert!(field_error(&h).is_some_and(|e| e.contains("other than zero")));
+}
+
+#[test]
+fn a_mirror_copies_the_selection_about_the_picked_line_in_one_command() {
+    let mut h = with_two_lines();
+    assert_eq!(enabled(&h, MIRROR), Some(false), "nothing selected");
+    let before = h.state().saved().unwrap().0;
+    click(&mut h, [25.0, 15.0]);
+    assert_eq!(enabled(&h, MIRROR), Some(true));
+    h.key_press(Key::M);
+    h.run_steps(2);
+    hover(&mut h, [30.0, 50.0]);
+    let shown = preview(&h).curves.len();
+    assert_eq!(shown, 1, "the copy of the selected line");
+    let ends = previewed(&h);
+    assert_eq!(ends.len(), 2);
+
+    click(&mut h, [30.0, 50.0]);
+    assert_eq!(gesture(&h), Some(1));
+    drawn(&mut h, 3);
+    for end in ends {
+        assert!(point_at(&h, end).is_some(), "{end:?} is where it was shown");
+    }
+    assert_eq!(stored(&h).lines, 3);
+    assert_eq!(tool(&h).as_deref(), Some("core.sketch.select"));
+
+    h.key_press_modifiers(Modifiers::CTRL, Key::Z);
+    h.run_steps(3);
+    assert_eq!(
+        h.state().saved().unwrap().0,
+        before,
+        "undo is byte for byte"
+    );
+}

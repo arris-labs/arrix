@@ -54,6 +54,10 @@ pub const SKETCH_DIMENSION: &str = "core.sketch.dimension";
 /// crossings, or extends its nearest end to the first curve it meets.
 pub const SKETCH_TRIM: &str = "core.sketch.trim";
 pub const SKETCH_EXTEND: &str = "core.sketch.extend";
+/// Offset of a chain by a typed distance, and mirror of the selection
+/// about a picked line.
+pub const SKETCH_OFFSET: &str = "core.sketch.offset";
+pub const SKETCH_MIRROR: &str = "core.sketch.mirror";
 /// Toggling the selected curves between solid and construction.
 pub const SKETCH_CONSTRUCTION: &str = "core.sketch.construction";
 /// The constraint commands: `core.sketch.constrain.<kind>`, one per kind
@@ -245,6 +249,8 @@ impl CommandRegistry {
         for (id, title, keys) in [
             (SKETCH_TRIM, "Trim", &["t"][..]),
             (SKETCH_EXTEND, "Extend", &["e"][..]),
+            (SKETCH_OFFSET, "Offset", &["o"][..]),
+            (SKETCH_MIRROR, "Mirror", &["m"][..]),
         ] {
             commands.push(CommandSpec {
                 ribbon: Some(RibbonPlacement {

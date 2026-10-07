@@ -62,6 +62,8 @@ the command registry and the setting specs; a test holds it fresh. Do not edit.
 | `core.sketch.dimension` | Dimension | d | sketch | core.sketch / Dimension |
 | `core.sketch.trim` | Trim | t | sketch | core.sketch / Modify |
 | `core.sketch.extend` | Extend | e | sketch | core.sketch / Modify |
+| `core.sketch.offset` | Offset | o | sketch | core.sketch / Modify |
+| `core.sketch.mirror` | Mirror | m | sketch | core.sketch / Modify |
 | `core.sketch.construction` | Construction | q | sketch | core.sketch / Draw |
 | `core.sketch.constrain.coincident` | Coincident |  | sketch | core.sketch / Constrain |
 | `core.sketch.constrain.horizontal` | Horizontal | h | sketch | core.sketch / Constrain |

@@ -137,10 +137,23 @@ fn sub(a: Uv, b: Uv) -> Uv {
 /// An open dimension field: session state, per open sketch.
 #[derive(Clone, Debug, PartialEq)]
 pub struct FieldState {
-    pub constraint: ConstraintId,
+    pub target: FieldTarget,
     pub text: String,
     pub error: Option<String>,
 }
+
+/// What a field's text is for.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum FieldTarget {
+    /// A dimension's value.
+    Dimension(ConstraintId),
+    /// The distance of an offset of the chain `entity` belongs to, the
+    /// field standing at `at`.
+    Offset { entity: EntityId, at: Uv },
+}
+
+/// The id the viewport's field carries for an offset's distance.
+pub const OFFSET_FIELD: &str = "offset";
 
 impl ArrixApp {
     /// A click with the dimension tool: on a point or a curve it is a pick
@@ -278,10 +291,22 @@ impl ArrixApp {
             .clone()
             .unwrap_or_else(|| format_quantity(kind, value));
         mode.field = Some(FieldState {
-            constraint: id,
+            target: FieldTarget::Dimension(id),
             text,
             error: None,
         });
+    }
+
+    /// `DimensionEdited`: an offset's field previews what is typed, so its
+    /// text is kept as it changes; a dimension's is read at the commit.
+    pub(crate) fn edit_dimension_field(&mut self, constraint: &str, text: String) {
+        if constraint != OFFSET_FIELD {
+            return;
+        }
+        if let Some(field) = self.active_sketch_mut().and_then(|m| m.field.as_mut()) {
+            field.text = text;
+            field.error = None;
+        }
     }
 
     /// `DimensionCancelled`: the field closes.
@@ -298,19 +323,16 @@ impl ArrixApp {
     /// that is not the dimension's or a solve that fails leaves the field
     /// open with the reason; a text that is the value it has issues nothing.
     pub(crate) fn commit_dimension(&mut self, constraint: &str, text: &str) {
+        if constraint == OFFSET_FIELD {
+            self.commit_offset(text);
+            return;
+        }
         let Ok(id) = constraint.parse::<ConstraintId>() else {
             return;
         };
         let ids = self.ids.clone();
         let Some(document) = self.documents.get(self.active) else {
             return;
-        };
-        let params = document.replica.document().params();
-        let finished = document.replica.finished().map(|(_, v)| v);
-        let kinds = |name: &str| params.values().find(|p| p.name == name).map(|p| p.kind);
-        let values = |name: &str| {
-            let (pid, _) = params.iter().find(|(_, p)| p.name == name)?;
-            finished?.get(pid)?.as_ref().ok().map(|q| q.si)
         };
         let Some(mode) = document.sketch.as_ref() else {
             return;
@@ -325,7 +347,7 @@ impl ArrixApp {
         else {
             return;
         };
-        let outcome = self.dimension_value(text, kind, &kinds, &values);
+        let outcome = self.typed_quantity(text, kind);
         let (value, expr) = match outcome {
             Ok(v) => v,
             Err(reason) => {
@@ -355,23 +377,33 @@ impl ArrixApp {
     }
 
     /// `text` as an expression of `kind`: its value in SI, and the text to
-    /// keep with the dimension, none when it names no parameter.
-    fn dimension_value(
+    /// keep with the record, none when it names no parameter. A parameter
+    /// resolves from the replica's last finished values.
+    pub(crate) fn typed_quantity(
         &self,
         text: &str,
         kind: QuantityKind,
-        kinds: &dyn Fn(&str) -> Option<QuantityKind>,
-        values: &dyn Fn(&str) -> Option<f64>,
     ) -> Result<(f64, Option<String>), String> {
+        let document = self
+            .documents
+            .get(self.active)
+            .ok_or_else(|| "No document is open.".to_owned())?;
+        let params = document.replica.document().params();
+        let finished = document.replica.finished().map(|(_, v)| v);
+        let kinds = |name: &str| params.values().find(|p| p.name == name).map(|p| p.kind);
+        let values = |name: &str| {
+            let (pid, _) = params.iter().find(|(_, p)| p.name == name)?;
+            finished?.get(pid)?.as_ref().ok().map(|q| q.si)
+        };
         let expr = Expr::parse(text).map_err(|e| e.to_string())?;
         let quantity = expr
-            .quantity(kind, kinds, values)
+            .quantity(kind, &kinds, &values)
             .map_err(|e: ExprError| e.to_string())?;
         let keep = (!expr.names().is_empty()).then(|| text.trim().to_owned());
         Ok((quantity.si, keep))
     }
 
-    fn field_error(&mut self, reason: String) {
+    pub(crate) fn field_error(&mut self, reason: String) {
         if let Some(field) = self.active_sketch_mut().and_then(|m| m.field.as_mut()) {
             field.error = Some(reason);
         }
@@ -380,8 +412,14 @@ impl ArrixApp {
     /// The field the viewport draws, if one is open.
     pub(crate) fn field_view(&self, view: &arrix_ui::SketchView) -> Option<DimensionFieldView> {
         let field = self.active_document()?.sketch.as_ref()?.field.as_ref()?;
-        let id = field.constraint.to_string();
-        let at = view.dimensions.iter().find(|d| d.id == id)?.at;
+        let (id, at) = match field.target {
+            FieldTarget::Dimension(constraint) => {
+                let id = constraint.to_string();
+                let at = view.dimensions.iter().find(|d| d.id == id)?.at;
+                (id, at)
+            }
+            FieldTarget::Offset { at, .. } => (OFFSET_FIELD.to_owned(), at),
+        };
         Some(DimensionFieldView {
             id,
             at,

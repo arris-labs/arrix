@@ -384,6 +384,22 @@ turns to face the plane in orthographic projection.
   after it, constraints transferred by the modify rules; a click on
   nothing issues nothing, and one the edit refuses (no crossing to reach)
   says why in the status line and issues nothing.
+- **Offset and mirror** are the other two modify tools
+  (`core.sketch.offset` O, `core.sketch.mirror` M). Offset: a click on a
+  line, arc or circle opens a distance field at the click (the field of a
+  dimension, `1 mm` to start); the text is an expression of a length, a
+  parameter of the document may be named, and a negative distance is the
+  other side. The copy of the chain the click belongs to is previewed as it
+  is typed (`arrix_sketch::modify::offset_preview`, the geometry the edit
+  writes); Enter or losing focus commits one `SketchEdit`, its distance rows
+  keeping the expression when it names a parameter. A text that is no
+  length, a distance the chain cannot take or a solve that fails leaves the
+  field open with the reason and issues nothing. Mirror works on the
+  selection, made with the select tool (the command needs a curve selected):
+  hovering a line, a construction one too, previews the copies about it, and
+  a click commits them as one `SketchEdit` and returns to the select tool.
+  Hovered or clicked, anything but a line says to click one and issues
+  nothing.
 - **The drag** is the select tool's: the left button down on a point or a
   curve and moved starts a `DragSession` over the solved draft (a point
   that is fixed, a glyph and a dimension are not dragged; a curve is
