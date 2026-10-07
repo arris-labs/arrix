@@ -6,10 +6,11 @@
 //! no files: a [`ConfigSource`] hands it bytes, a directory on native
 //! (`arrix-app`'s `config_files`), memory in tests and the browser.
 //!
-//! Built so far: the settings and `settings.toml`, and the command registry.
+//! Built so far: the settings and `settings.toml`, the command registry and the keymap.
 
 mod commands;
 mod diagnostic;
+mod keymap;
 mod settings;
 mod source;
 mod spanned;
@@ -19,5 +20,6 @@ pub use commands::{
     PANEL_PROPERTIES_TOGGLE, PANEL_TREE_TOGGLE, RibbonPlacement, TabSpec,
 };
 pub use diagnostic::ConfigDiagnostic;
+pub use keymap::{Binding, CONTEXTS, Chord, Keymap};
 pub use settings::{DefaultValue, SETTINGS, SettingKind, SettingSpec, SettingValue, Settings};
 pub use source::{ConfigSource, KEYBINDINGS_TOML, MemorySource, SETTINGS_TOML, THEMES_DIR};

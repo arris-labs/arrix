@@ -183,7 +183,7 @@ None. No step calls the kernel.
     `ui.ribbon.hidden-tabs`.
   - The `empty_shell` golden is refreshed after reading its
     before/after/diff images.
-- [ ] **[2]** Step 4: the keymap.
+- [x] **[2]** Step 4: the keymap.
   - Parse `keybindings.toml`: the key syntax (`ctrl`, `shift`, `alt`,
     `super`; letters, digits, named keys, `f1`–`f12`) and `when` contexts
     taken from session state (⚠ OPEN 2).
@@ -319,6 +319,10 @@ The whole gate is green, the wasm build included.
   modification time (no dependency, about 1 s), the `notify` crate, or
   reload-on-command only. Tests use the command either way. Agent decides
   by step 10.
+- ⚠ OPEN 2 (decided in step 4): `when` is a single context name:
+  `part`, `sketch`, `palette` or `text`. `part` is active whenever no
+  sketch is being edited, and `text` while a text field has focus, when only
+  `text` bindings fire.
 - ⚠ OPEN 4 (answered): the user may hide any tab, core ones included,
   since the palette still reaches every command.
 - Step 3 found: `arrix-app` needs its own Tier 0 registration list to

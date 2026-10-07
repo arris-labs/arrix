@@ -1,5 +1,12 @@
 {
   "debug_state": {
+    "config_diagnostics": [],
+    "keymap": [
+      {
+        "command": "core.palette.open",
+        "key": "ctrl+k"
+      }
+    ],
     "layout": {
       "properties": [
         1160.0,

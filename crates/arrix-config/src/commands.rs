@@ -102,7 +102,7 @@ impl CommandRegistry {
         // One command per tab, so the palette and a key can open it.
         for tab in &tabs {
             commands.push(command(
-                &format!("core.ribbon.{}", tab.id.trim_start_matches("core.")),
+                &tab_command_id(&tab.id),
                 &format!("Show the {} tab", tab.title),
                 &[],
             ));
@@ -113,6 +113,17 @@ impl CommandRegistry {
     pub fn command(&self, id: &str) -> Option<&CommandSpec> {
         self.commands.iter().find(|c| c.id == id)
     }
+
+    /// The tab that command `id` opens, when it is a tab's command.
+    pub fn tab_of_command(&self, id: &str) -> Option<&TabSpec> {
+        self.tabs.iter().find(|t| tab_command_id(&t.id) == id)
+    }
+}
+
+/// The id of the command that opens ribbon tab `tab`: `core.ribbon.part`,
+/// `core.ribbon.gears`.
+fn tab_command_id(tab: &str) -> String {
+    format!("core.ribbon.{}", tab.trim_start_matches("core."))
 }
 
 fn command(id: &str, title: &str, keys: &[&str]) -> CommandSpec {

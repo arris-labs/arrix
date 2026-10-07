@@ -5,6 +5,7 @@
 use serde::Serialize;
 
 use crate::ArrixApp;
+use arrix_config::{Binding, ConfigDiagnostic};
 use arrix_ui::ShellView;
 
 /// What the last frame drew. `None` fields mean no frame has run yet.
@@ -14,6 +15,10 @@ pub struct DebugState {
     pub window: Option<[f64; 2]>,
     pub layout: Option<LayoutDebug>,
     pub shell: Option<ShellView>,
+    /// The keymap in force: each key, its command and its context.
+    pub keymap: Vec<Binding>,
+    /// What the config files got wrong, each with its file and line.
+    pub config_diagnostics: Vec<ConfigDiagnostic>,
 }
 
 /// Each shell region as `[min_x, min_y, max_x, max_y]` in points.
@@ -46,6 +51,8 @@ impl ArrixApp {
                 window: None,
                 layout: None,
                 shell: None,
+                keymap: self.keymap.bindings().to_vec(),
+                config_diagnostics: self.config_diagnostics.clone(),
             };
         };
         let l = &drawn.layout;
@@ -59,6 +66,8 @@ impl ArrixApp {
                 status: rect(l.status),
             }),
             shell: Some(drawn.view.clone()),
+            keymap: self.keymap.bindings().to_vec(),
+            config_diagnostics: self.config_diagnostics.clone(),
         }
     }
 

@@ -51,6 +51,18 @@ as C1 lands, and the commit that builds it keeps it true.
   plugin adds a ribbon tab, never a mode** (`SEED.md` §5).
   `ui.ribbon.hidden-tabs` hides any tab, core ones too; the palette still
   reaches every command.
+- **The keymap** is each command's default keys with the user's
+  `keybindings.toml` over them: `[[bind]] key = "ctrl+k"`, `command =
+  "…"`, optional `when`. Keys are modifiers (`ctrl`, `shift`, `alt`,
+  `super`) and a letter, digit, `f1` to `f12` or named key. A user binding
+  replaces its command's defaults and an empty `key = []` unbinds it. A
+  bad entry is one diagnostic with file and line and is left out, so the
+  rest still applies. `when` is one context name: `part`, `sketch`,
+  `palette` or `text`; a binding naming the active context beats a global
+  one, and while a text field has focus only `text` bindings fire. `arrix-app`
+  turns each egui key press (not its repeats) into a chord, resolves it,
+  and runs the command the way a ribbon button does. `debug_state()`
+  reports the keymap in force and the config diagnostics.
 - **The command palette** (`Ctrl+K`) searches every registered command by
   title and id, the plugins' included.
 - **The feature tree** shows each part's history with state per feature:
