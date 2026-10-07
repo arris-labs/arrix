@@ -240,9 +240,11 @@ None. No step calls the kernel.
     clean and 1 otherwise.
   - Goldens: an empty config directory and a broken one, under
     `tests/config/`.
-- [ ] **[1]** Step 9: `arrix config schema` and the generated catalog.
+- [x] **[1]** Step 9: `arrix config schema` and the generated catalog.
   - `config schema` emits JSON Schemas for the three file kinds, so taplo
     can complete them in an editor (`#:schema`).
+  - `arrix config catalog` prints the catalog; `config schema [kind]` takes
+    `settings`, `keybindings` or `theme`.
   - `docs/CONFIG-CATALOG.md` is generated from the registry and specs, and
     a test holds it fresh.
 - [ ] **[2]** Step 10: config files on native, and reload.

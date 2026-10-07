@@ -1,9 +1,11 @@
 //! `arrix`: the headless CLI, to open, evaluate, export, run and test
 //! documents (docs/CONCURRENCY-WASM.md §Batch evaluation).
 
+mod catalog;
 mod config;
 mod describe;
 mod plugins;
+mod schema;
 mod source;
 
 use std::io::Write as _;
@@ -72,6 +74,15 @@ enum ConfigCommand {
         #[arg(long, value_name = "DIR")]
         dir: Option<PathBuf>,
     },
+    /// Print JSON Schemas for the config files (`settings`, `keybindings`,
+    /// `theme`; all three by default), for an editor with taplo to complete
+    /// and check them. Exit status: 0, or 2 for an unknown kind.
+    Schema {
+        /// One file kind.
+        kind: Option<String>,
+    },
+    /// Print the generated reference, as `docs/CONFIG-CATALOG.md` holds it.
+    Catalog,
 }
 
 fn main() -> ExitCode {
@@ -85,6 +96,12 @@ fn main() -> ExitCode {
         Command::Config {
             command: ConfigCommand::Check { dir },
         } => config::check(dir.as_deref()),
+        Command::Config {
+            command: ConfigCommand::Schema { kind },
+        } => schema::run(kind.as_deref()),
+        Command::Config {
+            command: ConfigCommand::Catalog,
+        } => catalog::run(),
     }
 }
 

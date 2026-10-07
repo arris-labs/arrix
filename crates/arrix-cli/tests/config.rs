@@ -199,3 +199,19 @@ fn a_directory_that_is_not_one_exits_2() {
         assert!(String::from_utf8_lossy(&out.stderr).contains("no such directory"));
     }
 }
+
+#[test]
+fn schema_prints_one_json_schema_per_file_kind() {
+    let all = arrix(&["config", "schema"]);
+    assert_eq!(all.status.code(), Some(0));
+    let all: serde_json::Value = serde_json::from_str(&stdout(&all)).unwrap();
+    assert_eq!(all["schema"], 1);
+    for kind in ["settings", "keybindings", "theme"] {
+        let one = arrix(&["config", "schema", kind]);
+        assert_eq!(one.status.code(), Some(0));
+        let one: serde_json::Value = serde_json::from_str(&stdout(&one)).unwrap();
+        assert_eq!(one, all[kind]);
+        assert_eq!(one["type"], "object");
+    }
+    assert_eq!(arrix(&["config", "schema", "nope"]).status.code(), Some(2));
+}
