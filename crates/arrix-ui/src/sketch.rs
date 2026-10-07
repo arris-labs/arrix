@@ -159,6 +159,10 @@ pub struct SketchView {
     /// The ids of what is selected: session state, drawn blue.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub selected: Vec<String>,
+    /// A drawing tool's preview, while one is active and the pointer is
+    /// over the viewport.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preview: Option<crate::SketchPreviewView>,
 }
 
 /// The map from the sketch's plane to the screen: a homography, so it is
@@ -252,7 +256,10 @@ const HOVER: Color32 = Color32::from_rgb(255, 190, 60);
 const SELECTED: Color32 = Color32::from_rgb(70, 140, 255);
 
 /// A curve as the screen polyline it is drawn and hit-tested as.
-fn polyline(shape: &CurveShape, project: &dyn Fn([f64; 2]) -> Option<Pos2>) -> Vec<Pos2> {
+pub(crate) fn polyline(
+    shape: &CurveShape,
+    project: &dyn Fn([f64; 2]) -> Option<Pos2>,
+) -> Vec<Pos2> {
     match shape {
         CurveShape::Line { from, to } => [project(*from), project(*to)]
             .into_iter()
@@ -370,6 +377,9 @@ pub fn paint_sketch(painter: &egui::Painter, to_screen: &PlaneToScreen, view: &S
             FontId::monospace(10.0),
             colour,
         );
+    }
+    if let Some(preview) = &view.preview {
+        crate::sketch_preview::paint_preview(painter, &project, preview);
     }
 }
 
@@ -628,6 +638,7 @@ mod tests {
             },
             hover: None,
             selected: vec![],
+            preview: None,
         }
     }
 

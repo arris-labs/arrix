@@ -13,13 +13,19 @@ use crate::spanned::{File, in_file_order, read_text, type_name};
 use crate::{CommandRegistry, ConfigDiagnostic, ConfigSource, KEYBINDINGS_TOML};
 
 /// The keymap contexts a binding's `when` names, with what each means. A
-/// binding with no `when` applies everywhere, except in `text`.
+/// binding with no `when` applies everywhere, except in `text`. Where two
+/// active contexts bind the same key, the more specific one wins: `text`
+/// over `sketch-tool` over `sketch`.
 pub const CONTEXTS: &[(&str, &str)] = &[
     (
         "part",
         "the document is shown and no sketch is being edited",
     ),
     ("sketch", "a sketch is being edited"),
+    (
+        "sketch-tool",
+        "a sketch is being edited with a drawing tool; its keys win over `sketch`'s",
+    ),
     ("palette", "the command palette is open"),
     (
         "text",
@@ -228,20 +234,19 @@ impl Keymap {
             .collect()
     }
 
-    /// The command `chord` runs while `contexts` are active. A binding that
-    /// names a context beats one that doesn't; in the `text` context only
-    /// bindings that name it fire, so a text field keeps its keys.
+    /// The command `chord` runs while `contexts` are active, given most
+    /// specific first. A binding that names a context beats one that
+    /// doesn't, and of two that do, the one whose context comes first in
+    /// `contexts`; in the `text` context only bindings that name it fire,
+    /// so a text field keeps its keys.
     pub fn resolve(&self, chord: &Chord, contexts: &[&str]) -> Option<&str> {
         let typing = contexts.contains(&"text");
-        let mut found: Option<&Binding> = None;
-        for b in self.bindings.iter().filter(|b| &b.key == chord) {
-            match b.when.as_deref() {
-                Some(w) if contexts.contains(&w) => return Some(&b.command),
-                None if !typing => found = Some(b),
-                _ => {}
-            }
-        }
-        found.map(|b| b.command.as_str())
+        let bound = || self.bindings.iter().filter(|b| &b.key == chord);
+        contexts
+            .iter()
+            .find_map(|c| bound().find(|b| b.when.as_deref() == Some(*c)))
+            .or_else(|| bound().rfind(|b| b.when.is_none() && !typing))
+            .map(|b| b.command.as_str())
     }
 }
 

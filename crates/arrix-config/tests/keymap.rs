@@ -181,3 +181,20 @@ fn a_context_binding_beats_a_global_one_and_text_keeps_its_keys() {
         Some("core.panel.tree.toggle")
     );
 }
+
+/// Escape ends a drawing (`sketch-tool`) before it finishes the sketch
+/// (`sketch`): of two active contexts, the one given first wins, whatever
+/// order the table binds them in.
+#[test]
+fn the_more_specific_context_wins() {
+    let map = Keymap::defaults(&registry());
+    let escape = chord("escape");
+    assert_eq!(
+        map.resolve(&escape, &["sketch-tool", "sketch"]),
+        Some("core.sketch.tool.cancel")
+    );
+    assert_eq!(
+        map.resolve(&escape, &["sketch"]),
+        Some("core.sketch.finish")
+    );
+}

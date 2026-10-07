@@ -4,7 +4,7 @@
 //! here issues a command.
 
 use arrix_ui::viewcube::{self, ViewCubeAction, arrows};
-use arrix_ui::{CardsView, SketchHit, paint_sketch, viewcube_rect};
+use arrix_ui::{CardsView, PlanePointer, PlaneToScreen, SketchHit, paint_sketch, viewcube_rect};
 use arrix_viewport::{Highlights, OrbitCamera, Renderer, StandardView};
 use web_time::Instant;
 
@@ -25,8 +25,11 @@ pub struct SketchPointer {
     /// The item under the pointer, when that is not what the view already
     /// shows hovered.
     pub hover: Option<Option<SketchHit>>,
-    /// A click, with what was under it and whether shift was held.
-    pub click: Option<(Option<SketchHit>, bool)>,
+    /// Where the pointer is in the plane, sent every frame; `None` off
+    /// the viewport.
+    pub at: Option<PlanePointer>,
+    /// A click, with what was under it, whether shift was held, and where.
+    pub click: Option<(Option<SketchHit>, bool, Option<PlanePointer>)>,
 }
 
 /// How near an item the pointer is to hit it, in points.
@@ -121,13 +124,18 @@ pub fn show(
     {
         let ctx = ui.ctx().clone();
         let hit = |at| arrix_ui::hit_test(&ctx, &overlay.view, &to_screen, at, HIT_TOLERANCE);
-        let now = hover.map(hit);
+        let (time, suppress) = ui.input(|i| (i.time, i.modifiers.alt));
+        let in_plane = |at| plane_pointer(&to_screen, at, time, suppress);
+        // A drawing tool's pointer highlights nothing: its snap is what
+        // shows.
+        let now = hover.filter(|_| overlay.picks).map(hit);
         sketch_pointer = Some(SketchPointer {
             hover: now.filter(|h| *h != overlay.view.hover).or(hover
                 .is_none()
                 .then_some(None)
                 .filter(|_| overlay.view.hover.is_some())),
-            click: click.map(|at| (hit(at), shift_at_release(ui))),
+            at: hover.and_then(in_plane),
+            click: click.map(|at| (hit(at), shift_at_release(ui), in_plane(at))),
         });
         paint_sketch(&ui.painter_at(rect), &to_screen, &overlay.view);
     }
@@ -154,6 +162,24 @@ pub fn show(
         hover_left,
         sketch: sketch_pointer,
     }
+}
+
+/// The screen point `at` in the plane, with the hit tolerance there in
+/// metres; `None` where the plane is not under it.
+fn plane_pointer(
+    to_screen: &PlaneToScreen,
+    at: egui::Pos2,
+    time: f64,
+    suppress: bool,
+) -> Option<PlanePointer> {
+    let uv = to_screen.unproject(at)?;
+    let scale = to_screen.points_per_metre(uv).filter(|s| *s > 0.0)?;
+    Some(PlanePointer {
+        at: uv,
+        tol: f64::from(HIT_TOLERANCE) / scale,
+        suppress,
+        time,
+    })
 }
 
 /// Whether shift was held when the button was released this frame: the

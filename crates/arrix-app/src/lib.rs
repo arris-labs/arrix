@@ -11,6 +11,7 @@ mod documents;
 mod keys;
 mod palette;
 mod sketch_mode;
+mod sketch_tools;
 mod sketch_view;
 mod theme;
 mod viewport;
@@ -22,8 +23,9 @@ use arrix_config::{
     DOCUMENT_NEW, DOCUMENT_NEXT, DOCUMENT_PREVIOUS, EDIT_REDO, EDIT_UNDO, Keymap, MemorySource,
     PALETTE_CLOSE, PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN,
     PANEL_PROPERTIES_TOGGLE, PANEL_TREE_TOGGLE, ParamDefaults, SELECTION_CLEAR, SKETCH_CREATE,
-    SKETCH_DELETE, SKETCH_EDIT, SKETCH_FINISH, Settings, Theme, VIEW_FRONT, VIEW_HOME, VIEW_ISO,
-    VIEW_PROJECTION_TOGGLE, VIEW_RIGHT, VIEW_TOP,
+    SKETCH_DELETE, SKETCH_EDIT, SKETCH_FINISH, SKETCH_LINE, SKETCH_RECTANGLE, SKETCH_SELECT,
+    SKETCH_TOOL_CANCEL, Settings, Theme, VIEW_FRONT, VIEW_HOME, VIEW_ISO, VIEW_PROJECTION_TOGGLE,
+    VIEW_RIGHT, VIEW_TOP,
 };
 use arrix_core::{FeatureId, IdMinter, RenderMesh};
 use arrix_plugin_api::FeatureTypeSpec;
@@ -49,6 +51,9 @@ struct Session {
     /// one: nothing fails silently.
     notice: Option<String>,
     gestures: Gestures,
+    /// When, on egui's clock, a dwell under way completes: a frame is
+    /// asked for then, since a pointer at rest sends nothing.
+    wake_at: Option<f64>,
 }
 
 /// Counts the commands each gesture submits (SEED.md §8.2: one gesture, one
@@ -170,6 +175,7 @@ impl ArrixApp {
                 hovered_command: None,
                 notice: None,
                 gestures: Gestures::default(),
+                wake_at: None,
             },
             drawn: None,
             renderer: cc
@@ -344,9 +350,11 @@ impl ArrixApp {
     }
 
     fn context(&self) -> commands::Context {
+        let mode = self.active_document().and_then(|d| d.sketch.as_ref());
         commands::Context {
             document_open: !self.documents.is_empty(),
-            sketching: self.active_document().is_some_and(|d| d.sketch.is_some()),
+            sketching: mode.is_some(),
+            tool: mode.map(|m| m.drawing.tool.command()),
             sketch_selected: self.selected_sketch().is_some(),
             sketch_selection: self
                 .active_document()
@@ -584,7 +592,9 @@ impl ArrixApp {
         // A hover is not a gesture; every other intent is one.
         let gesture = !matches!(
             intent,
-            UiIntent::Hovered { .. } | UiIntent::SketchHovered { .. }
+            UiIntent::Hovered { .. }
+                | UiIntent::SketchHovered { .. }
+                | UiIntent::SketchPointerMoved { .. }
         );
         if gesture {
             self.open_gesture();
@@ -618,7 +628,12 @@ impl ArrixApp {
             UiIntent::DocumentTabClosed { index } => self.close_document(index),
             UiIntent::Picked { name } => self.view_mut().selection = name,
             UiIntent::SketchHovered { hit } => self.hover_sketch(hit),
-            UiIntent::SketchClicked { hit, extend } => self.click_sketch(hit, extend),
+            UiIntent::SketchClicked {
+                hit,
+                extend,
+                pointer,
+            } => self.click_sketch(hit, extend, pointer),
+            UiIntent::SketchPointerMoved { pointer } => self.sketch_pointer(pointer),
             UiIntent::TreeFeatureSelected { feature } => {
                 if let Ok(feature) = feature.parse::<FeatureId>() {
                     self.view_mut().feature_selection = Some(feature);
@@ -676,6 +691,10 @@ impl ArrixApp {
             SKETCH_EDIT => self.edit_sketch(),
             SKETCH_FINISH => self.finish_sketch(),
             SKETCH_DELETE => self.delete_selection(),
+            SKETCH_SELECT => self.set_tool(sketch_tools::Tool::Select),
+            SKETCH_LINE => self.set_tool(sketch_tools::Tool::Line),
+            SKETCH_RECTANGLE => self.set_tool(sketch_tools::Tool::Rectangle),
+            SKETCH_TOOL_CANCEL => self.cancel_tool(),
             EDIT_UNDO => self.edit(OpenDocument::undo),
             EDIT_REDO => self.edit(OpenDocument::redo),
             CONFIG_RELOAD => self.reload(),
@@ -748,20 +767,25 @@ impl ArrixApp {
         }
     }
 
-    /// The keymap contexts active now. The palette, while open, owns the
-    /// keyboard: its own context and `text`, so its field keeps the keys.
-    /// Otherwise `sketch` in sketch mode and `part` outside it, and `text`
-    /// while a text field has focus.
+    /// The keymap contexts active now, most specific first. The palette,
+    /// while open, owns the keyboard: `text` and its own context, so its
+    /// field keeps the keys. Otherwise `text` while a text field has
+    /// focus, then `sketch-tool` with a drawing tool and `sketch` in sketch
+    /// mode, or `part` outside it.
     fn key_contexts(&self, ctx: &egui::Context) -> Vec<&'static str> {
         if self.session.palette.is_some() {
-            return vec!["palette", "text"];
+            return vec!["text", "palette"];
         }
-        let sketching = self.active_document().is_some_and(|d| d.sketch.is_some());
-        let mut contexts = vec![if sketching { "sketch" } else { "part" }];
+        let mut contexts = Vec::new();
         // Not `egui_wants_keyboard_input`: that is any focused widget, a tab
         // reached by Tab included, and would silence every key.
         if ctx.text_edit_focused() {
             contexts.push("text");
+        }
+        match self.context().tool {
+            Some(tool) if tool != SKETCH_SELECT => contexts.extend(["sketch-tool", "sketch"]),
+            Some(_) => contexts.push("sketch"),
+            None => contexts.push("part"),
         }
         contexts
     }
@@ -820,6 +844,7 @@ impl eframe::App for ArrixApp {
             ));
         });
         let hover_left = frame.as_ref().is_some_and(|f| f.hover_left);
+        let now = ui.input(|i| i.time);
         let sketch_pointer = frame.and_then(|f| f.sketch);
         self.drawn = Some(Drawn {
             window,
@@ -843,10 +868,21 @@ impl eframe::App for ArrixApp {
                 self.apply(UiIntent::SketchHovered { hit });
                 ui.ctx().request_repaint();
             }
-            if let Some((hit, extend)) = pointer.click {
-                self.apply(UiIntent::SketchClicked { hit, extend });
+            self.apply(UiIntent::SketchPointerMoved {
+                pointer: pointer.at,
+            });
+            if let Some((hit, extend, at)) = pointer.click {
+                self.apply(UiIntent::SketchClicked {
+                    hit,
+                    extend,
+                    pointer: at,
+                });
                 ui.ctx().request_repaint();
             }
+        }
+        if let Some(at) = self.session.wake_at.take() {
+            ui.ctx()
+                .request_repaint_after(std::time::Duration::from_secs_f64((at - now).max(0.0)));
         }
         if let Some(intent) = self.answer_pick(ui.ctx()) {
             self.apply(intent);

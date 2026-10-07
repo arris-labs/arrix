@@ -46,6 +46,9 @@ pub struct RibbonCommand {
     pub id: String,
     pub title: String,
     pub enabled: bool,
+    /// The command is a tool, and the one in use: drawn pressed.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub active: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -175,6 +178,20 @@ pub struct StatusView {
     pub sketch: Option<crate::SketchStatusView>,
 }
 
+/// The pointer in the open sketch's plane, as the app's viewport measured
+/// it.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct PlanePointer {
+    /// Plane-local metres.
+    pub at: [f64; 2],
+    /// The snap radius at this zoom: the screen's hit tolerance in metres.
+    pub tol: f64,
+    /// The modifier that suppresses inference (Alt) is held.
+    pub suppress: bool,
+    /// egui's clock, in seconds: what a dwell is timed by.
+    pub time: f64,
+}
+
 /// What the user did, in view terms. `arrix-app` turns an intent into a
 /// command or into a change of session state.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -207,13 +224,20 @@ pub enum UiIntent {
     /// The pointer is over this item of the open sketch, or over none: the
     /// sketch's hover becomes it. Session state, no command.
     SketchHovered { hit: Option<crate::SketchHit> },
-    /// A click in the open sketch, on an item or on none; `extend` is
-    /// shift: the item joins or leaves the selection instead of replacing
-    /// it. Session state, no command.
+    /// A click in the open sketch, on an item or on none, and where in the
+    /// plane. With the select tool it selects: `extend` is shift, and the
+    /// item joins or leaves the selection instead of replacing it; session
+    /// state, no command. With a drawing tool it places a point, and a
+    /// click that adds geometry is one command.
     SketchClicked {
         hit: Option<crate::SketchHit>,
         extend: bool,
+        pointer: Option<PlanePointer>,
     },
+    /// Where the pointer is in the open sketch's plane, every frame it is
+    /// over the viewport, or `None` once it has left: a drawing tool's
+    /// snap and preview follow it. Session state, no command.
+    SketchPointerMoved { pointer: Option<PlanePointer> },
     /// The pointer is over this face, edge or vertex, or over nothing: the
     /// hover becomes it. Session state, no command.
     Hovered {

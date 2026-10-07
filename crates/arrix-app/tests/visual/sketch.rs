@@ -162,3 +162,57 @@ fn sketch_select() {
         snapshot::check(h, "sketch_select");
     });
 }
+
+/// The rectangle tool, twice: a rectangle off the origin and one with a
+/// corner snapped to it, each one command; then the line tool started on
+/// a corner, its pending segment level with it, the snap's glyphs shown.
+#[test]
+fn sketch_draw() {
+    harness::with_app("sketch_draw", |h| {
+        h.state_mut().seed_ids(1);
+        h.key_press_modifiers(egui::Modifiers::CTRL, egui::Key::N);
+        harness::wait_settled(h);
+        h.get_by_label("New sketch").click();
+        h.run_steps(3);
+        wait_turned(h);
+        let at = |h: &Harness<'_>, uv: [f64; 2]| {
+            h.state()
+                .sketch_point([uv[0] * 1e-3, uv[1] * 1e-3])
+                .expect("drawn")
+        };
+        let click = |h: &mut Harness<'_>, uv: [f64; 2]| {
+            let pos = at(h, uv);
+            h.event(egui::Event::PointerMoved(pos));
+            h.step();
+            for pressed in [true, false] {
+                h.event(egui::Event::PointerButton {
+                    pos,
+                    button: egui::PointerButton::Primary,
+                    pressed,
+                    modifiers: egui::Modifiers::NONE,
+                });
+                h.step();
+            }
+            h.run_steps(3);
+        };
+        h.key_press(egui::Key::R);
+        h.run_steps(2);
+        click(h, [20.0, 15.0]);
+        click(h, [50.0, 35.0]);
+        assert_eq!(gesture(h), Some(1), "one command per rectangle");
+        harness::wait_settled(h);
+        click(h, [0.2, 0.3]);
+        click(h, [-30.0, -20.0]);
+        assert_eq!(gesture(h), Some(1));
+        harness::wait_settled(h);
+        h.key_press(egui::Key::L);
+        h.run_steps(2);
+        click(h, [50.0, 35.0]);
+        assert_eq!(gesture(h), Some(0), "a line's start is no command");
+        let pos = at(h, [80.0, 35.5]);
+        h.event(egui::Event::PointerMoved(pos));
+        h.run_steps(3);
+        harness::wait_settled(h);
+        snapshot::check(h, "sketch_draw");
+    });
+}

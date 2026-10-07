@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use arrix_config::{
     CommandRegistry, CommandSpec, SKETCH_CREATE, SKETCH_DELETE, SKETCH_EDIT, SKETCH_FINISH,
-    Settings,
+    SKETCH_LINE, SKETCH_RECTANGLE, SKETCH_SELECT, SKETCH_TOOL_CANCEL, Settings,
 };
 use arrix_doc::Registry;
 use arrix_plugin_api::FeatureTypeSpec;
@@ -43,6 +43,8 @@ pub struct Context {
     pub document_open: bool,
     /// The shown document is in sketch mode.
     pub sketching: bool,
+    /// The command id of sketch mode's tool, in sketch mode.
+    pub tool: Option<&'static str>,
     /// The tree's selection is a sketch that can be opened.
     pub sketch_selected: bool,
     /// Something is selected in the open sketch.
@@ -59,7 +61,11 @@ pub fn needs(command: &CommandSpec, cx: Context) -> Option<&'static str> {
         SKETCH_FINISH if !cx.sketching => Some("needs sketch mode"),
         SKETCH_EDIT if cx.sketching => Some("finish the sketch first"),
         SKETCH_EDIT if !cx.sketch_selected => Some("needs a sketch selected in the tree"),
-        SKETCH_DELETE if !cx.sketching => Some("needs sketch mode"),
+        SKETCH_DELETE | SKETCH_SELECT | SKETCH_LINE | SKETCH_RECTANGLE | SKETCH_TOOL_CANCEL
+            if !cx.sketching =>
+        {
+            Some("needs sketch mode")
+        }
         SKETCH_DELETE if !cx.sketch_selection => Some("needs something selected in the sketch"),
         SKETCH_CREATE if cx.sketching => Some("finish the sketch first"),
         _ => None,
@@ -104,6 +110,7 @@ pub fn ribbon(
             id: command.id.clone(),
             title: command.title.clone(),
             enabled: enabled(command, cx),
+            active: cx.tool == Some(command.id.as_str()),
         };
         match groups.iter_mut().find(|g| g.title == placement.group) {
             Some(group) => group.commands.push(button),

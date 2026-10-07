@@ -135,8 +135,10 @@ fn ribbon_ui(
             ui.vertical(|ui| {
                 ui.horizontal(|ui| {
                     for command in &group.commands {
-                        let button =
-                            ui.add_enabled(command.enabled, egui::Button::new(&command.title));
+                        let button = ui.add_enabled(
+                            command.enabled,
+                            egui::Button::new(&command.title).selected(command.active),
+                        );
                         // `contains_pointer`, not `hovered`: a disabled
                         // button is never hovered, and its hint says why.
                         if button.contains_pointer() {

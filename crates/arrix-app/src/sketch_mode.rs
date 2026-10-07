@@ -14,6 +14,7 @@ use web_time::Instant;
 
 use crate::ArrixApp;
 use crate::documents::OpenDocument;
+use crate::sketch_tools::{Drawing, Tool};
 use crate::sketch_view::{SketchOverlay, Solved, describe, plane_transform, sketch_view};
 
 /// How wide the view is, in metres from the centre, when there is no body
@@ -55,6 +56,8 @@ pub struct SketchMode {
     pub selection: BTreeSet<SketchEntityId>,
     /// What the pointer is over.
     pub hover: Option<SketchHit>,
+    /// The tool, and what it holds between clicks.
+    pub drawing: Drawing,
 }
 
 impl SketchMode {
@@ -66,6 +69,7 @@ impl SketchMode {
             plane: None,
             selection: BTreeSet::new(),
             hover: None,
+            drawing: Drawing::default(),
         }
     }
 
@@ -303,15 +307,12 @@ impl ArrixApp {
             else {
                 continue;
             };
-            if mode
-                .solved
-                .as_ref()
-                .is_none_or(|s| s.generation != generation)
-            {
+            if mode.solved.as_ref().is_none_or(|s| s.stale(generation)) {
                 let solved = Solved::new(generation, view.sketch.clone());
                 // What an edit or an undo removed is no longer selected or
                 // under the pointer.
                 mode.selection.retain(|id| solved.sketch.contains_id(*id));
+                mode.drawing.forget_missing(&solved.sketch);
                 if mode
                     .hover
                     .as_ref()
@@ -363,12 +364,15 @@ impl ArrixApp {
     /// What the viewport draws of the shown document's open sketch.
     pub(crate) fn sketch_overlay(&self) -> Option<SketchOverlay> {
         let mode = self.active_document()?.sketch.as_ref()?;
-        let mut view = sketch_view(mode.solved.as_ref()?);
+        let solved = mode.solved.as_ref()?;
+        let mut view = sketch_view(solved);
         view.hover = mode.hover.clone();
         view.selected = mode.selection.iter().map(ToString::to_string).collect();
+        view.preview = mode.drawing.preview(&solved.sketch);
         Some(SketchOverlay {
             view,
             plane: mode.plane?,
+            picks: mode.drawing.tool == Tool::Select,
         })
     }
 
@@ -379,12 +383,24 @@ impl ArrixApp {
         }
     }
 
-    /// A click in the sketch: it selects the item under it, or clears the
-    /// selection on empty space; with `extend` it adds or removes the item.
-    pub(crate) fn click_sketch(&mut self, hit: Option<SketchHit>, extend: bool) {
+    /// A click in the sketch. With the select tool it selects the item
+    /// under it, or clears the selection on empty space; with `extend` it
+    /// adds or removes the item. With a drawing tool it draws.
+    pub(crate) fn click_sketch(
+        &mut self,
+        hit: Option<SketchHit>,
+        extend: bool,
+        pointer: Option<arrix_ui::PlanePointer>,
+    ) {
         let Some(mode) = self.active_sketch_mut() else {
             return;
         };
+        if mode.drawing.tool != Tool::Select {
+            if let Some(pointer) = pointer {
+                self.draw_click(pointer);
+            }
+            return;
+        }
         let id = hit.and_then(|h| h.id.parse::<SketchEntityId>().ok());
         match (id, extend) {
             (Some(id), true) => {
@@ -398,7 +414,7 @@ impl ArrixApp {
         }
     }
 
-    fn active_sketch_mut(&mut self) -> Option<&mut SketchMode> {
+    pub(crate) fn active_sketch_mut(&mut self) -> Option<&mut SketchMode> {
         self.documents.get_mut(self.active)?.sketch.as_mut()
     }
 
@@ -433,6 +449,9 @@ impl ArrixApp {
     /// pointer, with what a click or Delete does to it, else the sketch
     /// and its selection.
     pub(crate) fn sketch_hint(&self, document: &OpenDocument, mode: &SketchMode) -> String {
+        if mode.drawing.tool != Tool::Select {
+            return mode.drawing.hint();
+        }
         if let (Some(hit), Some(solved)) = (&mode.hover, &mode.solved) {
             let what = describe(solved, hit);
             let selected = hit.id.parse().is_ok_and(|id| mode.selection.contains(&id));

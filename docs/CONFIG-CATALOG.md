@@ -54,6 +54,10 @@ the command registry and the setting specs; a test holds it fresh. Do not edit.
 | `core.sketch.edit` | Edit sketch |  |  | core.sketch / Sketch |
 | `core.sketch.finish` | Finish sketch | escape | sketch | core.sketch / Sketch |
 | `core.sketch.delete` | Delete | delete | sketch | core.sketch / Sketch |
+| `core.sketch.select` | Select |  | sketch | core.sketch / Draw |
+| `core.sketch.line` | Line | l | sketch | core.sketch / Draw |
+| `core.sketch.rectangle` | Rectangle | r | sketch | core.sketch / Draw |
+| `core.sketch.tool.cancel` | End the drawing | escape | sketch-tool |  |
 | `core.ribbon.sketch` | Show the Sketch tab |  |  |  |
 | `core.ribbon.part` | Show the Part tab |  |  |  |
 | `core.ribbon.gears` | Show the Gears tab |  |  |  |
@@ -68,6 +72,7 @@ the command registry and the setting specs; a test holds it fresh. Do not edit.
 
 - `part`: the document is shown and no sketch is being edited
 - `sketch`: a sketch is being edited
+- `sketch-tool`: a sketch is being edited with a drawing tool; its keys win over `sketch`'s
 - `palette`: the command palette is open
 - `text`: a text field has focus; only bindings that name it fire
 

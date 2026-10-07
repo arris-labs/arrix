@@ -4,6 +4,7 @@
 mod palette;
 mod shell;
 mod sketch;
+mod sketch_preview;
 mod theme;
 pub mod view;
 pub mod viewcube;
@@ -14,9 +15,10 @@ pub use sketch::{
     SketchCurveView, SketchHit, SketchPointView, SketchStatusView, SketchView, SolverState,
     hit_test, paint_sketch,
 };
+pub use sketch_preview::{SketchPreviewView, SnapGlyphView};
 pub use theme::{Rgba, ThemeView};
 pub use view::{
     CardsView, DocumentTab, DocumentTabsView, FeatureState, PaletteEntry, PaletteView,
-    RibbonCommand, RibbonGroup, RibbonTab, RibbonView, ShellView, StatusView, TreeFeature,
-    TreePart, TreeView, UiIntent,
+    PlanePointer, RibbonCommand, RibbonGroup, RibbonTab, RibbonView, ShellView, StatusView,
+    TreeFeature, TreePart, TreeView, UiIntent,
 };

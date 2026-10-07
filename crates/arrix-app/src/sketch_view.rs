@@ -35,6 +35,10 @@ fn uv(p: Uv) -> Uv {
 pub struct Solved {
     /// The evaluation this was made from.
     pub generation: arrix_doc::Generation,
+    /// Made by this client's own edit, submitted against this generation:
+    /// only an evaluation newer than it replaces the draft, so the next
+    /// click does not draw on a sketch that lacks the last one's work.
+    pub awaiting: Option<arrix_doc::Generation>,
     pub sketch: Sketch,
     pub diagnostics: Diagnostics,
 }
@@ -44,8 +48,26 @@ impl Solved {
         let (_, diagnostics) = Diagnostics::evaluate(&mut sketch);
         Self {
             generation,
+            awaiting: None,
             sketch,
             diagnostics,
+        }
+    }
+
+    /// The draft an edit submitted against `base` left, until the
+    /// evaluation of it arrives.
+    pub fn local(base: arrix_doc::Generation, sketch: Sketch) -> Self {
+        Self {
+            awaiting: Some(base),
+            ..Self::new(base, sketch)
+        }
+    }
+
+    /// Whether the evaluation of `generation` replaces this.
+    pub fn stale(&self, generation: arrix_doc::Generation) -> bool {
+        match self.awaiting {
+            Some(base) => generation > base,
+            None => generation != self.generation,
         }
     }
 }
@@ -55,6 +77,9 @@ impl Solved {
 pub struct SketchOverlay {
     pub view: SketchView,
     pub plane: Frame,
+    /// The select tool is in use: the pointer hovers and picks items. A
+    /// drawing tool's pointer snaps instead.
+    pub picks: bool,
 }
 
 /// The transform from `plane` to the viewport `rect` through `camera`.
@@ -143,6 +168,7 @@ pub fn sketch_view(solved: &Solved) -> SketchView {
         },
         hover: None,
         selected: Vec::new(),
+        preview: None,
     }
 }
 

@@ -72,8 +72,11 @@ else what to do next.
   replaces its command's defaults and an empty `key = []` unbinds it. A
   bad entry is one diagnostic with file and line and is left out, so the
   rest still applies. `when` is one context name: `part`, `sketch`,
-  `palette` or `text`; a binding naming the active context beats a global
-  one, and while a text field has focus only `text` bindings fire. `arrix-app`
+  `sketch-tool`, `palette` or `text`; a binding naming an active context
+  beats a global one, of two active contexts the more specific wins
+  (`text`, then `sketch-tool` over `sketch`: Escape ends a drawing before
+  it finishes the sketch), and while a text field has focus only `text`
+  bindings fire. `arrix-app`
   turns each egui key press (not its repeats) into a chord, resolves it,
   and runs the command the way a ribbon button does. `debug_state()`
   reports the keymap in force and the config diagnostics.
@@ -138,7 +141,7 @@ rule).
   (`arrix_viewport`, fed `RenderMesh`es), and the camera is session state
   that `debug_state()` reports; neither is a view type of `arrix-ui`. Built so far: `ShellView`, holding
   a `RibbonView` (tabs, the open one, and its groups of buttons with
-  whether each is enabled), a `PaletteView` (the query, results and
+  whether each is enabled, and a tool's whether it is the one in use), a `PaletteView` (the query, results and
   selection, while open), a `TreeView` (each part's features with their `FeatureState`), a `DocumentTabsView`
   (the open documents), a `CardsView` (which cards show), a
   `StatusView` (the help text, generation, diagnostics count, display units,
@@ -158,7 +161,9 @@ rule).
   `DocumentTabSelected { index }`, `DocumentTabClosed { index }`,
   `Picked { name }`, `Hovered { name }`, `TreeFeatureSelected { feature }`,
   `TreeFeatureActivated { feature }`, `SketchHovered { hit }`,
-  `SketchClicked { hit, extend }`. The ViewCube returns a
+  `SketchClicked { hit, extend, pointer }`, `SketchPointerMoved { pointer }`
+  (a `PlanePointer`: plane-local metres, the snap radius in metres, whether
+  Alt is held, and egui's clock). The ViewCube returns a
   `ViewCubeAction` of its own, which the app applies to its camera.
   `arrix-app` turns an intent into a `CommandEnvelope`, or into a change of
   session state (selection, camera), which issues no command.
@@ -252,7 +257,8 @@ turns to face the plane in orthographic projection.
   Finishing flies it back to the pose, projection and depth range it had.
   The turntable keeps Z up, so a tilted plane's axes are not on the screen's.
   In sketch mode the `sketch` context is active in place of `part`, so the
-  view keys are off.
+  view keys are off, and `sketch-tool` with it while a drawing tool is in
+  use.
 
 - **The overlay is a `SketchView`**, built by the app from the sketch as
   last evaluated and solved again (`Diagnostics::evaluate`, a draft made
@@ -285,6 +291,31 @@ turns to face the plane in orthographic projection.
   or hovered. `core.sketch.delete` (Delete) removes the selection and what
   stands on it (`SketchEdit::remove`) as one command, and none when there
   is nothing to remove.
+- **The tools** are in the Sketch tab's Draw group: `core.sketch.select`,
+  `core.sketch.line` (L) and `core.sketch.rectangle` (R), the one in use
+  drawn pressed. A drawing tool's pointer highlights nothing and selects
+  nothing: every frame it is over the viewport its snap is searched over
+  the solved draft and drawn as the `SketchView`'s `preview` (the cursor
+  where it snapped, what the next click draws, the glyphs with the
+  constraint kinds each commits, the alignment guides, the acquired
+  points), and the status line says what the next click does. The line's
+  first click places its start and issues nothing; each later click draws
+  a segment from the last end, one `SketchEdit`, and the chain goes on
+  until a click on its end (the second click of a double-click), a segment
+  closed on its first point, or Escape (`core.sketch.tool.cancel`, in
+  `sketch-tool`). With nothing pending Escape returns to the select tool,
+  and with the select tool it finishes the sketch. The rectangle is two
+  clicks, the first issuing nothing: four lines on four shared corners
+  (the corners are coincident by sharing their points, as the line's
+  chain does), the two level sides `Horizontal` and the others
+  `Vertical`, then the first corner's inferences and the opposite
+  corner's, by the commit rule; a click level or plumb with the first
+  corner draws nothing. The click's edit is the diff between the solved
+  draft before it and after it, solved again (both carry the resolved
+  values of the sketch's expressions, so only what the click made rides
+  along), and the draft it leaves is drawn until the evaluation of the
+  edit arrives, so the next click draws on it. A draft that does not
+  solve draws nothing and says so.
 - **The solver runs on the UI thread**, the one sanctioned exception to
   "the kernel never runs on the UI thread" (`SEED.md` §6.1): sketches are
   small, and a drag must follow the cursor in the same frame. It has a
@@ -320,7 +351,11 @@ turns to face the plane in orthographic projection.
   A tangent snap commits `Tangent` alone: with the end held on the rim
   too, the two are one first-order row at the touching point
   (`crates/arrix-sketch/tests/inference_probe.rs`). Alignment sources are
-  acquired by dwell; a modifier suppresses inference. The sketch fillet,
+  the origin, the line chain's own points, and the points and lines the
+  pointer rests on for 0.3 s of egui's clock (a dwell; a few are kept, the
+  oldest let go first, and a change of tool lets them all go); holding Alt
+  suppresses inference. The snap radius is the hit tolerance, 7 points, in
+  metres where the pointer is. The sketch fillet,
   auto-constrain and the constraint descriptions are not ported yet.
 - **A sketch edit is one command.** Drawing a line with its inferred
   coincidence and horizontal is one `SketchEdit`; a drag is one on release;

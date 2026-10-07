@@ -152,7 +152,7 @@ Complexity: **[1]** routine; **[2]** careful; **[3]** unproven.
   (Delete) removes the selection and what stands on it as
   `SketchEdit::remove` collects it, one command. Tests: hit priority at
   coincident items; delete then undo restores the sketch byte for byte.
-- [ ] **[3]** Step 7 — The line and rectangle tools with inference. The
+- [x] **[3]** Step 7 — The line and rectangle tools with inference. The
   pointer's snap is the step 2 search over the draft, drawn as its glyphs
   and guides; a click commits the same inferences by the commit rule; the
   line chains until Escape or a double-click; the rectangle is the
@@ -299,6 +299,19 @@ accepted, and the step 1 drag benchmark asserts its budget.
   on) must diff against the stored sketch instead, or a record whose
   expression resolves to something else than it stores would ride along.
   Step 7 settles which.
+- Finding (step 7): neither; a click's edit is the diff between the solved
+  draft before it and after it. Both sides carry the resolved values, so a
+  record rides along only if the click changed it. Between a submit and
+  the evaluation of it the draft the click left is drawn (`Solved::local`,
+  replaced only by a newer evaluation), or the chain's next click would
+  draw on a sketch without the last segment. The rectangle's corners are
+  shared points, not four coincidences: the documents and the line's chain
+  join lines that way, and the DoF count is the same. Escape needed a key
+  context of its own, `sketch-tool`, and a rule for two active contexts
+  (the more specific wins, `Keymap::resolve` taking them most specific
+  first); `core.sketch.tool.cancel` is the extra command. A conflicting
+  inference cannot come out of the search (it places the cursor where its
+  inferences hold), so its test hands one to the click's path directly.
 - ⚠ OPEN 3: the arc tool's gesture: centre, start, end; three points
   (start, end, through); or both, the second sharing the button. Default
   proposed: three-point, as the most common, with tangent arcs left out.
