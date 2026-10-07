@@ -1,8 +1,10 @@
 //! The visual scenarios (docs/UI-RENDERING.md §Visual debugging).
 
 mod coarse;
+mod fixture;
 mod harness;
 mod snapshot;
+mod viewport;
 
 /// The shell at startup: no document content, the Sketch tab open.
 #[test]

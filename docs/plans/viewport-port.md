@@ -156,7 +156,7 @@ All present in the pinned `arris` 0.5:
   `OrbitCamera` (orbit, pan, zoom to cursor, perspective/orthographic,
   standard views, animations skippable) on `glam`, Z-up; the source's
   tests ported.
-- [ ] **[3]** 6 — The wgpu renderer: pipelines, shaders, the `egui_wgpu`
+- [x] **[3]** 6 — The wgpu renderer: pipelines, shaders, the `egui_wgpu`
   paint callback into an offscreen target in the viewport rect. Proven in
   the scratch render with a fixture `RenderMesh` under lavapipe: visible,
   and two renders pixel-identical. The wasm build stays green.
@@ -298,3 +298,13 @@ build included.
   final body's mesh again on each generation; the viewport's `BodyKey` is
   part, feature and slot in `arrix-core` types, so it names no doc type.
   The camera is clocked by `web_time`, new in the workspace.
+- Found in step 6: the renderer draws on the empty start too, its
+  background gradient keyed to the view direction, so the five shell
+  goldens were re-pinned (their diffs only inside the viewport's rect).
+  Edges draw as lines over the faces, moved toward the eye along their view
+  ray by 5e-4 of their depth: a fixed clip-depth offset let hidden edges
+  poke past corners, since perspective depth is that uneven at near 0.01.
+  `ArrixApp::show_mesh` is the one way a mesh reaches the scene; step 7's
+  `Meshed` handling calls it. The proof is `viewport::a_mesh_draws_and_draws_identically`
+  on a hand-made fixture box (`tests/visual/fixture.rs`), not a golden:
+  the first viewport golden is step 7's `slice_viewport`.

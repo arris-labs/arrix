@@ -16,10 +16,12 @@ use arrix_config::{
     PALETTE_CLOSE, PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN,
     PANEL_PROPERTIES_TOGGLE, PANEL_TREE_TOGGLE, ParamDefaults, Settings, Theme,
 };
+use arrix_core::RenderMesh;
 use arrix_plugin_api::FeatureTypeSpec;
 use arrix_ui::{
     CardsView, DocumentTabsView, ShellLayout, ShellView, StatusView, TreeView, UiIntent,
 };
+use arrix_viewport::{BodyKey, GpuMesh, OrbitCamera, Renderer, Scene};
 use palette::Palette;
 
 /// Client-side state that is not in the document (SEED.md §6.1 rule 4).
@@ -57,6 +59,16 @@ pub struct ArrixApp {
     last_poll: f64,
     /// What the last frame drew, for [`ArrixApp::debug_state`].
     drawn: Option<Drawn>,
+    /// The 3D view; `None` without a wgpu render state (a renderer other
+    /// than wgpu), where the viewport stays an empty panel.
+    view3d: Option<View3d>,
+}
+
+/// The renderer, and what it draws: the bodies and the camera.
+struct View3d {
+    renderer: Renderer,
+    scene: Scene<GpuMesh>,
+    camera: OrbitCamera,
 }
 
 struct Drawn {
@@ -125,6 +137,21 @@ impl ArrixApp {
                 hovered_command: None,
             },
             drawn: None,
+            view3d: cc.wgpu_render_state.as_ref().map(|rs| View3d {
+                renderer: Renderer::new(&rs.device, rs.target_format),
+                scene: Scene::default(),
+                camera: OrbitCamera::default(),
+            }),
+        }
+    }
+
+    /// Shows `mesh` as `key`'s body, as a `Meshed` event will once a
+    /// document is open (plans/viewport-port step 7). Until then it is how a
+    /// test or the scratch render puts a mesh on screen. Without a wgpu
+    /// render state it does nothing.
+    pub fn show_mesh(&mut self, key: &BodyKey, mesh: &RenderMesh) {
+        if let Some(v) = &mut self.view3d {
+            v.scene.set_body(v.renderer.device(), key, mesh);
         }
     }
 
@@ -370,7 +397,12 @@ impl eframe::App for ArrixApp {
         self.apply_theme(ui);
         let window = ui.max_rect();
         let view = self.shell_view();
-        let response = arrix_ui::shell(ui, &view, |_ui| {});
+        let response = arrix_ui::shell(ui, &view, |ui| {
+            if let Some(v) = &mut self.view3d {
+                let rect = ui.max_rect();
+                v.renderer.paint(ui.painter(), rect, &v.scene, &v.camera);
+            }
+        });
         self.drawn = Some(Drawn {
             window,
             view,

@@ -268,6 +268,21 @@ orthographic projection.
 frame, through an `egui_wgpu` paint callback (`prepare` uploads, `paint`
 draws). Ported, reviewed on the way in (`SEED.md` §8.1).
 
+- **The renderer.** One `Renderer` per window holds the pipelines and the
+  offscreen colour and depth, sized to the viewport's rect in physical
+  pixels; what differs per document, the `Scene` and the camera, is passed
+  to `Renderer::paint`. `prepare` draws into the offscreen target (egui's
+  pass has no depth attachment), `paint` copies it into egui's pass one
+  texel to a pixel. The pass draws a background gradient keyed to the world
+  direction each pixel looks along, so the view's orientation reads even on
+  the empty start; then each visible body's faces, one draw per body at its
+  own dynamic offset in one model-matrix buffer; then every body's edges as
+  lines. An edge lies on its faces and Vulkan's depth bias does not apply
+  to lines, so its points are moved toward the eye along their own view
+  ray by 5e-4 of their depth; a fixed offset in clip depth is decimetres a
+  few metres out and lets hidden edges show past the corners that hide
+  them. Faces are lit by a light fixed in the world, Z-up.
+
 - **Scene per body.** A `SceneView` is a list of bodies, each keyed by its
   slot, with its mesh, transform, visibility and bounds. Updating one body
   re-uploads only it. The upload is behind a payload trait so the
@@ -364,6 +379,9 @@ the way in.
   size, the rect of each shell region (`layout`), the `ShellView` drawn
   (`shell`), the effective theme's name, the keymap in force and the config
   diagnostics; the rest joins as its part of the app is built.
+- **A mesh without a document**: `ArrixApp::show_mesh(key, mesh)` puts a
+  `RenderMesh` on screen as a `Meshed` event will; the scenarios' fixture
+  box (`tests/visual/fixture.rs`) pins the renderer apart from the kernel.
 - **Deterministic frames.** No wall clock reaches a drawn pixel in a test:
   animations are skipped, the frame-time readout is off, and evaluation is
   waited for, not timed.

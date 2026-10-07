@@ -528,6 +528,8 @@ name = "arrix-viewport"
 version = "0.0.0"
 dependencies = [
  "arrix-core",
+ "bytemuck",
+ "egui",
  "egui-wgpu",
  "glam 0.33.10",
  "web-time",

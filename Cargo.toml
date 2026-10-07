@@ -59,6 +59,8 @@ egui-wgpu = "0.36"
 # Plain math in `arrix-core` (docs/ARCHITECTURE.md §Crates): f64 vectors
 # with serde, no SIMD-dependent results.
 glam = { version = "0.33", features = ["serde"] }
+# The viewport's vertex and uniform layouts, cast to bytes for upload.
+bytemuck = { version = "1", features = ["derive"] }
 # The clock the camera's animations read, which std's does not give wasm32
 # (docs/CONCURRENCY-WASM.md §The browser build).
 web-time = "1"
