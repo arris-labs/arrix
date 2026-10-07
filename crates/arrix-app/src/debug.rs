@@ -59,6 +59,19 @@ pub struct SketchModeDebug {
     pub feature: String,
     /// The camera has turned square to the sketch's plane.
     pub turned: bool,
+    /// The drag under way: how many frames it has stepped and what the
+    /// last one's solve cost. Present only while the button is down.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub drag: Option<DragDebug>,
+}
+
+/// A drag in progress.
+#[derive(Debug, Serialize)]
+pub struct DragDebug {
+    pub frames: usize,
+    pub solve_us: u64,
+    /// The last frame could not follow the cursor.
+    pub blocked: bool,
 }
 
 /// Where the active document's evaluation is.
@@ -211,6 +224,11 @@ impl ArrixApp {
                 .map(|mode| SketchModeDebug {
                     feature: mode.feature.to_string(),
                     turned: mode.turned(),
+                    drag: mode.drag.as_ref().map(|d| DragDebug {
+                        frames: d.frames,
+                        solve_us: d.solve_us,
+                        blocked: d.blocked,
+                    }),
                 }),
             sketch_view: self.sketch_overlay().map(|o| o.view),
             gesture_commands: self.session.gestures.last,

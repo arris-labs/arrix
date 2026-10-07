@@ -14,6 +14,7 @@ use web_time::Instant;
 
 use crate::ArrixApp;
 use crate::documents::OpenDocument;
+use crate::sketch_drag::ActiveDrag;
 use crate::sketch_tools::{Drawing, Tool};
 use crate::sketch_view::{SketchOverlay, Solved, describe, plane_transform, sketch_view};
 
@@ -58,6 +59,8 @@ pub struct SketchMode {
     pub hover: Option<SketchHit>,
     /// The tool, and what it holds between clicks.
     pub drawing: Drawing,
+    /// The drag under way, when the button is down on a point or a curve.
+    pub drag: Option<ActiveDrag>,
 }
 
 impl SketchMode {
@@ -70,6 +73,7 @@ impl SketchMode {
             selection: BTreeSet::new(),
             hover: None,
             drawing: Drawing::default(),
+            drag: None,
         }
     }
 
@@ -307,7 +311,9 @@ impl ArrixApp {
             else {
                 continue;
             };
-            if mode.solved.as_ref().is_none_or(|s| s.stale(generation)) {
+            // A drag steps the draft it holds, which an evaluation does not
+            // replace.
+            if mode.drag.is_none() && mode.solved.as_ref().is_none_or(|s| s.stale(generation)) {
                 let solved = Solved::new(generation, view.sketch.clone());
                 // What an edit or an undo removed is no longer selected or
                 // under the pointer.
@@ -449,6 +455,9 @@ impl ArrixApp {
     /// pointer, with what a click or Delete does to it, else the sketch
     /// and its selection.
     pub(crate) fn sketch_hint(&self, document: &OpenDocument, mode: &SketchMode) -> String {
+        if let Some(drag) = &mode.drag {
+            return drag.hint();
+        }
         if mode.drawing.tool != Tool::Select {
             return mode.drawing.hint();
         }

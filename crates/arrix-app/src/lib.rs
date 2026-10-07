@@ -10,6 +10,7 @@ mod document_files;
 mod documents;
 mod keys;
 mod palette;
+mod sketch_drag;
 mod sketch_mode;
 mod sketch_tools;
 mod sketch_view;
@@ -35,6 +36,7 @@ use arrix_ui::{
 use arrix_viewport::{BodyKey, Renderer, StandardView};
 use documents::{CardToggles, OpenDocument, PickFor, ViewState};
 use palette::Palette;
+use viewport::SketchDrag;
 
 /// Client-side state that is not in the document (SEED.md §6.1 rule 4).
 struct Session {
@@ -589,12 +591,15 @@ impl ArrixApp {
     }
 
     fn apply(&mut self, intent: UiIntent) {
-        // A hover is not a gesture; every other intent is one.
+        // A hover is not a gesture, nor is a drag's start or a frame of it:
+        // the gesture is the drag, closed by its release.
         let gesture = !matches!(
             intent,
             UiIntent::Hovered { .. }
                 | UiIntent::SketchHovered { .. }
                 | UiIntent::SketchPointerMoved { .. }
+                | UiIntent::SketchDragStarted { .. }
+                | UiIntent::SketchDragMoved { .. }
         );
         if gesture {
             self.open_gesture();
@@ -634,6 +639,9 @@ impl ArrixApp {
                 pointer,
             } => self.click_sketch(hit, extend, pointer),
             UiIntent::SketchPointerMoved { pointer } => self.sketch_pointer(pointer),
+            UiIntent::SketchDragStarted { hit, pointer } => self.drag_started(hit, pointer),
+            UiIntent::SketchDragMoved { pointer } => self.drag_moved(pointer),
+            UiIntent::SketchDragEnded => self.drag_ended(),
             UiIntent::TreeFeatureSelected { feature } => {
                 if let Ok(feature) = feature.parse::<FeatureId>() {
                     self.view_mut().feature_selection = Some(feature);
@@ -873,6 +881,16 @@ impl eframe::App for ArrixApp {
             self.apply(UiIntent::SketchPointerMoved {
                 pointer: pointer.at,
             });
+            for step in pointer.drag {
+                self.apply(match step {
+                    SketchDrag::Started(hit, pointer) => {
+                        UiIntent::SketchDragStarted { hit, pointer }
+                    }
+                    SketchDrag::Moved(pointer) => UiIntent::SketchDragMoved { pointer },
+                    SketchDrag::Ended => UiIntent::SketchDragEnded,
+                });
+                ui.ctx().request_repaint();
+            }
             if let Some((hit, extend, at)) = pointer.click {
                 self.apply(UiIntent::SketchClicked {
                     hit,

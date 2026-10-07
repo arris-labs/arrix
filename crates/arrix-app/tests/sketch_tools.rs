@@ -533,3 +533,160 @@ fn a_tangent_snap_from_a_lines_end_commits_tangent_alone() {
     assert_eq!(gesture(&h), Some(1));
     assert_eq!(stored(&h).constraints, ["tangent"]);
 }
+
+fn press(h: &mut Harness<'_, ArrixApp>, uv: [f64; 2]) {
+    let pos = at(h, uv);
+    h.event(egui::Event::PointerMoved(pos));
+    h.step();
+    h.event(egui::Event::PointerButton {
+        pos,
+        button: egui::PointerButton::Primary,
+        pressed: true,
+        modifiers: Modifiers::NONE,
+    });
+    h.step();
+}
+
+fn release(h: &mut Harness<'_, ArrixApp>, uv: [f64; 2]) {
+    let pos = at(h, uv);
+    h.event(egui::Event::PointerButton {
+        pos,
+        button: egui::PointerButton::Primary,
+        pressed: false,
+        modifiers: Modifiers::NONE,
+    });
+    h.step();
+    h.run_steps(3);
+}
+
+/// A rectangle (20,15)-(50,35) drawn, then the select tool.
+fn with_rectangle() -> Harness<'static, ArrixApp> {
+    let mut h = sketching();
+    h.key_press(Key::R);
+    h.run_steps(2);
+    click(&mut h, [20.0, 15.0]);
+    click(&mut h, [50.0, 35.0]);
+    drawn(&mut h, 4);
+    h.key_press(Key::Escape);
+    h.run_steps(3);
+    assert_eq!(tool(&h).as_deref(), Some("core.sketch.select"));
+    h
+}
+
+fn point_at(h: &Harness<'_, ArrixApp>, uv: [f64; 2]) -> Option<[f64; 2]> {
+    let (u, v) = (uv[0] * MM, uv[1] * MM);
+    h.state()
+        .debug_state()
+        .sketch_view?
+        .points
+        .iter()
+        .find(|p| (p.at[0] - u).abs() < 1e-6 && (p.at[1] - v).abs() < 1e-6)
+        .map(|p| p.at)
+}
+
+/// A drag is many frames and one command, issued at the release; the
+/// solver follows the cursor in between and the overlay shows it.
+#[test]
+fn a_drag_is_one_command_at_the_release_and_undo_takes_it_back() {
+    let mut h = with_rectangle();
+    let before = h.state().saved().unwrap().0;
+    press(&mut h, [50.0, 35.0]);
+    for to in [[55.0, 40.0], [60.0, 45.0], [70.0, 50.0]] {
+        let pos = at(&h, to);
+        h.event(egui::Event::PointerMoved(pos));
+        h.step();
+    }
+    let state = h.state().debug_state();
+    let drag = state.sketch.and_then(|m| m.drag).expect("a drag is on");
+    assert!(drag.frames >= 3, "{drag:?}");
+    assert!(!drag.blocked);
+    assert_eq!(
+        state.shell.unwrap().status.hint,
+        "Dragging a point.",
+        "the status line says what is dragged"
+    );
+    assert!(
+        point_at(&h, [70.0, 50.0]).is_some(),
+        "the overlay follows the cursor before the release"
+    );
+    assert_eq!(h.state().saved().unwrap().0, before, "nothing stored yet");
+    release(&mut h, [70.0, 50.0]);
+    assert_eq!(gesture(&h), Some(1), "one command for the drag");
+    let s = stored(&h);
+    assert_eq!((s.points, s.lines), (4, 4));
+    assert_eq!(
+        s.constraints,
+        ["horizontal", "horizontal", "vertical", "vertical"],
+        "dragging a corner keeps the sides level and plumb"
+    );
+    assert!(h.state().debug_state().sketch.unwrap().drag.is_none());
+    assert_ne!(h.state().saved().unwrap().0, before);
+
+    h.key_press_modifiers(Modifiers::CTRL, Key::Z);
+    h.run_steps(3);
+    assert_eq!(h.state().saved().unwrap().0, before, "byte for byte");
+}
+
+/// A click without movement is a click: it selects and issues nothing. A
+/// drag that ends where it began issues nothing either.
+#[test]
+fn a_click_or_a_drag_that_moves_nothing_issues_no_command() {
+    let mut h = with_rectangle();
+    click(&mut h, [50.0, 35.0]);
+    assert_eq!(gesture(&h), Some(0));
+    assert_eq!(
+        h.state().debug_state().sketch_view.unwrap().selected.len(),
+        1
+    );
+    press(&mut h, [50.0, 35.0]);
+    for to in [[60.0, 45.0], [50.0, 35.0]] {
+        let pos = at(&h, to);
+        h.event(egui::Event::PointerMoved(pos));
+        h.step();
+    }
+    release(&mut h, [50.0, 35.0]);
+    assert_eq!(gesture(&h), Some(0), "back where it began");
+}
+
+/// A point pinned to the origin stays there: the drag stops where the
+/// constraint holds it, and nothing is issued.
+#[test]
+fn a_pinned_point_does_not_drag() {
+    let mut h = sketching();
+    h.key_press(Key::R);
+    h.run_steps(2);
+    click(&mut h, [0.2, 0.3]);
+    click(&mut h, [30.0, 20.0]);
+    drawn(&mut h, 4);
+    h.key_press(Key::Escape);
+    h.run_steps(3);
+    let before = h.state().saved().unwrap().0;
+    press(&mut h, [0.0, 0.0]);
+    let pos = at(&h, [-20.0, -20.0]);
+    h.event(egui::Event::PointerMoved(pos));
+    h.step();
+    assert!(point_at(&h, [0.0, 0.0]).is_some(), "it stays at the origin");
+    release(&mut h, [-20.0, -20.0]);
+    assert_eq!(gesture(&h), Some(0));
+    assert_eq!(h.state().saved().unwrap().0, before);
+}
+
+/// A body drag carries a curve with it: the rectangle's top side, grabbed
+/// at its middle, moves up, and the corners' sides follow.
+#[test]
+fn a_curve_drags_by_its_body() {
+    let mut h = with_rectangle();
+    press(&mut h, [35.0, 35.0]);
+    let pos = at(&h, [35.0, 45.0]);
+    h.event(egui::Event::PointerMoved(pos));
+    h.step();
+    h.event(egui::Event::PointerMoved(at(&h, [35.0, 45.0])));
+    h.step();
+    assert_eq!(
+        h.state().debug_state().shell.unwrap().status.hint,
+        "Dragging a curve."
+    );
+    release(&mut h, [35.0, 45.0]);
+    assert_eq!(gesture(&h), Some(1));
+    assert!(point_at(&h, [50.0, 45.0]).is_some(), "the corner followed");
+}

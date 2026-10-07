@@ -238,6 +238,19 @@ pub enum UiIntent {
     /// over the viewport, or `None` once it has left: a drawing tool's
     /// snap and preview follow it. Session state, no command.
     SketchPointerMoved { pointer: Option<PlanePointer> },
+    /// The left button went down on `hit` and moved: a drag of the point or
+    /// curve under it starts, from where the button went down. Session
+    /// state, no command.
+    SketchDragStarted {
+        hit: Option<crate::SketchHit>,
+        pointer: Option<PlanePointer>,
+    },
+    /// The drag's pointer, every frame of it: the solver follows it within
+    /// the frame. Session state, no command.
+    SketchDragMoved { pointer: PlanePointer },
+    /// The button went up: the drag is one command, or none when nothing
+    /// moved.
+    SketchDragEnded,
     /// The pointer is over this face, edge or vertex, or over nothing: the
     /// hover becomes it. Session state, no command.
     Hovered {

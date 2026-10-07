@@ -30,6 +30,18 @@ pub struct SketchPointer {
     pub at: Option<PlanePointer>,
     /// A click, with what was under it, whether shift was held, and where.
     pub click: Option<(Option<SketchHit>, bool, Option<PlanePointer>)>,
+    /// What the left button's drag did this frame, with the select tool.
+    pub drag: Vec<SketchDrag>,
+}
+
+/// One step of a drag with the left button in the sketch.
+pub enum SketchDrag {
+    /// It began, on this item, where the button went down.
+    Started(Option<SketchHit>, Option<PlanePointer>),
+    /// The pointer, this frame.
+    Moved(PlanePointer),
+    /// The button went up.
+    Ended,
 }
 
 /// How near an item the pointer is to hit it, in points.
@@ -129,7 +141,23 @@ pub fn show(
         // A drawing tool's pointer highlights nothing: its snap is what
         // shows.
         let now = hover.filter(|_| overlay.picks).map(hit);
+        let mut drag = Vec::new();
+        if overlay.picks && response.drag_started_by(egui::PointerButton::Primary) {
+            let origin = ui.input(|i| i.pointer.press_origin());
+            drag.push(SketchDrag::Started(
+                origin.and_then(hit),
+                origin.and_then(in_plane),
+            ));
+        }
+        if overlay.picks && response.dragged_by(egui::PointerButton::Primary) {
+            let now = response.interact_pointer_pos().and_then(in_plane);
+            drag.extend(now.map(SketchDrag::Moved));
+        }
+        if overlay.picks && response.drag_stopped_by(egui::PointerButton::Primary) {
+            drag.push(SketchDrag::Ended);
+        }
         sketch_pointer = Some(SketchPointer {
+            drag,
             hover: now.filter(|h| *h != overlay.view.hover).or(hover
                 .is_none()
                 .then_some(None)

@@ -167,7 +167,7 @@ Complexity: **[1]** routine; **[2]** careful; **[3]** unproven.
 - [x] **[2]** Step 8 — The circle (centre, then radius) and arc tools (⚠
   OPEN 3) on the same snap and commit rule; a tangent snap from a line's
   end commits `Tangent` alone where the probe says so. Tests as step 7's.
-- [ ] **[2]** Step 9 — The drag. A press on a point or a curve in the
+- [x] **[2]** Step 9 — The drag. A press on a point or a curve in the
   select tool starts a `DragSession`; each frame steps it to the cursor
   and the overlay follows; the release is one `SketchEdit` diffed from
   the draft before the press, none if nothing moved. A step that does not
@@ -320,6 +320,12 @@ accepted, and the step 1 drag benchmark asserts its budget.
   point is a plain place with no snap, since nothing it could bind exists
   yet. The tangent snap from a line's end already committed `Tangent`
   alone (step 2's probe); step 8 holds it with a test.
+- Finding (step 9): the frame's diagnostics are not recomputed while the
+  button is down (a rank analysis per frame is not the drag's budget); the
+  overlay keeps the ones from before the press and the release makes them
+  anew. A frame the solver blocks is not a test here: nothing a rectangle
+  or a pin can make blocks one, so the status line's words for it have no
+  test yet; a scenario waits for a sketch that does.
 - ⚠ OPEN 4: a dimension that would over-constrain: placed as a reference
   dimension (shown, not driving), or refused with the reason. Default
   proposed: reference, as the ported code did. Agent, by step 11, unless

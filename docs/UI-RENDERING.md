@@ -328,6 +328,20 @@ turns to face the plane in orthographic projection.
   along), and the draft it leaves is drawn until the evaluation of the
   edit arrives, so the next click draws on it. A draft that does not
   solve draws nothing and says so.
+- **The drag** is the select tool's: the left button down on a point or a
+  curve and moved starts a `DragSession` over the solved draft (a point
+  that is fixed, a glyph and a dimension are not dragged; a curve is
+  grabbed by its body, a circle by its rim). Each frame steps it to the
+  cursor and the overlay draws the draft as the solver left it, with the
+  diagnostics of before the press until the release; `debug_state()`
+  reports the frames stepped and the last solve's microseconds while the
+  button is down. A frame the solver cannot follow (it did not converge, or
+  the branch guard refused it) leaves the geometry where it was and the
+  status line says the point or curve cannot go further. The release is
+  one `SketchEdit`, the diff between the draft before the press and the
+  one the drag left, and none when nothing moved (a click without movement
+  is a click, and selects). The press and the frames are not gestures; the
+  release is.
 - **The solver runs on the UI thread**, the one sanctioned exception to
   "the kernel never runs on the UI thread" (`SEED.md` §6.1): sketches are
   small, and a drag must follow the cursor in the same frame. It has a
