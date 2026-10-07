@@ -129,8 +129,10 @@ or an author's undo or redo) and `subscribe() -> EventStream`, whose
 `SessionEvent`s are `opened` (the document at subscription, as its
 directory form's files), each `applied` change (from which each client
 keeps its own `Replica` of the document, `docs/CONCURRENCY-WASM.md`
-§Roles and threads), each feature's `evaluated` outcome and each
-`finished` evaluation, the last two with their generation, and
+§Roles and threads), each feature's `evaluated` outcome, each
+`finished` evaluation, and then each final body's `meshed` mesh, coarse
+and refined (`docs/CONCURRENCY-WASM.md` §Tessellation), these three with
+their generation, and
 `save() -> MemorySource`, the directory form with each plugin feature's
 latest frozen result merged in when it is current (ADR-0009): the
 evaluator hands those out beside its events, never inside them, and the

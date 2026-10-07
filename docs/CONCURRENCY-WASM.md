@@ -71,8 +71,11 @@ preclude (`SEED.md` §6.1). Locally all three are in one process.
   Parallel evaluation of independent branches (parts, patterns) is
   clone-evaluate-import across Arris models, through body bytes (ask A2,
   available) once a measurement says it pays; it is not built before.
-- **Tessellation** runs on the evaluator after each body: a coarse mesh
-  first, then a refined one, each its own event.
+- **Tessellation** runs on the evaluator once a part is evaluated, on its
+  *final* bodies only (each slot's last version that nothing consumed):
+  every body coarse first, then every body refined, each a `Meshed` event
+  of its generation. A newer snapshot stops it between meshes, and a
+  version the evaluator's cache holds keeps its meshes.
 
 ## Determinism
 

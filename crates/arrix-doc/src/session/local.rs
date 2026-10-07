@@ -10,7 +10,7 @@ use std::sync::mpsc::{Receiver, Sender, TryRecvError, channel};
 use super::{DocHash, EventStream, Request, Session, SessionEvent, files};
 use crate::authority::{Authority, Generation, Outcome, Rejected};
 use crate::eval::EvalEvent;
-use arrix_core::FeatureId;
+use arrix_core::{FeatureId, MeshDetail};
 
 use crate::document::Document;
 use crate::eval::{Evaluator, FeatureOutcome, InputHash};
@@ -234,6 +234,44 @@ fn evaluate(mut evaluator: Evaluator, snapshots: &Receiver<Snapshot>, publish: &
                 params: evaluation.params,
             };
             let _ = publish.send(Msg::Publish(finished));
+            if mesh_finals(&mut evaluator, generation, snapshots, publish, &mut next) {
+                return;
+            }
         }
     }
+}
+
+/// Meshes the final bodies of the evaluation of `generation`, every body
+/// coarse and then every body refined, publishing each as it is made.
+/// Stops between meshes when a newer snapshot is queued, which it leaves
+/// in `next`; returns `true` once the session thread has gone.
+fn mesh_finals(
+    evaluator: &mut Evaluator,
+    generation: Generation,
+    snapshots: &Receiver<Snapshot>,
+    publish: &Sender<Msg>,
+    next: &mut Option<Snapshot>,
+) -> bool {
+    let finals = evaluator.final_bodies().to_vec();
+    for detail in [MeshDetail::Coarse, MeshDetail::Refined] {
+        for body in &finals {
+            match snapshots.try_recv() {
+                Ok(s) => {
+                    *next = Some(s);
+                    return false;
+                }
+                Err(TryRecvError::Empty) => {}
+                Err(TryRecvError::Disconnected) => return true,
+            }
+            let event = SessionEvent::Meshed {
+                generation,
+                part: body.part,
+                slot: body.slot.clone(),
+                detail,
+                mesh: evaluator.mesh(body, detail),
+            };
+            let _ = publish.send(Msg::Publish(event));
+        }
+    }
+    false
 }

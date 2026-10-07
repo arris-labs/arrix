@@ -480,6 +480,10 @@ outputs, off the UI thread (`docs/CONCURRENCY-WASM.md` §The evaluator).
 4. Name the outputs from the kernel's provenance (§Persistent naming).
 5. Publish an `EvalEvent` per feature: done with its outputs, failed with
    a diagnostic, or frozen with its reason.
+6. Once the part is evaluated, mesh its *final* bodies (each slot's last
+   version that no later feature consumed) and publish a `Meshed` event
+   per body, coarse then refined. Meshes are cache like any result: not
+   persisted, so no schema bump, and a cached version keeps its meshes.
 
 **Fail soft.** A failed feature keeps its parameters, shows why, and
 produces no outputs; a downstream feature that needs one of them fails

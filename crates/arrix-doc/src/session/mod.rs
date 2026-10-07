@@ -16,7 +16,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::sync::mpsc::Receiver;
 
-use arrix_core::{Diagnostic, FeatureId, ParamId, Quantity};
+use arrix_core::{Diagnostic, FeatureId, MeshDetail, ParamId, PartId, Quantity, RenderMesh};
 use serde::{Deserialize, Serialize};
 
 pub use local::LocalSession;
@@ -24,7 +24,7 @@ pub use local::LocalSession;
 use crate::authority::{AuthorId, Change, CommandEnvelope, Generation, Outcome, Rejected};
 use crate::command::{CommandError, apply};
 use crate::document::Document;
-use crate::eval::{EvalEvent, FeatureOutcome};
+use crate::eval::{BodySlot, EvalEvent, FeatureOutcome};
 use crate::open::{MemorySource, open};
 use crate::save::save;
 
@@ -92,6 +92,18 @@ pub enum SessionEvent {
     Finished {
         generation: Generation,
         params: ParamValues,
+    },
+    /// A final body of `generation`'s evaluation, meshed (docs/
+    /// CONCURRENCY-WASM.md §Tessellation): every body coarse first, then
+    /// every body refined. A mesh of a superseded generation is never
+    /// drawn, and a body that could not be meshed says why. Not part of
+    /// the document: a replica ignores it.
+    Meshed {
+        generation: Generation,
+        part: PartId,
+        slot: BodySlot,
+        detail: MeshDetail,
+        mesh: Result<RenderMesh, Diagnostic>,
     },
 }
 
@@ -225,6 +237,7 @@ impl Replica {
                     self.finished = Some((*generation, params.clone()));
                 }
             }
+            SessionEvent::Meshed { .. } => {}
         }
         Ok(())
     }

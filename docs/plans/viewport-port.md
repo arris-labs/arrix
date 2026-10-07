@@ -145,7 +145,7 @@ All present in the pinned `arris` 0.5:
   range named, two runs byte-identical, mesh volume within the chord's
   bound of `mass_properties`. Establishes the coarse and refined chords
   (relative to the bounds' diagonal) and writes them down.
-- [ ] **[2]** 4 — The evaluator meshes a part's final bodies:
+- [x] **[2]** 4 — The evaluator meshes a part's final bodies:
   `SessionEvent::Meshed`, coarse then refined, cached versions reused,
   consumed and intermediate versions never meshed. Session tests on the
   slice's stream; the JSON round-trip test covers the new event; the first
@@ -278,3 +278,14 @@ build included.
   kernel and `gears` may be used, so the tessellation tests are in
   `arrix-cli` (`tests/tessellate.rs`), as `gear_naming.rs` is; the
   kernel's own tests cover a mesh record's fixture export.
+- Found in step 4: the slice ends with one final body, the pocketed plate:
+  the gear is consumed by the join and the plate's other versions are
+  intermediate, so `Meshed` carries one body there, not two (the
+  acceptance's "both of the slice's bodies" reads as that one). The first
+  coarse mesh after a width edit was 227 ms from the submit to the event
+  in the test profile (Arris's debug check on), which includes
+  re-evaluating the plate, join and pocket, over the 150 ms budget; it is
+  reported, to be measured again in step 13 on the gate's profile. Meshing
+  starts when the whole evaluation has finished, not part by part, and
+  `Meshed` carries `Result<RenderMesh, Diagnostic>` so a failed
+  tessellation is shown rather than dropped.

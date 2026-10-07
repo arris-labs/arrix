@@ -12,6 +12,7 @@ mod host;
 #[cfg(test)]
 mod input_tests;
 mod line;
+mod meshing;
 mod project;
 mod resolve;
 #[cfg(test)]
@@ -24,10 +25,10 @@ mod version_tests;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
-use arrix_core::RegionKey;
 use arrix_core::{
     Diagnostic, FeatureId, Frame, ParamId, Profile, Quantity, Ref, Severity, SlotName, TopoKind,
 };
+use arrix_core::{MeshDetail, RegionKey, RenderMesh};
 use arrix_kernel::{CallIndex, Kernel, KernelBody, KernelCall, KernelError};
 use arrix_plugin_api::{
     Body, InputKind, InputValue, OutputValue, ParamValue, ResolvedInput, SlotKind, Tool, ToolOp,
@@ -38,6 +39,7 @@ use serde::{Deserialize, Serialize};
 pub use fixtures::{FailedCall, Run, SavedRecipe, run};
 pub use hash::InputHash;
 pub use line::{BodyLine, EvalLine, EvalStatus, FeatureLine, ParamLine, SweepPoint, eval};
+pub use meshing::{BodySlot, FinalBody};
 
 use crate::dag::{Dag, Node};
 use crate::document::{Document, FeatureRecord, Part};
@@ -294,6 +296,10 @@ pub struct Evaluator {
     cache: BTreeMap<InputHash, CacheEntry>,
     /// The plugin features' results of the latest evaluation, by feature.
     frozen: BTreeMap<FeatureId, Arc<Frozen>>,
+    /// The bodies the latest finished evaluation ended with, and the
+    /// meshes made of the versions the cache holds.
+    finals: Vec<meshing::FinalBody>,
+    meshes: BTreeMap<(KernelBody, MeshDetail), RenderMesh>,
     run: u64,
     capacity: usize,
 }
@@ -309,6 +315,8 @@ impl Evaluator {
             kernel: Kernel::new(),
             cache: BTreeMap::new(),
             frozen: BTreeMap::new(),
+            finals: Vec::new(),
+            meshes: BTreeMap::new(),
             run: 0,
             capacity: Self::DEFAULT_CAPACITY,
         }
@@ -348,6 +356,7 @@ impl Evaluator {
     ) -> Option<Evaluation> {
         self.run += 1;
         self.frozen.clear();
+        self.finals.clear();
         let dag =
             Dag::build_with(doc, &self.registry).expect("a document is valid by construction");
         let params = Params::evaluate(doc, &dag);
@@ -369,6 +378,7 @@ impl Evaluator {
                 return None;
             }
         }
+        self.finals = self.find_finals(doc, &states);
         self.collect();
         Some(Evaluation {
             params: params.values,
@@ -826,5 +836,6 @@ impl Evaluator {
             })
             .collect();
         self.kernel.retain(&keep);
+        self.keep_meshes(&keep);
     }
 }
