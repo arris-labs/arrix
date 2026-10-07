@@ -39,6 +39,8 @@ pub const DOCUMENT_CLOSE: &str = "core.document.close";
 pub const SKETCH_CREATE: &str = "core.sketch.create";
 pub const SKETCH_EDIT: &str = "core.sketch.edit";
 pub const SKETCH_FINISH: &str = "core.sketch.finish";
+/// Deleting what is selected in the open sketch.
+pub const SKETCH_DELETE: &str = "core.sketch.delete";
 /// A new, empty document in a new tab.
 pub const DOCUMENT_NEW: &str = "core.document.new";
 /// Undoing and redoing the author's last change to the shown document.
@@ -168,6 +170,11 @@ impl CommandRegistry {
             ribbon: sketch_group(),
             when: Some("sketch".into()),
             ..document_command(SKETCH_FINISH, "Finish sketch", &["escape"])
+        });
+        commands.push(CommandSpec {
+            ribbon: sketch_group(),
+            when: Some("sketch".into()),
+            ..document_command(SKETCH_DELETE, "Delete", &["delete"])
         });
         // One command per tab, so the palette and a key can open it.
         for tab in &tabs {

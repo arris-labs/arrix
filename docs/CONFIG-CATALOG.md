@@ -53,6 +53,7 @@ the command registry and the setting specs; a test holds it fresh. Do not edit.
 | `gears.spur.create` | New spur gear |  |  | gears / Features |
 | `core.sketch.edit` | Edit sketch |  |  | core.sketch / Sketch |
 | `core.sketch.finish` | Finish sketch | escape | sketch | core.sketch / Sketch |
+| `core.sketch.delete` | Delete | delete | sketch | core.sketch / Sketch |
 | `core.ribbon.sketch` | Show the Sketch tab |  |  |  |
 | `core.ribbon.part` | Show the Part tab |  |  |  |
 | `core.ribbon.gears` | Show the Gears tab |  |  |  |

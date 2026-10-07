@@ -174,3 +174,134 @@ fn finishing_and_editing_are_off_where_they_do_not_apply() {
     assert!(off(&h, "core.sketch.edit") && off(&h, "core.sketch.create"));
     assert!(!off(&h, "core.sketch.finish"));
 }
+
+/// Opens the slice's pocket sketch, a 6 mm square at the origin, and waits
+/// until it is drawn.
+fn open_pocket_sketch() -> Harness<'static, ArrixApp> {
+    let mut h = app();
+    h.get_by_label("Sketch 5").click();
+    h.run_steps(3);
+    h.get_by_label("Edit sketch").click();
+    h.run_steps(3);
+    turned(&mut h);
+    h
+}
+
+fn at(h: &Harness<'_, ArrixApp>, uv: [f64; 2]) -> egui::Pos2 {
+    h.state().sketch_point(uv).expect("the sketch is drawn")
+}
+
+fn hover(h: &mut Harness<'_, ArrixApp>, uv: [f64; 2]) {
+    let pos = at(h, uv);
+    h.event(egui::Event::PointerMoved(pos));
+    h.run_steps(3);
+}
+
+fn click(h: &mut Harness<'_, ArrixApp>, uv: [f64; 2], modifiers: Modifiers) {
+    let pos = at(h, uv);
+    h.event(egui::Event::PointerMoved(pos));
+    h.step();
+    for pressed in [true, false] {
+        h.event(egui::Event::PointerButton {
+            pos,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers,
+        });
+        h.step();
+    }
+    h.run_steps(3);
+}
+
+fn hint(h: &Harness<'_, ArrixApp>) -> String {
+    h.state().debug_state().shell.unwrap().status.hint
+}
+
+fn selected(h: &Harness<'_, ArrixApp>) -> usize {
+    h.state()
+        .debug_state()
+        .sketch_view
+        .map_or(0, |v| v.selected.len())
+}
+
+#[test]
+fn the_pointer_names_what_is_under_it_and_a_click_selects_it() {
+    let mut h = open_pocket_sketch();
+    // The middle of the right edge: a line, with its mark beside it.
+    hover(&mut h, [0.006, 0.003]);
+    assert_eq!(hint(&h), "Line: click to select it.");
+    click(&mut h, [0.006, 0.003], Modifiers::NONE);
+    assert_eq!(gesture(&h), Some(0), "selecting issues no command");
+    assert_eq!(selected(&h), 1);
+    assert_eq!(hint(&h), "Line: selected. Delete removes it.");
+    // A corner is a point, though two lines end on it.
+    hover(&mut h, [0.006, 0.006]);
+    assert_eq!(hint(&h), "Point: click to select it.");
+    // Shift adds, and a second one removes.
+    click(&mut h, [0.006, 0.006], Modifiers::SHIFT);
+    assert_eq!(selected(&h), 2);
+    click(&mut h, [0.006, 0.006], Modifiers::SHIFT);
+    assert_eq!(selected(&h), 1);
+    // A click on the mark of a constraint selects the constraint.
+    let mark = h.state().debug_state().sketch_view.unwrap().glyphs[0].at;
+    let box_ = at(&h, mark) + egui::vec2(10.0, -10.0);
+    h.event(egui::Event::PointerMoved(box_));
+    h.run_steps(3);
+    assert!(
+        hint(&h).ends_with("constraint: click to select it."),
+        "{}",
+        hint(&h)
+    );
+    // Empty space inside the square clears the selection.
+    click(&mut h, [0.003, 0.003], Modifiers::NONE);
+    assert_eq!(selected(&h), 0);
+    assert_eq!(gesture(&h), Some(0));
+}
+
+#[test]
+fn delete_removes_the_selection_as_one_command_and_undo_restores_it() {
+    let mut h = open_pocket_sketch();
+    let before = h.state().saved().unwrap().0;
+    let curves =
+        |h: &Harness<'_, ArrixApp>| h.state().debug_state().sketch_view.unwrap().curves.len();
+    assert_eq!(curves(&h), 4);
+
+    click(&mut h, [0.006, 0.003], Modifiers::NONE);
+    h.key_press(Key::Delete);
+    h.run_steps(3);
+    assert_eq!(
+        gesture(&h),
+        Some(1),
+        "one command for the line and its marks"
+    );
+    assert_ne!(h.state().saved().unwrap().0, before);
+    // The evaluation of the edited sketch arrives on its own clock.
+    let started = web_time::Instant::now();
+    while curves(&h) != 3 {
+        h.step();
+        assert!(started.elapsed().as_secs() < 60, "the edit was not drawn");
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    assert_eq!(selected(&h), 0, "what was deleted is not selected");
+
+    h.key_press_modifiers(Modifiers::CTRL, Key::Z);
+    h.run_steps(3);
+    assert_eq!(gesture(&h), Some(1));
+    assert_eq!(h.state().saved().unwrap().0, before, "byte for byte");
+    let started = web_time::Instant::now();
+    while curves(&h) != 4 {
+        h.step();
+        assert!(started.elapsed().as_secs() < 60, "the undo was not drawn");
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+}
+
+#[test]
+fn delete_with_nothing_selected_is_off() {
+    let mut h = open_pocket_sketch();
+    let generation_before = generation(&h);
+    h.key_press(Key::Delete);
+    h.run_steps(3);
+    assert_eq!(gesture(&h), Some(0));
+    assert_eq!(generation(&h), generation_before);
+}

@@ -204,6 +204,16 @@ pub enum UiIntent {
     /// A feature's row in the tree was double-clicked: a sketch opens in
     /// sketch mode, a datum plane gets a sketch.
     TreeFeatureActivated { feature: String },
+    /// The pointer is over this item of the open sketch, or over none: the
+    /// sketch's hover becomes it. Session state, no command.
+    SketchHovered { hit: Option<crate::SketchHit> },
+    /// A click in the open sketch, on an item or on none; `extend` is
+    /// shift: the item joins or leaves the selection instead of replacing
+    /// it. Session state, no command.
+    SketchClicked {
+        hit: Option<crate::SketchHit>,
+        extend: bool,
+    },
     /// The pointer is over this face, edge or vertex, or over nothing: the
     /// hover becomes it. Session state, no command.
     Hovered {

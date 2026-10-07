@@ -145,7 +145,7 @@ Complexity: **[1]** routine; **[2]** careful; **[3]** unproven.
   app hands it, never naming a sketch type. The status line gives the DoF
   and the solver state. Scenario `sketch_view` on the slice's sketch
   (`tests/docs/slice`, opened, the sketch edited): the golden, read.
-- [ ] **[2]** Step 6 — Hit testing, hover and selection in the plane: a
+- [x] **[2]** Step 6 — Hit testing, hover and selection in the plane: a
   point over a curve over a glyph over a dimension, within a pixel
   tolerance; hover highlights and names the item in the status line;
   click and shift-click select (session state); `core.sketch.delete`
@@ -294,6 +294,11 @@ accepted, and the step 1 drag benchmark asserts its budget.
   slice's pocket sketch as opened; the edited states are the later steps'
   scenarios. The overlay's colours are constants in `arrix-ui`, not theme
   roles: roles for them wait until the sketch's look has settled.
+- Finding (step 6): a delete is diffed against the solved draft, which
+  carries a dimension's resolved value; an edit that puts records (steps 7
+  on) must diff against the stored sketch instead, or a record whose
+  expression resolves to something else than it stores would ride along.
+  Step 7 settles which.
 - ⚠ OPEN 3: the arc tool's gesture: centre, start, end; three points
   (start, end, through); or both, the second sharing the button. Default
   proposed: three-point, as the most common, with tangent arcs left out.

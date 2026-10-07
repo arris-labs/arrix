@@ -3,16 +3,18 @@
 //! and the camera it took over. Creating a sketch is a command; opening
 //! one and finishing it are not.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use arrix_core::{FeatureId, Input, NameRoot, Ref, SlotName, TopoKind};
 use arrix_doc::{Command, FeatureOutcome, FeatureRecord, FeatureTypeId, Part, SlotView};
+use arrix_sketch::{SketchEdit, SketchEntityId};
+use arrix_ui::SketchHit;
 use arrix_viewport::{CameraAnimation, CameraSample, OrbitCamera, Projection};
 use web_time::Instant;
 
 use crate::ArrixApp;
 use crate::documents::OpenDocument;
-use crate::sketch_view::{SketchOverlay, Solved, sketch_view};
+use crate::sketch_view::{SketchOverlay, Solved, describe, plane_transform, sketch_view};
 
 /// How wide the view is, in metres from the centre, when there is no body
 /// to frame a sketch against.
@@ -49,6 +51,10 @@ pub struct SketchMode {
     pub solved: Option<Solved>,
     /// The plane it stands on, as last evaluated.
     pub plane: Option<arrix_core::Frame>,
+    /// What is selected: any record of the sketch, by id. Session state.
+    pub selection: BTreeSet<SketchEntityId>,
+    /// What the pointer is over.
+    pub hover: Option<SketchHit>,
 }
 
 impl SketchMode {
@@ -58,6 +64,8 @@ impl SketchMode {
             saved: None,
             solved: None,
             plane: None,
+            selection: BTreeSet::new(),
+            hover: None,
         }
     }
 
@@ -300,7 +308,19 @@ impl ArrixApp {
                 .as_ref()
                 .is_none_or(|s| s.generation != generation)
             {
-                mode.solved = Some(Solved::new(generation, view.sketch.clone()));
+                let solved = Solved::new(generation, view.sketch.clone());
+                // What an edit or an undo removed is no longer selected or
+                // under the pointer.
+                mode.selection.retain(|id| solved.sketch.contains_id(*id));
+                if mode
+                    .hover
+                    .as_ref()
+                    .and_then(|h| h.id.parse().ok())
+                    .is_some_and(|id| !solved.sketch.contains_id(id))
+                {
+                    mode.hover = None;
+                }
+                mode.solved = Some(solved);
                 mode.plane = Some(view.plane);
             }
             if mode.turned() {
@@ -343,9 +363,104 @@ impl ArrixApp {
     /// What the viewport draws of the shown document's open sketch.
     pub(crate) fn sketch_overlay(&self) -> Option<SketchOverlay> {
         let mode = self.active_document()?.sketch.as_ref()?;
+        let mut view = sketch_view(mode.solved.as_ref()?);
+        view.hover = mode.hover.clone();
+        view.selected = mode.selection.iter().map(ToString::to_string).collect();
         Some(SketchOverlay {
-            view: sketch_view(mode.solved.as_ref()?),
+            view,
             plane: mode.plane?,
         })
+    }
+
+    /// The pointer moved over `hit`, or over nothing.
+    pub(crate) fn hover_sketch(&mut self, hit: Option<SketchHit>) {
+        if let Some(mode) = self.active_sketch_mut() {
+            mode.hover = hit;
+        }
+    }
+
+    /// A click in the sketch: it selects the item under it, or clears the
+    /// selection on empty space; with `extend` it adds or removes the item.
+    pub(crate) fn click_sketch(&mut self, hit: Option<SketchHit>, extend: bool) {
+        let Some(mode) = self.active_sketch_mut() else {
+            return;
+        };
+        let id = hit.and_then(|h| h.id.parse::<SketchEntityId>().ok());
+        match (id, extend) {
+            (Some(id), true) => {
+                if !mode.selection.remove(&id) {
+                    mode.selection.insert(id);
+                }
+            }
+            (Some(id), false) => mode.selection = BTreeSet::from([id]),
+            (None, false) => mode.selection.clear(),
+            (None, true) => {}
+        }
+    }
+
+    fn active_sketch_mut(&mut self) -> Option<&mut SketchMode> {
+        self.documents.get_mut(self.active)?.sketch.as_mut()
+    }
+
+    /// `core.sketch.delete`: removes what is selected and what stands on it,
+    /// as one command.
+    pub(crate) fn delete_selection(&mut self) {
+        let Some(document) = self.documents.get_mut(self.active) else {
+            return;
+        };
+        let Some(mode) = &mut document.sketch else {
+            return;
+        };
+        let Some(solved) = &mode.solved else {
+            return;
+        };
+        let edit = SketchEdit::remove(&solved.sketch, &mode.selection);
+        if edit.is_empty() {
+            return;
+        }
+        let command = Command::SketchEdit {
+            feature: mode.feature,
+            edit,
+        };
+        mode.selection.clear();
+        mode.hover = None;
+        if let Err(reason) = document.submit(command) {
+            self.session.notice = Some(reason);
+        }
+    }
+
+    /// The status line's help text in sketch mode: the item under the
+    /// pointer, with what a click or Delete does to it, else the sketch
+    /// and its selection.
+    pub(crate) fn sketch_hint(&self, document: &OpenDocument, mode: &SketchMode) -> String {
+        if let (Some(hit), Some(solved)) = (&mode.hover, &mode.solved) {
+            let what = describe(solved, hit);
+            let selected = hit.id.parse().is_ok_and(|id| mode.selection.contains(&id));
+            return match selected {
+                true => format!("{what}: selected. Delete removes it."),
+                false => format!("{what}: click to select it."),
+            };
+        }
+        let name = document
+            .replica
+            .document()
+            .parts()
+            .values()
+            .find_map(|p| p.features.get(&mode.feature))
+            .map_or("sketch", |r| r.name.as_str());
+        match mode.selection.len() {
+            0 => format!("Sketching {name}. Escape finishes the sketch."),
+            n => format!("Sketching {name}: {n} selected. Delete removes them."),
+        }
+    }
+
+    /// Where the sketch's plane-local point `uv` (metres) is drawn in the
+    /// shown view, in points, as of the last frame; `None` before one or
+    /// outside sketch mode. How a scenario finds an item to click.
+    pub fn sketch_point(&self, uv: [f64; 2]) -> Option<egui::Pos2> {
+        let overlay = self.sketch_overlay()?;
+        let document = self.active_document()?;
+        let rect = self.drawn.as_ref()?.layout.viewport;
+        plane_transform(&document.view.camera, rect, &overlay.plane)?.project(uv)
     }
 }

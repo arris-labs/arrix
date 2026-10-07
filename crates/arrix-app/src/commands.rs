@@ -6,7 +6,8 @@
 use std::sync::Arc;
 
 use arrix_config::{
-    CommandRegistry, CommandSpec, SKETCH_CREATE, SKETCH_EDIT, SKETCH_FINISH, Settings,
+    CommandRegistry, CommandSpec, SKETCH_CREATE, SKETCH_DELETE, SKETCH_EDIT, SKETCH_FINISH,
+    Settings,
 };
 use arrix_doc::Registry;
 use arrix_plugin_api::FeatureTypeSpec;
@@ -44,6 +45,8 @@ pub struct Context {
     pub sketching: bool,
     /// The tree's selection is a sketch that can be opened.
     pub sketch_selected: bool,
+    /// Something is selected in the open sketch.
+    pub sketch_selection: bool,
 }
 
 /// Why `command` does not apply, in the words of the status line's hint
@@ -56,6 +59,8 @@ pub fn needs(command: &CommandSpec, cx: Context) -> Option<&'static str> {
         SKETCH_FINISH if !cx.sketching => Some("needs sketch mode"),
         SKETCH_EDIT if cx.sketching => Some("finish the sketch first"),
         SKETCH_EDIT if !cx.sketch_selected => Some("needs a sketch selected in the tree"),
+        SKETCH_DELETE if !cx.sketching => Some("needs sketch mode"),
+        SKETCH_DELETE if !cx.sketch_selection => Some("needs something selected in the sketch"),
         SKETCH_CREATE if cx.sketching => Some("finish the sketch first"),
         _ => None,
     }

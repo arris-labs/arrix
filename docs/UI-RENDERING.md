@@ -157,7 +157,8 @@ rule).
   `RibbonTabSelected { tab }`, `PaletteQuery { text }`, `PaletteClosed`,
   `DocumentTabSelected { index }`, `DocumentTabClosed { index }`,
   `Picked { name }`, `Hovered { name }`, `TreeFeatureSelected { feature }`,
-  `TreeFeatureActivated { feature }`. The ViewCube returns a
+  `TreeFeatureActivated { feature }`, `SketchHovered { hit }`,
+  `SketchClicked { hit, extend }`. The ViewCube returns a
   `ViewCubeAction` of its own, which the app applies to its camera.
   `arrix-app` turns an intent into a `CommandEnvelope`, or into a change of
   session state (selection, camera), which issues no command.
@@ -271,6 +272,19 @@ turns to face the plane in orthographic projection.
   `debug_state()` (`sketch_view`), which is how a scenario reads it.
   The camera fits the sketch's own points, a hundred millimetres for an
   empty one.
+- **Hit testing, hover and selection** are in the plane, on the screen's
+  scale: a pointer within 7 points of an item hits it, and where several
+  are under it a point beats a curve, a curve a constraint's mark and a
+  mark a dimension (its label's box or its leader), the nearest of a kind
+  winning and the first in the view a tie, so coincident items answer the
+  same every time. Hovering is amber and names the item in the status line;
+  a click selects it and shift-click adds it or takes it away, a click on
+  empty space clears the selection. The selection is session state, any
+  record of the sketch by id, and what an edit or an undo removes leaves it.
+  In sketch mode the pointer is the sketch's: nothing in the scene is picked
+  or hovered. `core.sketch.delete` (Delete) removes the selection and what
+  stands on it (`SketchEdit::remove`) as one command, and none when there
+  is nothing to remove.
 - **The solver runs on the UI thread**, the one sanctioned exception to
   "the kernel never runs on the UI thread" (`SEED.md` §6.1): sketches are
   small, and a drag must follow the cursor in the same frame. It has a

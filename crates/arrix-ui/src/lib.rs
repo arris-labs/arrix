@@ -10,8 +10,9 @@ pub mod viewcube;
 
 pub use shell::{ShellLayout, ShellResponse, shell, viewcube_rect};
 pub use sketch::{
-    ConstraintGlyphView, CurveShape, DimensionView, DofState, PlaneToScreen, SketchCurveView,
-    SketchPointView, SketchStatusView, SketchView, SolverState, paint_sketch,
+    ConstraintGlyphView, CurveShape, DimensionView, DofState, HitKind, PlaneToScreen,
+    SketchCurveView, SketchHit, SketchPointView, SketchStatusView, SketchView, SolverState,
+    hit_test, paint_sketch,
 };
 pub use theme::{Rgba, ThemeView};
 pub use view::{

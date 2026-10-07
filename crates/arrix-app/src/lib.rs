@@ -22,7 +22,7 @@ use arrix_config::{
     DOCUMENT_NEW, DOCUMENT_NEXT, DOCUMENT_PREVIOUS, EDIT_REDO, EDIT_UNDO, Keymap, MemorySource,
     PALETTE_CLOSE, PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN,
     PANEL_PROPERTIES_TOGGLE, PANEL_TREE_TOGGLE, ParamDefaults, SELECTION_CLEAR, SKETCH_CREATE,
-    SKETCH_EDIT, SKETCH_FINISH, Settings, Theme, VIEW_FRONT, VIEW_HOME, VIEW_ISO,
+    SKETCH_DELETE, SKETCH_EDIT, SKETCH_FINISH, Settings, Theme, VIEW_FRONT, VIEW_HOME, VIEW_ISO,
     VIEW_PROJECTION_TOGGLE, VIEW_RIGHT, VIEW_TOP,
 };
 use arrix_core::{FeatureId, IdMinter, RenderMesh};
@@ -348,6 +348,10 @@ impl ArrixApp {
             document_open: !self.documents.is_empty(),
             sketching: self.active_document().is_some_and(|d| d.sketch.is_some()),
             sketch_selected: self.selected_sketch().is_some(),
+            sketch_selection: self
+                .active_document()
+                .and_then(|d| d.sketch.as_ref())
+                .is_some_and(|m| !m.selection.is_empty()),
         }
     }
 
@@ -545,21 +549,14 @@ impl ArrixApp {
                 return notice.clone();
             }
             if let Some(document) = self.active_document() {
+                if let Some(mode) = &document.sketch {
+                    return self.sketch_hint(document, mode);
+                }
                 if let Some(name) = &document.view.hover {
                     return match document.view.selection.as_ref() == Some(name) {
                         true => format!("{name}: selected. Escape clears the selection."),
                         false => format!("{name}: click to select it."),
                     };
-                }
-                if let Some(mode) = &document.sketch {
-                    let name = document
-                        .replica
-                        .document()
-                        .parts()
-                        .values()
-                        .find_map(|p| p.features.get(&mode.feature))
-                        .map_or("sketch", |r| r.name.as_str());
-                    return format!("Sketching {name}. Escape finishes the sketch.");
                 }
                 return match document.settled() {
                     true => format!("{}: ready", document.title),
@@ -585,7 +582,10 @@ impl ArrixApp {
 
     fn apply(&mut self, intent: UiIntent) {
         // A hover is not a gesture; every other intent is one.
-        let gesture = !matches!(intent, UiIntent::Hovered { .. });
+        let gesture = !matches!(
+            intent,
+            UiIntent::Hovered { .. } | UiIntent::SketchHovered { .. }
+        );
         if gesture {
             self.open_gesture();
         }
@@ -617,6 +617,8 @@ impl ArrixApp {
             }
             UiIntent::DocumentTabClosed { index } => self.close_document(index),
             UiIntent::Picked { name } => self.view_mut().selection = name,
+            UiIntent::SketchHovered { hit } => self.hover_sketch(hit),
+            UiIntent::SketchClicked { hit, extend } => self.click_sketch(hit, extend),
             UiIntent::TreeFeatureSelected { feature } => {
                 if let Ok(feature) = feature.parse::<FeatureId>() {
                     self.view_mut().feature_selection = Some(feature);
@@ -673,6 +675,7 @@ impl ArrixApp {
             SKETCH_CREATE => self.create_sketch(),
             SKETCH_EDIT => self.edit_sketch(),
             SKETCH_FINISH => self.finish_sketch(),
+            SKETCH_DELETE => self.delete_selection(),
             EDIT_UNDO => self.edit(OpenDocument::undo),
             EDIT_REDO => self.edit(OpenDocument::redo),
             CONFIG_RELOAD => self.reload(),
@@ -816,7 +819,8 @@ impl eframe::App for ArrixApp {
                 overlay.as_ref(),
             ));
         });
-        let hover_left = frame.is_some_and(|f| f.hover_left);
+        let hover_left = frame.as_ref().is_some_and(|f| f.hover_left);
+        let sketch_pointer = frame.and_then(|f| f.sketch);
         self.drawn = Some(Drawn {
             window,
             view,
@@ -833,6 +837,16 @@ impl eframe::App for ArrixApp {
         if hover_left {
             self.apply(UiIntent::Hovered { name: None });
             ui.ctx().request_repaint();
+        }
+        if let Some(pointer) = sketch_pointer {
+            if let Some(hit) = pointer.hover {
+                self.apply(UiIntent::SketchHovered { hit });
+                ui.ctx().request_repaint();
+            }
+            if let Some((hit, extend)) = pointer.click {
+                self.apply(UiIntent::SketchClicked { hit, extend });
+                ui.ctx().request_repaint();
+            }
         }
         if let Some(intent) = self.answer_pick(ui.ctx()) {
             self.apply(intent);

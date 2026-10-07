@@ -127,6 +127,24 @@ pub struct DimensionView {
     pub flagged: bool,
 }
 
+/// What kind of thing in the sketch a pointer is over.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum HitKind {
+    Point,
+    Curve,
+    /// A geometric constraint's mark.
+    Glyph,
+    Dimension,
+}
+
+/// An item of the sketch, by the id its record has.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SketchHit {
+    pub kind: HitKind,
+    pub id: String,
+}
+
 /// Everything sketch mode draws over the viewport, in plane-local metres.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SketchView {
@@ -135,6 +153,12 @@ pub struct SketchView {
     pub glyphs: Vec<ConstraintGlyphView>,
     pub dimensions: Vec<DimensionView>,
     pub status: SketchStatusView,
+    /// What the pointer is over: session state, drawn amber.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hover: Option<SketchHit>,
+    /// The ids of what is selected: session state, drawn blue.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub selected: Vec<String>,
 }
 
 /// The map from the sketch's plane to the screen: a homography, so it is
@@ -223,32 +247,65 @@ fn invert(m: [[f64; 3]; 3]) -> Option<[[f64; 3]; 3]> {
 /// Segments to the full circle when a curve is drawn as a polyline.
 const CIRCLE_SEGMENTS: f64 = 96.0;
 
-/// Draws `view` through `to_screen`, inside `rect`.
+/// Hover is amber and selection blue, as in the 3D view.
+const HOVER: Color32 = Color32::from_rgb(255, 190, 60);
+const SELECTED: Color32 = Color32::from_rgb(70, 140, 255);
+
+/// A curve as the screen polyline it is drawn and hit-tested as.
+fn polyline(shape: &CurveShape, project: &dyn Fn([f64; 2]) -> Option<Pos2>) -> Vec<Pos2> {
+    match shape {
+        CurveShape::Line { from, to } => [project(*from), project(*to)]
+            .into_iter()
+            .flatten()
+            .collect(),
+        CurveShape::Circle { centre, radius } => {
+            arc_points(*centre, *radius, 0.0, std::f64::consts::TAU, project)
+        }
+        CurveShape::Arc {
+            centre,
+            radius,
+            start,
+            end,
+        } => {
+            let mut sweep = end - start;
+            while sweep <= 0.0 {
+                sweep += std::f64::consts::TAU;
+            }
+            arc_points(*centre, *radius, *start, sweep, project)
+        }
+    }
+}
+
+/// Where a glyph's box is, relative to what it marks.
+const GLYPH_OFFSET: Vec2 = Vec2::new(10.0, -10.0);
+const GLYPH_SIZE: f32 = 14.0;
+
+fn glyph_rect(at: Pos2) -> Rect {
+    Rect::from_center_size(at + GLYPH_OFFSET, Vec2::splat(GLYPH_SIZE))
+}
+
+/// A dimension label's box, from its galley's size.
+fn label_rect(at: Pos2, size: Vec2) -> Rect {
+    Align2::CENTER_CENTER.anchor_size(at, size).expand(2.0)
+}
+
+/// Draws `view` through `to_screen`.
 pub fn paint_sketch(painter: &egui::Painter, to_screen: &PlaneToScreen, view: &SketchView) {
     let project = |uv: [f64; 2]| to_screen.project(uv);
+    let hovered = |kind: HitKind, id: &str| {
+        view.hover
+            .as_ref()
+            .is_some_and(|h| h.kind == kind && h.id == id)
+    };
+    let selected = |id: &str| view.selected.iter().any(|s| s == id);
     for curve in &view.curves {
-        let stroke = Stroke::new(1.75, curve.state.colour());
-        let polyline: Vec<Pos2> = match &curve.shape {
-            CurveShape::Line { from, to } => [project(*from), project(*to)]
-                .into_iter()
-                .flatten()
-                .collect(),
-            CurveShape::Circle { centre, radius } => {
-                arc_points(*centre, *radius, 0.0, std::f64::consts::TAU, &project)
-            }
-            CurveShape::Arc {
-                centre,
-                radius,
-                start,
-                end,
-            } => {
-                let mut sweep = end - start;
-                while sweep <= 0.0 {
-                    sweep += std::f64::consts::TAU;
-                }
-                arc_points(*centre, *radius, *start, sweep, &project)
-            }
-        };
+        let mut stroke = Stroke::new(1.75, curve.state.colour());
+        if selected(&curve.id) {
+            stroke = Stroke::new(3.0, SELECTED);
+        } else if hovered(HitKind::Curve, &curve.id) {
+            stroke = Stroke::new(3.0, HOVER);
+        }
+        let polyline = polyline(&curve.shape, &project);
         if polyline.len() < 2 {
             continue;
         }
@@ -259,12 +316,25 @@ pub fn paint_sketch(painter: &egui::Painter, to_screen: &PlaneToScreen, view: &S
         }
     }
     for dimension in &view.dimensions {
-        paint_dimension(painter, &project, dimension);
+        let highlight = if selected(&dimension.id) {
+            Some(SELECTED)
+        } else if hovered(HitKind::Dimension, &dimension.id) {
+            Some(HOVER)
+        } else {
+            None
+        };
+        paint_dimension(painter, &project, dimension, highlight);
     }
     for point in &view.points {
         if let Some(at) = project(point.at) {
-            let colour = point.state.colour();
-            painter.rect_filled(Rect::from_center_size(at, Vec2::splat(6.0)), 1.0, colour);
+            let (colour, size) = if selected(&point.id) {
+                (SELECTED, 9.0)
+            } else if hovered(HitKind::Point, &point.id) {
+                (HOVER, 9.0)
+            } else {
+                (point.state.colour(), 6.0)
+            };
+            painter.rect_filled(Rect::from_center_size(at, Vec2::splat(size)), 1.0, colour);
         }
     }
     for glyph in &view.glyphs {
@@ -276,17 +346,108 @@ pub fn paint_sketch(painter: &egui::Painter, to_screen: &PlaneToScreen, view: &S
         } else {
             Color32::from_rgb(210, 200, 120)
         };
-        let centre = at + Vec2::new(10.0, -10.0);
-        let rect = Rect::from_center_size(centre, Vec2::splat(14.0));
+        let rect = glyph_rect(at);
         painter.rect_filled(rect, 2.0, Color32::from_black_alpha(160));
+        if selected(&glyph.id) {
+            painter.rect_stroke(
+                rect,
+                2.0,
+                Stroke::new(1.5, SELECTED),
+                egui::StrokeKind::Outside,
+            );
+        } else if hovered(HitKind::Glyph, &glyph.id) {
+            painter.rect_stroke(
+                rect,
+                2.0,
+                Stroke::new(1.5, HOVER),
+                egui::StrokeKind::Outside,
+            );
+        }
         painter.text(
-            centre,
+            rect.center(),
             Align2::CENTER_CENTER,
             &glyph.symbol,
             FontId::monospace(10.0),
             colour,
         );
     }
+}
+
+/// The nearest to `at` of a point, a curve, a constraint's mark and a
+/// dimension, in that priority: what is under `at` within `tolerance`
+/// screen points, and of that the kind that comes first, the nearest of
+/// it. A tie goes to the item that comes first in the view, so the answer
+/// is the same every time. The label of a dimension is measured by the
+/// text's box, which is why the painter's font is needed.
+pub fn hit_test(
+    ctx: &egui::Context,
+    view: &SketchView,
+    to_screen: &PlaneToScreen,
+    at: Pos2,
+    tolerance: f32,
+) -> Option<SketchHit> {
+    let project = |uv: [f64; 2]| to_screen.project(uv);
+    let nearest = |candidates: &mut dyn Iterator<Item = (&str, f32)>| {
+        let mut best: Option<(&str, f32)> = None;
+        for (id, distance) in candidates {
+            if distance <= tolerance && best.is_none_or(|(_, d)| distance < d) {
+                best = Some((id, distance));
+            }
+        }
+        best.map(|(id, _)| id.to_owned())
+    };
+    let hit = |kind: HitKind, id: Option<String>| id.map(|id| SketchHit { kind, id });
+    let point = nearest(
+        &mut view
+            .points
+            .iter()
+            .filter_map(|p| Some((p.id.as_str(), (project(p.at)? - at).length()))),
+    );
+    if let Some(hit) = hit(HitKind::Point, point) {
+        return Some(hit);
+    }
+    let curve = nearest(&mut view.curves.iter().filter_map(|c| {
+        Some((
+            c.id.as_str(),
+            distance_to_polyline(&polyline(&c.shape, &project), at)?,
+        ))
+    }));
+    if let Some(hit) = hit(HitKind::Curve, curve) {
+        return Some(hit);
+    }
+    let glyph = nearest(&mut view.glyphs.iter().filter_map(|g| {
+        let rect = glyph_rect(project(g.at)?);
+        Some((g.id.as_str(), rect.distance_to_pos(at)))
+    }));
+    if let Some(hit) = hit(HitKind::Glyph, glyph) {
+        return Some(hit);
+    }
+    let dimension = nearest(&mut view.dimensions.iter().filter_map(|d| {
+        let galley = ctx.fonts_mut(|f| {
+            f.layout_no_wrap(d.text.clone(), FontId::proportional(12.0), Color32::WHITE)
+        });
+        let label = label_rect(project(d.at)?, galley.size()).distance_to_pos(at);
+        let leader = distance_to_polyline(&[project(d.from)?, project(d.to)?], at)?;
+        Some((d.id.as_str(), label.min(leader)))
+    }));
+    hit(HitKind::Dimension, dimension)
+}
+
+/// The distance from `at` to a polyline; `None` for fewer than two points.
+fn distance_to_polyline(line: &[Pos2], at: Pos2) -> Option<f32> {
+    line.windows(2)
+        .map(|w| {
+            let (a, b) = (w[0], w[1]);
+            let ab = b - a;
+            let len2 = ab.length_sq();
+            let t = if len2 < 1e-12 {
+                0.0
+            } else {
+                ((at - a).dot(ab) / len2).clamp(0.0, 1.0)
+            };
+            (a + ab * t - at).length()
+        })
+        .reduce(f32::min)
 }
 
 /// `steps` points along the arc of `radius` about `centre` from angle
@@ -313,8 +474,11 @@ fn paint_dimension(
     painter: &egui::Painter,
     project: &dyn Fn([f64; 2]) -> Option<Pos2>,
     dimension: &DimensionView,
+    highlight: Option<Color32>,
 ) {
-    let colour = if dimension.flagged {
+    let colour = if let Some(colour) = highlight {
+        colour
+    } else if dimension.flagged {
         DofState::Conflicting.colour()
     } else if dimension.reference {
         Color32::from_gray(150)
@@ -389,5 +553,119 @@ mod tests {
     fn a_metre_is_this_many_points_where_the_view_is_square() {
         let scale = square_on().points_per_metre([0.0, 0.0]).unwrap();
         assert!((scale - 200.0).abs() < 0.1, "{scale}");
+    }
+
+    /// 1 mm is 20 points; the origin is the middle of a 200 by 100 viewport.
+    fn millimetres() -> PlaneToScreen {
+        let viewport = Rect::from_min_size(Pos2::ZERO, Vec2::new(200.0, 100.0));
+        PlaneToScreen::new(
+            [200.0, 0.0, 0.0],
+            [0.0, 400.0, 0.0],
+            [0.0, 0.0, 1.0],
+            viewport,
+        )
+        .expect("a plane facing the camera")
+    }
+
+    fn context() -> egui::Context {
+        let ctx = egui::Context::default();
+        // Fonts exist once a pass has run.
+        let mut output = ctx.run_ui(egui::RawInput::default(), |_| {});
+        output.textures_delta.clear();
+        ctx
+    }
+
+    /// A point on a line, with a glyph and a dimension label stacked on the
+    /// same place, and another dimension apart.
+    fn crowded() -> SketchView {
+        SketchView {
+            points: vec![SketchPointView {
+                id: "p".into(),
+                at: [0.0, 0.0],
+                state: DofState::Under,
+            }],
+            curves: vec![SketchCurveView {
+                id: "l".into(),
+                shape: CurveShape::Line {
+                    from: [-0.004, 0.0],
+                    to: [0.004, 0.0],
+                },
+                construction: false,
+                state: DofState::Under,
+            }],
+            glyphs: vec![ConstraintGlyphView {
+                id: "g".into(),
+                kind: "horizontal".into(),
+                symbol: "H".into(),
+                at: [0.0, 0.0],
+                flagged: false,
+            }],
+            dimensions: vec![
+                DimensionView {
+                    id: "d".into(),
+                    kind: "distance".into(),
+                    text: "8 mm".into(),
+                    from: [-0.004, 0.003],
+                    to: [0.004, 0.003],
+                    at: [0.0, 0.003],
+                    reference: false,
+                    flagged: false,
+                },
+                DimensionView {
+                    id: "under-the-glyph".into(),
+                    kind: "distance".into(),
+                    text: "8 mm".into(),
+                    from: [0.0, 0.0],
+                    to: [0.0, 0.0],
+                    at: [0.0005, 0.0005],
+                    reference: false,
+                    flagged: false,
+                },
+            ],
+            status: SketchStatusView {
+                dof: 0,
+                state: SolverState::FullyConstrained,
+            },
+            hover: None,
+            selected: vec![],
+        }
+    }
+
+    fn hit(at: Pos2) -> Option<(HitKind, String)> {
+        hit_test(&context(), &crowded(), &millimetres(), at, 6.0).map(|h| (h.kind, h.id))
+    }
+
+    #[test]
+    fn a_point_wins_over_the_curve_it_lies_on() {
+        let origin = millimetres().project([0.0, 0.0]).unwrap();
+        assert_eq!(hit(origin), Some((HitKind::Point, "p".into())));
+        // Within the tolerance of the point, though off the line.
+        assert_eq!(
+            hit(origin + Vec2::new(4.0, 4.0)),
+            Some((HitKind::Point, "p".into()))
+        );
+    }
+
+    #[test]
+    fn a_curve_wins_over_a_glyph_and_a_glyph_over_a_dimension() {
+        let t = millimetres();
+        // Along the line, away from the point: the curve.
+        let on_line = t.project([0.002, 0.0]).unwrap();
+        assert_eq!(hit(on_line), Some((HitKind::Curve, "l".into())));
+        // The glyph's box is up and to the right of its place, off the line
+        // and the point; the dimension label stacked on it loses.
+        let glyph = glyph_rect(t.project([0.0, 0.0]).unwrap()).center();
+        assert_eq!(hit(glyph), Some((HitKind::Glyph, "g".into())));
+        // The label of the other dimension, clear of everything else.
+        let label = t.project([0.0, 0.003]).unwrap();
+        assert_eq!(hit(label), Some((HitKind::Dimension, "d".into())));
+        // Its leader, away from the text.
+        let leader = t.project([0.0035, 0.003]).unwrap();
+        assert_eq!(hit(leader), Some((HitKind::Dimension, "d".into())));
+    }
+
+    #[test]
+    fn nothing_far_from_everything_is_hit() {
+        assert_eq!(hit(Pos2::new(5.0, 95.0)), None);
     }
 }

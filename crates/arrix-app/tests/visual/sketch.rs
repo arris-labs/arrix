@@ -116,3 +116,49 @@ fn sketch_view() {
         snapshot::check(h, "sketch_view");
     });
 }
+
+/// Hover and selection in the sketch: the pointer over a line is amber and
+/// named in the status line, a clicked line and a shift-clicked corner are
+/// blue, and none of it is a command.
+#[test]
+fn sketch_select() {
+    harness::with_app("sketch_select", |h| {
+        harness::open_settled(h, "tests/docs/slice");
+        h.get_by_label("Sketch 5").click();
+        h.run_steps(3);
+        h.get_by_label("Edit sketch").click();
+        h.run_steps(3);
+        wait_turned(h);
+        let at = |h: &Harness<'_>, uv: [f64; 2]| h.state().sketch_point(uv).expect("drawn");
+        let click = |h: &mut Harness<'_>, uv: [f64; 2], modifiers: egui::Modifiers| {
+            let pos = at(h, uv);
+            h.event(egui::Event::PointerMoved(pos));
+            h.step();
+            for pressed in [true, false] {
+                h.event(egui::Event::PointerButton {
+                    pos,
+                    button: egui::PointerButton::Primary,
+                    pressed,
+                    modifiers,
+                });
+                h.step();
+            }
+            h.run_steps(3);
+        };
+        click(h, [0.0, 0.003], egui::Modifiers::NONE);
+        click(h, [0.006, 0.006], egui::Modifiers::SHIFT);
+        assert_eq!(gesture(h), Some(0), "selecting issues no command");
+        // The pointer rests over the bottom edge.
+        let pos = at(h, [0.003, 0.0]);
+        h.event(egui::Event::PointerMoved(pos));
+        h.run_steps(3);
+        let state = h.state().debug_state();
+        assert_eq!(state.sketch_view.as_ref().unwrap().selected.len(), 2);
+        assert_eq!(
+            state.shell.unwrap().status.hint,
+            "Line: click to select it."
+        );
+        harness::wait_settled(h);
+        snapshot::check(h, "sketch_select");
+    });
+}

@@ -4,7 +4,7 @@
 //! here issues a command.
 
 use arrix_ui::viewcube::{self, ViewCubeAction, arrows};
-use arrix_ui::{CardsView, paint_sketch, viewcube_rect};
+use arrix_ui::{CardsView, SketchHit, paint_sketch, viewcube_rect};
 use arrix_viewport::{Highlights, OrbitCamera, Renderer, StandardView};
 use web_time::Instant;
 
@@ -16,7 +16,21 @@ pub struct Frame {
     /// The pointer left the viewport, or a hover pick must be asked for
     /// again: the hover it had is over.
     pub hover_left: bool,
+    /// What the pointer did in the open sketch, when there is one.
+    pub sketch: Option<SketchPointer>,
 }
+
+/// The pointer in the open sketch's plane, for what changed this frame.
+pub struct SketchPointer {
+    /// The item under the pointer, when that is not what the view already
+    /// shows hovered.
+    pub hover: Option<Option<SketchHit>>,
+    /// A click, with what was under it and whether shift was held.
+    pub click: Option<(Option<SketchHit>, bool)>,
+}
+
+/// How near an item the pointer is to hit it, in points.
+const HIT_TOLERANCE: f32 = 7.0;
 
 /// The camera as a comparison sees it: where it looks from and at.
 fn pose(camera: &OrbitCamera) -> ([f32; 3], f32, f32, f32) {
@@ -69,9 +83,12 @@ pub fn show(
     let moved = hover
         .filter(|p| view.hover_at != Some(*p))
         .filter(|_| !pressed && view.pick.is_none());
+    // In sketch mode the pointer is the sketch's: nothing in the scene is
+    // picked or hovered.
     let wanted = click
         .map(|at| (at, PickFor::Click))
-        .or(moved.map(|at| (at, PickFor::Hover)));
+        .or(moved.map(|at| (at, PickFor::Hover)))
+        .filter(|_| sketch.is_none());
     let mut hover_left = false;
     if hover.is_none() && view.hover_at.take().is_some() {
         hover_left = true;
@@ -98,9 +115,20 @@ pub fn show(
     }
 
     // Painted after the scene, so over it.
+    let mut sketch_pointer = None;
     if let Some(overlay) = sketch
         && let Some(to_screen) = plane_transform(&view.camera, rect, &overlay.plane)
     {
+        let ctx = ui.ctx().clone();
+        let hit = |at| arrix_ui::hit_test(&ctx, &overlay.view, &to_screen, at, HIT_TOLERANCE);
+        let now = hover.map(hit);
+        sketch_pointer = Some(SketchPointer {
+            hover: now.filter(|h| *h != overlay.view.hover).or(hover
+                .is_none()
+                .then_some(None)
+                .filter(|_| overlay.view.hover.is_some())),
+            click: click.map(|at| (hit(at), shift_at_release(ui))),
+        });
         paint_sketch(&ui.painter_at(rect), &to_screen, &overlay.view);
     }
     if cube {
@@ -122,7 +150,30 @@ pub fn show(
     if pose(&view.camera) != before {
         view.hover_at = None;
     }
-    Frame { hover_left }
+    Frame {
+        hover_left,
+        sketch: sketch_pointer,
+    }
+}
+
+/// Whether shift was held when the button was released this frame: the
+/// release event's own modifiers, which are the ones the click had even
+/// when the key went up in the same frame.
+fn shift_at_release(ui: &egui::Ui) -> bool {
+    ui.input(|i| {
+        i.events
+            .iter()
+            .rev()
+            .find_map(|event| match event {
+                egui::Event::PointerButton {
+                    pressed: false,
+                    modifiers,
+                    ..
+                } => Some(modifiers.shift),
+                _ => None,
+            })
+            .unwrap_or(i.modifiers.shift)
+    })
 }
 
 /// The mouse's gestures on the camera: middle drag (or right) orbits,

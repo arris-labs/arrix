@@ -141,6 +141,8 @@ pub fn sketch_view(solved: &Solved) -> SketchView {
             dof: diagnostics.dof,
             state: solver_state(diagnostics),
         },
+        hover: None,
+        selected: Vec::new(),
     }
 }
 
@@ -423,6 +425,48 @@ fn offset_segment(a: Uv, b: Uv, centre: Uv) -> (Uv, Uv) {
         n = [-n[0], -n[1]];
     }
     ([a[0] + n[0], a[1] + n[1]], [b[0] + n[0], b[1] + n[1]])
+}
+
+/// What a hit is, for the status line: `Line`, `Point`, `Horizontal
+/// constraint`, `Distance dimension (6 mm)`.
+pub fn describe(solved: &Solved, hit: &arrix_ui::SketchHit) -> String {
+    use arrix_ui::HitKind;
+    let sketch = &solved.sketch;
+    let Ok(id) = hit.id.parse::<SketchEntityId>() else {
+        return "Item".into();
+    };
+    let words = |name: &str| {
+        let mut chars = name.replace('_', " ");
+        if let Some(first) = chars.get_mut(..1) {
+            first.make_ascii_uppercase();
+        }
+        chars
+    };
+    match hit.kind {
+        HitKind::Point => "Point".into(),
+        HitKind::Curve => match sketch.entity(id) {
+            Some(Entity::Line { .. }) if sketch.is_construction(id) => "Construction line".into(),
+            Some(Entity::Line { .. }) => "Line".into(),
+            Some(Entity::Circle { .. }) => "Circle".into(),
+            Some(Entity::Arc { .. }) => "Arc".into(),
+            _ => "Curve".into(),
+        },
+        HitKind::Glyph => {
+            let kind = sketch.get_constraint(id).map(kind).unwrap_or_default();
+            format!("{} constraint", words(&kind))
+        }
+        HitKind::Dimension => {
+            let (kind, text) = sketch
+                .get_constraint_record(id)
+                .map(|r| (kind(&r.constraint), r.constraint.refs().value))
+                .unzip();
+            let value = text
+                .flatten()
+                .map(|(k, v)| format!(" ({})", quantity(k, v)))
+                .unwrap_or_default();
+            format!("{} dimension{value}", words(&kind.unwrap_or_default()))
+        }
+    }
 }
 
 /// The foot of the perpendicular from `p` on the infinite line `a`-`b`.
