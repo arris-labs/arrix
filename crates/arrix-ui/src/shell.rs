@@ -62,7 +62,7 @@ pub fn shell(
         .rect;
     let tabs = egui::Panel::bottom("arrix.tabs")
         .exact_size(TABS_HEIGHT)
-        .show(ui, |ui| tabs_ui(ui, &view.documents))
+        .show(ui, |ui| tabs_ui(ui, &view.documents, &mut intents))
         .response
         .rect;
     let viewport = egui::CentralPanel::default()
@@ -138,11 +138,19 @@ fn ribbon_ui(
     });
 }
 
-fn tabs_ui(ui: &mut egui::Ui, documents: &DocumentTabsView) {
+fn tabs_ui(ui: &mut egui::Ui, documents: &DocumentTabsView, intents: &mut Vec<UiIntent>) {
     ui.horizontal_centered(|ui| {
-        for tab in &documents.tabs {
-            ui.selectable_label(tab.active, &tab.title)
+        for (index, tab) in documents.tabs.iter().enumerate() {
+            let label = ui
+                .selectable_label(tab.active, &tab.title)
                 .on_hover_text(&tab.path);
+            if label.clicked() && !tab.active {
+                intents.push(UiIntent::DocumentTabSelected { index });
+            }
+            if ui.small_button("×").on_hover_text("Close").clicked() {
+                intents.push(UiIntent::DocumentTabClosed { index });
+            }
+            ui.add_space(6.0);
         }
     });
 }

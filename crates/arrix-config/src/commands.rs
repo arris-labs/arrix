@@ -21,6 +21,10 @@ pub const PALETTE_PREVIOUS: &str = "core.palette.previous";
 pub const PALETTE_RUN: &str = "core.palette.run";
 pub const PANEL_TREE_TOGGLE: &str = "core.panel.tree.toggle";
 pub const PANEL_PROPERTIES_TOGGLE: &str = "core.panel.properties.toggle";
+/// Switching and closing the open documents' tabs.
+pub const DOCUMENT_NEXT: &str = "core.document.next";
+pub const DOCUMENT_PREVIOUS: &str = "core.document.previous";
+pub const DOCUMENT_CLOSE: &str = "core.document.close";
 
 /// Core feature types that are made in the Sketch tab; the rest of the core
 /// types are part features.
@@ -88,6 +92,9 @@ impl CommandRegistry {
             command(CONFIG_RELOAD, "Reload configuration", &[]),
             command(PANEL_TREE_TOGGLE, "Toggle feature tree", &[]),
             command(PANEL_PROPERTIES_TOGGLE, "Toggle property panel", &[]),
+            document_command(DOCUMENT_NEXT, "Next document", &["ctrl+tab"]),
+            document_command(DOCUMENT_PREVIOUS, "Previous document", &["ctrl+shift+tab"]),
+            document_command(DOCUMENT_CLOSE, "Close document", &["ctrl+w"]),
             palette_key(PALETTE_CLOSE, "Close the palette", &["escape", "ctrl+k"]),
             palette_key(PALETTE_NEXT, "Next palette result", &["down"]),
             palette_key(PALETTE_PREVIOUS, "Previous palette result", &["up"]),
@@ -147,6 +154,14 @@ fn command(id: &str, title: &str, keys: &[&str]) -> CommandSpec {
         when: None,
         needs_document: false,
         listed: true,
+    }
+}
+
+/// A command about the open documents, which there must be one of.
+fn document_command(id: &str, title: &str, keys: &[&str]) -> CommandSpec {
+    CommandSpec {
+        needs_document: true,
+        ..command(id, title, keys)
     }
 }
 

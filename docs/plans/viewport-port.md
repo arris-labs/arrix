@@ -166,7 +166,7 @@ All present in the pinned `arris` 0.5:
   native; the camera frames the bodies on the first mesh. `debug_state()`
   gains `evaluation`, `bodies` and `camera`. Scenario `slice_viewport`
   (settled on the refined meshes) pinned after reading its frame.
-- [ ] **[2]** 8 — Document tabs: several paths open several tabs, each its
+- [x] **[2]** 8 — Document tabs: several paths open several tabs, each its
   own `LocalSession`, scene, camera, selection and card visibility;
   switching and closing by click and by `core.document.*`; closing the
   last tab returns to the empty start. Scenario: the slice and the gear
@@ -323,3 +323,13 @@ build included.
   fixed with the evaluator saying "meshed" explicitly, if it matters).
   The new `debug_state()` fields are omitted when empty, so the shell
   goldens are unchanged.
+- Found in step 8: the keymap's `text` context was on whenever *any*
+  widget had keyboard focus (`egui_wants_keyboard_input`), so a tab reached
+  with Ctrl+Tab silenced every shortcut, `ctrl+w` included; it is now on
+  for a focused text edit only. Each document keeps its own card toggles
+  (`OpenDocument::cards`), the empty start's are the session's. The three
+  `core.document.*` commands join every keymap golden and the palette's
+  list, which pushed three creation rows out of `configured_shell`'s
+  visible results (the only pixels that moved). A tab shows its path as
+  given on the command line; scenarios open relative paths so goldens hold
+  none of this machine's.

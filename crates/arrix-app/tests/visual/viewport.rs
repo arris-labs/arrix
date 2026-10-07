@@ -86,3 +86,85 @@ fn slice_viewport() {
         snapshot::check(h, "slice_viewport");
     });
 }
+
+/// The tab labels of the strip, and which is active.
+fn tabs(h: &egui_kittest::Harness<'_, arrix_app::ArrixApp>) -> (Vec<String>, Option<usize>) {
+    let documents = h
+        .state()
+        .debug_state()
+        .shell
+        .expect("a frame ran")
+        .documents;
+    let active = documents.tabs.iter().position(|t| t.active);
+    (
+        documents.tabs.into_iter().map(|t| t.title).collect(),
+        active,
+    )
+}
+
+fn camera(h: &egui_kittest::Harness<'_, arrix_app::ArrixApp>) -> serde_json::Value {
+    serde_json::to_value(h.state().debug_state().camera).expect("a camera")
+}
+
+/// Two documents, a tab each: the second shows its own body, camera and
+/// cards, switching by click and by key brings the first back as it was,
+/// and closing the last returns to the empty start.
+#[test]
+fn document_tabs() {
+    use egui_kittest::kittest::Queryable as _;
+    let source = arrix_config::MemorySource::with([(
+        "keybindings.toml",
+        "[[bind]]\nkey = \"f4\"\ncommand = \"core.panel.tree.toggle\"\n",
+    )]);
+    harness::with_config("document_tabs", &source, |h| {
+        harness::open_settled(h, "tests/docs/slice");
+        let slice_camera = camera(h);
+        h.key_press(egui::Key::F4);
+        h.run();
+        assert!(h.state().debug_state().layout.unwrap().tree.is_some());
+
+        harness::open_settled(h, "tests/docs/gear-on-plane");
+        assert_eq!(
+            tabs(h),
+            (vec!["slice".into(), "gear-on-plane".into()], Some(1))
+        );
+        let d = h.state().debug_state();
+        assert_eq!(
+            d.evaluation.map(|e| e.document).as_deref(),
+            Some("gear-on-plane")
+        );
+        assert_ne!(camera(h), slice_camera, "a camera of its own");
+        assert_eq!(
+            d.layout.unwrap().tree,
+            None,
+            "the cards stay with their tab"
+        );
+
+        h.get_by_label("slice").click();
+        h.run();
+        assert_eq!(tabs(h).1, Some(0));
+        assert_eq!(camera(h), slice_camera, "the camera as it was");
+        assert!(h.state().debug_state().layout.unwrap().tree.is_some());
+
+        h.key_press_modifiers(egui::Modifiers::CTRL, egui::Key::Tab);
+        h.run();
+        assert_eq!(tabs(h).1, Some(1));
+        h.key_press_modifiers(
+            egui::Modifiers::CTRL | egui::Modifiers::SHIFT,
+            egui::Key::Tab,
+        );
+        h.run();
+        assert_eq!(tabs(h).1, Some(0));
+        snapshot::check(h, "document_tabs");
+
+        h.key_press_modifiers(egui::Modifiers::CTRL, egui::Key::W);
+        h.run();
+        assert_eq!(tabs(h), (vec!["gear-on-plane".into()], Some(0)));
+        assert_eq!(h.state().debug_state().bodies.len(), 1);
+        h.get_by_label("×").click();
+        h.run();
+        let d = h.state().debug_state();
+        assert_eq!(tabs(h), (vec![], None));
+        assert!(d.evaluation.is_none() && d.bodies.is_empty() && d.camera.is_none());
+    });
+}

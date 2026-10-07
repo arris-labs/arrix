@@ -133,4 +133,8 @@ pub enum UiIntent {
     PaletteQuery { text: String },
     /// The palette was dismissed by a click outside it.
     PaletteClosed,
+    /// A document's tab was clicked: session state, no command.
+    DocumentTabSelected { index: usize },
+    /// A document's tab was closed.
+    DocumentTabClosed { index: usize },
 }

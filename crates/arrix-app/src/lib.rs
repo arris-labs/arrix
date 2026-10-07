@@ -15,17 +15,19 @@ mod theme;
 pub use debug::DebugState;
 
 use arrix_config::{
-    CONFIG_RELOAD, CommandRegistry, Config, ConfigDiagnostic, ConfigSource, Keymap, MemorySource,
-    PALETTE_CLOSE, PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN,
-    PANEL_PROPERTIES_TOGGLE, PANEL_TREE_TOGGLE, ParamDefaults, Settings, Theme,
+    CONFIG_RELOAD, CommandRegistry, Config, ConfigDiagnostic, ConfigSource, DOCUMENT_CLOSE,
+    DOCUMENT_NEXT, DOCUMENT_PREVIOUS, Keymap, MemorySource, PALETTE_CLOSE, PALETTE_NEXT,
+    PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN, PANEL_PROPERTIES_TOGGLE, PANEL_TREE_TOGGLE,
+    ParamDefaults, Settings, Theme,
 };
 use arrix_core::RenderMesh;
 use arrix_plugin_api::FeatureTypeSpec;
 use arrix_ui::{
-    CardsView, DocumentTabsView, ShellLayout, ShellView, StatusView, TreeView, UiIntent,
+    CardsView, DocumentTab, DocumentTabsView, ShellLayout, ShellView, StatusView, TreeView,
+    UiIntent,
 };
 use arrix_viewport::{BodyKey, Renderer};
-use documents::{OpenDocument, ViewState};
+use documents::{CardToggles, OpenDocument, ViewState};
 use palette::Palette;
 
 /// Client-side state that is not in the document (SEED.md §6.1 rule 4).
@@ -33,10 +35,9 @@ struct Session {
     ribbon_tab: String,
     /// The palette, while it is open.
     palette: Option<Palette>,
-    /// A card the user toggled this session: it wins over `ui.panel.*`
-    /// (ADR-0017). `None` leaves the setting in charge.
-    tree_card: Option<bool>,
-    properties_card: Option<bool>,
+    /// The cards toggled on the empty start; with a document open, its own
+    /// (`OpenDocument::cards`) are the ones in force.
+    cards: CardToggles,
     /// The command of the ribbon button or palette row under the pointer,
     /// as of the last frame: the status line's hint is about it.
     hovered_command: Option<String>,
@@ -135,8 +136,7 @@ impl ArrixApp {
             session: Session {
                 ribbon_tab: "core.sketch".into(),
                 palette: None,
-                tree_card: None,
-                properties_card: None,
+                cards: CardToggles::default(),
                 hovered_command: None,
             },
             drawn: None,
@@ -179,6 +179,36 @@ impl ArrixApp {
 
     fn active_document(&self) -> Option<&OpenDocument> {
         self.documents.get(self.active)
+    }
+
+    /// The card toggles in force: the active document's, else the empty
+    /// start's.
+    fn toggles_mut(&mut self) -> &mut CardToggles {
+        match self.documents.get_mut(self.active) {
+            Some(d) => &mut d.cards,
+            None => &mut self.session.cards,
+        }
+    }
+
+    /// Shows the document `delta` tabs along, wrapping.
+    fn step_document(&mut self, delta: isize) {
+        let n = self.documents.len() as isize;
+        if n > 0 {
+            self.active = (self.active as isize + delta).rem_euclid(n) as usize;
+        }
+    }
+
+    /// Closes document `index`, which ends its session. The tab that takes
+    /// its place (or the new last) is shown if it was the active one; none
+    /// left is the empty start.
+    fn close_document(&mut self, index: usize) {
+        if index >= self.documents.len() {
+            return;
+        }
+        self.documents.remove(index);
+        if index < self.active || self.active >= self.documents.len() {
+            self.active = self.active.saturating_sub(1);
+        }
     }
 
     fn context(&self) -> commands::Context {
@@ -240,7 +270,18 @@ impl ArrixApp {
                 .as_ref()
                 .map(|p| p.view(&self.commands, &self.keymap, self.context())),
             tree: TreeView::default(),
-            documents: DocumentTabsView::default(),
+            documents: DocumentTabsView {
+                tabs: self
+                    .documents
+                    .iter()
+                    .enumerate()
+                    .map(|(i, d)| DocumentTab {
+                        title: d.title.clone(),
+                        path: d.path.clone(),
+                        active: i == self.active,
+                    })
+                    .collect(),
+            },
             cards: self.cards(),
             status: StatusView {
                 hint: self.hint(),
@@ -265,11 +306,14 @@ impl ArrixApp {
                 _ => has_content,
             })
         };
+        let toggles = self
+            .active_document()
+            .map_or(self.session.cards, |d| d.cards);
         CardsView {
-            // No document is open yet, so there is no part to list; and no
-            // feature is edited, so nothing for the property card.
-            tree: shown(self.session.tree_card, "ui.panel.tree", false),
-            properties: shown(self.session.properties_card, "ui.panel.properties", false),
+            // No part is listed yet, and no feature is edited, so nothing
+            // for `auto` to show.
+            tree: shown(toggles.tree, "ui.panel.tree", false),
+            properties: shown(toggles.properties, "ui.panel.properties", false),
         }
     }
 
@@ -285,7 +329,7 @@ impl ArrixApp {
         let Some(spec) = hovered else {
             if let Some(document) = self.active_document() {
                 return match document.settled() {
-                    true => document.title.clone(),
+                    true => format!("{}: ready", document.title),
                     false => format!("{}: evaluating…", document.title),
                 };
             }
@@ -321,6 +365,12 @@ impl ArrixApp {
                 }
             }
             UiIntent::PaletteClosed => self.session.palette = None,
+            UiIntent::DocumentTabSelected { index } => {
+                if index < self.documents.len() {
+                    self.active = index;
+                }
+            }
+            UiIntent::DocumentTabClosed { index } => self.close_document(index),
         }
     }
 
@@ -344,10 +394,17 @@ impl ArrixApp {
             PALETTE_NEXT => self.step_palette(1),
             PALETTE_PREVIOUS => self.step_palette(-1),
             PALETTE_RUN => self.run_selected(cx),
-            PANEL_TREE_TOGGLE => self.session.tree_card = Some(!self.cards().tree),
-            PANEL_PROPERTIES_TOGGLE => {
-                self.session.properties_card = Some(!self.cards().properties);
+            PANEL_TREE_TOGGLE => {
+                let shown = self.cards().tree;
+                self.toggles_mut().tree = Some(!shown);
             }
+            PANEL_PROPERTIES_TOGGLE => {
+                let shown = self.cards().properties;
+                self.toggles_mut().properties = Some(!shown);
+            }
+            DOCUMENT_NEXT => self.step_document(1),
+            DOCUMENT_PREVIOUS => self.step_document(-1),
+            DOCUMENT_CLOSE => self.close_document(self.active),
             CONFIG_RELOAD => self.reload(),
             // The creation commands arrive with their steps and plans.
             _ => {}
@@ -427,7 +484,9 @@ impl ArrixApp {
             return vec!["palette", "text"];
         }
         let mut contexts = vec!["part"];
-        if ctx.egui_wants_keyboard_input() {
+        // Not `egui_wants_keyboard_input`: that is any focused widget, a tab
+        // reached by Tab included, and would silence every key.
+        if ctx.text_edit_focused() {
             contexts.push("text");
         }
         contexts

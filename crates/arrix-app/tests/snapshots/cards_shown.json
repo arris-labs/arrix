@@ -15,6 +15,18 @@
         "key": "ctrl+k"
       },
       {
+        "command": "core.document.next",
+        "key": "ctrl+tab"
+      },
+      {
+        "command": "core.document.previous",
+        "key": "ctrl+shift+tab"
+      },
+      {
+        "command": "core.document.close",
+        "key": "ctrl+w"
+      },
+      {
         "command": "core.palette.close",
         "key": "escape",
         "when": "palette"

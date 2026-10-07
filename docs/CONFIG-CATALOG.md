@@ -22,6 +22,9 @@ the command registry and the setting specs; a test holds it fresh. Do not edit.
 | `core.config.reload` | Reload configuration |  |  |  |
 | `core.panel.tree.toggle` | Toggle feature tree |  |  |  |
 | `core.panel.properties.toggle` | Toggle property panel |  |  |  |
+| `core.document.next` | Next document | ctrl+tab |  |  |
+| `core.document.previous` | Previous document | ctrl+shift+tab |  |  |
+| `core.document.close` | Close document | ctrl+w |  |  |
 | `core.palette.close` | Close the palette | escape, ctrl+k | palette |  |
 | `core.palette.next` | Next palette result | down | palette |  |
 | `core.palette.previous` | Previous palette result | up | palette |  |

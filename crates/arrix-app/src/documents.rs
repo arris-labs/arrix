@@ -26,9 +26,21 @@ pub struct ViewState {
     pub camera: OrbitCamera,
 }
 
+/// A card the user toggled: `None` leaves the setting in charge.
+#[derive(Clone, Copy, Default)]
+pub struct CardToggles {
+    pub tree: Option<bool>,
+    pub properties: Option<bool>,
+}
+
 /// One open document.
 pub struct OpenDocument {
     pub title: String,
+    /// Where it was opened from; the tab's tooltip.
+    pub path: String,
+    /// The cards this document's user toggled: they win over `ui.panel.*`
+    /// (ADR-0017), and stay with the tab.
+    pub cards: CardToggles,
     events: EventStream,
     _session: LocalSession,
     pub replica: Replica,
@@ -74,6 +86,8 @@ impl OpenDocument {
             .map_err(|e| format!("{path}: the session does not start: {e}"))?;
         Ok(Self {
             title: title.to_owned(),
+            path: path.to_owned(),
+            cards: CardToggles::default(),
             events: session.subscribe(),
             _session: session,
             replica: Replica::default(),
