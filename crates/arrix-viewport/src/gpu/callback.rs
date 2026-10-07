@@ -4,7 +4,12 @@
 use egui_wgpu::wgpu;
 
 use super::CameraUniforms;
+use super::highlight::{HighlightDraw, Piece};
 use super::readback::PickPass;
+
+/// How many times a line or point is drawn, a pixel apart: the same
+/// number highlight.wgsl takes the style out of the instance with.
+const LINE_COPIES: u32 = 5;
 
 /// What one body's draw binds.
 pub struct BodyDraw {
@@ -41,6 +46,8 @@ pub struct ViewportCallback {
     pub blit_bind_group: wgpu::BindGroup,
     /// The pick pass, on a frame a pick was asked for.
     pub pick: Option<PickPass>,
+    /// Hover, then selection, restyled over the scene.
+    pub highlights: Vec<HighlightDraw>,
 }
 
 impl egui_wgpu::CallbackTrait for ViewportCallback {
@@ -129,6 +136,42 @@ impl ViewportCallback {
             pass.set_bind_group(1, &self.model_bind_group, &[body.model_offset]);
             pass.set_vertex_buffer(0, body.edge_buffer.slice(..));
             pass.draw(0..body.edge_vertex_count, 0..1);
+        }
+        self.draw_highlights(&mut pass);
+    }
+
+    /// Each highlight over the finished scene: the tint, then the lines and
+    /// points on it. A line or a point is drawn [`LINE_COPIES`] times a
+    /// pixel apart (highlight.wgsl).
+    fn draw_highlights(&self, pass: &mut wgpu::RenderPass<'_>) {
+        for draw in &self.highlights {
+            pass.set_bind_group(1, &self.model_bind_group, &[draw.model_offset]);
+            let style = draw.style as u32;
+            let copies = style * LINE_COPIES..(style + 1) * LINE_COPIES;
+            for piece in &draw.pieces {
+                match piece {
+                    Piece::Fill {
+                        vertices,
+                        indices,
+                        range,
+                    } => {
+                        pass.set_pipeline(&self.pipelines.highlight_fill);
+                        pass.set_vertex_buffer(0, vertices.slice(..));
+                        pass.set_index_buffer(indices.slice(..), wgpu::IndexFormat::Uint32);
+                        pass.draw_indexed(range.clone(), 0, style..style + 1);
+                    }
+                    Piece::Lines { buffer, range } => {
+                        pass.set_pipeline(&self.pipelines.highlight_lines);
+                        pass.set_vertex_buffer(0, buffer.slice(..));
+                        pass.draw(range.clone(), copies.clone());
+                    }
+                    Piece::Points { buffer, range } => {
+                        pass.set_pipeline(&self.pipelines.highlight_points);
+                        pass.set_vertex_buffer(0, buffer.slice(..));
+                        pass.draw(range.clone(), copies.clone());
+                    }
+                }
+            }
         }
     }
 }

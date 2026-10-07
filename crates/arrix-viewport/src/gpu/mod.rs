@@ -8,6 +8,7 @@
 //! the pick it may ask for, which it hands back.
 
 mod callback;
+mod highlight;
 mod mesh;
 mod pipelines;
 mod readback;
@@ -17,6 +18,8 @@ use crate::pick::{PickRegion, body_bits, body_pickable};
 use crate::scene::Scene;
 use callback::{BodyDraw, ViewportCallback};
 use egui_wgpu::wgpu;
+pub use highlight::Highlights;
+use highlight::{HighlightDraw, Style};
 pub use mesh::GpuMesh;
 use pipelines::{DEPTH_FORMAT, PICK_FORMAT, Pipelines};
 pub use readback::PendingPick;
@@ -33,7 +36,8 @@ pub struct CameraUniforms {
     pub up: [f32; 4],
     pub right: [f32; 4],
     pub forward: [f32; 4],
-    /// `(is_ortho, aspect, is_dark, 0)`.
+    /// `(is_ortho, aspect, is_dark, pixel)`: `pixel` is a pixel's height in
+    /// clip space, which the paint sets from the target (`new` leaves 0).
     pub params: [f32; 4],
 }
 
@@ -261,7 +265,8 @@ impl Renderer {
 
     /// Draws `scene` from `camera` into `rect` of `painter`'s layer: the
     /// work is done when egui renders the frame, through the callback this
-    /// adds. With `pick`, a point in `rect`, the frame also draws the pick
+    /// adds. `highlights` are the entities restyled over it, hover under
+    /// selection; a name no visible body holds draws nothing. With `pick`, a point in `rect`, the frame also draws the pick
     /// pass and reads back the region about it: the pick returned is
     /// answered frames later ([`Renderer::poll`]). An empty scene picks
     /// nothing and returns none.
@@ -271,6 +276,7 @@ impl Renderer {
         rect: egui::Rect,
         scene: &Scene<GpuMesh>,
         camera: &OrbitCamera,
+        highlights: Highlights<'_>,
         pick: Option<egui::Pos2>,
     ) -> Option<PendingPick> {
         let ppp = painter.ctx().pixels_per_point();
@@ -324,8 +330,23 @@ impl Renderer {
             None => (None, None),
         };
 
+        let highlights = [
+            (highlights.hover, Style::Hover),
+            (highlights.selection, Style::Selection),
+        ]
+        .into_iter()
+        .filter_map(|(name, style)| {
+            let at = scene.locate(name?)?;
+            let entry = scene.visible().nth(at.body)?;
+            let model_offset = (at.body * stride) as u32;
+            HighlightDraw::new(&entry.mesh, at, model_offset, style)
+        })
+        .collect();
+
+        let mut camera_uniforms = CameraUniforms::new(camera, aspect, dark);
+        camera_uniforms.params[3] = 2.0 / size.1 as f32;
         let callback = ViewportCallback {
-            camera: CameraUniforms::new(camera, aspect, dark),
+            camera: camera_uniforms,
             camera_buffer: self.camera_buffer.clone(),
             camera_bind_group: self.camera_bind_group.clone(),
             pipelines: self.pipelines.clone(),
@@ -337,6 +358,7 @@ impl Renderer {
             depth_view: offscreen.depth_view.clone(),
             blit_bind_group: offscreen.blit_bind_group.clone(),
             pick,
+            highlights,
         };
         painter.add(egui_wgpu::Callback::new_paint_callback(rect, callback));
         pending

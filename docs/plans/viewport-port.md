@@ -182,7 +182,7 @@ All present in the pinned `arris` 0.5:
   tests for the id encoding and ranking; a scenario clicks the plate's top
   face and `debug_state().selection` holds its name; a click on the tree
   card picks nothing.
-- [ ] **[2]** 11 — Hover and selection as restyled index ranges (fill, and
+- [x] **[2]** 11 — Hover and selection as restyled index ranges (fill, and
   the boundary edges as outline); `core.selection.clear`; the generation
   is unchanged by every pick, hover and clear (asserted); the status
   line's hint names the hovered entity and what a click does. Scenario

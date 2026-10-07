@@ -42,6 +42,11 @@
         "key": "ctrl+k"
       },
       {
+        "command": "core.selection.clear",
+        "key": "escape",
+        "when": "part"
+      },
+      {
         "command": "core.document.next",
         "key": "ctrl+tab"
       },

@@ -191,4 +191,9 @@ pub enum UiIntent {
     Picked {
         name: Option<arrix_core::PersistentName>,
     },
+    /// The pointer is over this face, edge or vertex, or over nothing: the
+    /// hover becomes it. Session state, no command.
+    Hovered {
+        name: Option<arrix_core::PersistentName>,
+    },
 }

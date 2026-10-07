@@ -10,9 +10,11 @@ pub use camera::{
     CameraAnimation, CameraSample, OrbitCamera, Projection, StandardView, ViewOrientation,
     shortest_angular_delta,
 };
-pub use gpu::{GpuMesh, PendingPick, Renderer};
+pub use gpu::{GpuMesh, Highlights, PendingPick, Renderer};
 pub use pick::{
     MAX_PICK_BODIES, MAX_PICK_ENTITIES, PICK_REGION, PickHit, PickRegion, decode as decode_pick,
     encode as encode_pick, resolve_region,
 };
-pub use scene::{Aabb, BodyEntry, BodyKey, BodyPayload, EntityNames, PickBodies, Scene, Upload};
+pub use scene::{
+    Aabb, BodyEntry, BodyKey, BodyPayload, EntityNames, Located, PickBodies, Scene, Upload,
+};

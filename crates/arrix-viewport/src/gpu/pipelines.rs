@@ -23,6 +23,8 @@ struct Spec<'a> {
     topology: wgpu::PrimitiveTopology,
     /// `None` draws without a depth attachment (the blit, in egui's pass).
     depth: Option<(wgpu::CompareFunction, bool)>,
+    /// `None` writes the colour as it is.
+    blend: Option<wgpu::BlendState>,
 }
 
 fn build(device: &wgpu::Device, spec: Spec) -> wgpu::RenderPipeline {
@@ -49,7 +51,11 @@ fn build(device: &wgpu::Device, spec: Spec) -> wgpu::RenderPipeline {
         fragment: Some(wgpu::FragmentState {
             module: &shader,
             entry_point: Some("fs_main"),
-            targets: &[Some(spec.format.into())],
+            targets: &[Some(wgpu::ColorTargetState {
+                format: spec.format,
+                blend: spec.blend,
+                write_mask: wgpu::ColorWrites::ALL,
+            })],
             compilation_options: wgpu::PipelineCompilationOptions::default(),
         }),
         primitive: wgpu::PrimitiveState {
@@ -82,6 +88,11 @@ pub struct Pipelines {
     pub pick_faces: wgpu::RenderPipeline,
     pub pick_edges: wgpu::RenderPipeline,
     pub pick_points: wgpu::RenderPipeline,
+    /// Hover and selection over the scene (`shaders/highlight.wgsl`): a
+    /// face's tint, then lines and points, alpha-blended.
+    pub highlight_fill: wgpu::RenderPipeline,
+    pub highlight_lines: wgpu::RenderPipeline,
+    pub highlight_points: wgpu::RenderPipeline,
 }
 
 impl Pipelines {
@@ -97,6 +108,11 @@ impl Pipelines {
         let triangles = wgpu::PrimitiveTopology::TriangleList;
         let pick = include_str!("shaders/pick.wgsl");
         let lines = [LineVertex::layout(), id_layout()];
+        let highlight = include_str!("shaders/highlight.wgsl");
+        // Over the scene, tested against it and writing no depth: what
+        // lies under a highlight stays in the depth buffer.
+        let over = Some((wgpu::CompareFunction::LessEqual, false));
+        let blend = Some(wgpu::BlendState::ALPHA_BLENDING);
         Pipelines {
             // A full-screen triangle behind everything.
             background: build(
@@ -110,6 +126,7 @@ impl Pipelines {
                     vertex: &[],
                     topology: triangles,
                     depth: Some((wgpu::CompareFunction::Always, false)),
+                    blend: None,
                 },
             ),
             faces: build(
@@ -123,6 +140,7 @@ impl Pipelines {
                     vertex: &[Vertex::layout()],
                     topology: triangles,
                     depth: Some((wgpu::CompareFunction::Less, true)),
+                    blend: None,
                 },
             ),
             // Tested against the faces, writing nothing: an edge never hides
@@ -138,6 +156,7 @@ impl Pipelines {
                     vertex: &[LineVertex::layout()],
                     topology: wgpu::PrimitiveTopology::LineList,
                     depth: Some((wgpu::CompareFunction::LessEqual, false)),
+                    blend: None,
                 },
             ),
             blit: build(
@@ -151,6 +170,7 @@ impl Pipelines {
                     vertex: &[],
                     topology: triangles,
                     depth: None,
+                    blend: None,
                 },
             ),
             pick_faces: build(
@@ -164,6 +184,7 @@ impl Pipelines {
                     vertex: &[Vertex::position_layout(), id_layout()],
                     topology: triangles,
                     depth: Some((wgpu::CompareFunction::Less, true)),
+                    blend: None,
                 },
             ),
             // As the edges are drawn: over the faces, so an edge wins the
@@ -179,6 +200,7 @@ impl Pipelines {
                     vertex: &lines,
                     topology: wgpu::PrimitiveTopology::LineList,
                     depth: Some((wgpu::CompareFunction::LessEqual, false)),
+                    blend: None,
                 },
             ),
             pick_points: build(
@@ -192,6 +214,49 @@ impl Pipelines {
                     vertex: &lines,
                     topology: wgpu::PrimitiveTopology::PointList,
                     depth: Some((wgpu::CompareFunction::LessEqual, false)),
+                    blend: None,
+                },
+            ),
+            highlight_fill: build(
+                device,
+                Spec {
+                    label: "arrix-viewport highlight fill",
+                    shader: highlight,
+                    entry: "vs_fill",
+                    format,
+                    layouts: &[camera, model],
+                    vertex: &[Vertex::position_layout()],
+                    topology: triangles,
+                    depth: over,
+                    blend,
+                },
+            ),
+            highlight_lines: build(
+                device,
+                Spec {
+                    label: "arrix-viewport highlight lines",
+                    shader: highlight,
+                    entry: "vs_line",
+                    format,
+                    layouts: &[camera, model],
+                    vertex: &[LineVertex::layout()],
+                    topology: wgpu::PrimitiveTopology::LineList,
+                    depth: over,
+                    blend,
+                },
+            ),
+            highlight_points: build(
+                device,
+                Spec {
+                    label: "arrix-viewport highlight points",
+                    shader: highlight,
+                    entry: "vs_line",
+                    format,
+                    layouts: &[camera, model],
+                    vertex: &[LineVertex::layout()],
+                    topology: wgpu::PrimitiveTopology::PointList,
+                    depth: over,
+                    blend,
                 },
             ),
         }

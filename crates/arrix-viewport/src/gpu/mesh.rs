@@ -5,6 +5,7 @@ use arrix_core::{RenderMesh, TopoKind};
 use egui_wgpu::wgpu;
 use egui_wgpu::wgpu::util::DeviceExt as _;
 
+use super::highlight::HighlightRanges;
 use crate::pick::entity_bits;
 use crate::scene::{BodyKey, BodyPayload};
 
@@ -88,6 +89,11 @@ pub struct GpuMesh {
     pub point_buffer: wgpu::Buffer,
     pub point_ids: wgpu::Buffer,
     pub point_count: u32,
+    /// Every face's boundary as a line list, a range of it a face's
+    /// outline (`HighlightRanges::outlines`).
+    pub outline_buffer: wgpu::Buffer,
+    /// Where each face, edge and outline is in the buffers above.
+    pub ranges: HighlightRanges,
 }
 
 impl BodyPayload for GpuMesh {
@@ -103,6 +109,12 @@ impl BodyPayload for GpuMesh {
         let indices: Vec<u32> = mesh.triangles.iter().flatten().copied().collect();
         let edges = edge_lines(mesh);
         let ids = PickIds::of(mesh);
+        let ranges = HighlightRanges::of(mesh);
+        let outline: Vec<LineVertex> = ranges
+            .outline_lines
+            .iter()
+            .map(|&position| LineVertex { position })
+            .collect();
         let points: Vec<LineVertex> = mesh
             .vertices
             .iter()
@@ -156,6 +168,12 @@ impl BodyPayload for GpuMesh {
                 wgpu::BufferUsages::VERTEX,
             ),
             point_count: points.len() as u32,
+            outline_buffer: buffer(
+                "arrix-viewport outlines",
+                bytemuck::cast_slice(&outline),
+                wgpu::BufferUsages::VERTEX,
+            ),
+            ranges,
         }
     }
 }

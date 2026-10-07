@@ -109,6 +109,26 @@ impl EntityNames {
             TopoKind::Vertex => self.vertices.get(index),
         }
     }
+
+    /// The index of the entity `name` names, in the list of its kind.
+    pub fn find(&self, name: &PersistentName) -> Option<usize> {
+        let list = match name.kind {
+            TopoKind::Face => &self.faces,
+            TopoKind::Edge => &self.edges,
+            TopoKind::Vertex => &self.vertices,
+        };
+        list.iter().position(|n| n == name)
+    }
+}
+
+/// Where a named entity is drawn: its body's index among the visible
+/// bodies and its index in the body's faces, edges or vertices, the
+/// indices a highlight range is stated in.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Located {
+    pub body: usize,
+    pub kind: TopoKind,
+    pub index: usize,
 }
 
 /// The bodies a pick pass drew, in its body-index order, each with the
@@ -316,6 +336,19 @@ impl<M> Scene<M> {
             return None;
         }
         entry.names.get(hit.kind, hit.index)
+    }
+
+    /// Where `name`'s entity is drawn, if a visible body holds it: a name
+    /// the scene does not hold (its body hidden or gone) highlights nothing,
+    /// and is never re-bound to another entity.
+    pub fn locate(&self, name: &PersistentName) -> Option<Located> {
+        self.visible().enumerate().find_map(|(body, entry)| {
+            Some(Located {
+                body,
+                kind: name.kind,
+                index: entry.names.find(name)?,
+            })
+        })
     }
 
     /// The box of every visible body in the world.
@@ -571,5 +604,28 @@ mod tests {
     #[test]
     fn a_mesh_with_no_geometry_has_no_bounds() {
         assert_eq!(Aabb::of_mesh(&mesh(2)), None);
+    }
+
+    #[test]
+    fn a_name_locates_in_the_visible_bodies_and_nowhere_else() {
+        let ctx = Uploads::default();
+        let mut scene = scene_of(&ctx, 3);
+        scene.set_body(&ctx, &key(2), &mesh(4));
+        let at = |body, index| Located {
+            body,
+            kind: TopoKind::Face,
+            index,
+        };
+        assert_eq!(scene.locate(&face(3).name), Some(at(2, 3)));
+        assert_eq!(scene.locate(&face(9).name), None, "no such face");
+
+        // Hiding a body renumbers the ones after it, as a pick pass does.
+        scene.set_body_visible(&key(0), false);
+        assert_eq!(scene.locate(&face(3).name), Some(at(1, 3)));
+        scene.set_body_visible(&key(2), false);
+        assert_eq!(scene.locate(&face(3).name), None, "its body is hidden");
+        let mut edge = face(0).name;
+        edge.kind = TopoKind::Edge;
+        assert_eq!(scene.locate(&edge), None, "a face's name is not an edge's");
     }
 }

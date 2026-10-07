@@ -21,6 +21,8 @@ pub const PALETTE_PREVIOUS: &str = "core.palette.previous";
 pub const PALETTE_RUN: &str = "core.palette.run";
 pub const PANEL_TREE_TOGGLE: &str = "core.panel.tree.toggle";
 pub const PANEL_PROPERTIES_TOGGLE: &str = "core.panel.properties.toggle";
+/// Clearing what is selected in the viewport.
+pub const SELECTION_CLEAR: &str = "core.selection.clear";
 /// Switching and closing the open documents' tabs.
 pub const DOCUMENT_NEXT: &str = "core.document.next";
 pub const DOCUMENT_PREVIOUS: &str = "core.document.previous";
@@ -92,6 +94,10 @@ impl CommandRegistry {
             command(CONFIG_RELOAD, "Reload configuration", &[]),
             command(PANEL_TREE_TOGGLE, "Toggle feature tree", &[]),
             command(PANEL_PROPERTIES_TOGGLE, "Toggle property panel", &[]),
+            CommandSpec {
+                when: Some("part".into()),
+                ..document_command(SELECTION_CLEAR, "Clear selection", &["escape"])
+            },
             document_command(DOCUMENT_NEXT, "Next document", &["ctrl+tab"]),
             document_command(DOCUMENT_PREVIOUS, "Previous document", &["ctrl+shift+tab"]),
             document_command(DOCUMENT_CLOSE, "Close document", &["ctrl+w"]),

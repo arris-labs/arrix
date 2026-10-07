@@ -22,6 +22,7 @@ the command registry and the setting specs; a test holds it fresh. Do not edit.
 | `core.config.reload` | Reload configuration |  |  |  |
 | `core.panel.tree.toggle` | Toggle feature tree |  |  |  |
 | `core.panel.properties.toggle` | Toggle property panel |  |  |  |
+| `core.selection.clear` | Clear selection | escape | part |  |
 | `core.document.next` | Next document | ctrl+tab |  |  |
 | `core.document.previous` | Previous document | ctrl+shift+tab |  |  |
 | `core.document.close` | Close document | ctrl+w |  |  |

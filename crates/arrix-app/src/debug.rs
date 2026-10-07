@@ -31,7 +31,10 @@ pub struct DebugState {
     /// What is selected in the active view, by persistent name.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub selection: Option<PersistentName>,
-    /// A click's pick is on its way back from the GPU.
+    /// What the pointer is over in the active view, by persistent name.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hover: Option<PersistentName>,
+    /// A pick is on its way back from the GPU.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub picking: bool,
     /// The keymap in force: each key, its command and its context.
@@ -113,6 +116,7 @@ impl ArrixApp {
                 bodies: Vec::new(),
                 camera: None,
                 selection: None,
+                hover: None,
                 picking: false,
                 keymap: self.keymap.bindings().to_vec(),
                 config_diagnostics: self.config_diagnostics.clone(),
@@ -167,6 +171,7 @@ impl ArrixApp {
             selection: self
                 .active_document()
                 .and_then(|d| d.view.selection.clone()),
+            hover: self.active_document().and_then(|d| d.view.hover.clone()),
             picking: self
                 .active_document()
                 .is_some_and(|d| d.view.pick.is_some()),

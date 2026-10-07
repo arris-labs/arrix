@@ -141,7 +141,7 @@ rule).
   showing), which `debug_state()` reports.
 - **Intents** are what a user did, in view terms: `UiIntent::FieldCommitted
   { form, field, text }`, `CommandInvoked { command }` (a ribbon button, a palette row or a key),
-  `RibbonTabSelected { tab }`, `PaletteQuery { text }`, `PaletteClosed`, `Picked { name }`.
+  `RibbonTabSelected { tab }`, `PaletteQuery { text }`, `PaletteClosed`, `Picked { name }`, `Hovered { name }`.
   `arrix-app` turns an intent into a `CommandEnvelope`, or into a change of
   session state (selection, camera), which issues no command.
 
@@ -313,8 +313,26 @@ draws). Ported, reviewed on the way in (`SEED.md` §8.1).
   `UiIntent::Picked { name }`, `None` for empty space, and the selection is
   session state per tab. The path is the same on native and wasm, and
   needs nothing from the document, so it stays client-side in remote mode.
-- **Hover and selection** restyle index ranges (the face's fill, its
-  boundary edges as an outline), rather than a screen-space pass.
+- **Hover and selection** restyle index ranges, over the finished scene
+  and under no screen-space pass. A mesh keeps, beside its buffers, where
+  each face (its range of the index buffer), edge (its range of the line
+  list) and face outline (a range of one more line list, made once per
+  mesh from the sides only one triangle of the face has) sits
+  (`arrix_viewport` `HighlightRanges`). `Renderer::paint` takes the hovered
+  and the selected `PersistentName`, `Scene::locate` finds each among the
+  visible bodies, and the draw is the range again in a style: a face as a
+  tint over its shading, with its outline; an edge as its line; a vertex as
+  its point. Lines and points are a pixel thin, so each is drawn five
+  times a pixel apart (a cross three pixels wide). Everything is moved
+  toward the eye as the edges are, so it shows over what it lies on, and
+  nothing is re-uploaded. Hover is amber and selection blue, selection
+  drawn over hover; a name no visible body holds draws nothing and is never
+  re-bound to another entity. Hover is a pick of its own: asked for when the
+  pointer has moved over the viewport and none is on its way, answered as a
+  click's is (`UiIntent::Hovered { name }`), and cleared when the pointer
+  leaves; a click's pick wins over it. The status line names the hovered
+  entity and what a click does. `core.selection.clear` (Escape, in `part`)
+  clears the selection. None of it is a command on the document.
 - **Camera**: orbit about a target, pan, zoom to cursor, perspective or
   orthographic, standard views, animated transitions that tests can skip.
   **Z-up, right-handed** (`SEED.md` §8.2). The ViewCube lives in

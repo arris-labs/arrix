@@ -226,7 +226,7 @@ fn the_tree_shows_a_frozen_feature() {
 /// Clicks at `at` and steps, rendering every frame, until the pick it asked
 /// for has been answered (the read-back is asynchronous). A click the
 /// viewport does not take asks for no pick and returns at once.
-fn click(h: &mut egui_kittest::Harness<'_, arrix_app::ArrixApp>, at: egui::Pos2) {
+pub fn click(h: &mut egui_kittest::Harness<'_, arrix_app::ArrixApp>, at: egui::Pos2) {
     h.hover_at(at);
     h.drag_at(at);
     h.drop_at(at);
@@ -245,7 +245,7 @@ fn click(h: &mut egui_kittest::Harness<'_, arrix_app::ArrixApp>, at: egui::Pos2)
 }
 
 /// The selection's text form, if any.
-fn selection(h: &egui_kittest::Harness<'_, arrix_app::ArrixApp>) -> Option<String> {
+pub fn selection(h: &egui_kittest::Harness<'_, arrix_app::ArrixApp>) -> Option<String> {
     h.state()
         .debug_state()
         .selection

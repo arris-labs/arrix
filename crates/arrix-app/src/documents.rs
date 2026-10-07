@@ -28,20 +28,34 @@ pub struct ViewState {
     pub scene: Scene<GpuMesh>,
     pub camera: OrbitCamera,
     pub selection: Option<PersistentName>,
-    /// The last click's pick, until its read-back arrives.
-    pub pick: Option<PendingPick>,
+    /// What the pointer is over, as of the last hover pick that came back.
+    pub hover: Option<PersistentName>,
+    /// Where the pointer was when a hover pick was last asked for; a pick
+    /// is asked for again only once it has moved.
+    pub hover_at: Option<egui::Pos2>,
+    /// The last pick asked for, until its read-back arrives, and what it
+    /// was asked for.
+    pub pick: Option<(PendingPick, PickFor)>,
+}
+
+/// What a pick is for: a click selects, the pointer resting hovers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PickFor {
+    Click,
+    Hover,
 }
 
 impl ViewState {
     /// What the pick on its way resolved to, once its read-back has
-    /// arrived: the entity's name, or `None` for empty space. Polled once a
-    /// frame, after [`Renderer::poll`].
-    pub fn take_pick(&mut self) -> Option<Option<PersistentName>> {
-        let pending = self.pick.as_ref()?;
+    /// arrived: what it was for, and the entity's name or `None` for empty
+    /// space. Polled once a frame, after [`Renderer::poll`].
+    pub fn take_pick(&mut self) -> Option<(PickFor, Option<PersistentName>)> {
+        let (pending, purpose) = self.pick.as_ref()?;
         let hit = pending.poll()?;
         let name = hit.and_then(|h| self.scene.resolve(&pending.bodies, h).cloned());
+        let purpose = *purpose;
         self.pick = None;
-        Some(name)
+        Some((purpose, name))
     }
 }
 

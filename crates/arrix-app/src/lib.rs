@@ -18,15 +18,15 @@ use arrix_config::{
     CONFIG_RELOAD, CommandRegistry, Config, ConfigDiagnostic, ConfigSource, DOCUMENT_CLOSE,
     DOCUMENT_NEXT, DOCUMENT_PREVIOUS, Keymap, MemorySource, PALETTE_CLOSE, PALETTE_NEXT,
     PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN, PANEL_PROPERTIES_TOGGLE, PANEL_TREE_TOGGLE,
-    ParamDefaults, Settings, Theme,
+    ParamDefaults, SELECTION_CLEAR, Settings, Theme,
 };
 use arrix_core::RenderMesh;
 use arrix_plugin_api::FeatureTypeSpec;
 use arrix_ui::{
     CardsView, DocumentTab, DocumentTabsView, ShellLayout, ShellView, StatusView, UiIntent,
 };
-use arrix_viewport::{BodyKey, Renderer};
-use documents::{CardToggles, OpenDocument, ViewState};
+use arrix_viewport::{BodyKey, Highlights, Renderer};
+use documents::{CardToggles, OpenDocument, PickFor, ViewState};
 use palette::Palette;
 
 /// Client-side state that is not in the document (SEED.md §6.1 rule 4).
@@ -298,10 +298,13 @@ impl ArrixApp {
         let view = self.view_mut();
         view.pick.as_ref()?;
         let answer = view.take_pick();
-        if answer.is_none() {
-            ctx.request_repaint();
-        }
-        answer.map(|name| UiIntent::Picked { name })
+        // The answer is drawn next frame; nothing else may wake the app for
+        // it, nor for a read-back still on its way.
+        ctx.request_repaint();
+        answer.map(|(purpose, name)| match purpose {
+            PickFor::Click => UiIntent::Picked { name },
+            PickFor::Hover => UiIntent::Hovered { name },
+        })
     }
 
     /// Where the world point `p` (metres) is drawn in the active view, in
@@ -414,6 +417,12 @@ impl ArrixApp {
             .and_then(|id| self.commands.command(id));
         let Some(spec) = hovered else {
             if let Some(document) = self.active_document() {
+                if let Some(name) = &document.view.hover {
+                    return match document.view.selection.as_ref() == Some(name) {
+                        true => format!("{name}: selected. Escape clears the selection."),
+                        false => format!("{name}: click to select it."),
+                    };
+                }
                 return match document.settled() {
                     true => format!("{}: ready", document.title),
                     false => format!("{}: evaluating…", document.title),
@@ -458,6 +467,7 @@ impl ArrixApp {
             }
             UiIntent::DocumentTabClosed { index } => self.close_document(index),
             UiIntent::Picked { name } => self.view_mut().selection = name,
+            UiIntent::Hovered { name } => self.view_mut().hover = name,
         }
     }
 
@@ -489,6 +499,7 @@ impl ArrixApp {
                 let shown = self.cards().properties;
                 self.toggles_mut().properties = Some(!shown);
             }
+            SELECTION_CLEAR => self.view_mut().selection = None,
             DOCUMENT_NEXT => self.step_document(1),
             DOCUMENT_PREVIOUS => self.step_document(-1),
             DOCUMENT_CLOSE => self.close_document(self.active),
@@ -618,6 +629,7 @@ impl eframe::App for ArrixApp {
             None => &mut self.idle_view,
         };
         let renderer = &mut self.renderer;
+        let mut hover_left = false;
         let response = arrix_ui::shell(ui, &view, |ui| {
             let rect = ui.max_rect();
             // The viewport's own response: a card over it is a layer above
@@ -627,12 +639,36 @@ impl eframe::App for ArrixApp {
                 .clicked()
                 .then(|| response.interact_pointer_pos())
                 .flatten();
+            let hover = response.hover_pos();
+            // A hover pick is asked for when the pointer has moved and none
+            // is on its way; a click's wins over it.
+            let moved = hover.filter(|p| view_state.hover_at != Some(*p));
+            let wanted = click.map(|at| (at, PickFor::Click)).or_else(|| {
+                let at = moved.filter(|_| view_state.pick.is_none())?;
+                Some((at, PickFor::Hover))
+            });
+            if hover.is_none() && view_state.hover_at.take().is_some() {
+                hover_left = true;
+            }
             if let Some(renderer) = renderer {
                 let scene = &view_state.scene;
-                let pick = renderer.paint(ui.painter(), rect, scene, &view_state.camera, click);
-                // The latest click wins over one still on its way.
-                if pick.is_some() {
-                    view_state.pick = pick;
+                let highlights = Highlights {
+                    hover: view_state.hover.as_ref(),
+                    selection: view_state.selection.as_ref(),
+                };
+                let pick = renderer.paint(
+                    ui.painter(),
+                    rect,
+                    scene,
+                    &view_state.camera,
+                    highlights,
+                    wanted.map(|(at, _)| at),
+                );
+                if let (Some(pick), Some((at, purpose))) = (pick, wanted) {
+                    if purpose == PickFor::Hover {
+                        view_state.hover_at = Some(at);
+                    }
+                    view_state.pick = Some((pick, purpose));
                 }
             }
         });
@@ -648,6 +684,10 @@ impl eframe::App for ArrixApp {
         }
         for intent in response.intents {
             self.apply(intent);
+        }
+        if hover_left {
+            self.apply(UiIntent::Hovered { name: None });
+            ui.ctx().request_repaint();
         }
         if let Some(intent) = self.answer_pick(ui.ctx()) {
             self.apply(intent);

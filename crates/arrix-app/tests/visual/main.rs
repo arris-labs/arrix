@@ -3,6 +3,7 @@
 mod coarse;
 mod fixture;
 mod harness;
+mod highlight;
 mod snapshot;
 mod viewport;
 
