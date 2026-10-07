@@ -4,18 +4,23 @@
 //! testing needs a depth attachment and egui's pass has none.
 //!
 //! One [`Renderer`] serves every open document: what differs per document
-//! is its [`Scene`] and its camera, which [`Renderer::paint`] takes.
+//! is its [`Scene`] and its camera, which [`Renderer::paint`] takes, and
+//! the pick it may ask for, which it hands back.
 
 mod callback;
 mod mesh;
 mod pipelines;
+mod readback;
 
 use crate::camera::{OrbitCamera, Projection};
+use crate::pick::{PickRegion, body_bits, body_pickable};
 use crate::scene::Scene;
 use callback::{BodyDraw, ViewportCallback};
 use egui_wgpu::wgpu;
 pub use mesh::GpuMesh;
-use pipelines::{DEPTH_FORMAT, Pipelines};
+use pipelines::{DEPTH_FORMAT, PICK_FORMAT, Pipelines};
+pub use readback::PendingPick;
+use readback::{PickPass, PickTarget};
 
 /// The camera as every shader sees it (group 0). The background reads the
 /// basis and `params` to shade the world direction each pixel looks along.
@@ -55,11 +60,20 @@ impl CameraUniforms {
     }
 }
 
-/// A body's model matrix, before alignment.
-const MODEL_SIZE: u64 = std::mem::size_of::<[[f32; 4]; 4]>() as u64;
+/// What each body's draw reads (group 1): its model matrix, and its pick
+/// bits (`crate::pick`) in `pick[0]`.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
+struct BodyUniforms {
+    model: [[f32; 4]; 4],
+    pick: [u32; 4],
+}
 
-/// Every body's model matrix in one buffer at a fixed stride, bound once
-/// with a dynamic offset per draw.
+/// A body's uniforms, before alignment.
+const MODEL_SIZE: u64 = std::mem::size_of::<BodyUniforms>() as u64;
+
+/// Every body's uniforms in one buffer at a fixed stride, bound once with a
+/// dynamic offset per draw.
 struct ModelUniforms {
     layout: wgpu::BindGroupLayout,
     buffer: wgpu::Buffer,
@@ -135,13 +149,14 @@ impl ModelUniforms {
     }
 }
 
-/// The offscreen colour and depth the scene is drawn into, sized to the
-/// viewport's rect in physical pixels.
+/// The offscreen colour and depth the scene is drawn into, and the pick
+/// target, sized to the viewport's rect in physical pixels.
 struct Offscreen {
     size: (u32, u32),
     color_view: wgpu::TextureView,
     depth_view: wgpu::TextureView,
     blit_bind_group: wgpu::BindGroup,
+    pick: PickTarget,
 }
 
 /// The pipelines and buffers the viewport draws with; one per window.
@@ -238,25 +253,33 @@ impl Renderer {
         &self.device
     }
 
+    /// Lets the read-backs that have arrived answer their picks, without
+    /// waiting for any: once a frame, before [`PendingPick::poll`].
+    pub fn poll(&self) {
+        let _ = self.device.poll(wgpu::PollType::Poll);
+    }
+
     /// Draws `scene` from `camera` into `rect` of `painter`'s layer: the
     /// work is done when egui renders the frame, through the callback this
-    /// adds.
+    /// adds. With `pick`, a point in `rect`, the frame also draws the pick
+    /// pass and reads back the region about it: the pick returned is
+    /// answered frames later ([`Renderer::poll`]). An empty scene picks
+    /// nothing and returns none.
     pub fn paint(
         &mut self,
         painter: &egui::Painter,
         rect: egui::Rect,
         scene: &Scene<GpuMesh>,
         camera: &OrbitCamera,
-    ) {
+        pick: Option<egui::Pos2>,
+    ) -> Option<PendingPick> {
         let ppp = painter.ctx().pixels_per_point();
         let size = (
             ((rect.width() * ppp).round() as u32).max(1),
             ((rect.height() * ppp).round() as u32).max(1),
         );
         self.ensure_offscreen(size);
-        let Some(offscreen) = &self.offscreen else {
-            return;
-        };
+        let offscreen = self.offscreen.as_ref()?;
         let aspect = rect.width().max(1.0) / rect.height().max(1.0);
         let dark = painter.ctx().global_style().visuals.dark_mode;
 
@@ -267,18 +290,39 @@ impl Renderer {
         let mut bodies = Vec::with_capacity(count);
         for (i, entry) in scene.visible().enumerate() {
             let at = i * stride;
-            model_data[at..at + MODEL_SIZE as usize]
-                .copy_from_slice(bytemuck::bytes_of(&entry.model.to_cols_array_2d()));
+            let uniforms = BodyUniforms {
+                model: entry.model.to_cols_array_2d(),
+                pick: [body_bits(i), 0, 0, 0],
+            };
+            model_data[at..at + MODEL_SIZE as usize].copy_from_slice(bytemuck::bytes_of(&uniforms));
             let mesh = &entry.mesh;
             bodies.push(BodyDraw {
                 model_offset: at as u32,
                 vertex_buffer: mesh.vertex_buffer.clone(),
                 index_buffer: mesh.index_buffer.clone(),
                 index_count: mesh.index_count,
+                face_ids: mesh.face_ids.clone(),
                 edge_buffer: mesh.edge_buffer.clone(),
                 edge_vertex_count: mesh.edge_vertex_count,
+                edge_ids: mesh.edge_ids.clone(),
+                point_buffer: mesh.point_buffer.clone(),
+                point_ids: mesh.point_ids.clone(),
+                point_count: mesh.point_count,
+                pickable: body_pickable(i),
             });
         }
+
+        let (pick, pending) = match pick.filter(|_| count > 0) {
+            Some(at) => {
+                let local = (at - rect.min) * ppp;
+                let cursor = (local.x.max(0.0) as u32, local.y.max(0.0) as u32);
+                let region = PickRegion::around(cursor, size);
+                let (pass, pending) =
+                    PickPass::new(&self.device, &offscreen.pick, region, scene.pick_bodies());
+                (Some(pass), Some(pending))
+            }
+            None => (None, None),
+        };
 
         let callback = ViewportCallback {
             camera: CameraUniforms::new(camera, aspect, dark),
@@ -292,8 +336,10 @@ impl Renderer {
             color_view: offscreen.color_view.clone(),
             depth_view: offscreen.depth_view.clone(),
             blit_bind_group: offscreen.blit_bind_group.clone(),
+            pick,
         };
         painter.add(egui_wgpu::Callback::new_paint_callback(rect, callback));
+        pending
     }
 
     fn ensure_offscreen(&mut self, size: (u32, u32)) {
@@ -301,33 +347,45 @@ impl Renderer {
             return;
         }
         let texture = |label, format, usage| {
-            self.device
-                .create_texture(&wgpu::TextureDescriptor {
-                    label: Some(label),
-                    size: wgpu::Extent3d {
-                        width: size.0,
-                        height: size.1,
-                        depth_or_array_layers: 1,
-                    },
-                    mip_level_count: 1,
-                    sample_count: 1,
-                    dimension: wgpu::TextureDimension::D2,
-                    format,
-                    usage,
-                    view_formats: &[],
-                })
-                .create_view(&wgpu::TextureViewDescriptor::default())
+            self.device.create_texture(&wgpu::TextureDescriptor {
+                label: Some(label),
+                size: wgpu::Extent3d {
+                    width: size.0,
+                    height: size.1,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format,
+                usage,
+                view_formats: &[],
+            })
         };
-        let color_view = texture(
+        let view = |t: &wgpu::Texture| t.create_view(&wgpu::TextureViewDescriptor::default());
+        let color_view = view(&texture(
             "arrix-viewport colour",
             self.format,
             wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+        ));
+        let depth = || {
+            view(&texture(
+                "arrix-viewport depth",
+                DEPTH_FORMAT,
+                wgpu::TextureUsages::RENDER_ATTACHMENT,
+            ))
+        };
+        let depth_view = depth();
+        let pick_texture = texture(
+            "arrix-viewport pick",
+            PICK_FORMAT,
+            wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
         );
-        let depth_view = texture(
-            "arrix-viewport depth",
-            DEPTH_FORMAT,
-            wgpu::TextureUsages::RENDER_ATTACHMENT,
-        );
+        let pick = PickTarget {
+            view: view(&pick_texture),
+            texture: pick_texture,
+            depth_view: depth(),
+        };
         let blit_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("arrix-viewport blit"),
             layout: &self.blit_layout,
@@ -347,6 +405,7 @@ impl Renderer {
             color_view,
             depth_view,
             blit_bind_group,
+            pick,
         });
     }
 }
@@ -379,5 +438,7 @@ mod tests {
     fn the_uniform_layout_is_what_the_shaders_declare() {
         // Two mat4x4 and five vec4, no padding: WGSL's uniform layout.
         assert_eq!(std::mem::size_of::<CameraUniforms>(), 2 * 64 + 5 * 16);
+        // A mat4x4 and a vec4<u32>: the shaders' `Body`.
+        assert_eq!(MODEL_SIZE, 64 + 16);
     }
 }

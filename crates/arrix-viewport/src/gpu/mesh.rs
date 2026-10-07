@@ -1,10 +1,11 @@
 //! A body's [`RenderMesh`] in GPU buffers: what [`crate::Scene`] holds per
 //! body on the real renderer.
 
-use arrix_core::RenderMesh;
+use arrix_core::{RenderMesh, TopoKind};
 use egui_wgpu::wgpu;
 use egui_wgpu::wgpu::util::DeviceExt as _;
 
+use crate::pick::entity_bits;
 use crate::scene::{BodyKey, BodyPayload};
 
 /// A corner of a face's triangle: where it is and the face's normal there.
@@ -28,6 +29,18 @@ impl Vertex {
     }
 }
 
+impl Vertex {
+    const POSITION: [wgpu::VertexAttribute; 1] = wgpu::vertex_attr_array![0 => Float32x3];
+
+    /// The same buffer read for its positions alone: the pick pass's.
+    pub fn position_layout() -> wgpu::VertexBufferLayout<'static> {
+        wgpu::VertexBufferLayout {
+            attributes: &Self::POSITION,
+            ..Self::layout()
+        }
+    }
+}
+
 /// An end of an edge's line segment.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
@@ -47,14 +60,34 @@ impl LineVertex {
     }
 }
 
-/// One body's buffers: the faces' triangles, indexed, and the edges as a
-/// line list.
+/// A vertex's pick bits, a second vertex buffer beside the positions
+/// (`crate::pick`).
+pub fn id_layout() -> wgpu::VertexBufferLayout<'static> {
+    const ATTRS: [wgpu::VertexAttribute; 1] = wgpu::vertex_attr_array![1 => Uint32];
+    wgpu::VertexBufferLayout {
+        array_stride: std::mem::size_of::<u32>() as wgpu::BufferAddress,
+        step_mode: wgpu::VertexStepMode::Vertex,
+        attributes: &ATTRS,
+    }
+}
+
+/// A body's buffers: the faces' triangles, indexed, the edges as a line
+/// list and the vertices as points, each beside the pick bits of its
+/// entity.
 pub struct GpuMesh {
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
     pub index_count: u32,
+    /// Per vertex of `vertex_buffer`: its face's pick bits.
+    pub face_ids: wgpu::Buffer,
     pub edge_buffer: wgpu::Buffer,
     pub edge_vertex_count: u32,
+    /// Per vertex of `edge_buffer`: its edge's pick bits.
+    pub edge_ids: wgpu::Buffer,
+    /// The body's vertices, a point each, and their pick bits.
+    pub point_buffer: wgpu::Buffer,
+    pub point_ids: wgpu::Buffer,
+    pub point_count: u32,
 }
 
 impl BodyPayload for GpuMesh {
@@ -69,6 +102,14 @@ impl BodyPayload for GpuMesh {
             .collect();
         let indices: Vec<u32> = mesh.triangles.iter().flatten().copied().collect();
         let edges = edge_lines(mesh);
+        let ids = PickIds::of(mesh);
+        let points: Vec<LineVertex> = mesh
+            .vertices
+            .iter()
+            .map(|v| LineVertex {
+                position: v.position,
+            })
+            .collect();
         let buffer = |label: &str, contents: &[u8], usage| {
             device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some(label),
@@ -88,12 +129,79 @@ impl BodyPayload for GpuMesh {
                 wgpu::BufferUsages::INDEX,
             ),
             index_count: indices.len() as u32,
+            face_ids: buffer(
+                "arrix-viewport face ids",
+                bytemuck::cast_slice(&ids.faces),
+                wgpu::BufferUsages::VERTEX,
+            ),
             edge_buffer: buffer(
                 "arrix-viewport edges",
                 bytemuck::cast_slice(&edges),
                 wgpu::BufferUsages::VERTEX,
             ),
             edge_vertex_count: edges.len() as u32,
+            edge_ids: buffer(
+                "arrix-viewport edge ids",
+                bytemuck::cast_slice(&ids.edges),
+                wgpu::BufferUsages::VERTEX,
+            ),
+            point_buffer: buffer(
+                "arrix-viewport points",
+                bytemuck::cast_slice(&points),
+                wgpu::BufferUsages::VERTEX,
+            ),
+            point_ids: buffer(
+                "arrix-viewport point ids",
+                bytemuck::cast_slice(&ids.points),
+                wgpu::BufferUsages::VERTEX,
+            ),
+            point_count: points.len() as u32,
+        }
+    }
+}
+
+/// The pick bits of every vertex the pick pass draws, parallel to the
+/// buffers they sit beside.
+#[derive(Debug, PartialEq)]
+pub struct PickIds {
+    /// Per position: a vertex belongs to one face (`RenderMesh`), so
+    /// tagging each with its face's bits is exact.
+    pub faces: Vec<u32>,
+    /// Per line-list vertex of [`edge_lines`].
+    pub edges: Vec<u32>,
+    /// Per vertex of the body.
+    pub points: Vec<u32>,
+}
+
+impl PickIds {
+    pub fn of(mesh: &RenderMesh) -> Self {
+        let mut faces = vec![0; mesh.positions.len()];
+        for (index, face) in mesh.faces.iter().enumerate() {
+            let bits = entity_bits(TopoKind::Face, index);
+            for triangle in mesh.triangles.get(face.range()).unwrap_or_default() {
+                for &corner in triangle {
+                    if let Some(id) = faces.get_mut(corner as usize) {
+                        *id = bits;
+                    }
+                }
+            }
+        }
+        let mut edges = Vec::new();
+        for (index, edge) in mesh.edges.iter().enumerate() {
+            let segments = mesh
+                .edge_points
+                .get(edge.range())
+                .map_or(0, |p| p.len().saturating_sub(1));
+            let bits = entity_bits(TopoKind::Edge, index);
+            edges.extend(std::iter::repeat_n(bits, 2 * segments));
+        }
+        let points = (0..mesh.vertices.len())
+            .map(|index| entity_bits(TopoKind::Vertex, index))
+            .collect();
+        PickIds {
+            faces,
+            edges,
+            points,
         }
     }
 }
@@ -122,20 +230,24 @@ fn non_empty(bytes: &[u8]) -> &[u8] {
 
 #[cfg(test)]
 mod tests {
-    use arrix_core::{DVec3, FeatureId, Id, MeshRange, NameRoot, PersistentName, TopoKind};
+    use arrix_core::{DVec3, FeatureId, Id, MeshPoint, MeshRange, NameRoot, PersistentName};
 
     use super::*;
 
+    fn name(kind: TopoKind, index: u32) -> PersistentName {
+        PersistentName {
+            kind,
+            root: NameRoot::Frozen {
+                feature: FeatureId(Id(1)),
+                index,
+            },
+            chain: vec![],
+        }
+    }
+
     fn edge(start: u32, end: u32) -> MeshRange {
         MeshRange {
-            name: PersistentName {
-                kind: TopoKind::Edge,
-                root: NameRoot::Frozen {
-                    feature: FeatureId(Id(1)),
-                    index: start,
-                },
-                chain: vec![],
-            },
+            name: name(TopoKind::Edge, start),
             start,
             end,
         }
@@ -174,5 +286,36 @@ mod tests {
             ],
             "no segment joins the arc's end to the line's start"
         );
+    }
+
+    #[test]
+    fn every_vertex_carries_its_entitys_pick_bits() {
+        let face = |start, end| MeshRange {
+            name: name(TopoKind::Face, start),
+            start,
+            end,
+        };
+        // Two faces of one triangle each, then a face past the triangles.
+        let mesh = RenderMesh {
+            origin: DVec3::ZERO,
+            chord: 1e-3,
+            positions: vec![[0.0; 3]; 6],
+            normals: vec![[0.0, 0.0, 1.0]; 6],
+            triangles: vec![[0, 1, 2], [3, 4, 5]],
+            faces: vec![face(0, 1), face(1, 2), face(2, 9)],
+            edge_points: vec![[0.0; 3], [1.0; 3], [2.0; 3], [5.0; 3], [6.0; 3]],
+            edges: vec![edge(0, 3), edge(3, 5)],
+            vertices: vec![MeshPoint {
+                name: name(TopoKind::Vertex, 0),
+                position: [1.0; 3],
+            }],
+        };
+        let ids = PickIds::of(&mesh);
+        let f = |i| entity_bits(TopoKind::Face, i);
+        assert_eq!(ids.faces, [f(0), f(0), f(0), f(1), f(1), f(1)]);
+        let e = |i| entity_bits(TopoKind::Edge, i);
+        assert_eq!(ids.edges, [e(0), e(0), e(0), e(0), e(1), e(1)]);
+        assert_eq!(ids.edges.len(), edge_lines(&mesh).len());
+        assert_eq!(ids.points, [entity_bits(TopoKind::Vertex, 0)]);
     }
 }

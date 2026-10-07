@@ -4,6 +4,7 @@
 use egui_wgpu::wgpu;
 
 use super::CameraUniforms;
+use super::readback::PickPass;
 
 /// What one body's draw binds.
 pub struct BodyDraw {
@@ -11,8 +12,15 @@ pub struct BodyDraw {
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
     pub index_count: u32,
+    pub face_ids: wgpu::Buffer,
     pub edge_buffer: wgpu::Buffer,
     pub edge_vertex_count: u32,
+    pub edge_ids: wgpu::Buffer,
+    pub point_buffer: wgpu::Buffer,
+    pub point_ids: wgpu::Buffer,
+    pub point_count: u32,
+    /// Whether a pick id can tell it apart (`crate::pick`).
+    pub pickable: bool,
 }
 
 /// One frame of the viewport, as handles: wgpu's are reference-counted, so
@@ -31,12 +39,14 @@ pub struct ViewportCallback {
     pub color_view: wgpu::TextureView,
     pub depth_view: wgpu::TextureView,
     pub blit_bind_group: wgpu::BindGroup,
+    /// The pick pass, on a frame a pick was asked for.
+    pub pick: Option<PickPass>,
 }
 
 impl egui_wgpu::CallbackTrait for ViewportCallback {
     fn prepare(
         &self,
-        _device: &wgpu::Device,
+        device: &wgpu::Device,
         queue: &wgpu::Queue,
         _screen: &egui_wgpu::ScreenDescriptor,
         encoder: &mut wgpu::CommandEncoder,
@@ -46,6 +56,35 @@ impl egui_wgpu::CallbackTrait for ViewportCallback {
         if !self.model_data.is_empty() {
             queue.write_buffer(&self.model_buffer, 0, &self.model_data);
         }
+        self.draw_scene(encoder);
+        if let Some(pick) = &self.pick {
+            pick.run(
+                device,
+                queue,
+                &self.pipelines,
+                &self.camera_bind_group,
+                &self.model_bind_group,
+                &self.bodies,
+            );
+        }
+        Vec::new()
+    }
+
+    fn paint(
+        &self,
+        _info: egui::PaintCallbackInfo,
+        pass: &mut wgpu::RenderPass<'static>,
+        _resources: &egui_wgpu::CallbackResources,
+    ) {
+        pass.set_pipeline(&self.pipelines.blit);
+        pass.set_bind_group(0, &self.blit_bind_group, &[]);
+        pass.draw(0..3, 0..1);
+    }
+}
+
+impl ViewportCallback {
+    /// The scene into the offscreen colour and depth, on egui's encoder.
+    fn draw_scene(&self, encoder: &mut wgpu::CommandEncoder) {
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("arrix-viewport scene pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -91,17 +130,5 @@ impl egui_wgpu::CallbackTrait for ViewportCallback {
             pass.set_vertex_buffer(0, body.edge_buffer.slice(..));
             pass.draw(0..body.edge_vertex_count, 0..1);
         }
-        Vec::new()
-    }
-
-    fn paint(
-        &self,
-        _info: egui::PaintCallbackInfo,
-        pass: &mut wgpu::RenderPass<'static>,
-        _resources: &egui_wgpu::CallbackResources,
-    ) {
-        pass.set_pipeline(&self.pipelines.blit);
-        pass.set_bind_group(0, &self.blit_bind_group, &[]);
-        pass.draw(0..3, 0..1);
     }
 }

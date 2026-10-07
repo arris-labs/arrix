@@ -6,6 +6,7 @@ use serde::Serialize;
 
 use crate::ArrixApp;
 use arrix_config::{Binding, ConfigDiagnostic};
+use arrix_core::PersistentName;
 use arrix_ui::ShellView;
 
 /// What the last frame drew. `None` fields mean no frame has run yet.
@@ -27,6 +28,12 @@ pub struct DebugState {
     /// The camera the active view looks through.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub camera: Option<CameraDebug>,
+    /// What is selected in the active view, by persistent name.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub selection: Option<PersistentName>,
+    /// A click's pick is on its way back from the GPU.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub picking: bool,
     /// The keymap in force: each key, its command and its context.
     pub keymap: Vec<Binding>,
     /// What the config files got wrong, each with its file and line.
@@ -105,6 +112,8 @@ impl ArrixApp {
                 evaluation: None,
                 bodies: Vec::new(),
                 camera: None,
+                selection: None,
+                picking: false,
                 keymap: self.keymap.bindings().to_vec(),
                 config_diagnostics: self.config_diagnostics.clone(),
             };
@@ -155,6 +164,12 @@ impl ArrixApp {
                     projection: c.projection.label().to_owned(),
                 }
             }),
+            selection: self
+                .active_document()
+                .and_then(|d| d.view.selection.clone()),
+            picking: self
+                .active_document()
+                .is_some_and(|d| d.view.pick.is_some()),
             keymap: self.keymap.bindings().to_vec(),
             config_diagnostics: self.config_diagnostics.clone(),
         }

@@ -282,6 +282,47 @@ impl ArrixApp {
         }
     }
 
+    /// The active view, a document's or the empty start's.
+    fn view_mut(&mut self) -> &mut ViewState {
+        match self.documents.get_mut(self.active) {
+            Some(d) => &mut d.view,
+            None => &mut self.idle_view,
+        }
+    }
+
+    /// The active view's pick, once its read-back has arrived; while it
+    /// has not, another frame is asked for, since nothing else may come to
+    /// wake the app.
+    fn answer_pick(&mut self, ctx: &egui::Context) -> Option<UiIntent> {
+        self.renderer.as_ref()?.poll();
+        let view = self.view_mut();
+        view.pick.as_ref()?;
+        let answer = view.take_pick();
+        if answer.is_none() {
+            ctx.request_repaint();
+        }
+        answer.map(|name| UiIntent::Picked { name })
+    }
+
+    /// Where the world point `p` (metres) is drawn in the active view, in
+    /// points, as of the last frame; `None` before one, or behind the
+    /// camera. How a scenario finds a face to click.
+    pub fn screen_point(&self, p: [f64; 3]) -> Option<egui::Pos2> {
+        let rect = self.drawn.as_ref()?.layout.viewport;
+        let view = self.active_document().map_or(&self.idle_view, |d| &d.view);
+        let aspect = rect.width().max(1.0) / rect.height().max(1.0);
+        let clip =
+            view.camera.view_proj(aspect) * arrix_core::DVec3::from_array(p).as_vec3().extend(1.0);
+        if clip.w <= 0.0 {
+            return None;
+        }
+        let ndc = clip.truncate() / clip.w;
+        Some(egui::pos2(
+            rect.min.x + (ndc.x + 1.0) * 0.5 * rect.width(),
+            rect.min.y + (1.0 - ndc.y) * 0.5 * rect.height(),
+        ))
+    }
+
     /// The initial form of a new feature of `type_id`: each parameter's
     /// name and expression, with the user's defaults over the type's own.
     /// M3's document plan seeds the property panel from it.
@@ -416,6 +457,7 @@ impl ArrixApp {
                 }
             }
             UiIntent::DocumentTabClosed { index } => self.close_document(index),
+            UiIntent::Picked { name } => self.view_mut().selection = name,
         }
     }
 
@@ -571,15 +613,27 @@ impl eframe::App for ArrixApp {
         self.apply_theme(ui);
         let window = ui.max_rect();
         let view = self.shell_view();
-        let documents = &self.documents;
-        let view_state = documents
-            .get(self.active)
-            .map_or(&self.idle_view, |d| &d.view);
+        let view_state = match self.documents.get_mut(self.active) {
+            Some(d) => &mut d.view,
+            None => &mut self.idle_view,
+        };
         let renderer = &mut self.renderer;
         let response = arrix_ui::shell(ui, &view, |ui| {
+            let rect = ui.max_rect();
+            // The viewport's own response: a card over it is a layer above
+            // and takes its clicks, so a click on a card picks nothing.
+            let response = ui.interact(rect, ui.id().with("arrix.viewport"), egui::Sense::click());
+            let click = response
+                .clicked()
+                .then(|| response.interact_pointer_pos())
+                .flatten();
             if let Some(renderer) = renderer {
-                let rect = ui.max_rect();
-                renderer.paint(ui.painter(), rect, &view_state.scene, &view_state.camera);
+                let scene = &view_state.scene;
+                let pick = renderer.paint(ui.painter(), rect, scene, &view_state.camera, click);
+                // The latest click wins over one still on its way.
+                if pick.is_some() {
+                    view_state.pick = pick;
+                }
             }
         });
         self.drawn = Some(Drawn {
@@ -593,6 +647,9 @@ impl eframe::App for ArrixApp {
             ui.ctx().request_repaint();
         }
         for intent in response.intents {
+            self.apply(intent);
+        }
+        if let Some(intent) = self.answer_pick(ui.ctx()) {
             self.apply(intent);
         }
     }

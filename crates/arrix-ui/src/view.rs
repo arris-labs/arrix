@@ -184,4 +184,11 @@ pub enum UiIntent {
     DocumentTabSelected { index: usize },
     /// A document's tab was closed.
     DocumentTabClosed { index: usize },
+    /// A click in the viewport picked this face, edge or vertex, or
+    /// nothing (empty space): the selection becomes it. Session state, no
+    /// command; a click on a card over the viewport picks nothing and says
+    /// nothing.
+    Picked {
+        name: Option<arrix_core::PersistentName>,
+    },
 }

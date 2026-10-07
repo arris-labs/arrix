@@ -6,13 +6,13 @@
 use std::collections::BTreeSet;
 use std::time::Duration;
 
-use arrix_core::MeshDetail;
+use arrix_core::{MeshDetail, PersistentName};
 use arrix_doc::{
     DocumentSource, EventStream, FeatureOutcome, Generation, LocalSession, Registry, Replica,
     Session, SessionEvent,
 };
 use arrix_ui::{FeatureState, TreeFeature, TreePart, TreeView};
-use arrix_viewport::{BodyKey, GpuMesh, OrbitCamera, Renderer, Scene};
+use arrix_viewport::{BodyKey, GpuMesh, OrbitCamera, PendingPick, Renderer, Scene};
 use web_time::Instant;
 
 /// How long after an evaluation finished with no mesh heard it is taken to
@@ -21,11 +21,28 @@ use web_time::Instant;
 /// machine; the wall clock, since egui's can run ahead of it in a test.
 const NO_BODIES_AFTER: Duration = Duration::from_secs(1);
 
-/// What is drawn and from where: the bodies, and the camera on them.
+/// What is drawn and from where: the bodies, and the camera on them; what
+/// is selected among them, and the pick on its way.
 #[derive(Default)]
 pub struct ViewState {
     pub scene: Scene<GpuMesh>,
     pub camera: OrbitCamera,
+    pub selection: Option<PersistentName>,
+    /// The last click's pick, until its read-back arrives.
+    pub pick: Option<PendingPick>,
+}
+
+impl ViewState {
+    /// What the pick on its way resolved to, once its read-back has
+    /// arrived: the entity's name, or `None` for empty space. Polled once a
+    /// frame, after [`Renderer::poll`].
+    pub fn take_pick(&mut self) -> Option<Option<PersistentName>> {
+        let pending = self.pick.as_ref()?;
+        let hit = pending.poll()?;
+        let name = hit.and_then(|h| self.scene.resolve(&pending.bodies, h).cloned());
+        self.pick = None;
+        Some(name)
+    }
 }
 
 /// The tree card's view of the part `part`: each feature with where it

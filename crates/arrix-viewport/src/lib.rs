@@ -3,11 +3,16 @@
 
 mod camera;
 mod gpu;
+mod pick;
 mod scene;
 
 pub use camera::{
     CameraAnimation, CameraSample, OrbitCamera, Projection, StandardView, ViewOrientation,
     shortest_angular_delta,
 };
-pub use gpu::{GpuMesh, Renderer};
-pub use scene::{Aabb, BodyEntry, BodyKey, BodyPayload, Scene, Upload};
+pub use gpu::{GpuMesh, PendingPick, Renderer};
+pub use pick::{
+    MAX_PICK_BODIES, MAX_PICK_ENTITIES, PICK_REGION, PickHit, PickRegion, decode as decode_pick,
+    encode as encode_pick, resolve_region,
+};
+pub use scene::{Aabb, BodyEntry, BodyKey, BodyPayload, EntityNames, PickBodies, Scene, Upload};

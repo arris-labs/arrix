@@ -16,14 +16,18 @@ struct Camera {
     params: vec4<f32>, // (is_ortho, aspect, is_dark, 0)
 };
 @group(0) @binding(0) var<uniform> camera: Camera;
-@group(1) @binding(0) var<uniform> model: mat4x4<f32>;
+struct Body {
+    model: mat4x4<f32>,
+    pick: vec4<u32>,
+};
+@group(1) @binding(0) var<uniform> body: Body;
 
 // Of the point's depth: 0.5 mm at a metre.
 const NUDGE: f32 = 5e-4;
 
 @vertex
 fn vs_main(@location(0) position: vec3<f32>) -> @builtin(position) vec4<f32> {
-    let world = (model * vec4<f32>(position, 1.0)).xyz;
+    let world = (body.model * vec4<f32>(position, 1.0)).xyz;
     let forward = camera.forward.xyz;
     let depth = dot(world - camera.eye.xyz, forward);
     // Orthographic rays are parallel to `forward`; perspective ones meet

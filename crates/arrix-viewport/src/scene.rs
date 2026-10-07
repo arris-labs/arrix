@@ -8,8 +8,10 @@
 
 use std::hash::{DefaultHasher, Hash, Hasher};
 
-use arrix_core::{DVec3, FeatureId, PartId, RenderMesh, SlotName};
+use arrix_core::{DVec3, FeatureId, PartId, PersistentName, RenderMesh, SlotName, TopoKind};
 use glam::{Mat4, Vec3};
+
+use crate::pick::{MAX_PICK_BODIES, PickHit};
 
 /// A body in the scene: the slot of a part that its mesh is the final
 /// version of, named by the feature that made it.
@@ -80,6 +82,42 @@ impl Aabb {
     }
 }
 
+/// A mesh's faces, edges and vertices by name, in the order of its range
+/// tables: the index a pick id carries is the index here.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct EntityNames {
+    pub faces: Vec<PersistentName>,
+    pub edges: Vec<PersistentName>,
+    pub vertices: Vec<PersistentName>,
+}
+
+impl EntityNames {
+    pub fn of_mesh(mesh: &RenderMesh) -> Self {
+        let names =
+            |ranges: &[arrix_core::MeshRange]| ranges.iter().map(|r| r.name.clone()).collect();
+        EntityNames {
+            faces: names(&mesh.faces),
+            edges: names(&mesh.edges),
+            vertices: mesh.vertices.iter().map(|v| v.name.clone()).collect(),
+        }
+    }
+
+    pub fn get(&self, kind: TopoKind, index: usize) -> Option<&PersistentName> {
+        match kind {
+            TopoKind::Face => self.faces.get(index),
+            TopoKind::Edge => self.edges.get(index),
+            TopoKind::Vertex => self.vertices.get(index),
+        }
+    }
+}
+
+/// The bodies a pick pass drew, in its body-index order, each with the
+/// fingerprint of the mesh it drew: a pick resolves only against the very
+/// meshes it was drawn from, since the read-back arrives frames later and a
+/// refined mesh may have landed in between.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct PickBodies(Vec<(BodyKey, u64)>);
+
 /// One body: its uploaded payload, where it sits, and whether it draws.
 pub struct BodyEntry<M> {
     pub key: BodyKey,
@@ -93,6 +131,8 @@ pub struct BodyEntry<M> {
     pub bounds: Option<Aabb>,
     /// The chord of the mesh uploaded.
     pub chord: f64,
+    /// Its entities by name, for picking.
+    pub names: EntityNames,
     fingerprint: u64,
 }
 
@@ -169,6 +209,7 @@ impl<M: BodyPayload> Scene<M> {
             entry.origin = mesh.origin;
             entry.model = model(mesh.origin);
             entry.bounds = Aabb::of_mesh(mesh);
+            entry.names = EntityNames::of_mesh(mesh);
             entry.fingerprint = print;
             return Upload::Uploaded;
         }
@@ -180,6 +221,7 @@ impl<M: BodyPayload> Scene<M> {
             visible: true,
             bounds: Aabb::of_mesh(mesh),
             chord: mesh.chord,
+            names: EntityNames::of_mesh(mesh),
             fingerprint: print,
         });
         Upload::Uploaded
@@ -252,6 +294,28 @@ impl<M> Scene<M> {
     /// The visible body `key` names, with its index among the visible ones.
     pub fn visible_body(&self, key: &BodyKey) -> Option<(usize, &BodyEntry<M>)> {
         self.visible().enumerate().find(|(_, b)| &b.key == key)
+    }
+
+    /// The bodies a pick pass draws now: the visible ones, as many as a
+    /// pick id can tell apart.
+    pub fn pick_bodies(&self) -> PickBodies {
+        PickBodies(
+            self.visible()
+                .take(MAX_PICK_BODIES)
+                .map(|b| (b.key.clone(), b.fingerprint))
+                .collect(),
+        )
+    }
+
+    /// The name of what `hit` landed on in a pass that drew `bodies`, if
+    /// that body still holds the mesh it was drawn with.
+    pub fn resolve(&self, bodies: &PickBodies, hit: PickHit) -> Option<&PersistentName> {
+        let (key, print) = bodies.0.get(hit.body)?;
+        let entry = self.bodies.iter().find(|b| &b.key == key)?;
+        if entry.fingerprint != *print {
+            return None;
+        }
+        entry.names.get(hit.kind, hit.index)
     }
 
     /// The box of every visible body in the world.
@@ -448,6 +512,60 @@ mod tests {
         assert!(center.x.abs() < 1e-6, "back to the body at the origin");
         scene.set_body_visible(&key(0), false);
         assert!(scene.bounds().is_none());
+    }
+
+    fn face_hit(body: usize, index: usize) -> PickHit {
+        PickHit {
+            kind: TopoKind::Face,
+            body,
+            index,
+        }
+    }
+
+    #[test]
+    fn a_pick_resolves_to_the_name_in_the_mesh_it_was_drawn_from() {
+        let ctx = Uploads::default();
+        let mut scene = scene_of(&ctx, 3);
+        scene.set_body(&ctx, &key(1), &mesh(3));
+        let drawn = scene.pick_bodies();
+
+        assert_eq!(scene.resolve(&drawn, face_hit(1, 2)), Some(&face(2).name));
+        assert_eq!(
+            scene.resolve(&drawn, face_hit(1, 3)),
+            None,
+            "no fourth face"
+        );
+        assert_eq!(
+            scene.resolve(&drawn, face_hit(7, 0)),
+            None,
+            "no eighth body"
+        );
+        let edge = PickHit {
+            kind: TopoKind::Edge,
+            ..face_hit(1, 0)
+        };
+        assert_eq!(scene.resolve(&drawn, edge), None, "the mesh has no edges");
+
+        // Hiding a body after the pass changes nothing about the answer: the
+        // pass's own body order is what the index means.
+        scene.set_body_visible(&key(0), false);
+        assert_eq!(scene.resolve(&drawn, face_hit(1, 0)), Some(&face(0).name));
+        assert_eq!(
+            scene.resolve(&scene.pick_bodies(), face_hit(0, 0)),
+            Some(&face(0).name),
+            "a new pass numbers the visible bodies again"
+        );
+    }
+
+    #[test]
+    fn a_pick_drawn_from_a_mesh_since_replaced_resolves_to_nothing() {
+        let ctx = Uploads::default();
+        let mut scene = scene_of(&ctx, 1);
+        let drawn = scene.pick_bodies();
+        scene.set_body(&ctx, &key(0), &mesh(2));
+        assert_eq!(scene.resolve(&drawn, face_hit(0, 0)), None);
+        scene.remove_body(&key(0));
+        assert_eq!(scene.resolve(&drawn, face_hit(0, 0)), None);
     }
 
     #[test]

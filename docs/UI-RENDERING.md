@@ -293,14 +293,26 @@ draws). Ported, reviewed on the way in (`SEED.md` §8.1).
   polylines, each range carrying its entity's `PersistentName`.
   Tessellation comes in two passes: a coarse mesh first so the body shows
   at once, then a refined one.
-- **Picking by ID buffer.** Faces, edges and vertices draw a `u32` id into
-  an `R32Uint` target: kind in the top bits, the body's scene index, the
-  entity's index in its mesh. A pick reads a small region around the
-  cursor back asynchronously (`map_async`, polled each frame, never
-  blocking), ranks vertex over edge over face and then by distance, and
-  resolves to the `PersistentName` through the mesh's range table. The
-  path is the same on native and wasm. Picking needs nothing from the
-  document, so it stays client-side in remote mode.
+- **Picking by ID buffer.** On a frame with a click, a pick pass draws
+  every face, edge and vertex as a `u32` id into an `R32Uint` target with
+  its own depth: the kind in the top two bits, the body's index among the
+  visible bodies in the next ten, the entity's index in its mesh's range
+  table in the low twenty (`arrix_viewport::pick`; `0` is nothing, and a
+  body or entity past those bits draws as nothing). The kind and index are
+  vertex data, uploaded with the mesh; the body index is in the body's
+  per-draw uniform, so hiding a body re-uploads nothing. Edges and vertices
+  (points) are drawn after every face, moved toward the eye as the edges
+  are, so what wins a pixel is what shows there. The 7 × 7 pixels about
+  the cursor are copied out on the pass's own encoder and read back
+  asynchronously (`map_async`, the device polled each frame, never
+  waited on); the region ranks vertex over edge over face, then the
+  nearest to the cursor, and resolves to the `PersistentName` through the
+  names the scene keeps per body, only if the body still holds the mesh
+  the pass drew (a refined mesh may land in between). A click on a card
+  never reaches the viewport (a layer above). The result is
+  `UiIntent::Picked { name }`, `None` for empty space, and the selection is
+  session state per tab. The path is the same on native and wasm, and
+  needs nothing from the document, so it stays client-side in remote mode.
 - **Hover and selection** restyle index ranges (the face's fill, its
   boundary edges as an outline), rather than a screen-space pass.
 - **Camera**: orbit about a target, pan, zoom to cursor, perspective or

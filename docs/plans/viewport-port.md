@@ -176,7 +176,7 @@ All present in the pinned `arris` 0.5:
   their states (ok, failed, frozen, frozen-stale, suppressed, rolled back),
   shown in `auto` once a part exists. Scenario: the slice opened without
   `gears`, the gear frozen in the tree.
-- [ ] **[3]** 10 — ID-buffer picking: the `R32Uint` target, the async
+- [x] **[3]** 10 — ID-buffer picking: the `R32Uint` target, the async
   readback polled per frame, ranking vertex over edge over face then by
   distance, resolved to a `PersistentName`; `UiIntent::Picked`. GPU-free
   tests for the id encoding and ranking; a scenario clicks the plate's top
@@ -343,3 +343,18 @@ build included.
   (`ArrixApp::saved`, a hook until the UI saves) and opens that without
   `gears`. `FeatureState` has the six states of the step plus
   `evaluating`, for a feature with no outcome yet.
+- Found in step 10: an id is the kind in two bits, the body's index among
+  the visible bodies in ten, the entity's index in twenty; the body index
+  comes from the per-draw uniform (now a model matrix and pick bits), so
+  hiding a body re-uploads nothing. A pick resolves only against the very
+  meshes its pass drew (each body's mesh fingerprint is taken with it),
+  since a refined mesh can land before the read-back does; a later click
+  replaces a pick still on its way. The region is 7 × 7 pixels. The
+  viewport now senses clicks, which makes it focusable, so the Ctrl+Tab
+  presses of `document_tabs` leave egui's focus on it rather than on a
+  tab's ×: that golden lost the ×'s focus ring and was re-pinned after
+  reading the diff. Scenarios find a point with `ArrixApp::screen_point`,
+  click with rendering on every step (`set_render_every_step`), and wait on
+  `debug_state().picking`; `selection` is the active tab's, by name. The
+  slice's plate top resolves to `face:sweep.<plate>.end-cap`; step 11's
+  hover reuses this pass.

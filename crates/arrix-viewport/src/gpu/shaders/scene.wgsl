@@ -12,9 +12,14 @@ struct Camera {
 };
 @group(0) @binding(0) var<uniform> camera: Camera;
 
-// The body's model matrix, at its dynamic offset. Bodies are placed by
-// translations, so the normal takes the same matrix.
-@group(1) @binding(0) var<uniform> model: mat4x4<f32>;
+// The body's model matrix, at its dynamic offset, and its pick bits (read
+// by the pick pass only). Bodies are placed by translations, so the normal
+// takes the same matrix.
+struct Body {
+    model: mat4x4<f32>,
+    pick: vec4<u32>,
+};
+@group(1) @binding(0) var<uniform> body: Body;
 
 struct VertexInput {
     @location(0) position: vec3<f32>,
@@ -29,8 +34,8 @@ struct VertexOutput {
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    out.clip_position = camera.view_proj * model * vec4<f32>(in.position, 1.0);
-    out.normal = (model * vec4<f32>(in.normal, 0.0)).xyz;
+    out.clip_position = camera.view_proj * body.model * vec4<f32>(in.position, 1.0);
+    out.normal = (body.model * vec4<f32>(in.normal, 0.0)).xyz;
     return out;
 }
 

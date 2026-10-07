@@ -222,3 +222,93 @@ fn the_tree_shows_a_frozen_feature() {
         snapshot::check(h, "tree_frozen");
     });
 }
+
+/// Clicks at `at` and steps, rendering every frame, until the pick it asked
+/// for has been answered (the read-back is asynchronous). A click the
+/// viewport does not take asks for no pick and returns at once.
+fn click(h: &mut egui_kittest::Harness<'_, arrix_app::ArrixApp>, at: egui::Pos2) {
+    h.hover_at(at);
+    h.drag_at(at);
+    h.drop_at(at);
+    let started = web_time::Instant::now();
+    loop {
+        h.step();
+        if !h.state().debug_state().picking {
+            return;
+        }
+        assert!(
+            started.elapsed() < std::time::Duration::from_secs(10),
+            "the pick was never answered"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(2));
+    }
+}
+
+/// The selection's text form, if any.
+fn selection(h: &egui_kittest::Harness<'_, arrix_app::ArrixApp>) -> Option<String> {
+    h.state()
+        .debug_state()
+        .selection
+        .map(|name| name.to_string())
+}
+
+/// Picking through the ID buffer: a click on the slice's plate selects its
+/// top face, edge or corner by persistent name, a vertex winning over the
+/// edges and faces about it; a click on the tree card picks nothing, one on
+/// empty space clears the selection, and none of it is an edit.
+#[test]
+fn picking() {
+    harness::with_app("picking", |h| {
+        harness::open_settled(h, "tests/docs/slice");
+        // The read-back is made when a frame is rendered.
+        h.set_render_every_step(true);
+        let generation = h.state().debug_state().evaluation.map(|e| e.generation);
+        let on_screen = |h: &egui_kittest::Harness<'_, arrix_app::ArrixApp>, p| {
+            h.state().screen_point(p).expect("in front of the camera")
+        };
+        // The plate is 40 × 30 × 5 mm about the origin; the gear stands on
+        // its middle.
+        let plate = "5BE3HE4D204QM";
+
+        click(h, on_screen(h, [-0.016, -0.011, 0.005]));
+        assert_eq!(
+            selection(h),
+            Some(format!("face:sweep.{plate}.end-cap")),
+            "the plate's top face"
+        );
+
+        // The middle of the top's left edge, then its corner.
+        click(h, on_screen(h, [-0.02, 0.0, 0.005]));
+        let edge = selection(h).expect("something picked");
+        assert!(edge.starts_with("edge:"), "{edge}");
+        click(h, on_screen(h, [-0.02, -0.015, 0.005]));
+        let corner = selection(h).expect("something picked");
+        assert!(corner.starts_with("vertex:"), "{corner}");
+
+        // The tree card is over the viewport and takes the click.
+        let card = h
+            .state()
+            .debug_state()
+            .layout
+            .unwrap()
+            .tree
+            .expect("auto shows it");
+        click(h, egui::pos2(card[0] as f32 + 20.0, card[3] as f32 - 10.0));
+        assert_eq!(
+            selection(h),
+            Some(corner),
+            "the card's click picked nothing"
+        );
+
+        // Empty space, in the viewport's bottom right.
+        let v = h.state().debug_state().layout.unwrap().viewport;
+        click(h, egui::pos2(v[2] as f32 - 40.0, v[3] as f32 - 40.0));
+        assert_eq!(selection(h), None);
+
+        assert_eq!(
+            h.state().debug_state().evaluation.map(|e| e.generation),
+            generation,
+            "picking is not an edit"
+        );
+    });
+}
