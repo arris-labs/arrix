@@ -33,12 +33,13 @@ feature → M2 part features and naming → M3 the app → M4 exchange and batch
 ported sketcher, bodies, frozen results, `gears.spur` as a Tier 0 plugin
 (`arris` 0.4). **M2 landed 2026-10-07:** naming at the kernel and every core
 feature type (`arris` 0.5; `cargo test -p arrix-cli --test naming_scenarios`).
-**M3 plans 1 and 2 landed 2026-10-07:** the shell as TOML data
+**M3 plans 1 to 3 landed 2026-10-08:** the shell as TOML data
 (`configurable-shell`, ADR-0015, ADR-0016); the minimal shell and the wgpu
 viewport with picking, hover, selection, camera and ViewCube
 (`viewport-port`, ADR-0017; `cargo test -p arrix-app --test visual
-viewport_accept`).
-**Now:** M3's next plan (sketch mode, or the forms), to be planned.
+viewport_accept`); sketch mode (`sketch-mode`; `cargo test -p arrix-app
+--test visual sketch_accept`).
+**Now:** M3's next plan (the forms), to be planned.
 
 ## Rules that are not derivable from the code
 

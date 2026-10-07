@@ -56,7 +56,12 @@ ADR-0016, and the `configured_shell` accept. M3 plan 2 (`viewport-port`)
 landed 2026-10-07: the minimal shell (ADR-0017), document tabs, tessellation
 at the kernel and `Meshed` events, the wgpu viewport with ID-buffer picking,
 hover and selection, the camera and the ViewCube, and the `viewport_accept`
-scenario. M3 continues with sketch mode and the forms. Seeded 2026-09-26.**
+scenario. M3 plan 3 (`sketch-mode`) landed 2026-10-08: the drag inside its
+4 ms budget (gated), inference ported, undo, redo and new document, entering
+and leaving sketch mode, the `SketchView` overlay, the drawing, constraint,
+dimension and modify tools, regions shaded as extrude takes them, the
+unreached constraint kinds gated, and the `sketch_accept` scenario. M3
+continues with the forms. Seeded 2026-09-26.**
 
 Milestones are ordered by risk after the harness: the document and the
 plugin feature are proven headless (M1) before the part features (M2), the
