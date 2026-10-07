@@ -9,6 +9,7 @@
 use arrix_core::{FeatureId, Input, PersistentName, Ref, TopoKind};
 use arrix_doc::{Document, FeatureEdit};
 use arrix_plugin_api::{FeatureTypeSpec, InputKind, SlotKind};
+use arrix_ui::PartSketchItem;
 use arrix_viewport::BodyKey;
 
 use crate::ArrixApp;
@@ -18,6 +19,7 @@ use crate::form::{feature_record, takes};
 enum Pick {
     Topo(PersistentName, Option<BodyKey>),
     Feature(FeatureId),
+    Sketch(FeatureId, PartSketchItem),
 }
 
 /// The feature named `id` in `doc`, with its name.
@@ -100,6 +102,19 @@ fn fit(
             Some(Ref::Slot { feature: *id, slot })
         }
         (Pick::Feature(id), InputKind::Tool) => Some(Ref::Feature(*id)),
+        (Pick::Sketch(feature, PartSketchItem::Region { key }), InputKind::Region) => {
+            Some(Ref::Region {
+                feature: *feature,
+                key: serde_json::from_str(key).ok()?,
+            })
+        }
+        (
+            Pick::Sketch(feature, PartSketchItem::Point { id } | PartSketchItem::Line { id }),
+            InputKind::Point | InputKind::Axis,
+        ) => Some(Ref::Sketch {
+            feature: *feature,
+            entity: id.parse().ok()?,
+        }),
         _ => None,
     }
 }
@@ -133,9 +148,8 @@ impl ArrixApp {
             .cloned()
     }
 
-    /// What the open form's reference fields hold in the scene, to draw as
-    /// the selection is.
-    pub(crate) fn form_marks(&self) -> Vec<PersistentName> {
+    /// Every reference the open form's fields hold.
+    pub(crate) fn form_refs(&self) -> Vec<Ref> {
         let Some(document) = self.active_document() else {
             return Vec::new();
         };
@@ -145,12 +159,32 @@ impl ArrixApp {
         let record = form.edit.and_then(|f| feature_record(document, f));
         form.held(record)
             .values()
-            .flat_map(|input| input.refs())
+            .flat_map(|input| input.refs().iter().cloned())
+            .collect()
+    }
+
+    /// What the open form's reference fields hold in the scene, to draw as
+    /// the selection is.
+    pub(crate) fn form_marks(&self) -> Vec<PersistentName> {
+        self.form_refs()
+            .into_iter()
             .filter_map(|r| match r {
-                Ref::Topo(name) => Some(name.clone()),
+                Ref::Topo(name) => Some(name),
                 _ => None,
             })
             .collect()
+    }
+
+    /// A click on an item of a finished sketch while a field asks for one.
+    pub(crate) fn form_pick_sketch(
+        &mut self,
+        feature: FeatureId,
+        item: PartSketchItem,
+        extend: bool,
+    ) {
+        if self.field_asks() {
+            self.form_pick(&Pick::Sketch(feature, item), extend);
+        }
     }
 
     /// A click in the scene while a field asks: puts the entity under it in
@@ -204,7 +238,7 @@ impl ArrixApp {
     }
 
     /// The active field's name, title, kind and whether it is a list.
-    fn active_field(&self) -> Option<(String, String, InputKind, bool)> {
+    pub(crate) fn active_field(&self) -> Option<(String, String, InputKind, bool)> {
         let document = self.active_document()?;
         let form = document.form.as_ref()?;
         let active = form.active.as_deref()?;

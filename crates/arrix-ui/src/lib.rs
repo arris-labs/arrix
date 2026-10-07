@@ -6,6 +6,7 @@ mod palette;
 mod shell;
 mod sketch;
 mod sketch_field;
+mod sketch_pick;
 mod sketch_preview;
 mod sketch_regions;
 mod theme;
@@ -22,6 +23,7 @@ pub use sketch::{
     hit_test, paint_sketch,
 };
 pub use sketch_field::{DimensionFieldView, FieldEvent, dimension_field};
+pub use sketch_pick::{PartSketchItem, SketchAsk, pick_sketch_item};
 pub use sketch_preview::{SketchPreviewView, SnapGlyphView};
 pub use sketch_regions::SketchRegionView;
 pub use theme::{Rgba, ThemeView};

@@ -190,3 +190,49 @@ fn the_selection_seeds_the_tree_picks_and_an_edit_pick_is_one_command() {
         assert_eq!(gestures(h), Some(0), "the same value is none");
     });
 }
+
+fn part_sketches(h: &Harness<'_>) -> Vec<(String, usize, usize, usize)> {
+    h.state()
+        .debug_state()
+        .part_sketches
+        .into_iter()
+        .map(|s| (s.feature, s.points, s.curves, s.regions))
+        .collect()
+}
+
+#[test]
+fn finished_sketches_are_drawn_while_a_field_asks_and_a_region_is_picked() {
+    harness::with_app("form_pick_sketch", |h| {
+        harness::open_settled(h, "tests/docs/slice");
+        h.set_render_every_step(true);
+        // Both sketches feed an extrude, so neither is drawn.
+        assert_eq!(part_sketches(h), []);
+
+        // The extrude's region field asks: both are, with their regions.
+        open_form(h, "Part", "New extrude");
+        let drawn = part_sketches(h);
+        assert_eq!(drawn.len(), 2, "{drawn:?}");
+        assert!(drawn.iter().all(|s| s.3 > 0), "{drawn:?}");
+
+        // The plate's sketch lies on the XY plane, behind the plate's top
+        // face in the scene: the region wins over the face.
+        click(h, on_screen(h, [0.01, 0.01, 0.0]));
+        let (region, _) = refs(h, "region");
+        assert_eq!(region, ["Region of Sketch 0"]);
+        assert_eq!(gestures(h), Some(0));
+        assert_eq!(h.state().debug_state().selection, None);
+        let shaded: Vec<_> = h
+            .state()
+            .debug_state()
+            .part_sketches
+            .into_iter()
+            .flat_map(|s| s.selected_regions)
+            .collect();
+        assert_eq!(shaded.len(), 1, "the field's region is drawn selected");
+
+        // Cancelled, the sketches are spent again.
+        h.get_by_label("Cancel").click();
+        h.run_steps(3);
+        assert_eq!(part_sketches(h), []);
+    });
+}

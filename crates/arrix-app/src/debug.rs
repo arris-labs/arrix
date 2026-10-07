@@ -43,6 +43,9 @@ pub struct DebugState {
     /// What the viewport draws of it, in plane-local metres.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sketch_view: Option<arrix_ui::SketchView>,
+    /// The finished sketches drawn in part mode.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub part_sketches: Vec<PartSketchDebug>,
     /// How many commands the last gesture submitted (SEED.md §8.2: one,
     /// or none where nothing changed); absent before any gesture.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -51,6 +54,20 @@ pub struct DebugState {
     pub keymap: Vec<Binding>,
     /// What the config files got wrong, each with its file and line.
     pub config_diagnostics: Vec<ConfigDiagnostic>,
+}
+
+/// A finished sketch drawn over the part.
+#[derive(Debug, Serialize)]
+pub struct PartSketchDebug {
+    pub feature: String,
+    pub points: usize,
+    pub curves: usize,
+    /// Region keys are in the view only while a field asks for one.
+    pub regions: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hover_region: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub selected_regions: Vec<String>,
 }
 
 /// The sketch the active tab is editing.
@@ -159,6 +176,7 @@ impl ArrixApp {
                 picking: false,
                 sketch: None,
                 sketch_view: None,
+                part_sketches: Vec::new(),
                 gesture_commands: self.session.gestures.last,
                 keymap: self.keymap.bindings().to_vec(),
                 config_diagnostics: self.config_diagnostics.clone(),
@@ -231,6 +249,18 @@ impl ArrixApp {
                     }),
                 }),
             sketch_view: self.sketch_overlay().map(|o| o.view),
+            part_sketches: self
+                .part_overlays()
+                .into_iter()
+                .map(|o| PartSketchDebug {
+                    feature: o.feature.to_string(),
+                    points: o.view.points.len(),
+                    curves: o.view.curves.len(),
+                    regions: o.view.regions.len(),
+                    hover_region: o.view.hover_region,
+                    selected_regions: o.view.selected_regions,
+                })
+                .collect(),
             gesture_commands: self.session.gestures.last,
             keymap: self.keymap.bindings().to_vec(),
             config_diagnostics: self.config_diagnostics.clone(),

@@ -43,6 +43,9 @@ pub struct ViewState {
     /// The last pick asked for, until its read-back arrives, and what it
     /// was asked for.
     pub pick: Option<(PendingPick, PickFor)>,
+    /// The item of a finished sketch the pointer is over, while a form's
+    /// field asks for one.
+    pub part_hover: Option<(FeatureId, arrix_ui::PartSketchItem)>,
     /// Whether shift was held at the last click in the viewport: a pick
     /// into a list field adds to it.
     pub click_extend: bool,
@@ -151,6 +154,8 @@ pub struct OpenDocument {
     /// The form open in the property card, while there is one: a create
     /// form's draft. Session state, one per tab.
     pub form: Option<crate::form::Form>,
+    /// The finished sketches, solved, for part mode to draw.
+    pub part_sketches: std::collections::BTreeMap<FeatureId, crate::part_sketch::PartSketch>,
     /// Whether the camera has been fitted to the bodies: it is once, on
     /// the first mesh, and never again, so a later edit does not take the
     /// view away from the user.
@@ -215,6 +220,7 @@ impl OpenDocument {
             view: ViewState::default(),
             sketch: None,
             form: None,
+            part_sketches: std::collections::BTreeMap::new(),
             framed: false,
             mesh: MeshProgress::default(),
             finished_at: None,

@@ -48,9 +48,10 @@ pub(crate) fn paint_regions(
     to_screen: &PlaneToScreen,
     regions: &[SketchRegionView],
     hover: Option<&str>,
+    selected: &[String],
 ) {
     for region in regions {
-        let hovered = hover == Some(region.key.as_str());
+        let hovered = hover == Some(region.key.as_str()) || selected.contains(&region.key);
         let Some(rings) = project_rings(region, to_screen) else {
             continue;
         };

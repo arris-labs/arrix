@@ -174,6 +174,10 @@ pub struct SketchView {
     /// under it: session state, outlined.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hover_region: Option<String>,
+    /// The keys of regions a form's field holds, drawn as the hovered one
+    /// is: session state.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub selected_regions: Vec<String>,
 }
 
 /// The map from the sketch's plane to the screen: a homography, so it is
@@ -321,6 +325,7 @@ pub fn paint_sketch(painter: &egui::Painter, to_screen: &PlaneToScreen, view: &S
         to_screen,
         &view.regions,
         view.hover_region.as_deref(),
+        &view.selected_regions,
     );
     for curve in &view.curves {
         let mut stroke = Stroke::new(1.75, curve.state.colour());
@@ -461,7 +466,7 @@ pub fn hit_test(
 }
 
 /// The distance from `at` to a polyline; `None` for fewer than two points.
-fn distance_to_polyline(line: &[Pos2], at: Pos2) -> Option<f32> {
+pub(crate) fn distance_to_polyline(line: &[Pos2], at: Pos2) -> Option<f32> {
     line.windows(2)
         .map(|w| {
             let (a, b) = (w[0], w[1]);
@@ -659,6 +664,7 @@ mod tests {
             field: None,
             regions: Vec::new(),
             hover_region: None,
+            selected_regions: Vec::new(),
         }
     }
 

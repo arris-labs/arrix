@@ -658,6 +658,22 @@ draws). Ported, reviewed on the way in (`SEED.md` §8.1).
   viewport's own rate. It never writes the camera: it returns a
   `ViewCubeAction` (`Select`, `Orbit`, `Step`, `Home`, `ToggleProjection`)
   that the app applies to the camera it owns.
+- **Finished sketches in part mode** (`part_sketch.rs`). A tab keeps each
+  `core.sketch` feature's last solved sketch, made again only when a newer
+  evaluation of it arrives. One that no feature takes a region or an item
+  of (`Ref::Region`, `Ref::Sketch`) is drawn on its plane through
+  `PlaneToScreen`, curves and points only, over the scene; one that is
+  taken is hidden, and so is the sketch open in sketch mode, which draws
+  its own. While the active form field asks for a `region`, `point` or
+  `axis`, every sketch is drawn, and the pointer finds only that kind in
+  them (`arrix_ui::pick_sketch_item`: the innermost region, the nearest
+  point, the nearest straight line), the hovered region shaded and
+  outlined as in sketch mode. An item under the pointer wins over the
+  scene's pick, for hover and for click, and never otherwise: with no
+  field asking the scene's pick is all there is. A click on one is a pick
+  into the field (`Ref::Region` with the key the evaluator gave,
+  `Ref::Sketch`), no selection. What the form's fields hold is drawn
+  selected. `debug_state()` lists the sketches drawn.
 - **Overlays**: the sketch (points, curves, constraint glyphs,
   dimensions), plugin drawables, diagnostics highlights, frozen badges on
   bodies from frozen features.

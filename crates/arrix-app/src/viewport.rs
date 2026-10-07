@@ -5,12 +5,14 @@
 
 use arrix_ui::viewcube::{self, ViewCubeAction, arrows};
 use arrix_ui::{
-    CardsView, FieldEvent, PlanePointer, PlaneToScreen, SketchHit, paint_sketch, viewcube_rect,
+    CardsView, FieldEvent, PlanePointer, PlaneToScreen, SketchHit, paint_sketch, pick_sketch_item,
+    viewcube_rect,
 };
 use arrix_viewport::{Highlights, OrbitCamera, Renderer, StandardView};
 use web_time::Instant;
 
 use crate::documents::{PickFor, ViewState};
+use crate::part_sketch::{PartPointer, PartSketches};
 use crate::sketch_view::{SketchOverlay, plane_transform};
 
 /// What a frame of the viewport left for the app to do.
@@ -20,6 +22,8 @@ pub struct Frame {
     pub hover_left: bool,
     /// What the pointer did in the open sketch, when there is one.
     pub sketch: Option<SketchPointer>,
+    /// What the pointer did among the finished sketches a field asks about.
+    pub part: PartPointer,
 }
 
 /// The pointer in the open sketch's plane, for what changed this frame.
@@ -75,6 +79,7 @@ pub fn show(
     cards: &CardsView,
     cube: bool,
     sketch: Option<&SketchOverlay>,
+    part: &PartSketches,
 ) -> Frame {
     let rect = ui.max_rect();
     // The viewport's own response: a card over it is a layer above and
@@ -104,12 +109,25 @@ pub fn show(
     let pressed = ui.input(|i| i.pointer.any_down());
     // A hover pick is asked for when the pointer has moved and none is on
     // its way; a click's wins over it.
+    // While a field asks for a region, a point or a line, such an item under
+    // the pointer is what it means, over any face behind it.
+    let find = |at| {
+        let ask = part.ask?;
+        part.overlays.iter().find_map(|overlay| {
+            let to_screen = plane_transform(&view.camera, rect, &overlay.plane)?;
+            let item = pick_sketch_item(&overlay.view, &to_screen, at, HIT_TOLERANCE, ask)?;
+            Some((overlay.feature, item))
+        })
+    };
+    let part_over = hover.and_then(find);
+    let part_click = click.and_then(find);
     let moved = hover
         .filter(|p| view.hover_at != Some(*p))
-        .filter(|_| !pressed && view.pick.is_none());
+        .filter(|_| !pressed && view.pick.is_none() && part_over.is_none());
     // In sketch mode the pointer is the sketch's: nothing in the scene is
     // picked or hovered.
     let wanted = click
+        .filter(|_| part_click.is_none())
         .map(|at| (at, PickFor::Click))
         .or(moved.map(|at| (at, PickFor::Hover)))
         .filter(|_| sketch.is_none());
@@ -140,6 +158,15 @@ pub fn show(
     }
 
     // Painted after the scene, so over it.
+    for overlay in &part.overlays {
+        if let Some(to_screen) = plane_transform(&view.camera, rect, &overlay.plane) {
+            paint_sketch(&ui.painter_at(rect), &to_screen, &overlay.view);
+        }
+    }
+    let part_pointer = PartPointer {
+        hover: (part_over != view.part_hover).then_some(part_over),
+        click: part_click.map(|(feature, item)| (feature, item, shift_at_release(ui))),
+    };
     let mut sketch_pointer = None;
     if let Some(overlay) = sketch
         && let Some(to_screen) = plane_transform(&view.camera, rect, &overlay.plane)
@@ -211,6 +238,7 @@ pub fn show(
     Frame {
         hover_left,
         sketch: sketch_pointer,
+        part: part_pointer,
     }
 }
 

@@ -152,7 +152,7 @@ None new. Previews use the operations the features already call and
   from a list field. The selection when the create command runs seeds
   the first field it fits. The field's references are drawn selected in
   the viewport. Edit-form picks are each one `EditFeature`.
-- [ ] **[2]** Step 8: finished sketches in part mode. Each visible sketch
+- [x] **[2]** Step 8: finished sketches in part mode. Each visible sketch
   is drawn on its plane through `PlaneToScreen` (curves and points, no
   dimensions or glyphs), and while a field asks for a `region`, `point`
   or `axis` its regions, points and lines are hit-tested as sketch mode

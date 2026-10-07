@@ -12,6 +12,7 @@ mod form;
 mod form_pick;
 mod keys;
 mod palette;
+mod part_sketch;
 mod sketch_constrain;
 mod sketch_dimension;
 mod sketch_drag;
@@ -397,6 +398,9 @@ impl ArrixApp {
         }
         self.follow_sketches();
         self.follow_forms();
+        for document in &mut self.documents {
+            document.follow_part_sketches();
+        }
         if waiting {
             ctx.request_repaint_after(POLL);
         }
@@ -911,6 +915,7 @@ impl eframe::App for ArrixApp {
         let window = ui.max_rect();
         let view = self.shell_view();
         let overlay = self.sketch_overlay();
+        let part = self.part_sketches();
         let view_state = match self.documents.get_mut(self.active) {
             Some(d) => &mut d.view,
             None => &mut self.idle_view,
@@ -926,10 +931,12 @@ impl eframe::App for ArrixApp {
                 &view.cards,
                 !view.documents.tabs.is_empty(),
                 overlay.as_ref(),
+                &part,
             ));
         });
         let hover_left = frame.as_ref().is_some_and(|f| f.hover_left);
         let now = ui.input(|i| i.time);
+        let part_pointer = frame.as_mut().map(|f| std::mem::take(&mut f.part));
         let sketch_pointer = frame.and_then(|f| f.sketch);
         self.drawn = Some(Drawn {
             window,
@@ -947,6 +954,15 @@ impl eframe::App for ArrixApp {
         if hover_left {
             self.apply(UiIntent::Hovered { name: None });
             ui.ctx().request_repaint();
+        }
+        if let Some(pointer) = part_pointer {
+            if let Some(hover) = pointer.hover {
+                self.hover_part_sketch(hover);
+                ui.ctx().request_repaint();
+            }
+            if let Some((feature, item, extend)) = pointer.click {
+                self.form_pick_sketch(feature, item, extend);
+            }
         }
         if let Some(pointer) = sketch_pointer {
             if let Some(hit) = pointer.hover {

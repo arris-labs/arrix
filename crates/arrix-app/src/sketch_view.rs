@@ -212,6 +212,7 @@ pub fn sketch_view(solved: &Solved) -> SketchView {
             })
             .collect(),
         hover_region: None,
+        selected_regions: Vec::new(),
     }
 }
 
