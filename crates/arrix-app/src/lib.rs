@@ -10,9 +10,10 @@ mod theme;
 pub use debug::DebugState;
 
 use arrix_config::{
-    CommandRegistry, ConfigDiagnostic, ConfigSource, Keymap, MemorySource, PALETTE_CLOSE,
-    PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN, Settings, Theme,
+    CommandRegistry, Config, ConfigDiagnostic, ConfigSource, Keymap, MemorySource, PALETTE_CLOSE,
+    PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN, ParamDefaults, Settings, Theme,
 };
+use arrix_plugin_api::FeatureTypeSpec;
 use arrix_ui::{ShellLayout, ShellView, StatusView, TreeView, UiIntent};
 use palette::Palette;
 
@@ -30,6 +31,9 @@ pub struct ArrixApp {
     settings: Settings,
     keymap: Keymap,
     theme: Theme,
+    /// The registered feature types, and the user's defaults for their forms.
+    feature_types: Vec<FeatureTypeSpec>,
+    defaults: ParamDefaults,
     /// What the config files got wrong, for `debug_state()` and the status bar.
     config_diagnostics: Vec<ConfigDiagnostic>,
     /// What the last frame drew, for [`ArrixApp::debug_state`].
@@ -50,26 +54,34 @@ impl ArrixApp {
 
     /// The app on the configuration `source` holds over the built-in one.
     pub fn with_config(cc: &eframe::CreationContext<'_>, source: &impl ConfigSource) -> Self {
-        let commands = commands::command_registry(&commands::feature_types());
-        let (settings, mut config_diagnostics) = Settings::load(source);
-        let (keymap, keymap_diagnostics) = Keymap::load(source, &commands);
-        config_diagnostics.extend(keymap_diagnostics);
-        let (theme, theme_diagnostics) = Theme::load(settings.string("ui.theme"), source);
-        config_diagnostics.extend(theme_diagnostics);
-        let visuals = theme::view(&theme).visuals(&cc.egui_ctx.global_style().visuals);
+        let types = commands::feature_types();
+        let commands = commands::command_registry(&types);
+        let specs = commands::feature_type_specs(&types);
+        let config = Config::load(source, &commands, &specs, &arrix_doc::expr::check_constant);
+        let visuals = theme::view(&config.theme).visuals(&cc.egui_ctx.global_style().visuals);
         cc.egui_ctx.set_visuals(visuals);
         Self {
             commands,
-            settings,
-            keymap,
-            theme,
-            config_diagnostics,
+            settings: config.settings,
+            keymap: config.keymap,
+            theme: config.theme,
+            feature_types: specs,
+            defaults: config.defaults,
+            config_diagnostics: config.diagnostics,
             session: Session {
                 ribbon_tab: "core.sketch".into(),
                 palette: None,
             },
             drawn: None,
         }
+    }
+
+    /// The initial form of a new feature of `type_id`: each parameter's
+    /// name and expression, with the user's defaults over the type's own.
+    /// M3's document plan seeds the property panel from it.
+    pub fn effective_params(&self, type_id: &str) -> Option<Vec<(String, String)>> {
+        let ty = self.feature_types.iter().find(|t| t.id == type_id)?;
+        Some(self.defaults.effective_params(ty))
     }
 
     /// The view the shell is drawn from: a projection of the session (and,

@@ -175,6 +175,17 @@ impl Expr {
     }
 }
 
+/// Whether `text` is a constant expression (no parameter names) of `kind`:
+/// what a configured default for a feature parameter must be, since it
+/// seeds a form before any parameter is in scope. The failure is the
+/// expression's own diagnostic.
+pub fn check_constant(text: &str, kind: QuantityKind) -> Result<(), Diagnostic> {
+    Expr::parse(text)
+        .and_then(|e| e.quantity(kind, &|_| None, &|_| None))
+        .map(|_| ())
+        .map_err(|e| e.diagnostic())
+}
+
 impl Ast {
     fn names<'a>(&'a self, out: &mut BTreeSet<&'a str>) {
         match self {

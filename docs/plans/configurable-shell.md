@@ -214,7 +214,7 @@ None. No step calls the kernel.
   - `ui.theme` selects a built-in theme or `themes/<name>.toml`.
   - New snapshot scenario: `light_theme`. Its coarse frame is read before
     pinning.
-- [ ] **[2]** Step 7: feature parameter defaults.
+- [x] **[2]** Step 7: feature parameter defaults.
   - `[defaults."<type>"] <param> = "<expression>"` is checked against the
     type's `ParamSpec`. These are diagnostics:
     - an unknown type or parameter
@@ -338,6 +338,14 @@ The whole gate is green, the wasm build included.
   turns it off for determinism, and the first version, which reset it,
   changed the palette's pixels. The app sets the theme at creation (no extra
   first-frame repaint) and again when it changes.
+- Step 7 found: `arrix-config` cannot depend on `arrix-doc`, so the check is
+  injected as a function; `arrix_doc::expr::check_constant` (new, a constant
+  expression of a kind) is the one both binaries pass. A diagnostic keeps
+  the expression's own code under `config.` (`config.expr.syntax`,
+  `config.expr.unit-mismatch`). `Config::load` bundles settings, defaults,
+  keymap and theme with their diagnostics, for the app now and for `describe`,
+  `config check` and reload next; `ArrixApp::effective_params(type_id)` is
+  the form M3's document plan seeds from.
 - Step 3 found: `arrix-app` needs its own Tier 0 registration list to
   know the feature types (like the CLI's), so the layer lint gains the
   `arrix-app` → `arrix-gears` edge. A plugin's tab is titled from its id

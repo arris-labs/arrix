@@ -7,9 +7,11 @@
 //! (`arrix-app`'s `config_files`), memory in tests and the browser.
 //!
 //! Built so far: the settings and `settings.toml`, the command registry,
-//! the keymap and the themes.
+//! the keymap, the themes and the defaults of feature parameters.
 
 mod commands;
+mod config;
+mod defaults;
 mod diagnostic;
 mod keymap;
 mod settings;
@@ -22,6 +24,8 @@ pub use commands::{
     PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN, PANEL_PROPERTIES_TOGGLE,
     PANEL_TREE_TOGGLE, RibbonPlacement, TabSpec,
 };
+pub use config::Config;
+pub use defaults::{ExprCheck, ParamDefaults};
 pub use diagnostic::ConfigDiagnostic;
 pub use keymap::{Binding, CONTEXTS, Chord, Keymap};
 pub use settings::{DefaultValue, SETTINGS, SettingKind, SettingSpec, SettingValue, Settings};

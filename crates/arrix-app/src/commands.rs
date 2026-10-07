@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use arrix_config::{CommandRegistry, CommandSpec, Settings};
 use arrix_doc::Registry;
+use arrix_plugin_api::FeatureTypeSpec;
 use arrix_plugin_host::register_tier0;
 use arrix_ui::{RibbonCommand, RibbonGroup, RibbonTab, RibbonView};
 
@@ -19,14 +20,18 @@ pub fn feature_types() -> Registry {
     r
 }
 
-/// The registry of commands for every registered feature type.
-pub fn command_registry(types: &Registry) -> CommandRegistry {
-    let specs: Vec<_> = types
+/// The spec of every registered feature type, in registration order.
+pub fn feature_type_specs(types: &Registry) -> Vec<FeatureTypeSpec> {
+    types
         .ids()
         .filter_map(|id| types.get(id))
         .map(|ty| ty.spec().clone())
-        .collect();
-    CommandRegistry::new(&specs)
+        .collect()
+}
+
+/// The registry of commands for every registered feature type.
+pub fn command_registry(types: &Registry) -> CommandRegistry {
+    CommandRegistry::new(&feature_type_specs(types))
 }
 
 /// What decides whether a command applies.

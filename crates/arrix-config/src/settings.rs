@@ -142,6 +142,11 @@ impl Settings {
         diagnostics: &mut Vec<ConfigDiagnostic>,
     ) {
         for (key, value) in table.iter() {
+            // The feature types' defaults are `ParamDefaults`', whose
+            // checks need the types.
+            if prefix.is_empty() && key.get_ref() == "defaults" {
+                continue;
+            }
             let path = if prefix.is_empty() {
                 key.get_ref().to_string()
             } else {

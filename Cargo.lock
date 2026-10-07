@@ -408,6 +408,7 @@ dependencies = [
 name = "arrix-cli"
 version = "0.0.0"
 dependencies = [
+ "arrix-config",
  "arrix-core",
  "arrix-doc",
  "arrix-gears",
