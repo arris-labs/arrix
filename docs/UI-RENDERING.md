@@ -372,6 +372,18 @@ turns to face the plane in orthographic projection.
   A focused field owns the keyboard: no sketch key fires while one is
   open. When a parameter changes in the document the sketch is evaluated
   again and the label follows, with no command from sketch mode.
+- **Trim and extend** are the modify tools (`core.sketch.trim` T,
+  `core.sketch.extend` E; the Modify group). The pointer picks the drawn
+  line, circle or arc under it (construction geometry is never picked) and
+  the overlay previews the stretch the click acts on: for trim the piece
+  between the crossings nearest the pointer, for extend the run from the
+  end nearest the pointer to the first curve along its continuation. The
+  preview and the edit read the same pieces and the same first hit
+  (`arrix_sketch::modify`), so the click does what the hover showed. A
+  click that changes the sketch is one `SketchEdit` of the draft solved
+  after it, constraints transferred by the modify rules; a click on
+  nothing issues nothing, and one the edit refuses (no crossing to reach)
+  says why in the status line and issues nothing.
 - **The drag** is the select tool's: the left button down on a point or a
   curve and moved starts a `DragSession` over the solved draft (a point
   that is fixed, a glyph and a dimension are not dragged; a curve is

@@ -410,6 +410,12 @@ impl ArrixApp {
             self.dimension_click(hit, extend, pointer);
             return;
         }
+        if matches!(mode.drawing.tool, Tool::Trim | Tool::Extend) {
+            if let Some(pointer) = pointer {
+                self.modify_click(pointer);
+            }
+            return;
+        }
         if mode.drawing.tool.draws() {
             if let Some(pointer) = pointer {
                 self.draw_click(pointer);

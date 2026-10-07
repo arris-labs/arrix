@@ -8,7 +8,8 @@
 //! sketch's expressions, so only what the click made rides along.
 
 use arrix_config::{
-    SKETCH_ARC, SKETCH_CIRCLE, SKETCH_DIMENSION, SKETCH_LINE, SKETCH_RECTANGLE, SKETCH_SELECT,
+    SKETCH_ARC, SKETCH_CIRCLE, SKETCH_DIMENSION, SKETCH_EXTEND, SKETCH_LINE, SKETCH_RECTANGLE,
+    SKETCH_SELECT, SKETCH_TRIM,
 };
 use arrix_sketch::{
     Constraint, Draft, Entity, EntityId, GlyphKind, Inferred, Point, PointId, Sketch, Snap,
@@ -37,6 +38,8 @@ pub enum Tool {
     Circle,
     Arc,
     Dimension,
+    Trim,
+    Extend,
 }
 
 impl Tool {
@@ -58,6 +61,8 @@ impl Tool {
             Self::Circle => SKETCH_CIRCLE,
             Self::Arc => SKETCH_ARC,
             Self::Dimension => SKETCH_DIMENSION,
+            Self::Trim => SKETCH_TRIM,
+            Self::Extend => SKETCH_EXTEND,
         }
     }
 
@@ -69,6 +74,8 @@ impl Tool {
             Self::Circle => "Circle",
             Self::Arc => "Arc",
             Self::Dimension => "Dimension",
+            Self::Trim => "Trim",
+            Self::Extend => "Extend",
         }
     }
 }
@@ -216,6 +223,9 @@ impl Drawing {
 
     /// The preview of the pointer's snap: what the next click draws.
     pub fn preview(&self, sketch: &Sketch) -> Option<SketchPreviewView> {
+        if matches!(self.tool, Tool::Trim | Tool::Extend) {
+            return self.modify_preview(sketch);
+        }
         let pointer = self.pointer.filter(|_| self.tool.draws())?;
         let snap = self.snap(sketch, &pointer);
         let cursor = [snap.uv.0, snap.uv.1];
@@ -309,6 +319,8 @@ impl Drawing {
                     "{name}: pick another, or click where the label goes. Shift makes a diameter."
                 ),
             },
+            (Tool::Trim, _) => format!("{name}: click the piece to remove."),
+            (Tool::Extend, _) => format!("{name}: click the end to reach out from."),
             (Tool::Select, _) => String::new(),
         }
     }
@@ -405,7 +417,7 @@ fn draw(drawing: &mut Drawing, draft: &mut Draft, snap: &Snap, tol: f64) -> bool
     let at = [snap.uv.0, snap.uv.1];
     let near = |p: Uv| (p[0] - at[0]).hypot(p[1] - at[1]) <= tol;
     match (drawing.tool, drawing.pending.take()) {
-        (Tool::Select | Tool::Dimension, _) => false,
+        (Tool::Select | Tool::Dimension | Tool::Trim | Tool::Extend, _) => false,
         (
             Tool::Line,
             None

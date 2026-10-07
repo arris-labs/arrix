@@ -197,7 +197,7 @@ Complexity: **[1]** routine; **[2]** careful; **[3]** unproven.
   showing the error and issues nothing; the same value issues nothing.
   Tests: a dimension naming a parameter; an edit of that parameter in the
   document re-evaluates the sketch with no command in sketch mode; undo.
-- [ ] **[2]** Step 12 — Trim and extend: hovering a curve previews the
+- [x] **[2]** Step 12 — Trim and extend: hovering a curve previews the
   piece trim removes or the extension extend adds
   (`arrix_sketch::modify` previews); a click commits it, constraints
   transferred, one command. Tests over the ported cases, each one command

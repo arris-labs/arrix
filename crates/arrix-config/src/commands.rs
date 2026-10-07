@@ -50,6 +50,10 @@ pub const SKETCH_CIRCLE: &str = "core.sketch.circle";
 pub const SKETCH_ARC: &str = "core.sketch.arc";
 /// The dimension tool: picks, then a click that places the label.
 pub const SKETCH_DIMENSION: &str = "core.sketch.dimension";
+/// The modify tools: a click on a curve trims it back to its nearest
+/// crossings, or extends its nearest end to the first curve it meets.
+pub const SKETCH_TRIM: &str = "core.sketch.trim";
+pub const SKETCH_EXTEND: &str = "core.sketch.extend";
 /// Toggling the selected curves between solid and construction.
 pub const SKETCH_CONSTRUCTION: &str = "core.sketch.construction";
 /// The constraint commands: `core.sketch.constrain.<kind>`, one per kind
@@ -238,6 +242,19 @@ impl CommandRegistry {
             when: Some("sketch".into()),
             ..document_command(SKETCH_DIMENSION, "Dimension", &["d"])
         });
+        for (id, title, keys) in [
+            (SKETCH_TRIM, "Trim", &["t"][..]),
+            (SKETCH_EXTEND, "Extend", &["e"][..]),
+        ] {
+            commands.push(CommandSpec {
+                ribbon: Some(RibbonPlacement {
+                    tab: CORE_SKETCH_TAB.into(),
+                    group: "Modify".into(),
+                }),
+                when: Some("sketch".into()),
+                ..document_command(id, title, keys)
+            });
+        }
         commands.push(CommandSpec {
             ribbon: Some(RibbonPlacement {
                 tab: CORE_SKETCH_TAB.into(),
