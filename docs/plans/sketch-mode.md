@@ -117,7 +117,7 @@ Complexity: **[1]** routine; **[2]** careful; **[3]** unproven.
   established here, not assumed (a redundant alignment under an H lock, a
   tangent snap at the touching point, parallel and perpendicular following
   a turning reference without a flip), and the time of one verdict.
-- [ ] **[2]** Step 3 — The UI's first document commands.
+- [x] **[2]** Step 3 — The UI's first document commands.
   `core.edit.undo` and `.redo` (Ctrl+Z, Ctrl+Shift+Z and Ctrl+Y) through
   the tab's session, `core.document.new` (an empty document in a new tab;
   no part until something needs one), and the gesture counter: each

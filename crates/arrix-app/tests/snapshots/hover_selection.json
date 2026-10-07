@@ -54,6 +54,7 @@
       "problems": [],
       "settled": true
     },
+    "gesture_commands": 0,
     "hover": "edge:sweep.5BE3HE4D204QM.rise.77MSVCSN1W8ET",
     "keymap": [
       {
@@ -106,6 +107,22 @@
       {
         "command": "core.document.close",
         "key": "ctrl+w"
+      },
+      {
+        "command": "core.document.new",
+        "key": "ctrl+n"
+      },
+      {
+        "command": "core.edit.undo",
+        "key": "ctrl+z"
+      },
+      {
+        "command": "core.edit.redo",
+        "key": "ctrl+shift+z"
+      },
+      {
+        "command": "core.edit.redo",
+        "key": "ctrl+y"
       },
       {
         "command": "core.palette.close",

@@ -6,10 +6,10 @@
 use std::collections::BTreeSet;
 use std::time::Duration;
 
-use arrix_core::{MeshDetail, PersistentName};
+use arrix_core::{Id, MeshDetail, PersistentName};
 use arrix_doc::{
-    DocumentSource, EventStream, FeatureOutcome, Generation, LocalSession, Registry, Replica,
-    Session, SessionEvent,
+    AuthorId, Command, CommandEnvelope, Document, DocumentSource, EventStream, FeatureOutcome,
+    Generation, LocalSession, Outcome, Registry, Replica, Session, SessionEvent,
 };
 use arrix_ui::{FeatureState, TreeFeature, TreePart, TreeView};
 use arrix_viewport::{BodyKey, GpuMesh, OrbitCamera, PendingPick, Renderer, Scene};
@@ -20,6 +20,10 @@ use web_time::Instant;
 /// published, so this only has to outlast a hop between threads and a busy
 /// machine; the wall clock, since egui's can run ahead of it in a test.
 const NO_BODIES_AFTER: Duration = Duration::from_secs(1);
+
+/// The local user, as the authority knows them: undo is per author
+/// (SEED.md §6.1), and in local mode there is one.
+const LOCAL_AUTHOR: AuthorId = AuthorId(Id(1));
 
 /// What is drawn and from where: the bodies, and the camera on them; what
 /// is selected among them, and the pick on its way.
@@ -144,6 +148,7 @@ pub struct OpenDocument {
     /// What went wrong that is not the document's own: a body that did not
     /// mesh, a stream the replica could not follow.
     pub problems: Vec<String>,
+    applied: usize,
 }
 
 /// The meshes heard of one generation: every body coarse, then every body
@@ -168,6 +173,20 @@ impl OpenDocument {
         registry: Registry,
     ) -> Result<Self, String> {
         let document = arrix_doc::open(source).map_err(|e| format!("{path}: {e}"))?;
+        Self::start(title, path, document, registry)
+    }
+
+    /// A new document with nothing in it: no part until something needs one.
+    pub fn empty(title: &str, registry: Registry) -> Result<Self, String> {
+        Self::start(title, "", Document::default(), registry)
+    }
+
+    fn start(
+        title: &str,
+        path: &str,
+        document: Document,
+        registry: Registry,
+    ) -> Result<Self, String> {
         let session = LocalSession::open(document, registry)
             .map_err(|e| format!("{path}: the session does not start: {e}"))?;
         Ok(Self {
@@ -184,7 +203,45 @@ impl OpenDocument {
             settled: false,
             broken: false,
             problems: Vec::new(),
+            applied: 0,
         })
+    }
+
+    /// How many commands the authority has applied for this tab's author,
+    /// undo and redo included: a gesture's count is the difference.
+    pub fn applied(&self) -> usize {
+        self.applied
+    }
+
+    /// Submits `command` against the generation this replica has heard. The
+    /// reason it was not applied, for the user, is the error; a command
+    /// whose effect is the current state is `Ok(false)`.
+    pub fn submit(&mut self, command: Command) -> Result<bool, String> {
+        let envelope = CommandEnvelope {
+            author: LOCAL_AUTHOR,
+            base: self.replica.generation(),
+            command,
+        };
+        self.count(self._session.submit(envelope))
+    }
+
+    pub fn undo(&mut self) -> Result<bool, String> {
+        self.count(self._session.undo(LOCAL_AUTHOR))
+    }
+
+    pub fn redo(&mut self) -> Result<bool, String> {
+        self.count(self._session.redo(LOCAL_AUTHOR))
+    }
+
+    fn count(&mut self, outcome: Result<Outcome, arrix_doc::Rejected>) -> Result<bool, String> {
+        match outcome {
+            Ok(Outcome::Applied(_)) => {
+                self.applied += 1;
+                Ok(true)
+            }
+            Ok(Outcome::NoOp) => Ok(false),
+            Err(rejected) => Err(rejected.to_string()),
+        }
     }
 
     /// Whether everything the document's latest generation will say has

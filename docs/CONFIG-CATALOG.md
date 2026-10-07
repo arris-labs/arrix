@@ -32,6 +32,9 @@ the command registry and the setting specs; a test holds it fresh. Do not edit.
 | `core.document.next` | Next document | ctrl+tab |  |  |
 | `core.document.previous` | Previous document | ctrl+shift+tab |  |  |
 | `core.document.close` | Close document | ctrl+w |  |  |
+| `core.document.new` | New document | ctrl+n |  |  |
+| `core.edit.undo` | Undo | ctrl+z |  |  |
+| `core.edit.redo` | Redo | ctrl+shift+z, ctrl+y |  |  |
 | `core.palette.close` | Close the palette | escape, ctrl+k | palette |  |
 | `core.palette.next` | Next palette result | down | palette |  |
 | `core.palette.previous` | Previous palette result | up | palette |  |

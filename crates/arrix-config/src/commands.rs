@@ -34,6 +34,11 @@ pub const VIEW_PROJECTION_TOGGLE: &str = "core.view.projection.toggle";
 pub const DOCUMENT_NEXT: &str = "core.document.next";
 pub const DOCUMENT_PREVIOUS: &str = "core.document.previous";
 pub const DOCUMENT_CLOSE: &str = "core.document.close";
+/// A new, empty document in a new tab.
+pub const DOCUMENT_NEW: &str = "core.document.new";
+/// Undoing and redoing the author's last change to the shown document.
+pub const EDIT_UNDO: &str = "core.edit.undo";
+pub const EDIT_REDO: &str = "core.edit.redo";
 
 /// Core feature types that are made in the Sketch tab; the rest of the core
 /// types are part features.
@@ -118,6 +123,9 @@ impl CommandRegistry {
             document_command(DOCUMENT_NEXT, "Next document", &["ctrl+tab"]),
             document_command(DOCUMENT_PREVIOUS, "Previous document", &["ctrl+shift+tab"]),
             document_command(DOCUMENT_CLOSE, "Close document", &["ctrl+w"]),
+            command(DOCUMENT_NEW, "New document", &["ctrl+n"]),
+            document_command(EDIT_UNDO, "Undo", &["ctrl+z"]),
+            document_command(EDIT_REDO, "Redo", &["ctrl+shift+z", "ctrl+y"]),
             palette_key(PALETTE_CLOSE, "Close the palette", &["escape", "ctrl+k"]),
             palette_key(PALETTE_NEXT, "Next palette result", &["down"]),
             palette_key(PALETTE_PREVIOUS, "Previous palette result", &["up"]),

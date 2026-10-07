@@ -90,6 +90,17 @@ else what to do next.
   key that ran a command is removed from the frame's input, so the query
   field doesn't also act on it. `debug_state()` reports the query, the
   results and the selection in the shell view.
+- **Undo, redo and new document** are the UI's first document commands.
+  `core.edit.undo` (Ctrl+Z) and `core.edit.redo` (Ctrl+Shift+Z, Ctrl+Y) ask
+  the tab's session to undo or redo the local author's last change; a
+  stack that is empty is a notice in the status line, never silence.
+  `core.document.new` (Ctrl+N) opens an empty document in a new tab, with
+  no part until something needs one. Each key or intent the app handles
+  (a hover is none) is a **gesture**, opened and closed around its
+  handling; the commands it got applied are counted, and `debug_state()`
+  reports the last gesture's count (`gesture_commands`), which is how a
+  scenario checks that every gesture was one command, or none where
+  nothing changed.
 - **Themes** are `ThemeView` data (below), made from a theme file: `base`
   (`dark` or `light`, the toolkit's look for what the roles don't cover),
   `[vars]` and `[colors]` over 16 roles (`THEME_ROLES`). A colour is `#rgb`,

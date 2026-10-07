@@ -17,10 +17,10 @@ pub use debug::DebugState;
 
 use arrix_config::{
     CONFIG_RELOAD, CommandRegistry, Config, ConfigDiagnostic, ConfigSource, DOCUMENT_CLOSE,
-    DOCUMENT_NEXT, DOCUMENT_PREVIOUS, Keymap, MemorySource, PALETTE_CLOSE, PALETTE_NEXT,
-    PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN, PANEL_PROPERTIES_TOGGLE, PANEL_TREE_TOGGLE,
-    ParamDefaults, SELECTION_CLEAR, Settings, Theme, VIEW_FRONT, VIEW_HOME, VIEW_ISO,
-    VIEW_PROJECTION_TOGGLE, VIEW_RIGHT, VIEW_TOP,
+    DOCUMENT_NEW, DOCUMENT_NEXT, DOCUMENT_PREVIOUS, EDIT_REDO, EDIT_UNDO, Keymap, MemorySource,
+    PALETTE_CLOSE, PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN,
+    PANEL_PROPERTIES_TOGGLE, PANEL_TREE_TOGGLE, ParamDefaults, SELECTION_CLEAR, Settings, Theme,
+    VIEW_FRONT, VIEW_HOME, VIEW_ISO, VIEW_PROJECTION_TOGGLE, VIEW_RIGHT, VIEW_TOP,
 };
 use arrix_core::RenderMesh;
 use arrix_plugin_api::FeatureTypeSpec;
@@ -42,6 +42,22 @@ struct Session {
     /// The command of the ribbon button or palette row under the pointer,
     /// as of the last frame: the status line's hint is about it.
     hovered_command: Option<String>,
+    /// Why the last gesture did nothing, for the status line until the next
+    /// one: nothing fails silently.
+    notice: Option<String>,
+    gestures: Gestures,
+}
+
+/// Counts the commands each gesture submits (SEED.md §8.2: one gesture, one
+/// command, or none when nothing changed). A pointer or key gesture is
+/// opened when the app starts handling it and closed when it is done; the
+/// last one's count is in `debug_state()`.
+#[derive(Default)]
+struct Gestures {
+    /// The applied total of the active document when the open gesture began.
+    open: Option<usize>,
+    /// The last closed gesture's count; `None` before any.
+    last: Option<usize>,
 }
 
 /// The application state eframe drives.
@@ -139,6 +155,8 @@ impl ArrixApp {
                 palette: None,
                 cards: CardToggles::default(),
                 hovered_command: None,
+                notice: None,
+                gestures: Gestures::default(),
             },
             drawn: None,
             renderer: cc
@@ -214,6 +232,61 @@ impl ArrixApp {
     /// document again as another build would.
     pub fn saved(&self) -> Option<arrix_doc::MemorySource> {
         self.active_document().map(OpenDocument::save)
+    }
+
+    /// A new, empty document in a new tab, shown. Nothing happens when no
+    /// thread can be had; the reason is the notice.
+    fn new_document(&mut self) {
+        let n = self.documents.len() + 1;
+        match OpenDocument::empty(&format!("Untitled {n}"), commands::feature_types()) {
+            Ok(document) => {
+                self.documents.push(document);
+                self.active = self.documents.len() - 1;
+            }
+            Err(reason) => self.session.notice = Some(reason),
+        }
+    }
+
+    /// Submits `command` to the active document as one gesture, as the
+    /// pointer's tools will: how a scenario edits the document before the
+    /// UI has the tool for it. Returns whether it changed anything.
+    pub fn submit(&mut self, command: arrix_doc::Command) -> Result<bool, String> {
+        self.open_gesture();
+        let result = match self.documents.get_mut(self.active) {
+            Some(document) => document.submit(command),
+            None => Err("no document is open".to_owned()),
+        };
+        self.session.notice = result.as_ref().err().cloned();
+        self.close_gesture();
+        result
+    }
+
+    /// The commands the active document has applied so far, for the gesture
+    /// count's baseline.
+    fn applied(&self) -> usize {
+        self.active_document().map_or(0, OpenDocument::applied)
+    }
+
+    fn open_gesture(&mut self) {
+        self.session.gestures.open = Some(self.applied());
+        self.session.notice = None;
+    }
+
+    /// Closes the open gesture: its count is the commands applied since it
+    /// opened. Why it did nothing, if it was refused, is the notice.
+    fn close_gesture(&mut self) {
+        if let Some(before) = self.session.gestures.open.take() {
+            self.session.gestures.last = Some(self.applied().saturating_sub(before));
+        }
+    }
+
+    /// Runs `command` for the shown document and says why it did nothing.
+    fn edit(&mut self, f: impl FnOnce(&mut OpenDocument) -> Result<bool, String>) {
+        if let Some(document) = self.documents.get_mut(self.active)
+            && let Err(reason) = f(document)
+        {
+            self.session.notice = Some(reason);
+        }
     }
 
     fn active_document(&self) -> Option<&OpenDocument> {
@@ -444,6 +517,9 @@ impl ArrixApp {
             .as_deref()
             .and_then(|id| self.commands.command(id));
         let Some(spec) = hovered else {
+            if let Some(notice) = &self.session.notice {
+                return notice.clone();
+            }
             if let Some(document) = self.active_document() {
                 if let Some(name) = &document.view.hover {
                     return match document.view.selection.as_ref() == Some(name) {
@@ -474,6 +550,18 @@ impl ArrixApp {
     }
 
     fn apply(&mut self, intent: UiIntent) {
+        // A hover is not a gesture; every other intent is one.
+        let gesture = !matches!(intent, UiIntent::Hovered { .. });
+        if gesture {
+            self.open_gesture();
+        }
+        self.apply_intent(intent);
+        if gesture {
+            self.close_gesture();
+        }
+    }
+
+    fn apply_intent(&mut self, intent: UiIntent) {
         match intent {
             UiIntent::RibbonTabSelected { tab } => self.session.ribbon_tab = tab,
             UiIntent::CommandInvoked { command } => {
@@ -537,6 +625,9 @@ impl ArrixApp {
             DOCUMENT_NEXT => self.step_document(1),
             DOCUMENT_PREVIOUS => self.step_document(-1),
             DOCUMENT_CLOSE => self.close_document(self.active),
+            DOCUMENT_NEW => self.new_document(),
+            EDIT_UNDO => self.edit(OpenDocument::undo),
+            EDIT_REDO => self.edit(OpenDocument::redo),
             CONFIG_RELOAD => self.reload(),
             // The creation commands arrive with their steps and plans.
             _ => {}
@@ -644,7 +735,9 @@ impl ArrixApp {
                 // A key that ran a command is spent: a focused field must
                 // not also act on it.
                 keys::consume(ctx, &chord);
+                self.open_gesture();
                 self.run(&command);
+                self.close_gesture();
             }
         }
     }

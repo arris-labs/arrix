@@ -102,7 +102,12 @@ mod tests {
     #[test]
     fn a_title_that_starts_with_the_word_comes_first() {
         let found = ids("new");
-        assert!(found.iter().all(|id| id.ends_with(".create")), "{found:?}");
+        assert!(
+            found
+                .iter()
+                .all(|id| id.ends_with(".create") || id == "core.document.new"),
+            "{found:?}"
+        );
         let found = ids("tab");
         assert_eq!(found[0], "core.ribbon.sketch", "{found:?}");
     }
