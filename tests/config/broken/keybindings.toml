@@ -1,0 +1,7 @@
+[[bind]]
+key = "ctrl+9"
+command = "core.nope"
+
+[[bind]]
+key = "ctrl+shift+"
+command = "core.config.reload"

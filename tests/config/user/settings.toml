@@ -1,0 +1,6 @@
+# A user's configuration: a plugin's parameter default, and a ribbon tab gone.
+[ui.ribbon]
+hidden-tabs = ["core.part"]
+
+[defaults."gears.spur"]
+module = "1.5 mm"

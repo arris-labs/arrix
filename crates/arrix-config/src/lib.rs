@@ -13,6 +13,7 @@ mod commands;
 mod config;
 mod defaults;
 mod diagnostic;
+mod dir;
 mod keymap;
 mod settings;
 mod source;
@@ -27,6 +28,7 @@ pub use commands::{
 pub use config::Config;
 pub use defaults::{ExprCheck, ParamDefaults};
 pub use diagnostic::ConfigDiagnostic;
+pub use dir::{Os, config_dir};
 pub use keymap::{Binding, CONTEXTS, Chord, Keymap};
 pub use settings::{DefaultValue, SETTINGS, SettingKind, SettingSpec, SettingValue, Settings};
 pub use source::{ConfigSource, KEYBINDINGS_TOML, MemorySource, SETTINGS_TOML, THEMES_DIR};

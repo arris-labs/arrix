@@ -1,0 +1,7 @@
+{"file":"settings.toml","line":3,"column":1,"severity":"error","code":"config.unknown-key","message":"`ui.nope` is not a setting"}
+{"file":"settings.toml","line":6,"column":15,"severity":"error","code":"config.type","message":"`ui.ribbon.hidden-tabs` is a list of strings, not a string"}
+{"file":"settings.toml","line":9,"column":10,"severity":"error","code":"config.expr.unit-mismatch","message":"the default of `module` in `gears.spur`: the expression is an angle, where a length is wanted"}
+{"file":"keybindings.toml","line":3,"column":11,"severity":"error","code":"config.unknown-command","message":"`core.nope` is not a command"}
+{"file":"keybindings.toml","line":6,"column":7,"severity":"error","code":"config.bad-key","message":"no key after the modifiers"}
+{"file":"themes/mine.toml","line":1,"column":2,"severity":"warning","code":"config.theme-role-missing","message":"no colour for panel, window, field, text, text-widget, text-hover, text-active, border, button, button-hover, button-active, accent, accent-text, link, warn, error; dark has them"}
+{"file":"themes/mine.toml","line":2,"column":9,"severity":"error","code":"config.bad-color","message":"`blue` is not a colour (#rgb, #rrggbb or #rrggbbaa)"}

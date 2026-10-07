@@ -49,3 +49,11 @@ impl DocumentSource for DirSource {
         Ok(names)
     }
 }
+
+/// The config directory read as one: the files are `settings.toml`,
+/// `keybindings.toml` and `themes/*.toml`, which a missing one leaves unset.
+impl arrix_config::ConfigSource for DirSource {
+    fn read(&self, path: &str) -> std::io::Result<Option<Vec<u8>>> {
+        DocumentSource::read(self, path)
+    }
+}

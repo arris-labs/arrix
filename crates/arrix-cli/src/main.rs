@@ -1,6 +1,8 @@
 //! `arrix`: the headless CLI, to open, evaluate, export, run and test
 //! documents (docs/CONCURRENCY-WASM.md §Batch evaluation).
 
+mod config;
+mod describe;
 mod plugins;
 mod source;
 
@@ -39,6 +41,37 @@ enum Command {
         #[arg(long = "save-fixtures", value_name = "DIR")]
         save_fixtures: Option<PathBuf>,
     },
+    /// Print everything there is to configure and its effective value: the
+    /// commands and their keys, the settings, the theme roles, the feature
+    /// types' parameters, the compiled-in plugins. Exit status: 0, or 2 when
+    /// `--dir` is not a directory.
+    Describe {
+        /// One JSON object (`"schema": 1`) instead of text.
+        #[arg(long)]
+        json: bool,
+        /// The config directory to read; by default `$ARRIX_CONFIG_DIR`, else
+        /// the platform's.
+        #[arg(long, value_name = "DIR")]
+        dir: Option<PathBuf>,
+    },
+    /// Work with the config files.
+    Config {
+        #[command(subcommand)]
+        command: ConfigCommand,
+    },
+}
+
+#[derive(Subcommand)]
+enum ConfigCommand {
+    /// Validate the config files and print one JSON line per diagnostic,
+    /// each with its file and line. Exit status: 0 when they are clean, 1
+    /// when they are not, 2 when `--dir` is not a directory.
+    Check {
+        /// The config directory to read; by default `$ARRIX_CONFIG_DIR`, else
+        /// the platform's.
+        #[arg(long, value_name = "DIR")]
+        dir: Option<PathBuf>,
+    },
 }
 
 fn main() -> ExitCode {
@@ -48,6 +81,10 @@ fn main() -> ExitCode {
             without,
             save_fixtures,
         } => eval(&doc, &without, save_fixtures.as_deref()),
+        Command::Describe { json, dir } => describe::run(dir.as_deref(), json),
+        Command::Config {
+            command: ConfigCommand::Check { dir },
+        } => config::check(dir.as_deref()),
     }
 }
 

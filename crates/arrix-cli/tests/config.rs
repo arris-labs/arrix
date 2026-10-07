@@ -1,12 +1,16 @@
 //! The user's configuration against the real expression checker and the
 //! compiled-in plugins (docs/UI-RENDERING.md §Configuration): a default
-//! for a plugin's parameter, and that config never reaches `evaluate`.
+//! for a plugin's parameter, and that config never reaches `evaluate`; and
+//! `arrix describe` and `arrix config check` as a user's agent runs them,
+//! against the directories in `tests/config/`. The goldens are rewritten
+//! with `UPDATE_SNAPSHOTS=1`.
 
 mod common;
 
 use arrix_config::{MemorySource, ParamDefaults, SETTINGS_TOML};
 use arrix_doc::expr::check_constant;
 use common::{registry, workspace};
+use std::process::Output;
 
 const MODULE_SET: &str = "[defaults.\"gears.spur\"]\nmodule = \"1.5 mm\"\n";
 
@@ -88,4 +92,110 @@ fn no_feature_evaluates_differently_under_a_config() {
             .default,
         "1 mm"
     );
+}
+
+fn arrix(args: &[&str]) -> Output {
+    std::process::Command::new(env!("CARGO_BIN_EXE_arrix"))
+        .current_dir(workspace())
+        .env_remove("ARRIX_CONFIG_DIR")
+        .args(args)
+        .output()
+        .expect("run arrix")
+}
+
+fn stdout(out: &Output) -> String {
+    String::from_utf8(out.stdout.clone()).expect("UTF-8 output")
+}
+
+/// `text` is the golden `name`, or becomes it under `UPDATE_SNAPSHOTS=1`.
+fn assert_golden(name: &str, text: &str) {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/golden")
+        .join(name);
+    if std::env::var_os("UPDATE_SNAPSHOTS").is_some() {
+        std::fs::write(&path, text).expect("write the golden");
+        return;
+    }
+    let golden = std::fs::read_to_string(&path).expect("read the golden");
+    assert!(
+        golden == text,
+        "{name} differs: rerun with UPDATE_SNAPSHOTS=1 and read the diff"
+    );
+}
+
+#[test]
+fn an_empty_directory_checks_clean_and_describes_the_defaults() {
+    let check = arrix(&["config", "check", "--dir", "tests/config/empty"]);
+    assert_eq!(check.status.code(), Some(0));
+    assert!(check.stdout.is_empty() && check.stderr.is_empty());
+    let out = arrix(&["describe", "--json", "--dir", "tests/config/empty"]);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_golden("describe_empty.json", &stdout(&out));
+    let d: serde_json::Value = serde_json::from_str(&stdout(&out)).unwrap();
+    assert_eq!(d["schema"], 1);
+    assert_eq!(d["diagnostics"], serde_json::json!([]));
+}
+
+#[test]
+fn a_broken_directory_prints_a_line_per_diagnostic_and_exits_1() {
+    let out = arrix(&["config", "check", "--dir", "tests/config/broken"]);
+    assert_eq!(out.status.code(), Some(1));
+    assert_golden("config_check_broken.jsonl", &stdout(&out));
+    // `describe` shows the same diagnostics, and the app would have
+    // started on the defaults: the bad keys keep their values.
+    let d = arrix(&["describe", "--json", "--dir", "tests/config/broken"]);
+    assert_eq!(d.status.code(), Some(0));
+    let d: serde_json::Value = serde_json::from_str(&stdout(&d)).unwrap();
+    assert_eq!(
+        d["diagnostics"].as_array().unwrap().len(),
+        stdout(&out).lines().count()
+    );
+    let hidden = d["settings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["id"] == "ui.ribbon.hidden-tabs");
+    assert_eq!(hidden.unwrap()["value"], serde_json::json!([]));
+}
+
+#[test]
+fn describe_shows_a_users_effective_values() {
+    let out = arrix(&["describe", "--json", "--dir", "tests/config/user"]);
+    assert_eq!(out.status.code(), Some(0));
+    let d: serde_json::Value = serde_json::from_str(&stdout(&out)).unwrap();
+    let spur = d["feature_types"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|t| t["id"] == "gears.spur");
+    let module = spur.unwrap()["params"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["name"] == "module");
+    let module = module.unwrap();
+    assert_eq!(
+        (module["default"].as_str(), module["effective"].as_str()),
+        (Some("1 mm"), Some("1.5 mm"))
+    );
+    let text = arrix(&["describe", "--dir", "tests/config/user"]);
+    assert!(stdout(&text).contains("module"), "{}", stdout(&text));
+}
+
+#[test]
+fn a_directory_that_is_not_one_exits_2() {
+    for args in [
+        ["config", "check", "--dir", "tests/config/nope"],
+        ["describe", "--dir", "tests/config/nope", ""],
+    ] {
+        let args: Vec<_> = args.into_iter().filter(|a| !a.is_empty()).collect();
+        let out = arrix(&args);
+        assert_eq!(out.status.code(), Some(2));
+        assert!(String::from_utf8_lossy(&out.stderr).contains("no such directory"));
+    }
 }

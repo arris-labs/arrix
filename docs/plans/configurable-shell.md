@@ -227,7 +227,7 @@ None. No step calls the kernel.
   - A test with `gears.spur`'s module set to `1.5 mm` asserts that no
     feature's `evaluate` input hash changes with config. It evaluates a
     document under two configs to identical JSON.
-- [ ] **[2]** Step 8: `arrix describe [--json]` and `arrix config check
+- [x] **[2]** Step 8: `arrix describe [--json]` and `arrix config check
   [--dir]`.
   - `describe` prints:
     - commands with their effective keys
@@ -305,12 +305,12 @@ The whole gate is green, the wasm build included.
 
 ## Open questions
 
-- ⚠ OPEN 1: where the config directory lives on each platform.
-  - On Linux: `$XDG_CONFIG_HOME`, else `~/.config`.
-  - On macOS: `~/Library/Application Support`.
-  - On Windows: `%APPDATA%`.
-  - Whether to take the `dirs` crate or read the variables directly.
-  - Agent decides by step 10.
+- ⚠ OPEN 1 (decided in step 8): the config directory is
+  `$ARRIX_CONFIG_DIR`, else `arrix` under `$XDG_CONFIG_HOME` or
+  `~/.config` (Linux), `~/Library/Application Support` (macOS) or
+  `%APPDATA%` (Windows). The variables are read directly, with no `dirs`
+  crate: `arrix_config::config_dir(os, env)` is a pure function over an
+  environment the caller hands in, shared by the CLI and (step 10) the app.
 - ⚠ OPEN 2: the `when` grammar. Should it be a single context name
   (`sketch`, `part`, `palette`, `text`) or VS Code-style expressions?
   Preferred: a single name until a binding needs more. Agent decides by
@@ -346,6 +346,16 @@ The whole gate is green, the wasm build included.
   keymap and theme with their diagnostics, for the app now and for `describe`,
   `config check` and reload next; `ArrixApp::effective_params(type_id)` is
   the form M3's document plan seeds from.
+- Step 8 found: `describe --json` is `schema` 1: `config_dir`, `plugins`,
+  `tabs`, `commands` (with effective and default keys), `bindings`,
+  `keymap_contexts`, `settings` (default and value), `theme` (roles with
+  their colours), `feature_types` (each parameter's default and effective
+  value) and `diagnostics`. `config check` exits 1 on any diagnostic, a
+  warning included, so a theme that leaves roles out is not clean. An
+  explicit `--dir` that isn't a directory is exit 2; a default directory
+  that doesn't exist is the built-in configuration. The CLI's goldens are
+  `describe_empty.json` and `config_check_broken.jsonl`; the directories are
+  `tests/config/{empty,broken,user}`, the last for step 11 to complete.
 - Step 3 found: `arrix-app` needs its own Tier 0 registration list to
   know the feature types (like the CLI's), so the layer lint gains the
   `arrix-app` → `arrix-gears` edge. A plugin's tab is titled from its id
