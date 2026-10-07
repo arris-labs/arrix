@@ -7,9 +7,10 @@ before its plan starts. One section per cycle; a finished cycle compresses
 to its status line (`/close-cycle`), and the next is detailed below it.
 
 Spine: **C1** M0 → M1 → M2 → M3 → M4 (the vertical slice with a plugin
-feature in it; M0, M1 and M2 landed), then **C2** (the mechanical core), **C3** (the
-boundary crossed), **C4** (the web). Beyond C4, the named cycles are
-unordered.
+feature in it; M0, M1 and M2 landed), then **the boundary opened** (the
+agent's way in; ADR-0016, numbered by C1's `/close-cycle`), **C2** (the
+mechanical core), **C3** (the boundary crossed), **C4** (the web). Beyond
+C4, the named cycles are unordered.
 
 ---
 
@@ -155,6 +156,9 @@ too large fails with `kernel.degenerate.blend-too-large`, and the recipe
 - The shell: the command registry, the ribbon with the gears plugin's tab,
   the command palette, the feature tree with its states, the property
   panel rendered from forms (the gear's included), diagnostics.
+- The shell configured by user files (ADR-0015): keymap, themes, hidden
+  ribbon tabs and feature parameter defaults in TOML, `arrix config
+  check`, `arrix describe`, reload without restarting.
 - Sketch mode: drawing, inference that commits what it shows, dimensions
   as expressions, trim/extend/offset/mirror, regions shaded as extrude
   will take them.
@@ -182,8 +186,9 @@ plugin. A gesture-count test over the flow.
 **Accept:** the cycle's.
 
 **Out:** assemblies, components, joints; materials and mass properties in
-the UI; measure and section view; STEP, 3MF and DXF/SVG import (C2); Tier 1
-and Tier 2 hosts, the Python SDK and the packaged test kit (C3); the
+the UI; measure and section view; STEP, 3MF and DXF/SVG import (C2); the
+Tier 2 host, `arrix serve`, the Python SDK and the packaged test kit (the
+boundary opened); the Tier 1 host (C3); the
 browser running the app (C4: C1 only keeps it compiling); sweep, loft,
 shell and draft (Arris's sweep cycle); the robotics plugin (by C3); network
 code of any kind, upstream failure reporting included (`docs/BACKLOG.md`);
@@ -247,6 +252,11 @@ and names it; nothing is worked around.
 
 ---
 
+## The boundary opened
+
+The Tier 2 host, `arrix serve --stdio`, the Python SDK and the test kit;
+the scenario is in ADR-0016 and C1's `/close-cycle` details the section.
+
 ## C2 — the mechanical core
 
 Assemblies (components, instances, joints, FK), materials, mass
@@ -256,10 +266,9 @@ assembly round-trips through STEP against another CAD's reading of it.
 
 ## C3 — the boundary crossed
 
-Tier 2 (Python) and Tier 1 (wasm component) hosts; robotics moved out as
-plugin #1; a second first-party plugin in Python through Tier 2 only; the
-plugin test kit; `arrix-plugin-api` reviewed for 0.x stability. Accept: the
-north-star demo (`SEED.md` §7).
+The Tier 1 (wasm component) host; robotics moved out as plugin #1; a
+second first-party plugin in Python through Tier 2 only; `arrix-plugin-api`
+reviewed for 0.x stability. Accept: the north-star demo (`SEED.md` §7).
 
 ## C4 — the web
 
@@ -280,6 +289,8 @@ None is scheduled. Each earns a section when `/close-cycle` opens it.
 - A general assembly mate solver.
 - Configurations.
 - A plugin index.
+- Distributions: a named, shareable composition of plugins, config and
+  ribbon layout; after the runtime tier (ADR-0016).
 - Remote mode: a self-hosted server with thin native and browser clients
   (`SEED.md` §6.1): authentication, presence, transport. Branching and
   merging documents is a separate question.

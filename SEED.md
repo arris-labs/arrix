@@ -7,6 +7,8 @@
 
 Development is fully agentic, as in Arris. The human sets direction and judges results; the agent designs, implements, tests and documents. So everything ArriX does must be checkable without a human looking at a screen: headless rendering, a JSON dump of what the app drew, a CLI that evaluates a document, and a plugin test kit.
 
+ArriX is also used by agents: the user's own agent is a first-class user beside the user (ADR-0016). ArriX invests in what such an agent can't cheaply rebuild (the kernel and naming, a document that outlives its plugins, determinism and the kernel record, the solver, the protocol, the headless harness) and makes everything above it, from keys and themes to ribbon tabs and plugins, replaceable by the agent through text it can write and diagnostics it can read.
+
 ArriX starts as a clean repository. Existing code that holds up (a sketch solver, a viewport, a headless visual harness) is ported and reviewed on the way in, and lessons from earlier work are principles in this seed (§8), not history to read.
 
 ## 2. The Naming Rationale
@@ -81,7 +83,7 @@ def solve(cx: arrix.AnalysisCx, doc: arrix.Snapshot) -> arrix.FieldOverlay:
     return arrix.FieldOverlay(mesh, stress, unit="MPa")
 ```
 
-A **script** is a Tier 2 plugin that runs once: `arrix run script.py doc.arrx`. An **agent** drives ArriX through the same Python API or the CLI. It never has to click.
+A **script** is a Tier 2 plugin that runs once: `arrix run script.py doc.arrx`. An **agent** drives ArriX through the same Python API, the CLI, or the `Session` protocol on stdio (`arrix serve --stdio`). It never has to click. The user's agent also reshapes the app for them: keys, themes, ribbon tabs and feature defaults are TOML files that `arrix config check` validates and the app reloads without restarting (ADR-0015); `arrix describe --json` lists everything there is to configure; and a feature or a panel the agent writes is a plugin, loaded without rebuilding ArriX.
 
 ## 6. Architecture Commitments
 
@@ -182,10 +184,11 @@ python/arrix        the Tier 2 SDK (PyPI), generated stubs plus a thin runtime
 A cycle retires the scariest remaining unknown first and ends in numbers. The first cycles are named here; `docs/ROADMAP.md` details them.
 
 * **C1 — the vertical slice, with a plugin feature in it.** Workspace, gates and the headless harness first; the sketcher, viewport and snapshot harness ported. Then a document with a DAG; sketch → extrude → cut → fillet → pattern → hole; naming from provenance; save/load `.arrx` v1; STEP/STL/OBJ export. **And a Tier 0 plugin feature in the same history** (a spur gear), frozen when the plugin is removed. A failed kernel call saves as an Arris fixture recipe, and the CLI evaluates documents in batch (§6.6). The risk retired: *a plugin feature is a first-class history entry*. It has to be proven before anything is built on a document model that doesn't allow it.
+* **The boundary opened** (numbered by C1's `/close-cycle`; ADR-0016). The Tier 2 host, `arrix serve --stdio` (the `Session` protocol on stdio, the agent's way in), the Python SDK and the plugin test kit. Accept: a user's agent, without ArriX's source, writes a Python feature plugin, loads it into a running session, builds a document over the stdio protocol, renders it headless and checks the result; the document then opens on a machine without the plugin, the feature frozen.
 * **C2 — the mechanical core.** Assemblies (components, instances, joints, FK; ported and generalised), materials, mass properties, measure, section view, STEP import as a feature with assembly structure (Arris ask A4), 3MF, DXF/SVG sketch exchange. Accept: a real multi-part assembly round-trips through STEP against another CAD's reading of it.
-* **C3 — the boundary crossed.** Tier 2 (Python) and Tier 1 (wasm component) hosts; robotics moved out as plugin #1; a second first-party plugin in Python (standard fasteners, or FEA export) through Tier 2 only; the plugin test kit; `arrix-plugin-api` reviewed for 0.x stability. Accept: the north-star demo.
+* **C3 — the boundary crossed.** The Tier 1 (wasm component) host; robotics moved out as plugin #1; a second first-party plugin in Python (standard fasteners, or FEA export) through Tier 2 only; `arrix-plugin-api` reviewed for 0.x stability. Accept: the north-star demo.
 * **C4 — the web.** The browser build with a worker executor; Tier 0 plugins only. A document using Tier 1 or Tier 2 plugins opens in the browser with those features frozen (§6.4). Tier 1 in the browser is a later decision, with its own ADR.
-* **Named, unordered:** sweep/loft/shell/draft features (gated on Arris's sweep cycle), interference checks (Arris's query cycle), a drawings plugin, sheet metal, a general assembly mate solver, configurations, a plugin index, **remote mode** (a self-hosted server with thin native and browser clients, §6.1: authentication, presence, transport; branching and merging documents as a separate question).
+* **Named, unordered:** sweep/loft/shell/draft features (gated on Arris's sweep cycle), interference checks (Arris's query cycle), a drawings plugin, sheet metal, a general assembly mate solver, configurations, a plugin index, **distributions** (a named, shareable composition of plugins, config and ribbon layout; after the runtime tier, ADR-0016), **remote mode** (a self-hosted server with thin native and browser clients, §6.1: authentication, presence, transport; branching and merging documents as a separate question).
 
 **North-star demo:** sketch a bracket → extrude, fillet, pattern holes → import a vendor servo from STEP and mate it → a **Python** plugin places fasteners from a library into the picked holes → the **robotics** plugin exports URDF that loads in RViz → save, open the file on a machine with neither plugin installed: every body is there, the plugin features are frozen and say why, and editing the bracket's width still updates everything downstream of them.
 
@@ -208,6 +211,7 @@ Redesigned rather than ported: the document model (plugin features, DAG, frozen 
 6. **The agent sees the UI itself.** Headless snapshots and a JSON of what was drawn; a golden is never refreshed without reading its diff.
 7. **Scope is argued, not accreted.** Work outside the current cycle names the scenario it unlocks first; otherwise a sketcher grows constraint kinds no tool can reach.
 8. **Split, don't allowlist**: 1,500 lines per file, 200 per function.
+9. **Build for the user's agent** (ADR-0016). Stable ids are the API; text in, diagnostics out, failing soft; the app describes itself (`describe`, schemas, generated catalogs held fresh by the gate); a short extension loop (edit, reload, see, with no rebuild of ArriX); and the harness is product, a public interface with a stability promise from the runtime-tier cycle on.
 
 ### 8.3 The Arris contract
 Arris is a crates.io dependency with pinned minors, and `[patch.crates-io]` only for an unreleased fix. A gap found here becomes an Arris regression fixture or backlog line, never an `#[ignore]` or workaround here. ArriX is Arris's first consumer: its side-by-side regressions rank Arris's next cycle (Arris ADR-0020). ArriX does not need Arris's API to be stable; its own plugin API is the stable layer.
@@ -244,4 +248,4 @@ With this seed agreed, and before writing application code:
 2. **Design documents**, present tense, one per topic: `ARCHITECTURE.md` (crates, layer rules, the data flow, threading), `DATA-MODEL.md` (document, DAG, features, naming, file format, frozen results), `PLUGINS.md` (the WIT world, tiers, manifest, contribution points, capabilities, versioning, the test kit), `UI-RENDERING.md`, `CONCURRENCY-WASM.md`, `ROADMAP.md` (C1 in full, the rest as one line each).
 3. **Port the harness before features**: the snapshot harness, `debug_state()` and the CLI's evaluate-and-dump come first, so every later step is checkable.
 4. **Track the Arris asks** (§8.4): an ArriX step blocked on one names it, and never works around it.
-5. **Write an ADR for each `⚠ OPEN` when it closes.** Open at kickoff, both technical and both the agent's to propose: undo granularity for plugin commands (C1; within §6.1's per-author inverse-command rule), and the Tier 2 wire encoding, JSON-RPC or a binary encoding of the WIT types (C3). Settled default, to be written into `DATA-MODEL.md`: when an upstream edit changes a frozen feature's inputs, it keeps its old result, is marked stale, and is re-frozen the next time its plugin runs.
+5. **Write an ADR for each `⚠ OPEN` when it closes.** Open at kickoff, both technical and both the agent's to propose: undo granularity for plugin commands (C1; within §6.1's per-author inverse-command rule), and the Tier 2 wire encoding, JSON-RPC or a binary encoding of the WIT types (the boundary-opened cycle, ADR-0016; leaning to JSON-RPC). Settled default, to be written into `DATA-MODEL.md`: when an upstream edit changes a frozen feature's inputs, it keeps its old result, is marked stale, and is re-frozen the next time its plugin runs.

@@ -7,7 +7,8 @@ that first-party domains need nothing else. This document is the design of
 traits at 0.4.0 (§One interface), manifests (§The manifest), Tier 0
 hosting (§Three tiers), and the first plugin, `plugins/gears` with
 `gears.spur` (its crate docs state its geometry and tolerance). Each other section becomes true as its
-cycle lands (Tier 0 in C1, Tiers 1 and 2 and the test kit in C3), and the
+cycle lands (Tier 0 in C1, Tier 2 and the test kit in the boundary-opened
+cycle, Tier 1 in C3; ADR-0016), and the
 commit that builds it keeps it true.
 
 ## One interface, defined once
@@ -22,7 +23,8 @@ API's version. From it come:
 - the **host side** in `arrix-plugin-host`: an adapter per tier that
   presents a plugin, however hosted, as the same trait objects;
 - the **Python SDK** (`python/arrix`): stubs generated from the world, and
-  a thin runtime speaking the Tier 2 wire protocol (C3).
+  a thin runtime speaking the Tier 2 wire protocol (the boundary-opened
+  cycle).
 
 The world as it stands at 0.4.0 (the file is the authority; comments and
 field lists are elided here):
@@ -165,7 +167,7 @@ change, reviewed like any other, never a private hook.
 |---|---|---|---|---|---|
 | 0 | a Rust crate compiled into the binary | direct calls through the API's traits | native and wasm | full: reviewed source | C1 |
 | 1 | a WebAssembly component (`.wasm`) installed at runtime | `wasmtime`, with the component model | native; the browser later, by ADR | sandboxed; capabilities enforced | C3 |
-| 2 | a separate process speaking the interface over stdio | a child process and a wire codec | native only | full: it is the user's own Python | C3 |
+| 2 | a separate process speaking the interface over stdio | a child process and a wire codec | native only | full: it is the user's own Python | the boundary opened |
 
 - **Tier 0 goes through the same trait objects** the Tier 1 bindings
   produce. A first-party plugin that works at Tier 0 is therefore proof the
@@ -203,8 +205,11 @@ change, reviewed like any other, never a private hook.
   torch and CUDA, and in remote mode the server's GPU.
 
 ⚠ OPEN: the Tier 2 wire encoding, JSON-RPC or a binary encoding of the
-WIT types (C3). Agent proposes; ADR. The constraint either way: the
-encoding is derived from the WIT world, not written by hand beside it.
+WIT types (the boundary-opened cycle). Agent proposes; ADR. The constraint
+either way: the encoding is derived from the WIT world, not written by
+hand beside it. ADR-0016 leans to JSON-RPC: an agent reads it, any
+language speaks it, and `arrix serve --stdio` uses the same framing; the
+cycle's ADR measures size and speed before closing it.
 
 ## The manifest
 
@@ -383,8 +388,8 @@ results.
 ## The test kit
 
 A plugin is tested headless, with no window and no human, the same way
-ArriX tests itself. C1 has the pieces in-tree for the first plugin; C3
-packages them for third parties (`arrix-plugin-test` for Rust, `arrix
+ArriX tests itself. C1 has the pieces in-tree for the first plugin; the
+boundary-opened cycle packages them for third parties (`arrix-plugin-test` for Rust, `arrix
 test` for any tier).
 
 - **Determinism**: every feature evaluated twice from fresh state gives
@@ -410,4 +415,5 @@ test` for any tier).
 
 ## Open questions
 
-- ⚠ OPEN: the Tier 2 wire encoding (§Three tiers). C3; agent proposes; ADR.
+- ⚠ OPEN: the Tier 2 wire encoding (§Three tiers). The boundary-opened
+  cycle; leaning to JSON-RPC (ADR-0016); agent proposes; ADR.

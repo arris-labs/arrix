@@ -33,8 +33,8 @@ preclude (`SEED.md` §6.1). Locally all three are in one process.
   of `Arc`ed parts and records, so a snapshot shares everything a command
   did not touch. As built: a snapshot is a whole clone of the document
   in an `Arc`, until a budget says sharing pays.
-- Tier 2 plugins are separate processes (C3); the evaluator waits on them
-  like on any other feature.
+- Tier 2 plugins are separate processes (the boundary-opened cycle); the
+  evaluator waits on them like on any other feature.
 
 ## The evaluator
 
@@ -99,7 +99,8 @@ stand on it.
 ## Batch evaluation
 
 Batch evaluation is a first-class API, not a test helper (`SEED.md` §6.6):
-`arrix eval` in C1, the same through the Python API in C3. Dataset
+`arrix eval` in C1, the same through the Python API in the
+boundary-opened cycle. Dataset
 replay, agent users and continuity sweeps are built on it.
 
 ```

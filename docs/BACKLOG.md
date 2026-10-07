@@ -20,5 +20,12 @@ idea is not brainstormed twice.
 - File with Arris (human): a counterbored hole's tool copied (`ops::transform`) and cut fails as `kernel.naming` ("names both e36 and e38", two edges of one name) when the copy is turned 30 or 45 degrees about a vertical axis (90 and 180 are fine), and when a translated copy is centred on the plate's edge; `core.pattern-*`'s tests use 90 degree turns and keep the holes inside the plate, and no recipe is saved yet (plans/c1-m2-features step 11)
 - A feature giving each sweep its own index (a hole's point id), so removing one of a hole's points renames no other hole's tool; an ADR beside ADR-0011 when a scenario needs it (plans/c1-m2-features, open question 2)
 - A frozen feature's `axis` input from a straight edge hashes as an `edge` input's name, since its type's form is unknown, so a plugin feature stored with an edge-sourced axis reads stale while its plugin is absent; record the input's kind in the stored result if a plugin does this (plans/c1-m2-features step 5)
+- A plugin's own settings (for its commands, importers and exporters), in `settings.toml` under its namespace, once those contribution points exist (ADR-0015; plans/configurable-shell)
+- A project config layer beside a document, and the trust model it needs before it may rebind keys or name anything that runs (ADR-0015; plans/configurable-shell)
+- Config profiles: named sets of settings, keymap and theme switched together (plans/configurable-shell)
+- A settings UI that writes the user's TOML through `toml_edit`, keeping their comments and order (ADR-0015; plans/configurable-shell)
 
 ## Rejected
+
+- Everything is a plugin (the shell, the sketcher and the part features too): it reopens `SEED.md` §6.2 and §6.3 for flexibility the configurable shell mostly gives (ADR-0015, ADR-0016)
+- An agent-only, headless ArriX: it gives up the interactive document `SEED.md` §3 exists for (ADR-0016)

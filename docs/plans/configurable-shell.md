@@ -131,7 +131,7 @@ None. No step calls the kernel.
 
 ## Steps
 
-- [ ] **[1]** Step 1: write ADR-0015 and ADR-0016 (above).
+- [x] **[1]** Step 1: write ADR-0015 and ADR-0016 (above).
   - `SEED.md` §1, §5 and §8.2 rule 9 amended through ADR-0016, and §7's
     cycle order with it.
   - `docs/ROADMAP.md`:

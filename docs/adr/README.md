@@ -53,3 +53,5 @@ Each rejected option and the one-line reason it lost.
 - [ADR-0012](0012-list-inputs-and-the-edge-point-axis-and-tool-kinds.md): inputs that are lists, and the `edge`, `point`, `axis` and `tool` kinds; plugin API 0.4, schema 3
 - [ADR-0013](0013-a-pattern-of-features-copies-their-tools.md): a feature that joins or cuts keeps its tool; a pattern or a mirror of features copies the tools
 - [ADR-0014](0014-a-boolean-number-in-the-step.md): a feature numbers its booleans in a name's `mod` and `gen` steps, so several on one target name cleanly
+- [ADR-0015](0015-the-shell-is-configured-by-user-files.md): the shell is data, configured by the user's TOML files, failing soft; config never reaches `evaluate`
+- [ADR-0016](0016-the-agentic-user.md): the agentic user: invest in what agents can't rebuild, five constraints above it; the boundary opened before C2

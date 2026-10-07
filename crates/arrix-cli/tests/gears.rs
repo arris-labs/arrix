@@ -1,7 +1,8 @@
 //! The compiled-in `gears` plugin against the real kernel: the checks the
 //! plugin's own tests cannot make, since a plugin depends on the plugin API
 //! alone (docs/PLUGINS.md §The test kit). They live beside the registration
-//! list that names it until C3 packages the test kit.
+//! list that names it until the boundary-opened cycle packages the test
+//! kit.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;

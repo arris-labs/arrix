@@ -39,7 +39,7 @@ unless an ADR says otherwise.
 | `arrix-app` | the binary: the shell, the command registry, translation between document and view types | all of the above | `eframe` |
 | `arrix-cli` | headless open / eval / export / run / test; its Tier 0 registration list | core, doc, plugin-host, kernel, plugin-api and sketch (its tests), and each compiled-in plugin (`arrix-gears`) | `clap` |
 | `plugins/*` | first-party plugins: `gears` (C1), `robotics` (by C3) | plugin-api **only** | — |
-| `python/arrix` | the Tier 2 SDK (C3), not a Cargo crate | — | — |
+| `python/arrix` | the Tier 2 SDK (the boundary-opened cycle), not a Cargo crate | — | — |
 
 Crates live in `crates/<name>/`, plugins in `plugins/<name>/` (package
 `arrix-<name>`: `plugins/gears` is `arrix-gears`). External versions are
@@ -149,7 +149,7 @@ remote mode is built.
 | UI (main) | client | egui, the viewport's frame, input, the sketch solver during sketch edits, the document replica, command submission | kernel calls, file I/O beyond a picked file's bytes |
 | Session | authority | the document: applies or rejects commands, publishes the applied stream, hands snapshots to the evaluator | kernel calls, anything egui |
 | Evaluator | authority | evaluates snapshots, calls the kernel, tessellates | anything egui |
-| Plugin processes | — | Tier 2 plugins, one process each (C3) | — |
+| Plugin processes | — | Tier 2 plugins, one process each (the boundary-opened cycle) | — |
 
 The executor, cancellation, the wasm story and budgets are in
 `docs/CONCURRENCY-WASM.md`.
