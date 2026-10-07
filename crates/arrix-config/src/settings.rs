@@ -17,6 +17,8 @@ pub enum SettingKind {
     Bool,
     String,
     StringList,
+    /// A string that is one of the spec's `choices`.
+    Choice,
 }
 
 /// A setting's value.
@@ -55,36 +57,56 @@ pub struct SettingSpec {
     pub id: &'static str,
     pub kind: SettingKind,
     pub default: DefaultValue,
+    /// The values of a `Choice`; empty for every other kind.
+    pub choices: &'static [&'static str],
     pub doc: &'static str,
 }
+
+/// How a panel setting shows its card: where there is something to show,
+/// always, or never (ADR-0017).
+pub const PANEL_MODES: &[&str] = &["auto", "shown", "hidden"];
+
+/// Settings whose id changed, and what replaced them. The old key is a
+/// diagnostic that names the new one; its value is not carried over.
+const RENAMED: &[(&str, &str)] = &[
+    ("ui.panel.properties.visible", "ui.panel.properties"),
+    ("ui.panel.tree.visible", "ui.panel.tree"),
+];
 
 /// Every setting there is, sorted by id.
 pub const SETTINGS: &[SettingSpec] = &[
     SettingSpec {
-        id: "ui.panel.properties.visible",
-        kind: SettingKind::Bool,
-        default: DefaultValue::Bool(true),
-        doc: "Whether the property panel is shown.",
+        id: "ui.panel.properties",
+        kind: SettingKind::Choice,
+        default: DefaultValue::Str("auto"),
+        choices: PANEL_MODES,
+        doc: "The property card: `auto` shows it while a feature is edited, `shown` always, `hidden` never.",
     },
     SettingSpec {
-        id: "ui.panel.tree.visible",
-        kind: SettingKind::Bool,
-        default: DefaultValue::Bool(true),
-        doc: "Whether the feature tree is shown.",
+        id: "ui.panel.tree",
+        kind: SettingKind::Choice,
+        default: DefaultValue::Str("auto"),
+        choices: PANEL_MODES,
+        doc: "The feature tree card: `auto` shows it once the document has a part, `shown` always, `hidden` never.",
     },
     SettingSpec {
         id: "ui.ribbon.hidden-tabs",
         kind: SettingKind::StringList,
         default: DefaultValue::StrList(&[]),
+        choices: &[],
         doc: "Ribbon tabs not shown, by tab id; their commands stay in the palette.",
     },
     SettingSpec {
         id: "ui.theme",
         kind: SettingKind::String,
         default: DefaultValue::Str("dark"),
+        choices: &[],
         doc: "The theme: a built-in one (`dark`, `light`) or `themes/<name>.toml`.",
     },
 ];
+
+/// The settings that used to be tables of their own.
+const RENAMED_PARENTS: &[&str] = &["ui.panel.properties", "ui.panel.tree"];
 
 fn spec(id: &str) -> Option<&'static SettingSpec> {
     SETTINGS.iter().find(|s| s.id == id)
@@ -152,8 +174,22 @@ impl Settings {
             } else {
                 format!("{prefix}.{}", key.get_ref())
             };
-            if let Some(spec) = spec(&path) {
+            if let Some((_, new)) = RENAMED.iter().find(|(old, _)| *old == path) {
+                diagnostics.push(file.error(
+                    key.span(),
+                    "config.renamed",
+                    format!("`{path}` is now `{new}`, one of \"auto\", \"shown\" or \"hidden\""),
+                ));
+            } else if let Some(spec) = spec(&path) {
                 if parsed.is_broken(key, value) {
+                    continue;
+                }
+                // `[ui.panel.tree]` over what is now a setting: its keys are
+                // the retired ones, each reported by its own name.
+                if let (DeValue::Table(t), true) =
+                    (value.get_ref(), RENAMED_PARENTS.contains(&spec.id))
+                {
+                    self.apply_table(file, parsed, &path, t, diagnostics);
                     continue;
                 }
                 match read(spec, value.get_ref()) {
@@ -224,6 +260,21 @@ fn read(spec: &SettingSpec, value: &DeValue<'_>) -> Result<SettingValue, ReadErr
     match (spec.kind, value) {
         (SettingKind::Bool, DeValue::Boolean(b)) => Ok(SettingValue::Bool(*b)),
         (SettingKind::String, DeValue::String(s)) => Ok(SettingValue::String(s.to_string())),
+        (SettingKind::Choice, DeValue::String(s)) if spec.choices.contains(&&**s) => {
+            Ok(SettingValue::String(s.to_string()))
+        }
+        (SettingKind::Choice, DeValue::String(s)) => Err((
+            None,
+            format!(
+                "`{}` is one of {}, not \"{s}\"",
+                spec.id,
+                spec.choices
+                    .iter()
+                    .map(|c| format!("\"{c}\""))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+        )),
         (SettingKind::StringList, DeValue::Array(items)) => items
             .iter()
             .map(|item| match item.get_ref() {
@@ -240,7 +291,7 @@ fn read(spec: &SettingSpec, value: &DeValue<'_>) -> Result<SettingValue, ReadErr
             .collect::<Result<_, _>>()
             .map(SettingValue::StringList),
         (SettingKind::Bool, other) => Err(wrong("a boolean", other)),
-        (SettingKind::String, other) => Err(wrong("a string", other)),
+        (SettingKind::String | SettingKind::Choice, other) => Err(wrong("a string", other)),
         (SettingKind::StringList, other) => Err(wrong("a list of strings", other)),
     }
 }

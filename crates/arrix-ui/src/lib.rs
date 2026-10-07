@@ -9,6 +9,6 @@ pub mod view;
 pub use shell::{ShellLayout, ShellResponse, shell};
 pub use theme::{Rgba, ThemeView};
 pub use view::{
-    PaletteEntry, PaletteView, RibbonCommand, RibbonGroup, RibbonTab, RibbonView, ShellView,
-    StatusView, TreePart, TreeView, UiIntent,
+    CardsView, DocumentTab, DocumentTabsView, PaletteEntry, PaletteView, RibbonCommand,
+    RibbonGroup, RibbonTab, RibbonView, ShellView, StatusView, TreePart, TreeView, UiIntent,
 };

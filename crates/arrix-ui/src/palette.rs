@@ -7,7 +7,14 @@ use crate::view::{PaletteView, UiIntent};
 const WIDTH: f32 = 520.0;
 const TOP: f32 = 96.0;
 
-pub fn palette(ctx: &egui::Context, view: &PaletteView, intents: &mut Vec<UiIntent>) {
+/// Draws the palette. The command of the row under the pointer, if any, goes
+/// to `hovered`, for the status line's hint.
+pub fn palette(
+    ctx: &egui::Context,
+    view: &PaletteView,
+    intents: &mut Vec<UiIntent>,
+    hovered: &mut Option<String>,
+) {
     let window = egui::Window::new("arrix.palette")
         .title_bar(false)
         .resizable(false)
@@ -37,6 +44,9 @@ pub fn palette(ctx: &egui::Context, view: &PaletteView, intents: &mut Vec<UiInte
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             ui.weak(entry.keys.join(", "));
                         });
+                        if row.contains_pointer() {
+                            *hovered = Some(entry.id.clone());
+                        }
                         if row.clicked() {
                             intents.push(UiIntent::CommandInvoked {
                                 command: entry.id.clone(),

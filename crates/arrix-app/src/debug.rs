@@ -24,14 +24,16 @@ pub struct DebugState {
     pub config_diagnostics: Vec<ConfigDiagnostic>,
 }
 
-/// Each shell region as `[min_x, min_y, max_x, max_y]` in points.
+/// Each shell region as `[min_x, min_y, max_x, max_y]` in points; a card
+/// that is not showing is `null`.
 #[derive(Debug, Serialize)]
 pub struct LayoutDebug {
     pub ribbon: [f64; 4],
-    pub tree: [f64; 4],
+    pub tabs: [f64; 4],
     pub viewport: [f64; 4],
-    pub properties: [f64; 4],
     pub status: [f64; 4],
+    pub tree: Option<[f64; 4]>,
+    pub properties: Option<[f64; 4]>,
 }
 
 fn round6(x: f32) -> f64 {
@@ -65,10 +67,11 @@ impl ArrixApp {
             window: Some([round6(drawn.window.width()), round6(drawn.window.height())]),
             layout: Some(LayoutDebug {
                 ribbon: rect(l.ribbon),
-                tree: rect(l.tree),
+                tabs: rect(l.tabs),
                 viewport: rect(l.viewport),
-                properties: rect(l.properties),
                 status: rect(l.status),
+                tree: l.tree.map(rect),
+                properties: l.properties.map(rect),
             }),
             shell: Some(drawn.view.clone()),
             keymap: self.keymap.bindings().to_vec(),

@@ -9,8 +9,8 @@ the command registry and the setting specs; a test holds it fresh. Do not edit.
 
 | Id | Default | What |
 |---|---|---|
-| `ui.panel.properties.visible` | `true` | Whether the property panel is shown. |
-| `ui.panel.tree.visible` | `true` | Whether the feature tree is shown. |
+| `ui.panel.properties` | `"auto"` | The property card: `auto` shows it while a feature is edited, `shown` always, `hidden` never. |
+| `ui.panel.tree` | `"auto"` | The feature tree card: `auto` shows it once the document has a part, `shown` always, `hidden` never. |
 | `ui.ribbon.hidden-tabs` | `[]` | Ribbon tabs not shown, by tab id; their commands stay in the palette. |
 | `ui.theme` | `"dark"` | The theme: a built-in one (`dark`, `light`) or `themes/<name>.toml`. |
 

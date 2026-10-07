@@ -77,6 +77,7 @@ fn settings(commands: &CommandRegistry, types: &[FeatureTypeSpec]) -> Value {
         let mut leaf = match s.kind {
             SettingKind::Bool => json!({"type": "boolean"}),
             SettingKind::String => json!({"type": "string"}),
+            SettingKind::Choice => json!({"type": "string", "enum": s.choices}),
             SettingKind::StringList => json!({"type": "array", "items": {"type": "string"}}),
         };
         leaf["description"] = json!(s.doc);

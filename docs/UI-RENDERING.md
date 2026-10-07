@@ -28,16 +28,30 @@ as C1 lands, and the commit that builds it keeps it true.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│ ribbon: Sketch │ Part │ <plugin tabs> …                     search ⌘K │
-├───────────────┬──────────────────────────────────────────┬───────────┤
-│ feature tree  │                                          │ properties│
-│ (per part)    │               viewport                   │ (form of  │
-│               │                                  ViewCube│ the edited│
-│               │                                          │ feature)  │
-├───────────────┴──────────────────────────────────────────┴───────────┤
-│ status: generation, evaluation progress, diagnostics count, units    │
+│ ribbon: Sketch │ Part │ <plugin tabs> …                              │
+├──────────────────────────────────────────────────────────────────────┤
+│ ┌─────────────┐                                      ┌─────────────┐ │
+│ │ feature tree│              viewport      ViewCube  │ properties  │ │
+│ │ (card)      │                                      │ (card)      │ │
+│ └─────────────┘                                      └─────────────┘ │
+├──────────────────────────────────────────────────────────────────────┤
+│ document tabs                                                        │
+├──────────────────────────────────────────────────────────────────────┤
+│ status: help for what is under the pointer │ generation, diagnostics, │
+│                                            │ units                    │
 └──────────────────────────────────────────────────────────────────────┘
 ```
+
+Two bars are docked (ADR-0017): the ribbon on top, and at the bottom the tab
+strip of the open documents over the status line. The viewport fills what is
+between them. The feature tree and the property panel are **cards**, areas
+over the viewport that exist only while they show: `ui.panel.tree` and
+`ui.panel.properties` are `auto`, `shown` or `hidden`, and the
+`core.panel.*.toggle` commands flip a card for the session over the setting.
+`auto` is the tree once the document has a part, and the property card while a
+feature is edited. The status line's left side is help text: the title, keys
+and what it needs of the ribbon button or palette row under the pointer,
+else what to do next.
 
 - **The command registry** holds every user action as a `CommandSpec`: id
   (`core.palette.open`, `gears.spur.create`), title, ribbon placement,
@@ -112,17 +126,19 @@ rule).
   and what a thin client would receive. Built so far: `ShellView`, holding
   a `RibbonView` (tabs, the open one, and its groups of buttons with
   whether each is enabled), a `PaletteView` (the query, results and
-  selection, while open), a `TreeView` (parts) and a
-  `StatusView` (generation, diagnostics count, display units, config
-  diagnostics included) and a `ThemeView` (the 16 roles as colours, and the
+  selection, while open), a `TreeView` (parts), a `DocumentTabsView`
+  (the open documents), a `CardsView` (which cards show), a
+  `StatusView` (the help text, generation, diagnostics count, display units,
+  config diagnostics included) and a `ThemeView` (the 16 roles as colours, and the
   dark or light base), which `arrix-ui` turns into egui `Visuals`; `arrix-ui`
-  does not depend on `arrix-config`. The property panel is empty until forms
+  does not depend on `arrix-config`. The property card is empty until forms
   exist.
-- **The shell's layout** is a function of the window size alone: the
-  ribbon 88 points high, the status bar 24, the tree at least 240 wide and
-  the property panel at least 280 (a side panel's default size is only its
-  initial wrapping width in egui, so each is also its minimum). `arrix_ui::
-  shell` returns where each region landed, which `debug_state()` reports.
+- **The shell's layout** is a function of the window size and of which cards
+  show: the ribbon 88 points high, the tab strip 24, the status line 20, and
+  a card at a fixed width (the tree 240, the properties 280) pinned 8 points
+  inside the viewport's top-left or top-right corner; cards are not draggable.
+  `arrix_ui::shell` returns where each region landed (`None` for a card not
+  showing), which `debug_state()` reports.
 - **Intents** are what a user did, in view terms: `UiIntent::FieldCommitted
   { form, field, text }`, `CommandInvoked { command }` (a ribbon button, a palette row or a key),
   `RibbonTabSelected { tab }`, `PaletteQuery { text }`, `PaletteClosed`, `Picked { name }`.

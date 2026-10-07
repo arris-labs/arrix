@@ -35,8 +35,9 @@ fn empty_shell_renders_identically() {
     });
 }
 
-/// The five regions of the shell tile the window: ribbon on top, status at
-/// the bottom, tree, viewport and properties between them, left to right.
+/// Two docked bars and the viewport tile the window: the ribbon on top, the
+/// tab strip over the status line at the bottom, the viewport between them,
+/// and no card on an empty start (ADR-0017).
 #[test]
 fn empty_shell_tiles_the_window() {
     harness::with_app("empty_shell_tiles_the_window", |h| {
@@ -47,18 +48,82 @@ fn empty_shell_tiles_the_window() {
             [w, hgt],
             [f64::from(harness::SIZE.x), f64::from(harness::SIZE.y)]
         );
-        assert_eq!(l.ribbon, [0.0, 0.0, w, l.tree[1]]);
-        assert_eq!(l.status, [0.0, l.tree[3], w, hgt]);
-        assert_eq!(l.tree[2], l.viewport[0]);
-        assert_eq!(l.viewport[2], l.properties[0]);
-        assert_eq!(l.properties[2], w);
-        for row in [l.tree, l.viewport, l.properties] {
-            assert_eq!([row[1], row[3]], [l.tree[1], l.tree[3]]);
-        }
-        assert!(
-            l.viewport[2] - l.viewport[0] > w / 2.0,
-            "the viewport is the largest region"
+        assert_eq!(l.ribbon, [0.0, 0.0, w, l.viewport[1]]);
+        assert_eq!(l.viewport, [0.0, l.ribbon[3], w, l.tabs[1]]);
+        assert_eq!(l.tabs, [0.0, l.viewport[3], w, l.status[1]]);
+        assert_eq!(l.status, [0.0, l.tabs[3], w, hgt]);
+        assert_eq!(
+            (l.tree, l.properties),
+            (None, None),
+            "no card on the empty start"
         );
+        let shell = state.shell.expect("a frame ran");
+        assert!(shell.documents.tabs.is_empty());
+        assert!(shell.status.hint.contains("opens the command palette"));
+    });
+}
+
+/// A pointer over a ribbon button puts its title, keys and what it needs in
+/// the status line, a disabled button's included.
+#[test]
+fn the_status_line_helps_with_what_is_hovered() {
+    use egui_kittest::kittest::Queryable as _;
+    harness::with_app("the_status_line_helps_with_what_is_hovered", |h| {
+        h.get_by_label("New sketch").hover();
+        h.run();
+        let hint = h
+            .state()
+            .debug_state()
+            .shell
+            .expect("a frame ran")
+            .status
+            .hint;
+        assert_eq!(hint, "New sketch: needs an open document");
+    });
+}
+
+/// Both cards toggled on, by the commands' keys: the tree over the viewport's
+/// left, the properties over its right, each inside it, and toggled off again.
+#[test]
+fn cards_float_over_the_viewport() {
+    let source = arrix_config::MemorySource::with([(
+        "keybindings.toml",
+        "[[bind]]\nkey = \"f4\"\ncommand = \"core.panel.tree.toggle\"\n\
+         [[bind]]\nkey = \"f5\"\ncommand = \"core.panel.properties.toggle\"\n",
+    )]);
+    harness::with_config("cards_float_over_the_viewport", &source, |h| {
+        h.key_press(egui::Key::F4);
+        h.run();
+        h.key_press(egui::Key::F5);
+        h.run();
+        let l = h.state().debug_state().layout.expect("a frame ran");
+        let (tree, properties) = (
+            l.tree.expect("tree card"),
+            l.properties.expect("property card"),
+        );
+        let v = l.viewport;
+        assert!(tree[0] > v[0] && tree[1] > v[1] && tree[2] < properties[0]);
+        assert!(properties[2] < v[2] && properties[3] < v[3] && tree[3] < v[3]);
+        snapshot::check(h, "cards_shown");
+        h.key_press(egui::Key::F4);
+        h.run();
+        let l = h.state().debug_state().layout.expect("a frame ran");
+        assert_eq!(l.tree, None);
+        assert!(l.properties.is_some());
+    });
+}
+
+/// `ui.panel.*` decide a card without a toggle, and a toggle wins over them.
+#[test]
+fn the_panel_settings_decide_the_cards() {
+    let source = arrix_config::MemorySource::with([(
+        "settings.toml",
+        "[ui.panel]\ntree = \"shown\"\nproperties = \"hidden\"\n",
+    )]);
+    harness::with_config("the_panel_settings_decide_the_cards", &source, |h| {
+        let l = h.state().debug_state().layout.expect("a frame ran");
+        assert!(l.tree.is_some());
+        assert_eq!(l.properties, None);
     });
 }
 

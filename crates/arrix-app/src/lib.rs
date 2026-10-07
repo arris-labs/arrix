@@ -13,11 +13,13 @@ pub use debug::DebugState;
 
 use arrix_config::{
     CONFIG_RELOAD, CommandRegistry, Config, ConfigDiagnostic, ConfigSource, Keymap, MemorySource,
-    PALETTE_CLOSE, PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN, ParamDefaults,
-    Settings, Theme,
+    PALETTE_CLOSE, PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN,
+    PANEL_PROPERTIES_TOGGLE, PANEL_TREE_TOGGLE, ParamDefaults, Settings, Theme,
 };
 use arrix_plugin_api::FeatureTypeSpec;
-use arrix_ui::{ShellLayout, ShellView, StatusView, TreeView, UiIntent};
+use arrix_ui::{
+    CardsView, DocumentTabsView, ShellLayout, ShellView, StatusView, TreeView, UiIntent,
+};
 use palette::Palette;
 
 /// Client-side state that is not in the document (SEED.md §6.1 rule 4).
@@ -25,6 +27,13 @@ struct Session {
     ribbon_tab: String,
     /// The palette, while it is open.
     palette: Option<Palette>,
+    /// A card the user toggled this session: it wins over `ui.panel.*`
+    /// (ADR-0017). `None` leaves the setting in charge.
+    tree_card: Option<bool>,
+    properties_card: Option<bool>,
+    /// The command of the ribbon button or palette row under the pointer,
+    /// as of the last frame: the status line's hint is about it.
+    hovered_command: Option<String>,
 }
 
 /// The application state eframe drives.
@@ -111,6 +120,9 @@ impl ArrixApp {
             session: Session {
                 ribbon_tab: "core.sketch".into(),
                 palette: None,
+                tree_card: None,
+                properties_card: None,
+                hovered_command: None,
             },
             drawn: None,
         }
@@ -141,13 +153,61 @@ impl ArrixApp {
                 .as_ref()
                 .map(|p| p.view(&self.commands, &self.keymap, commands::Context::default())),
             tree: TreeView::default(),
+            documents: DocumentTabsView::default(),
+            cards: self.cards(),
             status: StatusView {
+                hint: self.hint(),
                 generation: 0,
                 diagnostics: self.config_diagnostics.len(),
                 length_unit: "mm".into(),
                 angle_unit: "deg".into(),
             },
         }
+    }
+
+    /// Which cards show: the session's toggle, else the setting, where
+    /// `auto` is whether there is something to show (ADR-0017).
+    fn cards(&self) -> CardsView {
+        let shown = |toggled: Option<bool>, setting: &str, has_content: bool| {
+            toggled.unwrap_or(match self.settings.string(setting) {
+                "shown" => true,
+                "hidden" => false,
+                _ => has_content,
+            })
+        };
+        CardsView {
+            // No document is open yet, so there is no part to list; and no
+            // feature is edited, so nothing for the property card.
+            tree: shown(self.session.tree_card, "ui.panel.tree", false),
+            properties: shown(self.session.properties_card, "ui.panel.properties", false),
+        }
+    }
+
+    /// The status line's help text: the hovered command, its keys and why
+    /// it is off; else what to do on an empty start.
+    fn hint(&self) -> String {
+        let cx = commands::Context::default();
+        let hovered = self
+            .session
+            .hovered_command
+            .as_deref()
+            .and_then(|id| self.commands.command(id));
+        let Some(spec) = hovered else {
+            let keys = self.keymap.keys_of(PALETTE_OPEN);
+            return match keys.first() {
+                Some(key) => format!("No document is open. {key} opens the command palette."),
+                None => "No document is open.".into(),
+            };
+        };
+        let mut hint = spec.title.clone();
+        let keys = self.keymap.keys_of(&spec.id);
+        if !keys.is_empty() {
+            hint = format!("{hint} ({})", keys.join(", "));
+        }
+        if !commands::enabled(spec, cx) {
+            hint.push_str(": needs an open document");
+        }
+        hint
     }
 
     fn apply(&mut self, intent: UiIntent) {
@@ -188,9 +248,12 @@ impl ArrixApp {
             PALETTE_NEXT => self.step_palette(1),
             PALETTE_PREVIOUS => self.step_palette(-1),
             PALETTE_RUN => self.run_selected(cx),
+            PANEL_TREE_TOGGLE => self.session.tree_card = Some(!self.cards().tree),
+            PANEL_PROPERTIES_TOGGLE => {
+                self.session.properties_card = Some(!self.cards().properties);
+            }
             CONFIG_RELOAD => self.reload(),
-            // The other commands (the panel toggles and the creation
-            // commands) arrive with their steps and plans.
+            // The creation commands arrive with their steps and plans.
             _ => {}
         }
     }
@@ -313,6 +376,11 @@ impl eframe::App for ArrixApp {
             view,
             layout: response.layout,
         });
+        if response.hovered_command != self.session.hovered_command {
+            self.session.hovered_command = response.hovered_command;
+            // The hint is drawn from it next frame.
+            ui.ctx().request_repaint();
+        }
         for intent in response.intents {
             self.apply(intent);
         }

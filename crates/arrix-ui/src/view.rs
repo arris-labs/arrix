@@ -13,6 +13,10 @@ pub struct ShellView {
     pub theme: ThemeView,
     pub ribbon: RibbonView,
     pub tree: TreeView,
+    /// The open documents, as the tab strip.
+    pub documents: DocumentTabsView,
+    /// Which cards float over the viewport this frame.
+    pub cards: CardsView,
     pub status: StatusView,
     /// The command palette, when it is open.
     pub palette: Option<PaletteView>,
@@ -62,6 +66,29 @@ pub struct TreePart {
     pub name: String,
 }
 
+/// The tab strip of open documents, in the order they were opened.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct DocumentTabsView {
+    pub tabs: Vec<DocumentTab>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DocumentTab {
+    pub title: String,
+    /// Where the document was opened from; the tab's tooltip.
+    pub path: String,
+    pub active: bool,
+}
+
+/// The cards that float over the viewport. A card is drawn only when it
+/// shows; which ones do is the app's decision (`ui.panel.*` and the toggles,
+/// ADR-0017).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CardsView {
+    pub tree: bool,
+    pub properties: bool,
+}
+
 /// The command palette: the query, what it found, and which result Enter runs.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PaletteView {
@@ -83,6 +110,8 @@ pub struct PaletteEntry {
 /// The status bar.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct StatusView {
+    /// Help text for whatever is under the pointer, else what to do next.
+    pub hint: String,
     /// The document generation last drawn.
     pub generation: u64,
     pub diagnostics: usize,

@@ -125,7 +125,7 @@ All present in the pinned `arris` 0.5:
 - [x] **[1]** 1 — ADR-0017, the minimal shell: the two docked bars, the
   cards and their modes, the settings rename, document tabs with the
   scenario they unlock, and `auto` as decided below.
-- [ ] **[2]** 2 — The minimal shell on the empty app: the ribbon docked on
+- [x] **[2]** 2 — The minimal shell on the empty app: the ribbon docked on
   top, the (empty) document tab strip and the status line docked at the
   bottom, the viewport central between them; the status line's hint from
   the hovered ribbon button or palette row (title and keys), else a
@@ -246,7 +246,7 @@ build included.
 - Decided by the human (2026-10-07), formerly open question 1: two docked
   bars only, the ribbon on top and the document tabs with the status line
   under them at the bottom; the status line carries help text.
-- ⚠ OPEN 1 (agent, by step 2): heights. Proposed: the ribbon stays 88
+- Settled in step 2 (agent), formerly ⚠ OPEN 1: heights. As proposed: the ribbon stays 88
   points, the tab strip 24, the status line 20; the tab strip is shown
   empty on the empty start rather than hidden, so the layout doesn't jump
   when the first document opens.

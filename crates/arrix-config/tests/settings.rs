@@ -34,7 +34,7 @@ fn the_defaults_are_every_spec_and_nothing_else() {
     }
     assert_eq!(settings.get("ui.nope"), None);
     assert_eq!(settings.string("ui.theme"), "dark");
-    assert!(settings.bool("ui.panel.tree.visible"));
+    assert_eq!(settings.string("ui.panel.tree"), "auto");
     assert!(settings.string_list("ui.ribbon.hidden-tabs").is_empty());
     let mut ids: Vec<_> = SETTINGS.iter().map(|s| s.id).collect();
     ids.sort_unstable();
@@ -57,15 +57,15 @@ fn no_file_and_a_clean_file_give_no_diagnostics() {
          theme = \"mine\"\n\
          ribbon.hidden-tabs = [\"core.part\"]\n\
          \n\
-         [ui.panel.tree]\n\
-         visible = false\n",
+         panel.tree = \"hidden\"\n",
     );
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     assert_eq!(settings.string("ui.theme"), "mine");
     assert_eq!(settings.string_list("ui.ribbon.hidden-tabs"), ["core.part"]);
-    assert!(!settings.bool("ui.panel.tree.visible"));
-    assert!(
-        settings.bool("ui.panel.properties.visible"),
+    assert_eq!(settings.string("ui.panel.tree"), "hidden");
+    assert_eq!(
+        settings.string("ui.panel.properties"),
+        "auto",
         "an absent key keeps its default"
     );
 }
@@ -107,12 +107,17 @@ fn a_wrong_type_is_one_diagnostic_and_keeps_the_default() {
         "[ui]\n\
          theme = 3\n\
          ribbon.hidden-tabs = [\"gears\", 7]\n\
-         [ui.panel.tree]\n\
-         visible = \"no\"\n",
+         panel.tree = true\n\
+         panel.properties = \"sometimes\"\n",
     );
     assert_eq!(
         found(&diagnostics),
-        [("config.type", 2), ("config.type", 3), ("config.type", 5)],
+        [
+            ("config.type", 2),
+            ("config.type", 3),
+            ("config.type", 4),
+            ("config.type", 5)
+        ],
         "in the file's order"
     );
     let messages: Vec<_> = diagnostics
@@ -122,7 +127,10 @@ fn a_wrong_type_is_one_diagnostic_and_keeps_the_default() {
     assert!(messages[0].contains("`ui.theme` is a string, not an integer"));
     assert!(messages[1].contains("this item is an integer"));
     assert_eq!(diagnostics[1].column, Some(32), "the item itself is named");
-    assert!(messages[2].contains("`ui.panel.tree.visible` is a boolean, not a string"));
+    assert!(messages[2].contains("`ui.panel.tree` is a string, not a boolean"));
+    assert!(messages[3].contains(
+        "`ui.panel.properties` is one of \"auto\", \"shown\", \"hidden\", not \"sometimes\""
+    ));
     assert_eq!(settings, Settings::default());
 
     let (_, diagnostics) = load("ui.panel = true\n");
@@ -181,4 +189,31 @@ fn a_value_crosses_as_plain_json() {
         json(&SettingValue::StringList(vec!["gears".into()])),
         "[\"gears\"]"
     );
+}
+
+#[test]
+fn the_retired_visible_keys_name_their_replacement() {
+    let (settings, diagnostics) = load(
+        "[ui.panel.tree]\n\
+         visible = false\n\
+         [ui.panel]\n\
+         properties.visible = true\n",
+    );
+    assert_eq!(
+        found(&diagnostics),
+        [("config.renamed", 2), ("config.renamed", 4)]
+    );
+    assert!(
+        diagnostics[0]
+            .diagnostic
+            .message
+            .contains("`ui.panel.tree.visible` is now `ui.panel.tree`")
+    );
+    assert!(
+        diagnostics[1]
+            .diagnostic
+            .message
+            .contains("`ui.panel.properties`")
+    );
+    assert_eq!(settings, Settings::default(), "nothing is carried over");
 }
