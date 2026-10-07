@@ -82,8 +82,11 @@ tab and panel visibility are session state and issue no command.
   local origin, per-corner normals, triangles, face ranges, edge
   polylines, vertex points, each range with its `PersistentName`), so
   `arrix-viewport` names no doc or kernel type.
-- `arrix-kernel`: `Kernel::tessellate(body, chord) -> RenderMesh`, a
-  recorded call like every other (`SEED.md` §6.6).
+- `arrix-kernel`: `Kernel::tessellate(body, detail) -> RenderMesh`, a
+  recorded call like every other (`SEED.md` §6.6). Built in step 3 with
+  a `MeshDetail` (coarse, refined) rather than a chord: the kernel turns
+  it into a chord from the body's box, which only it can read, and
+  records both; `RenderMesh` carries its `origin` and `chord`.
 - `arrix-doc`: `SessionEvent::Meshed { generation, part, slot, detail:
   Coarse | Refined, mesh }`. The evaluator meshes a part's *final*
   bodies (each slot's last version, not consumed) once the part is
@@ -136,7 +139,7 @@ All present in the pinned `arris` 0.5:
   `palette_open`, `configured_shell` re-pinned after reading
   before/after/diff (`scripts/snapshot-baseline`); a scenario with both
   cards toggled on. Catalog regenerated.
-- [ ] **[3]** 3 — Probe and build `Kernel::tessellate`: `RenderMesh` in
+- [x] **[3]** 3 — Probe and build `Kernel::tessellate`: `RenderMesh` in
   `arrix-core`, every face, edge and vertex range named from `BodyNames`,
   the call recorded. Tests on the slice's plate and gear: closed, every
   range named, two runs byte-identical, mesh volume within the chord's
@@ -259,6 +262,19 @@ build included.
   orbits, shift + middle drag pans, wheel zooms to the cursor, left click
   picks; right drag orbits too, for a touchpad-less mouse without a usable
   middle button.
-- ⚠ OPEN 4 (agent, by step 3): the coarse and refined chords, as fractions
-  of the bounds' diagonal, chosen from the slice's measured triangle counts
-  and the 150 ms budget.
+- Settled in step 3 (agent), formerly ⚠ OPEN 4: the chords are 1e-3
+  (coarse) and 1e-4 (refined) of the diagonal of the box of the body's
+  edges and vertices (`MeshDetail::chord_fraction`): a circle the size of
+  its body is about 42 segments coarse and 130 refined. The slice's
+  counts barely move with the chord, since the gear's flanks are short
+  arcs already: the gear is 1,756 triangles coarse and 1,996 refined, the
+  plate and gear joined 1,772 either way, each mesh 8–10 ms in the test
+  profile with Arris's debug check, far inside the 150 ms budget, so
+  the budget did not constrain the choice. The box is the edges' rather
+  than the faces' (cheap, and exact for every extrude); a face that bulges
+  past its edges (a sphere, a revolved torus) gets a coarser chord than its true box would
+  give, which is a resolution, not a correctness, matter.
+- Found in step 3: the slice's gear can only be built where both the
+  kernel and `gears` may be used, so the tessellation tests are in
+  `arrix-cli` (`tests/tessellate.rs`), as `gear_naming.rs` is; the
+  kernel's own tests cover a mesh record's fixture export.

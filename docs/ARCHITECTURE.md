@@ -192,7 +192,13 @@ geometry from provenance, and to make every kernel call a record.
   straight edge lies on, both recorded: they are what a `point` and an
   `axis` input read from a body; a curved edge is `kernel.invalid-input`),
   `face_frame` (outward, planar faces only) and
-  `mass_properties` (volume, area, centroid), and `to_bytes`/`from_bytes`
+  `mass_properties` (volume, area, centroid), `tessellate` (a body as a
+  `RenderMesh` at a `MeshDetail`, coarse or refined: Arris's watertight
+  mesh with its corner block, ADR-0012 there, at a chord that is the
+  detail's fraction of the diagonal of the box of the body's edges, 1e-3
+  coarse and 1e-4 refined, recorded with the chord it came to; positions
+  `f32` about the box's centre, every face, edge and vertex range by
+  name, an unnamed one `kernel.naming`), and `to_bytes`/`from_bytes`
   (ask A2, `arris` 0.4): a body as canonical Arris body bytes with a
   `NameTable`, each persistent name to its entity's index in the written
   body, and back. The bytes come from a copy of the body in a fresh model
@@ -235,7 +241,8 @@ geometry from provenance, and to make every kernel call a record.
   blend names its edges by their `at` points, a copy is a `transform`
   (the turn first, about the origin), a query's recipe ends at the body
   it was asked of. The precision is the record's, the mesh chord a
-  metre part's (as Arris's `probe-*-m` fixtures set it), and a failure
+  metre part's (as Arris's `probe-*-m` fixtures set it) or a mesh
+  record's own chord, and a failure
   Arris's runner asserts by type (`blend-too-large`, `unsupported`, …)
   is the recipe's `analytic.expect_error`; any other is left for the
   runner to meet, as a regression fixture. A body read from bytes (a
@@ -260,7 +267,9 @@ geometry from provenance, and to make every kernel call a record.
   `kernel.profile`), and `kernel.unkeyed`, `kernel.rejected`, `kernel.interrupted` for Arris's
   consumer-topology and cancellation errors, `kernel.body.<error>`
   (`magic`, `version`, `encode`, `decode`, `topo`, `precision`,
-  `rejected`, `interrupted`) for body bytes, and `kernel.naming`,
+  `rejected`, `interrupted`) for body bytes, `kernel.mesh.<error>`
+  (`chord`, `face`, `grid-too-large`, `corners`, `non-finite-position`,
+  `invalid-input`, `interrupted`, …) for tessellation, and `kernel.naming`,
   `kernel.unknown-body`, `kernel.unknown-name`, `kernel.wrong-kind` for
   ArriX's own refusals. The same failure across a thousand documents is one row with
   a count in `arrix eval`'s summary.

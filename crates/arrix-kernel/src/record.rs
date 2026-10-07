@@ -4,7 +4,7 @@
 //! diagnostic and [`fixture`](crate::fixture) can export one as an Arris
 //! fixture recipe.
 
-use arrix_core::{DVec3, FeatureId, Frame, Motion, PersistentName, Profile};
+use arrix_core::{DVec3, FeatureId, Frame, MeshDetail, Motion, PersistentName, Profile};
 use serde::{Deserialize, Serialize};
 
 /// The Arris release this crate is built against, as `Cargo.lock` pins it.
@@ -146,6 +146,9 @@ pub enum KernelOp {
     EdgeAxis { edge: PersistentName },
     /// Volume, area and centroid of the operand body.
     MassProperties,
+    /// The operand body as a render mesh at `detail`, which came to
+    /// `chord` metres on this body.
+    Tessellate { detail: MeshDetail, chord: f64 },
     /// The operand body as Arris body bytes and a name table.
     ToBytes,
     /// Body bytes read into the model; `bytes` is their hash. The operand

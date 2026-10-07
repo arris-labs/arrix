@@ -3,6 +3,7 @@
 //! "Failure categories").
 
 use arris::io::body::BodyError;
+use arris::mesh::MeshError;
 use arris::ops::{Fault, OpError, Reason};
 use arrix_core::{DiagnosticCode, PersistentName, TopoKind};
 
@@ -86,6 +87,14 @@ impl KernelError {
         }
     }
 
+    pub(crate) fn mesh(call: CallIndex, e: &MeshError) -> Self {
+        KernelError::Op {
+            call,
+            code: DiagnosticCode::new(mesh_category(e)).expect("every category is well-formed"),
+            message: e.to_string(),
+        }
+    }
+
     pub(crate) fn bytes(call: CallIndex, e: &BodyError) -> Self {
         let code = DiagnosticCode::new(body_category(e)).expect("every category is well-formed");
         KernelError::Op {
@@ -93,6 +102,23 @@ impl KernelError {
             code,
             message: e.to_string(),
         }
+    }
+}
+
+/// `kernel.mesh.<error>`: why a body could not be tessellated.
+fn mesh_category(e: &MeshError) -> &'static str {
+    match e {
+        MeshError::IndexOutOfRange { .. } => "kernel.mesh.index-out-of-range",
+        MeshError::RangeOutOfBounds { .. } => "kernel.mesh.range-out-of-bounds",
+        MeshError::NonFinitePosition { .. } => "kernel.mesh.non-finite-position",
+        MeshError::NotFound(_) => "kernel.mesh.not-found",
+        MeshError::InvalidInput { .. } => "kernel.mesh.invalid-input",
+        MeshError::Chord(_) => "kernel.mesh.chord",
+        MeshError::Face { .. } => "kernel.mesh.face",
+        MeshError::GridTooLarge { .. } => "kernel.mesh.grid-too-large",
+        MeshError::Corners(_) => "kernel.mesh.corners",
+        MeshError::Internal(_) => "kernel.mesh.internal",
+        MeshError::Interrupted(_) => "kernel.mesh.interrupted",
     }
 }
 

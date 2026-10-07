@@ -4,7 +4,8 @@
 //!
 //! Built so far: the `Kernel` service's first slice (`extrude`, `revolve`,
 //! `fuse`, `cut`, `common`, `fillet`, `chamfer`, `copy`, `mirror`,
-//! `project`, `face_frame`, `mass_properties`, `to_bytes`, `from_bytes`),
+//! `project`, `face_frame`, `mass_properties`, `tessellate`, `to_bytes`,
+//! `from_bytes`),
 //! names from the sweeps' and the booleans' provenance, a
 //! `KernelCall` record made before every call, and a record's export as
 //! an Arris fixture recipe (`FixtureRecipe`).
@@ -13,6 +14,7 @@ mod bytes;
 mod convert;
 mod error;
 mod fixture;
+mod mesh;
 mod naming;
 mod project;
 mod record;
@@ -56,8 +58,8 @@ pub struct MassProperties {
 }
 
 struct BodyEntry {
-    body: Body,
-    names: BodyNames,
+    pub(crate) body: Body,
+    pub(crate) names: BodyNames,
     /// Of its canonical bytes, once an operand needed it; a body never
     /// changes, so it is made once.
     hash: Option<BodyHash>,
@@ -69,7 +71,7 @@ struct BodyEntry {
 /// record of every call, in order. The evaluator keeps one across
 /// evaluations and [`retain`](Kernel::retain)s what its cache holds.
 pub struct Kernel {
-    model: Model,
+    pub(crate) model: Model,
     records: Vec<KernelCall>,
     /// By handle; `None` once released.
     bodies: Vec<Option<BodyEntry>>,
@@ -110,7 +112,11 @@ impl Kernel {
 
     /// Records a call before it runs, its operands by content hash and by
     /// the calls that made them.
-    fn begin(&mut self, op: KernelOp, operands: &[KernelBody]) -> Result<CallIndex, KernelError> {
+    pub(crate) fn begin(
+        &mut self,
+        op: KernelOp,
+        operands: &[KernelBody],
+    ) -> Result<CallIndex, KernelError> {
         let mut sources = Vec::with_capacity(operands.len());
         for &operand in operands {
             sources.push(self.entry(operand)?.made_by);
@@ -147,7 +153,7 @@ impl Kernel {
         Ok(hash)
     }
 
-    fn entry(&self, body: KernelBody) -> Result<&BodyEntry, KernelError> {
+    pub(crate) fn entry(&self, body: KernelBody) -> Result<&BodyEntry, KernelError> {
         self.bodies
             .get(body.0 as usize)
             .and_then(Option::as_ref)

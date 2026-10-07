@@ -179,7 +179,8 @@ impl FixtureRecipe {
     /// which failed as `code`. Its steps are the calls that made the
     /// operands, transitively, named `c<call>`; its result is the call's
     /// own step, or for a query (a projection, a face frame, mass
-    /// properties, body bytes) the body it was asked of. A failure Arris's runner asserts
+    /// properties, a mesh, body bytes) the body it was asked of, a mesh's
+    /// chord its `mesh_chord`. A failure Arris's runner asserts
     /// by type (`blend-too-large`, `unsupported`, …) is its
     /// `analytic.expect_error`; any other is left for the runner to meet.
     pub fn of(
@@ -209,6 +210,7 @@ impl FixtureRecipe {
             | KernelOp::VertexPoint { .. }
             | KernelOp::EdgeAxis { .. }
             | KernelOp::MassProperties
+            | KernelOp::Tessellate { .. }
             | KernelOp::ToBytes => name(failed.sources[0]),
             _ => name(call),
         };
@@ -226,7 +228,12 @@ impl FixtureRecipe {
             precision: Precision {
                 default_tolerance: failed.precision.default_tolerance,
             },
-            tolerances: Tolerances { mesh_chord: 1e-5 },
+            tolerances: Tolerances {
+                mesh_chord: match failed.op {
+                    KernelOp::Tessellate { chord, .. } => chord,
+                    _ => 1e-5,
+                },
+            },
             analytic: expect_error(code).map(|expect_error| Analytic { expect_error }),
         })
     }
@@ -354,6 +361,7 @@ fn push_steps(
         | KernelOp::VertexPoint { .. }
         | KernelOp::EdgeAxis { .. }
         | KernelOp::MassProperties
+        | KernelOp::Tessellate { .. }
         | KernelOp::ToBytes => return Ok(()),
         KernelOp::FromBytes { .. } => {
             return Err(FixtureError::NoStep {
@@ -421,6 +429,7 @@ fn op_word(op: &KernelOp) -> &'static str {
         KernelOp::VertexPoint { .. } => "vertex_point",
         KernelOp::EdgeAxis { .. } => "edge_axis",
         KernelOp::MassProperties => "mass_properties",
+        KernelOp::Tessellate { .. } => "tessellate",
         KernelOp::ToBytes => "to_bytes",
         KernelOp::FromBytes { .. } => "from_bytes",
     }

@@ -9,8 +9,8 @@
 mod arris_fixture;
 
 use arrix_core::{
-    CurveKey, DVec2, DVec3, FeatureId, Frame, Id, NameRoot, PersistentName, Profile, ProfileLoop,
-    ProfileSegment, SweepPartName, TopoKind,
+    CurveKey, DVec2, DVec3, FeatureId, Frame, Id, MeshDetail, NameRoot, PersistentName, Profile,
+    ProfileLoop, ProfileSegment, SweepPartName, TopoKind,
 };
 use arrix_kernel::{FixtureError, FixtureRecipe, Kernel, KernelBody, KernelError, Motion};
 
@@ -268,6 +268,23 @@ fn a_failed_query_exports_the_body_it_was_asked_of() {
     let recipe = arris_fixture::parse(&recipe.to_json());
     assert_eq!(ops(&recipe), [("c0.profile", "profile"), ("c0", "extrude")]);
     assert_eq!(recipe.result, "c0");
+}
+
+#[test]
+fn a_mesh_s_record_exports_the_body_at_its_chord() {
+    let mut k = Kernel::new();
+    let body = plate(&mut k);
+    let mesh = k.tessellate(body, MeshDetail::Refined).unwrap();
+    let recipe = FixtureRecipe::of(
+        k.records(),
+        arrix_kernel::CallIndex(1),
+        &arrix_core::DiagnosticCode::new("kernel.mesh.face").unwrap(),
+    )
+    .unwrap();
+    let recipe = arris_fixture::parse(&recipe.to_json());
+    assert_eq!(ops(&recipe), [("c0.profile", "profile"), ("c0", "extrude")]);
+    assert_eq!(recipe.result, "c0");
+    assert_eq!(recipe.tolerances.mesh_chord, mesh.chord);
 }
 
 #[test]
