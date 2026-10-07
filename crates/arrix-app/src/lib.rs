@@ -2,6 +2,8 @@
 //! between document and view types (docs/UI-RENDERING.md §The shell).
 
 mod commands;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod config_files;
 mod debug;
 mod keys;
 mod palette;
@@ -10,8 +12,9 @@ mod theme;
 pub use debug::DebugState;
 
 use arrix_config::{
-    CommandRegistry, Config, ConfigDiagnostic, ConfigSource, Keymap, MemorySource, PALETTE_CLOSE,
-    PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN, ParamDefaults, Settings, Theme,
+    CONFIG_RELOAD, CommandRegistry, Config, ConfigDiagnostic, ConfigSource, Keymap, MemorySource,
+    PALETTE_CLOSE, PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN, ParamDefaults,
+    Settings, Theme,
 };
 use arrix_plugin_api::FeatureTypeSpec;
 use arrix_ui::{ShellLayout, ShellView, StatusView, TreeView, UiIntent};
@@ -36,6 +39,13 @@ pub struct ArrixApp {
     defaults: ParamDefaults,
     /// What the config files got wrong, for `debug_state()` and the status bar.
     config_diagnostics: Vec<ConfigDiagnostic>,
+    /// Where the configuration came from, for `core.config.reload`; `None`
+    /// is the built-in configuration, which has nothing to re-read.
+    source: Option<Box<dyn ConfigSource>>,
+    /// The source's fingerprint when it was last read, and the time it was
+    /// last compared (egui's clock, in seconds).
+    fingerprint: Option<u64>,
+    last_poll: f64,
     /// What the last frame drew, for [`ArrixApp::debug_state`].
     drawn: Option<Drawn>,
 }
@@ -54,6 +64,33 @@ impl ArrixApp {
 
     /// The app on the configuration `source` holds over the built-in one.
     pub fn with_config(cc: &eframe::CreationContext<'_>, source: &impl ConfigSource) -> Self {
+        Self::build(cc, source)
+    }
+
+    /// The app on `source`, which it keeps to re-read on
+    /// `core.config.reload` and, where the source can tell, when its files
+    /// change.
+    pub fn with_config_source(
+        cc: &eframe::CreationContext<'_>,
+        source: Box<dyn ConfigSource>,
+    ) -> Self {
+        let mut app = Self::build(cc, &&*source);
+        app.fingerprint = source.fingerprint();
+        app.source = Some(source);
+        app
+    }
+
+    /// The app on the user's config directory: `$ARRIX_CONFIG_DIR`, else the
+    /// platform's. A directory that isn't there is the built-in configuration.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn native(cc: &eframe::CreationContext<'_>) -> Self {
+        match config_files::ConfigDir::from_environment() {
+            Some(dir) => Self::with_config_source(cc, Box::new(dir)),
+            None => Self::new(cc),
+        }
+    }
+
+    fn build(cc: &eframe::CreationContext<'_>, source: &impl ConfigSource) -> Self {
         let types = commands::feature_types();
         let commands = commands::command_registry(&types);
         let specs = commands::feature_type_specs(&types);
@@ -68,6 +105,9 @@ impl ArrixApp {
             feature_types: specs,
             defaults: config.defaults,
             config_diagnostics: config.diagnostics,
+            source: None,
+            fingerprint: None,
+            last_poll: 0.0,
             session: Session {
                 ribbon_tab: "core.sketch".into(),
                 palette: None,
@@ -103,7 +143,7 @@ impl ArrixApp {
             tree: TreeView::default(),
             status: StatusView {
                 generation: 0,
-                diagnostics: 0,
+                diagnostics: self.config_diagnostics.len(),
                 length_unit: "mm".into(),
                 angle_unit: "deg".into(),
             },
@@ -148,10 +188,53 @@ impl ArrixApp {
             PALETTE_NEXT => self.step_palette(1),
             PALETTE_PREVIOUS => self.step_palette(-1),
             PALETTE_RUN => self.run_selected(cx),
-            // The other commands (reload, the panel toggles and the
-            // creation commands) arrive with their steps and plans.
+            CONFIG_RELOAD => self.reload(),
+            // The other commands (the panel toggles and the creation
+            // commands) arrive with their steps and plans.
             _ => {}
         }
+    }
+
+    /// Re-reads the config files and applies them. A bad key keeps its
+    /// default and is a diagnostic; the app stays up. With no source (the
+    /// built-in configuration) there is nothing to re-read.
+    fn reload(&mut self) {
+        let Some(source) = &self.source else {
+            return;
+        };
+        let config = Config::load(
+            &&**source,
+            &self.commands,
+            &self.feature_types,
+            &arrix_doc::expr::check_constant,
+        );
+        self.fingerprint = source.fingerprint();
+        self.settings = config.settings;
+        self.keymap = config.keymap;
+        self.theme = config.theme;
+        self.defaults = config.defaults;
+        self.config_diagnostics = config.diagnostics;
+    }
+
+    /// The polled check for changed files (ADR-0015, ⚠ OPEN 3): about once a
+    /// second, a source that can fingerprint its files is compared with what
+    /// was last read, and a change reloads. It costs a few `stat`s.
+    fn poll_config(&mut self, ctx: &egui::Context) {
+        const EVERY: f64 = 1.0;
+        let Some(source) = &self.source else {
+            return;
+        };
+        if source.fingerprint().is_none() {
+            return;
+        }
+        let now = ctx.input(|i| i.time);
+        if now - self.last_poll >= EVERY {
+            self.last_poll = now;
+            if source.fingerprint() != self.fingerprint {
+                self.reload();
+            }
+        }
+        ctx.request_repaint_after(std::time::Duration::from_secs_f64(EVERY));
     }
 
     fn step_palette(&mut self, delta: isize) {
@@ -219,6 +302,7 @@ impl ArrixApp {
 
 impl eframe::App for ArrixApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        self.poll_config(ui.ctx());
         self.run_keys(ui.ctx());
         self.apply_theme(ui);
         let window = ui.max_rect();

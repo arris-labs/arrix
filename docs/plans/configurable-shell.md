@@ -247,7 +247,7 @@ None. No step calls the kernel.
     `settings`, `keybindings` or `theme`.
   - `docs/CONFIG-CATALOG.md` is generated from the registry and specs, and
     a test holds it fresh.
-- [ ] **[2]** Step 10: config files on native, and reload.
+- [x] **[2]** Step 10: config files on native, and reload.
   - The config directory is resolved and read through `config_files`. The
     wasm lint's `fs` table and the selftest are updated.
   - `core.config.reload` re-reads the files and applies them. The status
@@ -317,7 +317,7 @@ The whole gate is green, the wasm build included.
   (`sketch`, `part`, `palette`, `text`) or VS Code-style expressions?
   Preferred: a single name until a binding needs more. Agent decides by
   step 4.
-- ⚠ OPEN 3: how a changed file is noticed. Options are a polled
+- ⚠ OPEN 3 (decided in step 10: the polled check): how a changed file is noticed. Options are a polled
   modification time (no dependency, about 1 s), the `notify` crate, or
   reload-on-command only. Tests use the command either way. Agent decides
   by step 10.
@@ -362,3 +362,10 @@ The whole gate is green, the wasm build included.
   know the feature types (like the CLI's), so the layer lint gains the
   `arrix-app` → `arrix-gears` edge. A plugin's tab is titled from its id
   (`gears` → Gears) until the registry carries manifest titles.
+- Step 10 found: the polled check lives behind the seam, as
+  `ConfigSource::fingerprint` (default `None`: nothing to poll); `ConfigDir`
+  hashes the files' names, sizes and modification times, and the app compares
+  it once a second of egui's clock and asks for a repaint at that rate only
+  while it has such a source. `ArrixApp::with_config_source` keeps the source
+  for `core.config.reload`; `with_config(&impl)` is the fixed, built-in-or-
+  memory form the earlier tests use. `ArrixApp::native` is `main`'s entry.

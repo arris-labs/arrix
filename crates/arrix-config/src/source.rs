@@ -16,6 +16,24 @@ pub const THEMES_DIR: &str = "themes";
 pub trait ConfigSource {
     /// The bytes of `path`, or `None` when there is no such file.
     fn read(&self, path: &str) -> std::io::Result<Option<Vec<u8>>>;
+
+    /// A value that changes when the files do, for a source that can tell
+    /// cheaply (a directory's modification times). `None`, the default, is a
+    /// source that never changes under the app, so there is nothing to poll.
+    fn fingerprint(&self) -> Option<u64> {
+        None
+    }
+}
+
+/// A borrowed source, `dyn` ones included, is a source.
+impl<T: ConfigSource + ?Sized> ConfigSource for &T {
+    fn read(&self, path: &str) -> std::io::Result<Option<Vec<u8>>> {
+        (**self).read(path)
+    }
+
+    fn fingerprint(&self) -> Option<u64> {
+        (**self).fingerprint()
+    }
 }
 
 /// Config files in memory, keyed by path.

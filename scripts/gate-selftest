@@ -66,6 +66,20 @@ CASES = [
         1,
     ),
     (
+        "std::fs in the app's config_files",
+        "wasm-lint",
+        "crates/arrix-app/src/config_files.rs",
+        '\npub fn read() -> Vec<u8> {\n    std::fs::read("x").unwrap_or_default()\n}\n',
+        0,
+    ),
+    (
+        "std::fs elsewhere in the app",
+        "wasm-lint",
+        "crates/arrix-app/src/lib.rs",
+        '\npub fn read() -> Vec<u8> {\n    std::fs::read("x").unwrap_or_default()\n}\n',
+        1,
+    ),
+    (
         "thread::spawn outside the executor",
         "wasm-lint",
         "crates/arrix-kernel/src/lib.rs",
