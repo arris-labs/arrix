@@ -219,7 +219,7 @@ Complexity: **[1]** routine; **[2]** careful; **[3]** unproven.
   document and fixture checked to hold none (if one does, a schema bump
   with its migration, ⚠ named in the step's commit). The docs' lists
   updated to what is reachable.
-- [ ] **[2]** Step 16 — The acceptance scenario `sketch_accept`, below.
+- [x] **[2]** Step 16 — The acceptance scenario `sketch_accept`, below.
 
 ## Acceptance
 
@@ -369,6 +369,20 @@ accepted, and the step 1 drag benchmark asserts its budget.
   offset fixtures, the inference plate) were rewritten with reachable
   kinds (`HorizontalDistance` from the origin point, `Distance` between
   bolt holes) so they stay in the default build.
+- Finding (step 16): the acceptance reads item 5 as: a level line across the
+  rectangle, drawn past both edges and trimmed back at each (one command
+  each), made construction (`Q`), and that construction line mirrored about
+  the left edge. The line has to be construction before item 6: solid, it
+  would split the rectangle in two. The scenario is in
+  `tests/visual/sketch_accept.rs`; the saved document is evaluated with
+  `Evaluator` (what `arrix eval` runs, as `sketch_regions` does), since
+  `arrix-app` cannot run the CLI's binary. Two harness facts: the visual
+  harness steps a quarter second a frame, so a double-click widens egui's
+  `max_double_click_delay` to 0.6 s (a pause before it keeps the click
+  before it from making a triple); and 3 px per millimetre is the scale of
+  the face-on camera, so every pick is by the pointer's tolerance, not by
+  an exact hit. The sketch ends at 3 DoF, under-constrained, said in the
+  status line and held by the golden.
 - OPEN 4 (closed at step 11, the agent's default, unobjected): reference
   dimension, said in the status line.
 - Finding (step 11): a driving dimension is made at the value the geometry

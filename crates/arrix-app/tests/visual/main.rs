@@ -7,6 +7,7 @@ mod fixture;
 mod harness;
 mod highlight;
 mod sketch;
+mod sketch_accept;
 mod snapshot;
 mod viewport;
 
