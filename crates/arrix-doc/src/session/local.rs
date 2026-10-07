@@ -138,9 +138,11 @@ fn serve(
                 let _ = reply.send(result);
             }
             Msg::Subscribe(tx) => {
+                let (files, blobs) = files(authority.document());
                 let opened = SessionEvent::Opened {
                     generation: authority.generation(),
-                    files: files(authority.document()),
+                    files,
+                    blobs,
                 };
                 if tx.send(opened).is_ok() {
                     subscribers.push(tx);

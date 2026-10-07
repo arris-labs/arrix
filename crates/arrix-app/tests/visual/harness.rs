@@ -92,11 +92,16 @@ pub fn settle(harness: &mut Harness<'_, ArrixApp>) {
 /// body meshed refined (`debug_state().evaluation.settled`). The session's
 /// threads run on their own clock, so this polls; it fails after a minute.
 pub fn open_settled(harness: &mut Harness<'_, ArrixApp>, path: &str) {
+    open_settled_without(harness, path, &[]);
+}
+
+/// [`open_settled`] as a build without the plugins `without`.
+pub fn open_settled_without(harness: &mut Harness<'_, ArrixApp>, path: &str, without: &[&str]) {
     // Cargo runs a test with its package's directory as the working one, so
     // the path a tab keeps (and a golden holds) is the same on every machine.
     harness
         .state_mut()
-        .open_path(&std::path::Path::new("../..").join(path))
+        .open_path_without(&std::path::Path::new("../..").join(path), without)
         .unwrap_or_else(|err| panic!("{err}"));
     wait_settled(harness);
 }

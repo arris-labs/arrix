@@ -127,7 +127,8 @@ The boundary is the `Session` trait in `arrix-doc`: `request(Request) ->
 Result<Outcome, Rejected>` (a `Request` is a submitted `CommandEnvelope`,
 or an author's undo or redo) and `subscribe() -> EventStream`, whose
 `SessionEvent`s are `opened` (the document at subscription, as its
-directory form's files), each `applied` change (from which each client
+directory form's files: the JSON ones as text, the frozen results' blobs as
+bytes), each `applied` change (from which each client
 keeps its own `Replica` of the document, `docs/CONCURRENCY-WASM.md`
 §Roles and threads), each feature's `evaluated` outcome, each
 `finished` evaluation, and then each final body's `meshed` mesh, coarse

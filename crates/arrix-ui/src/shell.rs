@@ -6,7 +6,10 @@
 //! the feature tree and the property panel are cards floating over it, drawn
 //! only while they show.
 
-use crate::view::{DocumentTabsView, RibbonView, ShellView, StatusView, TreeView, UiIntent};
+use crate::view::{
+    DocumentTabsView, FeatureState, RibbonView, ShellView, StatusView, TreeFeature, TreeView,
+    UiIntent,
+};
 
 /// Fixed so a frame's layout is a function of the window size and of which
 /// cards show.
@@ -210,9 +213,36 @@ fn tree_card(ctx: &egui::Context, viewport: egui::Rect, tree: &TreeView) -> egui
             ui.weak("No parts");
         }
         for part in &tree.parts {
-            ui.label(&part.name);
+            ui.strong(&part.name);
+            for feature in &part.features {
+                feature_row(ui, feature);
+            }
         }
     })
+}
+
+fn feature_row(ui: &mut egui::Ui, feature: &TreeFeature) {
+    let visuals = ui.visuals();
+    let colour = match feature.state {
+        FeatureState::Failed => visuals.error_fg_color,
+        FeatureState::Frozen | FeatureState::FrozenStale => visuals.warn_fg_color,
+        FeatureState::Ok => visuals.text_color(),
+        _ => visuals.weak_text_color(),
+    };
+    let row = ui.horizontal(|ui| {
+        ui.add_space(8.0);
+        ui.label(egui::RichText::new(&feature.name).color(colour));
+        if let Some(tag) = feature.state.tag() {
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.label(egui::RichText::new(tag).color(colour).small());
+            });
+        }
+    });
+    let hover = match &feature.note {
+        Some(note) => format!("{}\n{note}", feature.kind),
+        None => feature.kind.clone(),
+    };
+    row.response.on_hover_text(hover);
 }
 
 fn properties_card(ctx: &egui::Context, viewport: egui::Rect) -> egui::Rect {

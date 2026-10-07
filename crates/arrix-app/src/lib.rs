@@ -23,8 +23,7 @@ use arrix_config::{
 use arrix_core::RenderMesh;
 use arrix_plugin_api::FeatureTypeSpec;
 use arrix_ui::{
-    CardsView, DocumentTab, DocumentTabsView, ShellLayout, ShellView, StatusView, TreeView,
-    UiIntent,
+    CardsView, DocumentTab, DocumentTabsView, ShellLayout, ShellView, StatusView, UiIntent,
 };
 use arrix_viewport::{BodyKey, Renderer};
 use documents::{CardToggles, OpenDocument, ViewState};
@@ -159,12 +158,32 @@ impl ArrixApp {
         path: &str,
         source: &impl arrix_doc::DocumentSource,
     ) -> Result<(), String> {
+        self.open_without(path, source, &[])
+    }
+
+    /// [`Self::open`] as a build without the plugins `without` would: their
+    /// features open frozen (docs/DATA-MODEL.md §Frozen results).
+    pub fn open_without(
+        &mut self,
+        path: &str,
+        source: &impl arrix_doc::DocumentSource,
+        without: &[&str],
+    ) -> Result<(), String> {
+        let mut registry = commands::feature_types();
+        for id in without {
+            let removed = arrix_core::PluginId::new(*id)
+                .map(|plugin| registry.remove_plugin(&plugin))
+                .unwrap_or(false);
+            if !removed {
+                return Err(format!("no plugin `{id}` in this build"));
+            }
+        }
         let title = path
             .trim_end_matches(['/', '\\'])
             .rsplit(['/', '\\'])
             .next()
             .unwrap_or(path);
-        let document = OpenDocument::open(title, path, source, commands::feature_types())?;
+        let document = OpenDocument::open(title, path, source, registry)?;
         self.documents.push(document);
         self.active = self.documents.len() - 1;
         Ok(())
@@ -173,8 +192,26 @@ impl ArrixApp {
     /// [`Self::open`] on a document directory or an `.arrx` file.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn open_path(&mut self, path: &std::path::Path) -> Result<(), String> {
+        self.open_path_without(path, &[])
+    }
+
+    /// [`Self::open_without`] on a document directory or an `.arrx` file.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn open_path_without(
+        &mut self,
+        path: &std::path::Path,
+        without: &[&str],
+    ) -> Result<(), String> {
         let source = document_files::PathSource::read(path)?;
-        self.open(&path.to_string_lossy(), &source)
+        self.open_without(&path.to_string_lossy(), &source, without)
+    }
+
+    /// The active document as it saves: its directory form's files, with
+    /// each plugin feature's current frozen result. Not yet a file written
+    /// (the UI's saving is a later plan); it is how a scenario opens the same
+    /// document again as another build would.
+    pub fn saved(&self) -> Option<arrix_doc::MemorySource> {
+        self.active_document().map(OpenDocument::save)
     }
 
     fn active_document(&self) -> Option<&OpenDocument> {
@@ -269,7 +306,10 @@ impl ArrixApp {
                 .palette
                 .as_ref()
                 .map(|p| p.view(&self.commands, &self.keymap, self.context())),
-            tree: TreeView::default(),
+            tree: self
+                .active_document()
+                .map(OpenDocument::tree)
+                .unwrap_or_default(),
             documents: DocumentTabsView {
                 tabs: self
                     .documents
@@ -310,9 +350,14 @@ impl ArrixApp {
             .active_document()
             .map_or(self.session.cards, |d| d.cards);
         CardsView {
-            // No part is listed yet, and no feature is edited, so nothing
-            // for `auto` to show.
-            tree: shown(toggles.tree, "ui.panel.tree", false),
+            // `auto` shows the tree once the document has a part, and the
+            // property card never: no feature is being edited yet.
+            tree: shown(
+                toggles.tree,
+                "ui.panel.tree",
+                self.active_document()
+                    .is_some_and(|d| !d.replica.document().parts().is_empty()),
+            ),
             properties: shown(toggles.properties, "ui.panel.properties", false),
         }
     }

@@ -8,8 +8,10 @@ use std::time::Duration;
 
 use arrix_core::MeshDetail;
 use arrix_doc::{
-    DocumentSource, EventStream, Generation, LocalSession, Registry, Replica, Session, SessionEvent,
+    DocumentSource, EventStream, FeatureOutcome, Generation, LocalSession, Registry, Replica,
+    Session, SessionEvent,
 };
+use arrix_ui::{FeatureState, TreeFeature, TreePart, TreeView};
 use arrix_viewport::{BodyKey, GpuMesh, OrbitCamera, Renderer, Scene};
 use web_time::Instant;
 
@@ -24,6 +26,59 @@ const NO_BODIES_AFTER: Duration = Duration::from_secs(1);
 pub struct ViewState {
     pub scene: Scene<GpuMesh>,
     pub camera: OrbitCamera,
+}
+
+/// The tree card's view of the part `part`: each feature with where it
+/// stands, from the replica's document and the outcomes it has heard.
+fn tree_part(replica: &Replica, part: &arrix_doc::Part) -> TreePart {
+    let features = part
+        .history
+        .iter()
+        .enumerate()
+        .filter_map(|(index, id)| Some((index, part.features.get(id)?)))
+        .map(|(index, record)| {
+            let outcome = replica.outcome(record.id).map(|(_, o)| o);
+            let (state, note) = if part.rollback.is_some_and(|bar| index >= bar) {
+                (FeatureState::RolledBack, None)
+            } else if record.suppressed {
+                (FeatureState::Suppressed, None)
+            } else {
+                match outcome {
+                    None => (FeatureState::Evaluating, None),
+                    Some(FeatureOutcome::Suppressed) => (FeatureState::Suppressed, None),
+                    Some(FeatureOutcome::RolledBack) => (FeatureState::RolledBack, None),
+                    Some(FeatureOutcome::Failed { diagnostic, .. }) => {
+                        (FeatureState::Failed, Some(diagnostic.message.clone()))
+                    }
+                    Some(FeatureOutcome::Ok {
+                        frozen: Some(info),
+                        diagnostics,
+                        ..
+                    }) => (
+                        if info.stale {
+                            FeatureState::FrozenStale
+                        } else {
+                            FeatureState::Frozen
+                        },
+                        diagnostics.first().map(|d| d.message.clone()),
+                    ),
+                    Some(FeatureOutcome::Ok { .. }) => (FeatureState::Ok, None),
+                }
+            };
+            TreeFeature {
+                id: record.id.0.to_string(),
+                name: record.name.clone(),
+                kind: record.type_id.to_string(),
+                state,
+                note,
+            }
+        })
+        .collect();
+    TreePart {
+        id: part.id.0.to_string(),
+        name: part.name.clone(),
+        features,
+    }
 }
 
 /// A card the user toggled: `None` leaves the setting in charge.
@@ -109,7 +164,26 @@ impl OpenDocument {
         self.settled
     }
 
+    /// The document as it saves.
+    pub fn save(&self) -> arrix_doc::MemorySource {
+        self._session.save()
+    }
+
     /// Whether the latest generation's evaluation has finished.
+    /// The feature tree: every part of the document as the replica holds
+    /// it, in id order.
+    pub fn tree(&self) -> TreeView {
+        TreeView {
+            parts: self
+                .replica
+                .document()
+                .parts()
+                .values()
+                .map(|part| tree_part(&self.replica, part))
+                .collect(),
+        }
+    }
+
     pub fn finished(&self) -> bool {
         self.finished_at
             .is_some_and(|(g, _)| g == self.replica.generation())

@@ -467,6 +467,24 @@ fn undo_re_evaluated_and_saved_restores_each_earlier_save() {
     }
 }
 
+/// The saved slice holds the gear's result as a blob, a file that is not
+/// JSON: a session over it still opens a subscription, whose `Opened` carries
+/// the blob, and a replica rebuilt from it saves to the very same files.
+#[test]
+fn a_subscriber_to_a_saved_slice_is_given_its_blobs() {
+    let i = Ids::new();
+    let mut c = Client::new(i.author);
+    build(&mut c, &i);
+    let saved = c.session.save();
+    assert_eq!(blobs(&saved).len(), 2);
+    let session = arrix_doc::LocalSession::open(open(&saved).unwrap(), common::registry())
+        .expect("a session starts");
+    let first = session.subscribe().recv().expect("Opened comes first");
+    let mut replica = arrix_doc::Replica::default();
+    replica.receive(&first).expect("a replica follows Opened");
+    assert_eq!(save(replica.document()).0, saved.0);
+}
+
 /// A body line's measures of `feature`'s body slot.
 fn body_line(line: &arrix_doc::EvalLine, feature: FeatureId) -> (f64, usize) {
     let b = line

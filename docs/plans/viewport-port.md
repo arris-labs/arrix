@@ -172,7 +172,7 @@ All present in the pinned `arris` 0.5:
   last tab returns to the empty start. Scenario: the slice and the gear
   opened, the second tab active, then the first again with its camera as
   it was.
-- [ ] **[2]** 9 — The tree card from the replica: parts and features with
+- [x] **[2]** 9 — The tree card from the replica: parts and features with
   their states (ok, failed, frozen, frozen-stale, suppressed, rolled back),
   shown in `auto` once a part exists. Scenario: the slice opened without
   `gears`, the gear frozen in the tree.
@@ -333,3 +333,13 @@ build included.
   visible results (the only pixels that moved). A tab shows its path as
   given on the command line; scenarios open relative paths so goldens hold
   none of this machine's.
+- Found in step 9: a session over a document that holds a frozen result
+  panicked on subscribing, since `Opened` sent every file as UTF-8 text
+  and a blob is not; no earlier test subscribed to a saved slice. `Opened`
+  now carries `blobs` (bytes, omitted when empty) beside the JSON `files`,
+  with a regression test in `arrix-cli`'s `slice.rs`: an `arrix-doc`
+  change this plan did not list, and the reason the tree scenario can
+  open a saved slice. The scenario opens the slice, saves it
+  (`ArrixApp::saved`, a hook until the UI saves) and opens that without
+  `gears`. `FeatureState` has the six states of the step plus
+  `evaluating`, for a feature with no outcome yet.

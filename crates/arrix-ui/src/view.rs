@@ -64,6 +64,53 @@ pub struct TreeView {
 pub struct TreePart {
     pub id: String,
     pub name: String,
+    /// The part's history, in order.
+    pub features: Vec<TreeFeature>,
+}
+
+/// One feature of a part, as the tree shows it.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TreeFeature {
+    pub id: String,
+    pub name: String,
+    /// The feature type's id, for the tooltip.
+    pub kind: String,
+    pub state: FeatureState,
+    /// What is worth saying beside the state: why it failed, or is frozen.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+}
+
+/// Where a feature stands, the first of these that applies.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum FeatureState {
+    /// At or after the rollback bar: not evaluated.
+    RolledBack,
+    Suppressed,
+    /// No outcome heard yet.
+    Evaluating,
+    Ok,
+    Failed,
+    /// Shown from its stored result, its type or plugin being unavailable.
+    Frozen,
+    /// Frozen, and its inputs now differ from the stored result's.
+    FrozenStale,
+}
+
+impl FeatureState {
+    /// The short word the tree shows; none for a feature that is fine.
+    pub fn tag(self) -> Option<&'static str> {
+        match self {
+            Self::Ok => None,
+            Self::RolledBack => Some("rolled back"),
+            Self::Suppressed => Some("suppressed"),
+            Self::Evaluating => Some("…"),
+            Self::Failed => Some("failed"),
+            Self::Frozen => Some("frozen"),
+            Self::FrozenStale => Some("frozen, stale"),
+        }
+    }
 }
 
 /// The tab strip of open documents, in the order they were opened.

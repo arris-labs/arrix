@@ -70,10 +70,13 @@ pub type ParamValues = BTreeMap<ParamId, Result<Quantity, Diagnostic>>;
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum SessionEvent {
     /// The first event of every subscription: the document at
-    /// `generation`, as its directory form's files.
+    /// `generation`, as its directory form's files: the JSON ones as text,
+    /// and the frozen results' blobs (`blobs/<name>`) as bytes.
     Opened {
         generation: Generation,
         files: BTreeMap<String, String>,
+        #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+        blobs: BTreeMap<String, Vec<u8>>,
     },
     /// A change the authority applied, with the document's hash after it
     /// in a debug build, for the replicas to check theirs against.
@@ -186,11 +189,16 @@ impl Replica {
     /// held for its feature is dropped: the newest generation wins.
     pub fn receive(&mut self, event: &SessionEvent) -> Result<(), ReplicaError> {
         match event {
-            SessionEvent::Opened { generation, files } => {
+            SessionEvent::Opened {
+                generation,
+                files,
+                blobs,
+            } => {
                 let source = MemorySource(
                     files
                         .iter()
                         .map(|(p, text)| (p.clone(), text.as_bytes().to_vec()))
+                        .chain(blobs.iter().map(|(p, bytes)| (p.clone(), bytes.clone())))
                         .collect(),
                 );
                 let document = open(&source).map_err(|e| ReplicaError::Open(e.to_string()))?;
@@ -243,16 +251,17 @@ impl Replica {
     }
 }
 
-/// The directory form's files as text: every file of it is JSON.
-fn files(doc: &Document) -> BTreeMap<String, String> {
-    save(doc)
-        .0
-        .into_iter()
-        .map(|(p, bytes)| {
-            (
-                p,
-                String::from_utf8(bytes).expect("the file format is UTF-8"),
-            )
-        })
-        .collect()
+/// The directory form's files: the JSON ones as text, and the blobs, the
+/// only files that are not, as bytes.
+fn files(doc: &Document) -> (BTreeMap<String, String>, BTreeMap<String, Vec<u8>>) {
+    let (mut files, mut blobs) = (BTreeMap::new(), BTreeMap::new());
+    for (path, bytes) in save(doc).0 {
+        if path.starts_with("blobs/") {
+            blobs.insert(path, bytes);
+        } else {
+            let text = String::from_utf8(bytes).expect("a file but a blob is JSON, so UTF-8");
+            files.insert(path, text);
+        }
+    }
+    (files, blobs)
 }

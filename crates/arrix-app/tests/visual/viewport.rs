@@ -72,6 +72,16 @@ fn slice_viewport() {
         assert!(evaluation.finished && evaluation.settled);
         assert!(evaluation.problems.is_empty(), "{:?}", evaluation.problems);
         assert_eq!(d.bodies.len(), 1, "{evaluation:?}");
+        let tree = d.shell.as_ref().expect("a frame ran").tree.clone();
+        assert!(d.layout.as_ref().expect("a frame ran").tree.is_some());
+        assert!(tree.parts[0].features.len() >= 6);
+        assert!(
+            tree.parts[0]
+                .features
+                .iter()
+                .all(|f| f.state == arrix_ui::FeatureState::Ok),
+            "{tree:?}"
+        );
         let before = harness::render(h);
         h.run_steps(5);
         assert!(
@@ -119,9 +129,12 @@ fn document_tabs() {
     harness::with_config("document_tabs", &source, |h| {
         harness::open_settled(h, "tests/docs/slice");
         let slice_camera = camera(h);
+        // `auto` shows the tree of a document with a part; F4 hides it on
+        // this tab only.
+        assert!(h.state().debug_state().layout.unwrap().tree.is_some());
         h.key_press(egui::Key::F4);
         h.run();
-        assert!(h.state().debug_state().layout.unwrap().tree.is_some());
+        assert_eq!(h.state().debug_state().layout.unwrap().tree, None);
 
         harness::open_settled(h, "tests/docs/gear-on-plane");
         assert_eq!(
@@ -134,9 +147,8 @@ fn document_tabs() {
             Some("gear-on-plane")
         );
         assert_ne!(camera(h), slice_camera, "a camera of its own");
-        assert_eq!(
-            d.layout.unwrap().tree,
-            None,
+        assert!(
+            d.layout.unwrap().tree.is_some(),
             "the cards stay with their tab"
         );
 
@@ -144,7 +156,11 @@ fn document_tabs() {
         h.run();
         assert_eq!(tabs(h).1, Some(0));
         assert_eq!(camera(h), slice_camera, "the camera as it was");
-        assert!(h.state().debug_state().layout.unwrap().tree.is_some());
+        assert_eq!(
+            h.state().debug_state().layout.unwrap().tree,
+            None,
+            "its card as it was"
+        );
 
         h.key_press_modifiers(egui::Modifiers::CTRL, egui::Key::Tab);
         h.run();
@@ -166,5 +182,43 @@ fn document_tabs() {
         let d = h.state().debug_state();
         assert_eq!(tabs(h), (vec![], None));
         assert!(d.evaluation.is_none() && d.bodies.is_empty() && d.camera.is_none());
+    });
+}
+
+/// The slice opened as a build without `gears`: the tree card shows by
+/// itself (`auto`, there being a part), the gear frozen among features that
+/// are fine, and its body still drawn from the stored result.
+#[test]
+fn the_tree_shows_a_frozen_feature() {
+    use arrix_ui::FeatureState;
+    harness::with_app("the_tree_shows_a_frozen_feature", |h| {
+        // The gear's stored result is made by evaluating it, so the slice
+        // is opened and saved first, and the saved one opened without it.
+        harness::open_settled(h, "tests/docs/slice");
+        let saved = h.state().saved().expect("a document is open");
+        h.state_mut()
+            .open_without("slice (without gears)", &saved, &["gears"])
+            .expect("the saved slice opens");
+        harness::wait_settled(h);
+        let d = h.state().debug_state();
+        let shell = d.shell.expect("a frame ran");
+        assert!(
+            d.layout.expect("a frame ran").tree.is_some(),
+            "auto shows it"
+        );
+        let features = &shell.tree.parts[0].features;
+        let frozen: Vec<_> = features
+            .iter()
+            .filter(|f| f.state == FeatureState::Frozen)
+            .map(|f| f.kind.as_str())
+            .collect();
+        assert_eq!(frozen, ["gears.spur"], "{features:?}");
+        assert!(
+            features
+                .iter()
+                .all(|f| matches!(f.state, FeatureState::Frozen | FeatureState::Ok))
+        );
+        assert_eq!(d.bodies.len(), 1);
+        snapshot::check(h, "tree_frozen");
     });
 }
