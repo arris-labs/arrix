@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use arrix_core::{FeatureId, Input, NameRoot, Ref, SlotName, TopoKind};
 use arrix_doc::{Command, FeatureOutcome, FeatureRecord, FeatureTypeId, Part, SlotView};
-use arrix_sketch::{SketchEdit, SketchEntityId};
+use arrix_sketch::{Draft, Sketch, SketchEdit, SketchEntityId};
 use arrix_ui::SketchHit;
 use arrix_viewport::{CameraAnimation, CameraSample, OrbitCamera, Projection};
 use web_time::Instant;
@@ -448,6 +448,39 @@ impl ArrixApp {
         mode.hover = None;
         if let Err(reason) = document.submit(command) {
             self.session.notice = Some(reason);
+        }
+    }
+
+    /// Submits what `draft` changed from `before` as one `SketchEdit` of
+    /// the open sketch, and draws the draft until the evaluation of it
+    /// arrives. The draft's minter is kept. False when the command was
+    /// refused (the reason is the notice); a change that is nothing is no
+    /// command and true.
+    pub(crate) fn submit_draft(&mut self, before: &Sketch, draft: Draft) -> bool {
+        let Some(document) = self.documents.get_mut(self.active) else {
+            return false;
+        };
+        let base = document.replica.generation();
+        let Some(mode) = &mut document.sketch else {
+            return false;
+        };
+        let Draft { sketch: after, ids } = draft;
+        let command = Command::SketchEdit {
+            feature: mode.feature,
+            edit: SketchEdit::diff(before, &after),
+        };
+        match document.submit(command) {
+            Ok(changed) => {
+                self.ids = ids;
+                if let (true, Some(mode)) = (changed, &mut document.sketch) {
+                    mode.solved = Some(Solved::local(base, after));
+                }
+                true
+            }
+            Err(reason) => {
+                self.session.notice = Some(reason);
+                false
+            }
         }
     }
 

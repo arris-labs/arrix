@@ -328,6 +328,26 @@ turns to face the plane in orthographic projection.
   along), and the draft it leaves is drawn until the evaluation of the
   edit arrives, so the next click draws on it. A draft that does not
   solve draws nothing and says so.
+- **Constraints from the selection** are one command per kind,
+  `core.sketch.constrain.<kind>` (the Constrain and Place groups of the
+  Sketch tab; the group row scrolls sideways where the window is
+  narrower): coincident, horizontal and vertical (on each selected line),
+  parallel, perpendicular, equal (two lines, or two circles or arcs),
+  concentric, tangent (a line and a circle or arc, or two of those),
+  symmetric (two points about a line, or three points, the one nearest the
+  others' midpoint the centre), point on (a line, circle or arc), midpoint,
+  align horizontally and vertically (two points), fix, and a point on the
+  origin or on either axis. Each is enabled only for a selection that fits
+  it, and the status line says what it needs where it is not. Each
+  constraint is checked with `check_candidate` before it goes in: a
+  redundant or conflicting one is refused with the reason in the status
+  line and no command, and of several (horizontal on three lines) the ones
+  that hold are added and the rest dropped. The draft is solved so the
+  geometry meets what was added, and the change, the moved points
+  included, is one `SketchEdit`. `core.sketch.construction` (Q) makes the
+  selected curves construction, or solid when every one already is. The
+  dimension kinds and the datum distance, angle and symmetry are the
+  dimension tool's, or are gated (`docs/DATA-MODEL.md` §Sketches).
 - **The drag** is the select tool's: the left button down on a point or a
   curve and moved starts a `DragSession` over the solved draft (a point
   that is fixed, a glyph and a dimension are not dragged; a curve is

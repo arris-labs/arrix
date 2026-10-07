@@ -175,7 +175,7 @@ Complexity: **[1]** routine; **[2]** careful; **[3]** unproven.
   line; the branch guard's refusal likewise. Tests: one command per drag,
   zero for a click without movement; undo returns the stored positions
   byte for byte; the frame's solve time reported in `debug_state()`.
-- [ ] **[2]** Step 10 — Constraint tools and construction. One
+- [x] **[2]** Step 10 — Constraint tools and construction. One
   `core.sketch.constrain.<kind>` per kind that the selection can make
   (coincident, horizontal, vertical, the alignments, parallel,
   perpendicular, equal, concentric, tangent, symmetric, point on, midpoint,
@@ -326,6 +326,17 @@ accepted, and the step 1 drag benchmark asserts its budget.
   anew. A frame the solver blocks is not a test here: nothing a rectangle
   or a pin can make blocks one, so the status line's words for it have no
   test yet; a scenario waits for a sketch that does.
+- Finding (step 10): the datum kinds are three commands on one selected
+  point (on the origin, on the X axis, on the Y axis), not a pick of the
+  origin or an axis in the plane: they are not records, so the selection
+  cannot hold them. Symmetric about a point takes three points, the centre
+  the one nearest the other two's midpoint, since the selection has no
+  order. The Sketch tab outgrew the window (the Place group is past the
+  right edge at 1440 points), so the ribbon's group row scrolls sideways;
+  the scenarios reach a button out of sight through the palette. Kinds
+  with no tool yet (`SymmetricAcrossDatum`, `Block`, `PointOnPerpBisector`,
+  the arc length, the clearance distances and the datum distance and
+  angle) are step 15's list to gate once step 11 has made its dimensions.
 - ⚠ OPEN 4: a dimension that would over-constrain: placed as a reference
   dimension (shown, not driving), or refused with the reason. Default
   proposed: reference, as the ported code did. Agent, by step 11, unless

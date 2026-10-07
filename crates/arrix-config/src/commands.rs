@@ -48,6 +48,32 @@ pub const SKETCH_LINE: &str = "core.sketch.line";
 pub const SKETCH_RECTANGLE: &str = "core.sketch.rectangle";
 pub const SKETCH_CIRCLE: &str = "core.sketch.circle";
 pub const SKETCH_ARC: &str = "core.sketch.arc";
+/// Toggling the selected curves between solid and construction.
+pub const SKETCH_CONSTRUCTION: &str = "core.sketch.construction";
+/// The constraint commands: `core.sketch.constrain.<kind>`, one per kind
+/// the selection can make; each applies only to a selection that fits it.
+pub const SKETCH_CONSTRAIN_PREFIX: &str = "core.sketch.constrain.";
+/// Those kinds: the id's last part, the title, the ribbon group and the
+/// default keys.
+pub const CONSTRAIN_KINDS: &[(&str, &str, &str, &[&str])] = &[
+    ("coincident", "Coincident", "Constrain", &[]),
+    ("horizontal", "Horizontal", "Constrain", &["h"]),
+    ("vertical", "Vertical", "Constrain", &["v"]),
+    ("parallel", "Parallel", "Constrain", &[]),
+    ("perpendicular", "Perpendicular", "Constrain", &[]),
+    ("equal", "Equal", "Constrain", &[]),
+    ("concentric", "Concentric", "Constrain", &[]),
+    ("tangent", "Tangent", "Constrain", &[]),
+    ("symmetric", "Symmetric", "Constrain", &[]),
+    ("point-on", "Point on", "Place", &[]),
+    ("midpoint", "Midpoint", "Place", &[]),
+    ("align-horizontal", "Align H", "Place", &[]),
+    ("align-vertical", "Align V", "Place", &[]),
+    ("fix", "Fix", "Place", &[]),
+    ("origin", "On origin", "Place", &[]),
+    ("x-axis", "On X axis", "Place", &[]),
+    ("y-axis", "On Y axis", "Place", &[]),
+];
 /// Escape while a drawing tool is active: ends what it is drawing, or with
 /// nothing pending returns to the select tool.
 pub const SKETCH_TOOL_CANCEL: &str = "core.sketch.tool.cancel";
@@ -200,6 +226,24 @@ impl CommandRegistry {
                 }),
                 when: Some("sketch".into()),
                 ..document_command(id, title, keys)
+            });
+        }
+        commands.push(CommandSpec {
+            ribbon: Some(RibbonPlacement {
+                tab: CORE_SKETCH_TAB.into(),
+                group: "Draw".into(),
+            }),
+            when: Some("sketch".into()),
+            ..document_command(SKETCH_CONSTRUCTION, "Construction", &["q"])
+        });
+        for (kind, title, group, keys) in CONSTRAIN_KINDS {
+            commands.push(CommandSpec {
+                ribbon: Some(RibbonPlacement {
+                    tab: CORE_SKETCH_TAB.into(),
+                    group: (*group).into(),
+                }),
+                when: Some("sketch".into()),
+                ..document_command(&format!("{SKETCH_CONSTRAIN_PREFIX}{kind}"), title, keys)
             });
         }
         commands.push(CommandSpec {

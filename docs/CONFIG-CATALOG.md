@@ -59,6 +59,24 @@ the command registry and the setting specs; a test holds it fresh. Do not edit.
 | `core.sketch.rectangle` | Rectangle | r | sketch | core.sketch / Draw |
 | `core.sketch.circle` | Circle | c | sketch | core.sketch / Draw |
 | `core.sketch.arc` | Arc | a | sketch | core.sketch / Draw |
+| `core.sketch.construction` | Construction | q | sketch | core.sketch / Draw |
+| `core.sketch.constrain.coincident` | Coincident |  | sketch | core.sketch / Constrain |
+| `core.sketch.constrain.horizontal` | Horizontal | h | sketch | core.sketch / Constrain |
+| `core.sketch.constrain.vertical` | Vertical | v | sketch | core.sketch / Constrain |
+| `core.sketch.constrain.parallel` | Parallel |  | sketch | core.sketch / Constrain |
+| `core.sketch.constrain.perpendicular` | Perpendicular |  | sketch | core.sketch / Constrain |
+| `core.sketch.constrain.equal` | Equal |  | sketch | core.sketch / Constrain |
+| `core.sketch.constrain.concentric` | Concentric |  | sketch | core.sketch / Constrain |
+| `core.sketch.constrain.tangent` | Tangent |  | sketch | core.sketch / Constrain |
+| `core.sketch.constrain.symmetric` | Symmetric |  | sketch | core.sketch / Constrain |
+| `core.sketch.constrain.point-on` | Point on |  | sketch | core.sketch / Place |
+| `core.sketch.constrain.midpoint` | Midpoint |  | sketch | core.sketch / Place |
+| `core.sketch.constrain.align-horizontal` | Align H |  | sketch | core.sketch / Place |
+| `core.sketch.constrain.align-vertical` | Align V |  | sketch | core.sketch / Place |
+| `core.sketch.constrain.fix` | Fix |  | sketch | core.sketch / Place |
+| `core.sketch.constrain.origin` | On origin |  | sketch | core.sketch / Place |
+| `core.sketch.constrain.x-axis` | On X axis |  | sketch | core.sketch / Place |
+| `core.sketch.constrain.y-axis` | On Y axis |  | sketch | core.sketch / Place |
 | `core.sketch.tool.cancel` | End the drawing | escape | sketch-tool |  |
 | `core.ribbon.sketch` | Show the Sketch tab |  |  |  |
 | `core.ribbon.part` | Show the Part tab |  |  |  |

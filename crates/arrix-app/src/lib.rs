@@ -10,6 +10,7 @@ mod document_files;
 mod documents;
 mod keys;
 mod palette;
+mod sketch_constrain;
 mod sketch_drag;
 mod sketch_mode;
 mod sketch_tools;
@@ -24,9 +25,9 @@ use arrix_config::{
     DOCUMENT_NEW, DOCUMENT_NEXT, DOCUMENT_PREVIOUS, EDIT_REDO, EDIT_UNDO, Keymap, MemorySource,
     PALETTE_CLOSE, PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN,
     PANEL_PROPERTIES_TOGGLE, PANEL_TREE_TOGGLE, ParamDefaults, SELECTION_CLEAR, SKETCH_ARC,
-    SKETCH_CIRCLE, SKETCH_CREATE, SKETCH_DELETE, SKETCH_EDIT, SKETCH_FINISH, SKETCH_LINE,
-    SKETCH_RECTANGLE, SKETCH_SELECT, SKETCH_TOOL_CANCEL, Settings, Theme, VIEW_FRONT, VIEW_HOME,
-    VIEW_ISO, VIEW_PROJECTION_TOGGLE, VIEW_RIGHT, VIEW_TOP,
+    SKETCH_CIRCLE, SKETCH_CONSTRUCTION, SKETCH_CREATE, SKETCH_DELETE, SKETCH_EDIT, SKETCH_FINISH,
+    SKETCH_LINE, SKETCH_RECTANGLE, SKETCH_SELECT, SKETCH_TOOL_CANCEL, Settings, Theme, VIEW_FRONT,
+    VIEW_HOME, VIEW_ISO, VIEW_PROJECTION_TOGGLE, VIEW_RIGHT, VIEW_TOP,
 };
 use arrix_core::{FeatureId, IdMinter, RenderMesh};
 use arrix_plugin_api::FeatureTypeSpec;
@@ -36,6 +37,7 @@ use arrix_ui::{
 use arrix_viewport::{BodyKey, Renderer, StandardView};
 use documents::{CardToggles, OpenDocument, PickFor, ViewState};
 use palette::Palette;
+use sketch_constrain::Shape;
 use viewport::SketchDrag;
 
 /// Client-side state that is not in the document (SEED.md §6.1 rule 4).
@@ -362,6 +364,9 @@ impl ArrixApp {
                 .active_document()
                 .and_then(|d| d.sketch.as_ref())
                 .is_some_and(|m| !m.selection.is_empty()),
+            shape: mode
+                .and_then(|m| Some(Shape::of(&m.solved.as_ref()?.sketch, &m.selection)))
+                .unwrap_or_default(),
         }
     }
 
@@ -705,11 +710,15 @@ impl ArrixApp {
             SKETCH_CIRCLE => self.set_tool(sketch_tools::Tool::Circle),
             SKETCH_ARC => self.set_tool(sketch_tools::Tool::Arc),
             SKETCH_TOOL_CANCEL => self.cancel_tool(),
+            SKETCH_CONSTRUCTION => self.toggle_construction(),
             EDIT_UNDO => self.edit(OpenDocument::undo),
             EDIT_REDO => self.edit(OpenDocument::redo),
             CONFIG_RELOAD => self.reload(),
-            // The creation commands arrive with their steps and plans.
-            _ => {}
+            other => {
+                if let Some(kind) = sketch_constrain::Kind::of_command(other) {
+                    self.constrain(kind);
+                }
+            }
         }
     }
 

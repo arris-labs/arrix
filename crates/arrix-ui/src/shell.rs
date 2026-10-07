@@ -130,32 +130,44 @@ fn ribbon_ui(
         }
     });
     ui.separator();
-    ui.horizontal_top(|ui| {
-        for group in &ribbon.groups {
-            ui.vertical(|ui| {
-                ui.horizontal(|ui| {
-                    for command in &group.commands {
-                        let button = ui.add_enabled(
-                            command.enabled,
-                            egui::Button::new(&command.title).selected(command.active),
-                        );
-                        // `contains_pointer`, not `hovered`: a disabled
-                        // button is never hovered, and its hint says why.
-                        if button.contains_pointer() {
-                            *hovered = Some(command.id.clone());
-                        }
-                        if button.clicked() {
-                            intents.push(UiIntent::CommandInvoked {
-                                command: command.id.clone(),
-                            });
-                        }
+    // A tab with many groups scrolls sideways rather than clipping.
+    egui::ScrollArea::horizontal()
+        .auto_shrink([false, true])
+        .show(ui, |ui| {
+            ui.horizontal_top(|ui| ribbon_groups(ui, ribbon, intents, hovered));
+        });
+}
+
+fn ribbon_groups(
+    ui: &mut egui::Ui,
+    ribbon: &RibbonView,
+    intents: &mut Vec<UiIntent>,
+    hovered: &mut Option<String>,
+) {
+    for group in &ribbon.groups {
+        ui.vertical(|ui| {
+            ui.horizontal(|ui| {
+                for command in &group.commands {
+                    let button = ui.add_enabled(
+                        command.enabled,
+                        egui::Button::new(&command.title).selected(command.active),
+                    );
+                    // `contains_pointer`, not `hovered`: a disabled
+                    // button is never hovered, and its hint says why.
+                    if button.contains_pointer() {
+                        *hovered = Some(command.id.clone());
                     }
-                });
-                ui.weak(&group.title);
+                    if button.clicked() {
+                        intents.push(UiIntent::CommandInvoked {
+                            command: command.id.clone(),
+                        });
+                    }
+                }
             });
-            ui.separator();
-        }
-    });
+            ui.weak(&group.title);
+        });
+        ui.separator();
+    }
 }
 
 fn tabs_ui(ui: &mut egui::Ui, documents: &DocumentTabsView, intents: &mut Vec<UiIntent>) {

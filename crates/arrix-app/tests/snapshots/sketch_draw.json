@@ -162,6 +162,21 @@
         "when": "sketch"
       },
       {
+        "command": "core.sketch.construction",
+        "key": "q",
+        "when": "sketch"
+      },
+      {
+        "command": "core.sketch.constrain.horizontal",
+        "key": "h",
+        "when": "sketch"
+      },
+      {
+        "command": "core.sketch.constrain.vertical",
+        "key": "v",
+        "when": "sketch"
+      },
+      {
         "command": "core.sketch.tool.cancel",
         "key": "escape",
         "when": "sketch-tool"
@@ -275,9 +290,109 @@
                 "enabled": true,
                 "id": "core.sketch.arc",
                 "title": "Arc"
+              },
+              {
+                "enabled": false,
+                "id": "core.sketch.construction",
+                "title": "Construction"
               }
             ],
             "title": "Draw"
+          },
+          {
+            "commands": [
+              {
+                "enabled": false,
+                "id": "core.sketch.constrain.coincident",
+                "title": "Coincident"
+              },
+              {
+                "enabled": false,
+                "id": "core.sketch.constrain.horizontal",
+                "title": "Horizontal"
+              },
+              {
+                "enabled": false,
+                "id": "core.sketch.constrain.vertical",
+                "title": "Vertical"
+              },
+              {
+                "enabled": false,
+                "id": "core.sketch.constrain.parallel",
+                "title": "Parallel"
+              },
+              {
+                "enabled": false,
+                "id": "core.sketch.constrain.perpendicular",
+                "title": "Perpendicular"
+              },
+              {
+                "enabled": false,
+                "id": "core.sketch.constrain.equal",
+                "title": "Equal"
+              },
+              {
+                "enabled": false,
+                "id": "core.sketch.constrain.concentric",
+                "title": "Concentric"
+              },
+              {
+                "enabled": false,
+                "id": "core.sketch.constrain.tangent",
+                "title": "Tangent"
+              },
+              {
+                "enabled": false,
+                "id": "core.sketch.constrain.symmetric",
+                "title": "Symmetric"
+              }
+            ],
+            "title": "Constrain"
+          },
+          {
+            "commands": [
+              {
+                "enabled": false,
+                "id": "core.sketch.constrain.point-on",
+                "title": "Point on"
+              },
+              {
+                "enabled": false,
+                "id": "core.sketch.constrain.midpoint",
+                "title": "Midpoint"
+              },
+              {
+                "enabled": false,
+                "id": "core.sketch.constrain.align-horizontal",
+                "title": "Align H"
+              },
+              {
+                "enabled": false,
+                "id": "core.sketch.constrain.align-vertical",
+                "title": "Align V"
+              },
+              {
+                "enabled": false,
+                "id": "core.sketch.constrain.fix",
+                "title": "Fix"
+              },
+              {
+                "enabled": false,
+                "id": "core.sketch.constrain.origin",
+                "title": "On origin"
+              },
+              {
+                "enabled": false,
+                "id": "core.sketch.constrain.x-axis",
+                "title": "On X axis"
+              },
+              {
+                "enabled": false,
+                "id": "core.sketch.constrain.y-axis",
+                "title": "On Y axis"
+              }
+            ],
+            "title": "Place"
           }
         ],
         "tabs": [
@@ -724,10 +839,10 @@
     "rows": [
       "1a3e4e2c6f8e246a891738453535352b2b2b2424243a3a3a2e2e2e1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b",
       "192428162d36162d361a24281d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1c1c1c",
-      "3131315252525050505353534e4e4e5252525353532c2c2c3737373434343939393939392727273333333737373a3a3a3838382525254c4c4c5252524f4f4f5353534f4f4f27272739393939393927272721212152525254545437373716607f1f71952833375353535151515757573f3f3f3e3e3e5151513f3f3f4040404646461d1d1d1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b",
-      "2222222b2b2b2828281f1f1f1f1f1f1f1f1f1f1f1f1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1c1c1c1d1d1d1d1d1d1d1d1d1d1d1d1c1c1c1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1c1c1c1d1d1d1d1d1d1c1c1c1f1f1f2929292828281d1d1d1822261823281c1d1d1f1f1f1f1f1f1f1f1f1e1e1e1e1e1e1f1f1f1e1e1e1e1e1e1f1f1f1d1d1d1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b",
-      "1c1c1c1d1d1d1d1d1d1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1d1d1d1d1d1d1c1c1c1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1d1d1d1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b",
-      "181e1f181e1e181e1e181e1e181e1e181e1e181d1e181d1d181d1d181d1d181d1d181d1d181c1d181c1c181c1c181c1c181c1c181c1c181c1c181b1c181b1b181b1b181b1b171b1b171b1b171b1b171b1a181b1b171a1a171a1a171a1a171a1a171a1a171a1a171a1a171a1a171a19171a19171a19171919171919171919171919181a1a171919171919171919171919171919171919171919171919171919181919181a19181a19181a19181a19181a19181a19181a19181a19191a19191a19191a1a191a1a191a1a191a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1b1a1a1b1b1a1b1b1a1b1b1a1b1b1a1c1b1a1c1b1a1c1b1a1c1b1a1c1b1a1d1b1a1d1b1a1d1b1a1d1b1a1d1b1a1e1b1a1e1b1a",
+      "3131315252525050505353534e4e4e5252525353532c2c2c3737373434343939393939392727273333333737373a3a3a3838382525254c4c4c5252524f4f4f5353534f4f4f27272739393939393927272721212152525254545437373716607f1f71952833375353535151515757573f3f3f3e3e3e5151513f3f3f4040404646462828283737373838383636363939392929291d1d1d3434343838383838383838382424243535353838383636363838382323233939393737373333332a2a2a3737373a3a3a2828283434343838383737373737373a3a3a2727273333333838382929293232323737373737373838382525253434343939393737372727273636363535353838383333331f1f1f",
+      "2222222b2b2b2828281f1f1f1f1f1f1f1f1f1f1f1f1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1c1c1c1d1d1d1d1d1d1d1d1d1d1d1d1c1c1c1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1c1c1c1d1d1d1d1d1d1c1c1c1f1f1f2929292828281d1d1d1822261823281c1d1d1f1f1f1f1f1f1f1f1f1e1e1e1e1e1e1f1f1f1e1e1e1e1e1e1f1f1f1c1c1c1d1d1d1d1d1d1d1d1d1d1d1d1c1c1c1d1d1d2727272828282626262121211c1c1c1d1d1d1d1d1d1d1d1d1d1d1d1c1c1c1d1d1d1d1d1d1d1d1d1c1c1c1d1d1d1d1d1d1c1c1c1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1c1c1c1d1d1d1d1d1d1c1c1c1d1d1d1d1d1d1d1d1d1d1d1d1c1c1c1d1d1d1d1d1d1d1d1d1c1c1c1d1d1d1d1d1d1d1d1d1d1d1d1c1c1c",
+      "1c1c1c1d1d1d1d1d1d1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1d1d1d1d1d1d1c1c1c1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1d1d1d1d1d1d1d1d1d1d1d1d1c1c1c1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b",
+      "181e1f181e1e181e1e181e1e181e1e181e1e181d1e181d1d181d1d181d1d181d1d181d1d181c1d181c1c181c1c181c1c181c1c181c1c181c1c181b1c181b1b181b1b181b1b171b1b171b1b171b1b171b1a181b1b171a1a171a1a171a1a171a1a171a1a171a1a171a1a171a1a171a19171a19171a19171919171919171919171919171919171919171919171919171919171919181a1a171919171919171919181919181a19181a19181a19181a19181a19181a19181a19181a19191a19191a19191a1a191a1a191a1a191a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1b1a1a1b1b1a1b1b1a1b1b1a1b1b1a1c1b1a1c1b1a1c1b1a1c1b1a1c1b1a1d1b1a1d1b1a1d1b1a1d1b1a1d1b1a1e1b1a1e1b1a",
       "181f1f2727272323231f1f1f1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d161b1b1018181018181017181017171017170f17170f16160f16160f16160f16160f15150f15150f15150f15150f14140f14140f14140f14140f14140f14130f13130f13130f13130f13130f13130f13130f13130f13130f13130f13130f13130f13130f13130f13130f13130f13131013131013131013131013131014131114131114131114131114131214131214131214131314141314141315141415141415141515141515141515141615141615141716141716141716141816141816151a17171916151916151a17152321201b17151b17151b17151c17151c1715",
       "181e1f2d2d2d2c2c2c2424241b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1418181018181017181017170f17170f17170f16170f16160f16160f15160f15150f15150f15150f14150f14140f14140f14140f14140f14140f13130f13130f13130f13130f13130f13130f13130f13130f13130f13130f13130f13130f13130f13130f13130f13130f13130f13130f13131013131013131013131013131013131113131113131114131214131214131214131314131314131314141414141414141515141515141515141615141615141715141715141716141816141816142f2e2f1a17161916151a16151a16151b17151b17151b17151c17151c1715",
       "181e1f4b4b4b3737371b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1418181017181017180f17170f17170f16170f16160f16160f15160f15160f15150f15150f14150f14150f14140f14140f14140f13140f13130f13130f13130f13130f13130f13130e12130e12130e12130e12120e12120e12120e12120f12120f12120f12130f12130f12130f13130f13130f13131013131013131013131013131113131113131113131213131213131214131314131314131314131414131414141414141514141515141615141615141715141715141715141815141816141916141916141e251a1a16151a16151b16151b17151b17151c17151c1715",

@@ -5,10 +5,11 @@
 
 use std::sync::Arc;
 
+use crate::sketch_constrain::{Kind, Shape};
 use arrix_config::{
-    CommandRegistry, CommandSpec, SKETCH_ARC, SKETCH_CIRCLE, SKETCH_CREATE, SKETCH_DELETE,
-    SKETCH_EDIT, SKETCH_FINISH, SKETCH_LINE, SKETCH_RECTANGLE, SKETCH_SELECT, SKETCH_TOOL_CANCEL,
-    Settings,
+    CommandRegistry, CommandSpec, SKETCH_ARC, SKETCH_CIRCLE, SKETCH_CONSTRUCTION, SKETCH_CREATE,
+    SKETCH_DELETE, SKETCH_EDIT, SKETCH_FINISH, SKETCH_LINE, SKETCH_RECTANGLE, SKETCH_SELECT,
+    SKETCH_TOOL_CANCEL, Settings,
 };
 use arrix_doc::Registry;
 use arrix_plugin_api::FeatureTypeSpec;
@@ -50,6 +51,8 @@ pub struct Context {
     pub sketch_selected: bool,
     /// Something is selected in the open sketch.
     pub sketch_selection: bool,
+    /// What the open sketch's selection holds, counted.
+    pub shape: Shape,
 }
 
 /// Why `command` does not apply, in the words of the status line's hint
@@ -70,7 +73,13 @@ pub fn needs(command: &CommandSpec, cx: Context) -> Option<&'static str> {
         }
         SKETCH_DELETE if !cx.sketch_selection => Some("needs something selected in the sketch"),
         SKETCH_CREATE if cx.sketching => Some("finish the sketch first"),
-        _ => None,
+        SKETCH_CONSTRUCTION if !cx.sketching => Some("needs sketch mode"),
+        SKETCH_CONSTRUCTION if !cx.shape.curves() => Some("needs a curve selected"),
+        id => match Kind::of_command(id) {
+            Some(_) if !cx.sketching => Some("needs sketch mode"),
+            Some(kind) if !kind.fits(cx.shape) => Some(kind.needs()),
+            _ => None,
+        },
     }
 }
 

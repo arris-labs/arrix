@@ -8,15 +8,13 @@
 //! sketch's expressions, so only what the click made rides along.
 
 use arrix_config::{SKETCH_ARC, SKETCH_CIRCLE, SKETCH_LINE, SKETCH_RECTANGLE, SKETCH_SELECT};
-use arrix_doc::Command;
 use arrix_sketch::{
-    Constraint, Draft, Entity, EntityId, GlyphKind, Inferred, Point, PointId, Sketch, SketchEdit,
-    Snap, SnapQuery, commit_inferences, snap_search,
+    Constraint, Draft, Entity, EntityId, GlyphKind, Inferred, Point, PointId, Sketch, Snap,
+    SnapQuery, commit_inferences, snap_search,
 };
 use arrix_ui::{CurveShape, PlanePointer, SketchPreviewView, SnapGlyphView};
 
 use crate::ArrixApp;
-use crate::sketch_view::Solved;
 
 type Uv = [f64; 2];
 
@@ -717,11 +715,8 @@ impl ArrixApp {
     /// A drawing tool's click at `pointer`: the snap there is placed, and
     /// a click that completes geometry submits it as one `SketchEdit`.
     pub(crate) fn draw_click(&mut self, pointer: PlanePointer) {
-        let Some(document) = self.documents.get_mut(self.active) else {
-            return;
-        };
-        let base = document.replica.generation();
-        let Some(mode) = &mut document.sketch else {
+        let ids = self.ids.clone();
+        let Some(mode) = self.active_sketch_mut() else {
             return;
         };
         let Some(solved) = &mode.solved else {
@@ -729,35 +724,21 @@ impl ArrixApp {
         };
         let before = solved.sketch.clone();
         let snap = mode.drawing.snap(&before, &pointer);
-        let mut draft = Draft::with_sketch(before.clone(), self.ids.clone());
+        let mut draft = Draft::with_sketch(before.clone(), ids);
         let mut drawing = mode.drawing.clone();
         if !draw(&mut drawing, &mut draft, &snap, pointer.tol) {
             mode.drawing = drawing;
             return;
         }
-        let result = draft.solve();
-        if !result.converged {
+        if !draft.solve().converged {
             self.session.notice =
                 Some("The sketch did not solve with that; nothing was drawn.".into());
             return;
         }
-        let Draft { sketch: after, ids } = draft;
-        let command = Command::SketchEdit {
-            feature: mode.feature,
-            edit: SketchEdit::diff(&before, &after),
-        };
-        match document.submit(command) {
-            Ok(changed) => {
-                self.ids = ids;
-                let Some(mode) = &mut document.sketch else {
-                    return;
-                };
-                mode.drawing = drawing;
-                if changed {
-                    mode.solved = Some(Solved::local(base, after));
-                }
-            }
-            Err(reason) => self.session.notice = Some(reason),
+        if self.submit_draft(&before, draft)
+            && let Some(mode) = self.active_sketch_mut()
+        {
+            mode.drawing = drawing;
         }
     }
 }
