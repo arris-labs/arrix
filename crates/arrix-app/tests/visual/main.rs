@@ -61,3 +61,16 @@ fn empty_shell_tiles_the_window() {
         );
     });
 }
+
+/// The command palette open on a query: its field, its results with their
+/// keys, and a disabled result.
+#[test]
+fn palette_open() {
+    harness::with_app("palette_open", |h| {
+        h.key_press_modifiers(egui::Modifiers::CTRL, egui::Key::K);
+        h.run();
+        h.event(egui::Event::Text("new".to_owned()));
+        h.run();
+        snapshot::check(h, "palette_open");
+    });
+}

@@ -36,6 +36,17 @@ pub fn pressed(ctx: &egui::Context) -> Vec<Chord> {
     })
 }
 
+/// Removes the presses of `chord` from this frame's input, so a widget drawn
+/// later doesn't act on a key the keymap already took.
+pub fn consume(ctx: &egui::Context, chord: &Chord) {
+    ctx.input_mut(|i| {
+        i.events.retain(|event| match event {
+            egui::Event::Key { key, modifiers, .. } => self::chord(*key, *modifiers) != *chord,
+            _ => true,
+        });
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

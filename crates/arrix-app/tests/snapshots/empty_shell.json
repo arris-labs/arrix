@@ -5,6 +5,31 @@
       {
         "command": "core.palette.open",
         "key": "ctrl+k"
+      },
+      {
+        "command": "core.palette.close",
+        "key": "escape",
+        "when": "palette"
+      },
+      {
+        "command": "core.palette.close",
+        "key": "ctrl+k",
+        "when": "palette"
+      },
+      {
+        "command": "core.palette.next",
+        "key": "down",
+        "when": "palette"
+      },
+      {
+        "command": "core.palette.previous",
+        "key": "up",
+        "when": "palette"
+      },
+      {
+        "command": "core.palette.run",
+        "key": "enter",
+        "when": "palette"
       }
     ],
     "layout": {
@@ -40,6 +65,7 @@
       ]
     },
     "shell": {
+      "palette": null,
       "ribbon": {
         "active": "core.sketch",
         "groups": [

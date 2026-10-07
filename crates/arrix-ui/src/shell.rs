@@ -61,6 +61,9 @@ pub fn shell(
         .show(ui, viewport)
         .response
         .rect;
+    if let Some(view) = &view.palette {
+        crate::palette::palette(ui.ctx(), view, &mut intents);
+    }
     ShellResponse {
         layout: ShellLayout {
             ribbon,

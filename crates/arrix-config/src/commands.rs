@@ -14,6 +14,11 @@ pub const CORE_PART_TAB: &str = "core.part";
 /// Commands that are not tied to a feature type.
 pub const PALETTE_OPEN: &str = "core.palette.open";
 pub const CONFIG_RELOAD: &str = "core.config.reload";
+/// The palette's own keys, bound in the `palette` context.
+pub const PALETTE_CLOSE: &str = "core.palette.close";
+pub const PALETTE_NEXT: &str = "core.palette.next";
+pub const PALETTE_PREVIOUS: &str = "core.palette.previous";
+pub const PALETTE_RUN: &str = "core.palette.run";
 pub const PANEL_TREE_TOGGLE: &str = "core.panel.tree.toggle";
 pub const PANEL_PROPERTIES_TOGGLE: &str = "core.panel.properties.toggle";
 
@@ -47,6 +52,8 @@ pub struct CommandSpec {
     pub when: Option<String>,
     /// Whether it needs an open document to apply.
     pub needs_document: bool,
+    /// Whether the palette lists it: the palette's own keys are not.
+    pub listed: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -81,6 +88,10 @@ impl CommandRegistry {
             command(CONFIG_RELOAD, "Reload configuration", &[]),
             command(PANEL_TREE_TOGGLE, "Toggle feature tree", &[]),
             command(PANEL_PROPERTIES_TOGGLE, "Toggle property panel", &[]),
+            palette_key(PALETTE_CLOSE, "Close the palette", &["escape", "ctrl+k"]),
+            palette_key(PALETTE_NEXT, "Next palette result", &["down"]),
+            palette_key(PALETTE_PREVIOUS, "Previous palette result", &["up"]),
+            palette_key(PALETTE_RUN, "Run the selected palette result", &["enter"]),
         ];
         for ty in types {
             let (tab, group) = placement(&ty.id);
@@ -97,6 +108,7 @@ impl CommandRegistry {
                 keys: Vec::new(),
                 when: None,
                 needs_document: true,
+                listed: true,
             });
         }
         // One command per tab, so the palette and a key can open it.
@@ -134,6 +146,16 @@ fn command(id: &str, title: &str, keys: &[&str]) -> CommandSpec {
         keys: keys.iter().map(|k| (*k).to_owned()).collect(),
         when: None,
         needs_document: false,
+        listed: true,
+    }
+}
+
+/// A command of the palette's own, bound in its context and not listed in it.
+fn palette_key(id: &str, title: &str, keys: &[&str]) -> CommandSpec {
+    CommandSpec {
+        when: Some("palette".into()),
+        listed: false,
+        ..command(id, title, keys)
     }
 }
 

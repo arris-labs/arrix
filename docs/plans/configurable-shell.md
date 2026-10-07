@@ -197,7 +197,7 @@ None. No step calls the kernel.
     with focus keeps its keys.
   - Tests: parse cases, and a kittest pressing a rebound key that runs the
     command.
-- [ ] **[2]** Step 5: the command palette (`core.palette.open`, `ctrl+k`
+- [x] **[2]** Step 5: the command palette (`core.palette.open`, `ctrl+k`
   by default).
   - The palette searches the registry by title and id, showing each
     command's binding and whether it is enabled. Enter runs the command;
@@ -323,6 +323,11 @@ The whole gate is green, the wasm build included.
   `part`, `sketch`, `palette` or `text`. `part` is active whenever no
   sketch is being edited, and `text` while a text field has focus, when only
   `text` bindings fire.
+- Step 5 found: the palette's own keys (Escape, Up, Down, Enter, and
+  Ctrl+K to close) are commands bound in the `palette` context
+  (`core.palette.close`, `.next`, `.previous`, `.run`), which `CommandSpec`
+  marks `listed: false` so the palette doesn't offer them. They are
+  rebindable, and the keymap needs no special case for the palette.
 - ⚠ OPEN 4 (answered): the user may hide any tab, core ones included,
   since the palette still reaches every command.
 - Step 3 found: `arrix-app` needs its own Tier 0 registration list to

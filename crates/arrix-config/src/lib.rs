@@ -16,8 +16,9 @@ mod source;
 mod spanned;
 
 pub use commands::{
-    CONFIG_RELOAD, CORE_PART_TAB, CORE_SKETCH_TAB, CommandRegistry, CommandSpec, PALETTE_OPEN,
-    PANEL_PROPERTIES_TOGGLE, PANEL_TREE_TOGGLE, RibbonPlacement, TabSpec,
+    CONFIG_RELOAD, CORE_PART_TAB, CORE_SKETCH_TAB, CommandRegistry, CommandSpec, PALETTE_CLOSE,
+    PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN, PANEL_PROPERTIES_TOGGLE,
+    PANEL_TREE_TOGGLE, RibbonPlacement, TabSpec,
 };
 pub use diagnostic::ConfigDiagnostic;
 pub use keymap::{Binding, CONTEXTS, Chord, Keymap};

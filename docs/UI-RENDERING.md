@@ -63,8 +63,19 @@ as C1 lands, and the commit that builds it keeps it true.
   turns each egui key press (not its repeats) into a chord, resolves it,
   and runs the command the way a ribbon button does. `debug_state()`
   reports the keymap in force and the config diagnostics.
-- **The command palette** (`Ctrl+K`) searches every registered command by
-  title and id, the plugins' included.
+- **The command palette** (`Ctrl+K`, `core.palette.open`) searches every
+  listed command by title and id: every word of the query must match, and
+  titles that start with the first word come first. Each result shows its
+  effective keys and is dimmed when it doesn't apply (a creation command
+  with no document open); Enter on a dimmed one does nothing. It is
+  session state and issues no document command; running a result closes
+  it. While it is open it owns the keyboard: the `palette` and `text`
+  contexts are active, and its own keys are commands bound in `palette`
+  (`core.palette.close` on Escape and Ctrl+K, `.next` and `.previous` on
+  Down and Up, `.run` on Enter), so they are rebindable like any other. A
+  key that ran a command is removed from the frame's input, so the query
+  field doesn't also act on it. `debug_state()` reports the query, the
+  results and the selection in the shell view.
 - **The feature tree** shows each part's history with state per feature:
   ok, failed (with the diagnostic), frozen or frozen-stale (with the
   reason), suppressed, rolled back. A rollback bar is dragged by one
@@ -92,7 +103,8 @@ rule).
   `SceneView`. They are serialisable, which is what makes them testable
   and what a thin client would receive. Built so far: `ShellView`, holding
   a `RibbonView` (tabs, the open one, and its groups of buttons with
-  whether each is enabled), a `TreeView` (parts) and a
+  whether each is enabled), a `PaletteView` (the query, results and
+  selection, while open), a `TreeView` (parts) and a
   `StatusView` (generation, diagnostics count, display units). The
   property panel is empty until forms exist.
 - **The shell's layout** is a function of the window size alone: the
@@ -101,7 +113,8 @@ rule).
   initial wrapping width in egui, so each is also its minimum). `arrix_ui::
   shell` returns where each region landed, which `debug_state()` reports.
 - **Intents** are what a user did, in view terms: `UiIntent::FieldCommitted
-  { form, field, text }`, `RibbonClicked { command }`, `Picked { name }`.
+  { form, field, text }`, `CommandInvoked { command }` (a ribbon button or a
+  palette row), `PaletteQuery { text }`, `PaletteClosed`, `Picked { name }`.
   `arrix-app` turns an intent into a `CommandEnvelope`, or into a change of
   session state (selection, camera), which issues no command.
 

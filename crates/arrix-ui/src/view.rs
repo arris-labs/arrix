@@ -11,6 +11,8 @@ pub struct ShellView {
     pub ribbon: RibbonView,
     pub tree: TreeView,
     pub status: StatusView,
+    /// The command palette, when it is open.
+    pub palette: Option<PaletteView>,
 }
 
 /// The ribbon: its tabs and which one is open. A plugin's tab is one more
@@ -57,6 +59,24 @@ pub struct TreePart {
     pub name: String,
 }
 
+/// The command palette: the query, what it found, and which result Enter runs.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct PaletteView {
+    pub query: String,
+    pub results: Vec<PaletteEntry>,
+    /// An index into `results`; meaningless while there are none.
+    pub selected: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct PaletteEntry {
+    pub id: String,
+    pub title: String,
+    /// The command's effective keys, as the user writes them.
+    pub keys: Vec<String>,
+    pub enabled: bool,
+}
+
 /// The status bar.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct StatusView {
@@ -77,4 +97,8 @@ pub enum UiIntent {
     RibbonTabSelected { tab: String },
     /// A command was invoked, by whatever means (a ribbon button now).
     CommandInvoked { command: String },
+    /// The palette's query text was edited: session state, no command.
+    PaletteQuery { text: String },
+    /// The palette was dismissed by a click outside it.
+    PaletteClosed,
 }

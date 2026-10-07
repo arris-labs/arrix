@@ -164,18 +164,18 @@ fn a_syntax_error_and_a_wrong_shape_are_diagnostics() {
 #[test]
 fn a_context_binding_beats_a_global_one_and_text_keeps_its_keys() {
     let (map, d) = load(
-        "[[bind]]\nkey = \"enter\"\ncommand = \"core.config.reload\"\n\n\
-         [[bind]]\nkey = \"enter\"\ncommand = \"core.palette.open\"\nwhen = \"palette\"\n\n\
+        "[[bind]]\nkey = \"f7\"\ncommand = \"core.config.reload\"\n\n\
+         [[bind]]\nkey = \"f7\"\ncommand = \"core.palette.open\"\nwhen = \"palette\"\n\n\
          [[bind]]\nkey = \"f6\"\ncommand = \"core.panel.tree.toggle\"\nwhen = \"text\"\n",
     );
     assert!(d.is_empty(), "{d:?}");
-    let enter = chord("enter");
-    assert_eq!(map.resolve(&enter, &["part"]), Some("core.config.reload"));
+    let f7 = chord("f7");
+    assert_eq!(map.resolve(&f7, &["part"]), Some("core.config.reload"));
     assert_eq!(
-        map.resolve(&enter, &["part", "palette"]),
+        map.resolve(&f7, &["part", "palette"]),
         Some("core.palette.open")
     );
-    assert_eq!(map.resolve(&enter, &["part", "text"]), None);
+    assert_eq!(map.resolve(&f7, &["part", "text"]), None);
     assert_eq!(
         map.resolve(&chord("f6"), &["part", "text"]),
         Some("core.panel.tree.toggle")

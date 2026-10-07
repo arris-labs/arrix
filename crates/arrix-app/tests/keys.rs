@@ -65,3 +65,100 @@ fn a_plain_key_fires_while_no_text_field_has_focus() {
     h.run();
     assert_eq!(open_tab(&h), "core.part");
 }
+
+fn palette(h: &Harness<'_, ArrixApp>) -> Option<arrix_ui::PaletteView> {
+    h.state().debug_state().shell.expect("a frame ran").palette
+}
+
+fn type_text(h: &mut Harness<'_, ArrixApp>, text: &str) {
+    h.event(egui::Event::Text(text.to_owned()));
+    h.run();
+}
+
+fn open_palette(h: &mut Harness<'_, ArrixApp>) {
+    h.key_press_modifiers(Modifiers::CTRL, Key::K);
+    h.run();
+}
+
+#[test]
+fn ctrl_k_opens_the_palette_and_escape_closes_it() {
+    let mut h = app("");
+    assert!(palette(&h).is_none());
+    open_palette(&mut h);
+    let p = palette(&h).expect("the palette opened");
+    assert_eq!(p.query, "");
+    assert!(p.results.len() > 1);
+    h.key_press(Key::Escape);
+    h.run();
+    assert!(palette(&h).is_none());
+    // Ctrl+K again, in the palette, closes it too.
+    open_palette(&mut h);
+    open_palette(&mut h);
+    assert!(palette(&h).is_none());
+}
+
+#[test]
+fn typing_searches_and_enter_runs_the_selected_result() {
+    let mut h = app("");
+    open_palette(&mut h);
+    type_text(&mut h, "part tab");
+    let p = palette(&h).unwrap();
+    assert_eq!(p.query, "part tab");
+    let ids: Vec<_> = p.results.iter().map(|r| r.id.as_str()).collect();
+    assert_eq!(ids, ["core.ribbon.part"]);
+    assert!(p.results[0].enabled);
+    h.key_press(Key::Enter);
+    h.run();
+    assert!(palette(&h).is_none(), "running a result closes the palette");
+    assert_eq!(open_tab(&h), "core.part");
+}
+
+#[test]
+fn the_arrow_keys_move_the_selection() {
+    let mut h = app("");
+    open_palette(&mut h);
+    type_text(&mut h, "tab");
+    assert_eq!(palette(&h).unwrap().selected, 0);
+    h.key_press(Key::ArrowDown);
+    h.run();
+    assert_eq!(palette(&h).unwrap().selected, 1);
+    h.key_press(Key::Enter);
+    h.run();
+    assert_eq!(open_tab(&h), "core.part");
+    open_palette(&mut h);
+    type_text(&mut h, "tab");
+    h.key_press(Key::ArrowUp);
+    h.run();
+    assert_eq!(palette(&h).unwrap().selected, 0);
+}
+
+#[test]
+fn a_command_that_does_not_apply_stays_listed_but_disabled() {
+    let mut h = app("");
+    open_palette(&mut h);
+    type_text(&mut h, "spur");
+    let p = palette(&h).unwrap();
+    assert_eq!(p.results.len(), 1);
+    assert!(!p.results[0].enabled, "no document is open");
+    h.key_press(Key::Enter);
+    h.run();
+    assert!(palette(&h).is_some(), "a disabled result does not run");
+}
+
+#[test]
+fn the_palette_shows_a_commands_effective_keys() {
+    let mut h = app("[[bind]]\nkey = \"ctrl+2\"\ncommand = \"core.ribbon.part\"\n");
+    open_palette(&mut h);
+    type_text(&mut h, "part tab");
+    assert_eq!(palette(&h).unwrap().results[0].keys, ["ctrl+2"]);
+}
+
+#[test]
+fn global_keys_do_not_fire_while_typing_in_the_palette() {
+    let mut h = app("[[bind]]\nkey = \"p\"\ncommand = \"core.ribbon.part\"\n");
+    open_palette(&mut h);
+    h.key_press(Key::P);
+    type_text(&mut h, "p");
+    assert_eq!(open_tab(&h), "core.sketch");
+    assert_eq!(palette(&h).unwrap().query, "p");
+}
