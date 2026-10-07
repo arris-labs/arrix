@@ -76,6 +76,14 @@ as C1 lands, and the commit that builds it keeps it true.
   key that ran a command is removed from the frame's input, so the query
   field doesn't also act on it. `debug_state()` reports the query, the
   results and the selection in the shell view.
+- **Themes** are `ThemeView` data (below), made from a theme file: `base`
+  (`dark` or `light`, the toolkit's look for what the roles don't cover),
+  `[vars]` and `[colors]` over 16 roles (`THEME_ROLES`). A colour is `#rgb`,
+  `#rrggbb` or `#rrggbbaa`, and a var is referenced as `"$name"`. `dark` and
+  `light` are built in, in the same format; `ui.theme` names one of them or
+  `themes/<name>.toml`. A missing role takes the base's and is one warning
+  naming all of them. A theme never touches the text cursor's blink, which
+  the test harness turns off for determinism.
 - **The feature tree** shows each part's history with state per feature:
   ok, failed (with the diagnostic), frozen or frozen-stale (with the
   reason), suppressed, rolled back. A rollback bar is dragged by one
@@ -105,18 +113,62 @@ rule).
   a `RibbonView` (tabs, the open one, and its groups of buttons with
   whether each is enabled), a `PaletteView` (the query, results and
   selection, while open), a `TreeView` (parts) and a
-  `StatusView` (generation, diagnostics count, display units). The
-  property panel is empty until forms exist.
+  `StatusView` (generation, diagnostics count, display units, config
+  diagnostics included) and a `ThemeView` (the 16 roles as colours, and the
+  dark or light base), which `arrix-ui` turns into egui `Visuals`; `arrix-ui`
+  does not depend on `arrix-config`. The property panel is empty until forms
+  exist.
 - **The shell's layout** is a function of the window size alone: the
   ribbon 88 points high, the status bar 24, the tree at least 240 wide and
   the property panel at least 280 (a side panel's default size is only its
   initial wrapping width in egui, so each is also its minimum). `arrix_ui::
   shell` returns where each region landed, which `debug_state()` reports.
 - **Intents** are what a user did, in view terms: `UiIntent::FieldCommitted
-  { form, field, text }`, `CommandInvoked { command }` (a ribbon button or a
-  palette row), `PaletteQuery { text }`, `PaletteClosed`, `Picked { name }`.
+  { form, field, text }`, `CommandInvoked { command }` (a ribbon button, a palette row or a key),
+  `RibbonTabSelected { tab }`, `PaletteQuery { text }`, `PaletteClosed`, `Picked { name }`.
   `arrix-app` turns an intent into a `CommandEnvelope`, or into a change of
   session state (selection, camera), which issues no command.
+
+## Configuration
+
+The shell is data and the data is text (ADR-0015): a user, or their agent,
+edits TOML in the config directory and sees the change without restarting.
+Config is client state. It never enters the document and never reaches a
+feature's `evaluate`.
+
+- **Where**: `$ARRIX_CONFIG_DIR`, else `arrix` under `$XDG_CONFIG_HOME` or
+  `~/.config` (Linux), `~/Library/Application Support` (macOS) or
+  `%APPDATA%` (Windows). `arrix_config::config_dir` is a pure function over
+  an environment its caller hands in, shared by the app and the CLI. No
+  directory is the built-in configuration.
+- **The files**: `settings.toml` (`[ui]` and `[defaults."<feature-type>"]`),
+  `keybindings.toml` (`[[bind]]`, §The shell) and `themes/<name>.toml`.
+  Two layers, the built-in defaults and then these files. The app never
+  writes them.
+- **Fail soft**: a key that is unknown, of the wrong type or lost to a
+  syntax error keeps its default and is one diagnostic with its file, line
+  and code; the rest of the file still applies. A theme or binding that can't
+  be had falls back the same way. Diagnostics show in the status bar count
+  and in `debug_state()`.
+- **Parameter defaults**: `[defaults."gears.spur"] module = "1.5 mm"` is
+  checked against the type's `ParamSpec` (unknown type or parameter, an
+  expression that doesn't parse, the wrong quantity kind) by `arrix-doc`'s
+  parser, which is handed to `arrix-config`. `ArrixApp::effective_params`
+  gives a new feature's initial form. Once a feature is committed its
+  values are the document's, so a default never reaches `evaluate`; a test
+  evaluates a document under two configs to identical JSON.
+- **Reload**: `core.config.reload` re-reads the files and applies them. A
+  source that can fingerprint its files (`ConfigSource::fingerprint`; the
+  directory hashes names, sizes and modification times) is polled about once
+  a second of egui's clock, and a change reloads. Only `config_files` in
+  `arrix-app` touches the disk; the browser gets a store behind the same
+  seam in C4.
+- **For agents**: `arrix describe [--json]` lists everything there is to
+  configure and its effective value (`"schema": 1`); `arrix config check`
+  prints one JSON line per diagnostic and exits 1 if there is any;
+  `arrix config schema` gives JSON Schemas of the three file kinds for
+  taplo; `docs/CONFIG-CATALOG.md` is the generated reference, held fresh by
+  a test (`UPDATE_SNAPSHOTS=1 cargo test -p arrix-cli catalog`).
 
 ## Declarative plugin UI
 
@@ -293,8 +345,9 @@ the way in.
   coordinates, constraints, DoF, solver status), the ribbon and palette,
   and each plugin form and panel rendered. It is how the agent tells which
   number is wrong, not only that a pixel is. Built so far: the window
-  size, the rect of each shell region (`layout`) and the `ShellView` drawn
-  (`shell`); the rest joins as its part of the app is built.
+  size, the rect of each shell region (`layout`), the `ShellView` drawn
+  (`shell`), the effective theme's name, the keymap in force and the config
+  diagnostics; the rest joins as its part of the app is built.
 - **Deterministic frames.** No wall clock reaches a drawn pixel in a test:
   animations are skipped, the frame-time readout is off, and evaluation is
   waited for, not timed.

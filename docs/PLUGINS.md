@@ -265,6 +265,11 @@ the document.
   randomness, no reading files or the network. Memoisation, replay, frozen
   results and the kernel's fixture records all depend on it, and the test
   kit evaluates twice to check it.
+- **Parameter defaults**: a feature type declares each parameter's default
+  in its `ParamSpec`, and a user may override it in `settings.toml`
+  (`[defaults."<type>"]`, ADR-0015). That only seeds a new feature's form;
+  the committed value is the document's, and config never reaches
+  `evaluate`. No plugin cooperation is needed.
 - **Outputs** are bodies, datums, frames and sketches, placed in the slots
   the feature type declared.
 - **Naming**: everything built through kernel operations is named from

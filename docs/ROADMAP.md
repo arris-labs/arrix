@@ -49,7 +49,11 @@ number in the step (ADR-0014), `core.revolve`, `core.fillet`,
 `core.mirror` and `core.boolean` in full, projection into a sketch, schema
 3, plugin API 0.4, and the accept green
 (`crates/arrix-cli/tests/naming_scenarios.rs`, `save_fixtures.rs`). M3
-next. Seeded 2026-09-26.**
+plan 1 of N (`configurable-shell`) landed 2026-10-07: the command
+registry and keymap, the palette, themes, feature parameter defaults, `arrix
+describe` and `arrix config check|schema|catalog`, reload, ADR-0015 and
+ADR-0016, and the `configured_shell` accept. M3 continues with the
+viewport port. Seeded 2026-09-26.**
 
 Milestones are ordered by risk after the harness: the document and the
 plugin feature are proven headless (M1) before the part features (M2), the

@@ -36,7 +36,7 @@ unless an ADR says otherwise.
 | `arrix-plugin-host` | tier 0/1/2 hosting, manifests, capabilities, the frozen fallback | core, doc, plugin-api | `toml`, `semver`, `wasmtime` (native, C3) |
 | `arrix-viewport` | wgpu scene, ID-buffer picking, overlays, camera (ported) | core | `wgpu`, `egui-wgpu` |
 | `arrix-ui` | egui widgets over plain view types; the declarative-UI renderer | core, viewport, plugin-api (UI types only) | `egui` |
-| `arrix-config` | the user's configuration (ADR-0015): setting specs, the layered model (built-in defaults, then the user's directory), each file's diagnostics with its file and line; reads no files (a `ConfigSource` hands it bytes); never reaches the document or `evaluate`. Built: the settings, the command registry (`CommandSpec` as plain data), the keymap. Read by app and cli; not by `arrix-ui`, which gets plain view data | core, plugin-api | `toml`, `serde` |
+| `arrix-config` | the user's configuration (ADR-0015): setting specs, the layered model (built-in defaults, then the user's directory), each file's diagnostics with its file and line; reads no files (a `ConfigSource` hands it bytes); never reaches the document or `evaluate`. Holds the settings, the command registry (`CommandSpec` as plain data), the keymap, the themes and the feature parameter defaults (their expression check is handed in by the caller, since this crate cannot depend on `arrix-doc`). Read by app and cli; not by `arrix-ui`, which gets plain view data | core, plugin-api | `toml`, `serde` |
 | `arrix-app` | the binary: the shell, the command registry, translation between document and view types | all of the above, and each compiled-in plugin (`arrix-gears`, its own Tier 0 list) | `eframe` |
 | `arrix-cli` | headless open / eval / export / run / test; its Tier 0 registration list | core, doc, plugin-host, kernel, plugin-api and sketch (its tests), and each compiled-in plugin (`arrix-gears`) | `clap` |
 | `plugins/*` | first-party plugins: `gears` (C1), `robotics` (by C3) | plugin-api **only** | — |
@@ -346,9 +346,10 @@ as an artifact.
    native-only item carries `#[allow(clippy::disallowed_types, reason =
    …)]`); no `thread::spawn` or `thread::Builder` outside the executor
    (`crates/arrix-doc/src/executor`); no `std::fs` outside `arrix-app`'s
-   native file dialog (`crates/arrix-app/src/file_dialog`) and
-   `arrix-plugin-host`. `arrix-cli` is native-only and exempt from the
-   thread and fs rules, as is test code. The permitted places are one
+   native file dialog (`crates/arrix-app/src/file_dialog`) and config files
+   (`crates/arrix-app/src/config_files`), and `arrix-plugin-host`.
+   `arrix-cli` is native-only and exempt from the thread and fs rules, as
+   is test code. The permitted places are one
    table at the top of the script.
 5. `scripts/layer-lint`: the layer rules above, two ways. **Edges**:
    every package's declared dependencies (`cargo metadata --no-deps`, so a
@@ -373,8 +374,8 @@ as an artifact.
    deliberate violation planted (an oversize function, `Instant::now` in a
    core crate, `std::fs` in `arrix-doc`, a thread spawned in
    `arrix-kernel`, `egui` in `arrix-doc` as a dependency and as a path,
-   `arris` outside the kernel, a second `arrix-*` dependency in
-   `plugins/gears`, `arrix-ui` reaching `arrix-doc` through another
+   `arris` outside the kernel, `std::fs` in `arrix-app` outside its config
+   files, a second `arrix-*` dependency in `plugins/gears`, `arrix-ui` reaching `arrix-doc` through another
    crate), which must fail it, and with the exemptions each lint promises
    (test code, the audit marker, a comment), which must pass. It also
    checks that CI's `gate: …` steps run exactly the hooks' commands, each
