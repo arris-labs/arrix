@@ -271,7 +271,8 @@ impl ArrixApp {
         match kind.as_deref() {
             Some("core.sketch") => self.open_sketch(feature),
             Some("core.datum-plane") => self.create_sketch(),
-            _ => {}
+            Some(_) => self.open_edit_form(feature),
+            None => {}
         }
     }
 

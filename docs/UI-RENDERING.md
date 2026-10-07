@@ -274,6 +274,17 @@ the draft and issue none; Enter is OK while no field has focus
 form does not open in sketch mode (the status line says to finish the
 sketch). Reference fields mark the active one and take no pick yet.
 
+An **edit form** is the same renderer over an existing feature: a double
+click on a tree row (`TreeFeatureActivated`) of any feature that is neither
+a sketch nor a datum plane opens it from the record, with no command. It is
+rebuilt from the replica every frame, so an undo or redo with it open shows
+the document's values, and undoing the feature's creation closes it. It has
+no OK or Cancel: a field commit is one `EditFeature`, a choice is one, the
+name field is one; a text equal to the record's, or one the form's rules
+refuse (kept in its field with the reason), issues none. Enter and Escape
+only close it. A typed text the record does not say yet is kept until it
+does, so a committed field does not flicker back to the old value.
+
 Tier 0 drawing its own egui is an escape hatch decided by ADR when a real
 plugin needs it, not before.
 

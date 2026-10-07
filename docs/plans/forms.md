@@ -135,7 +135,7 @@ None new. Previews use the operations the features already call and
   table test creates every type with a `.create` command, gears
   included, each one command; the gesture count is 1 for OK and 0 for
   everything before it.
-- [ ] **[2]** Step 6: the edit form. Double-clicking a non-sketch feature
+- [x] **[2]** Step 6: the edit form. Double-clicking a non-sketch feature
   in the tree (`TreeFeatureActivated`) opens its form from the record;
   a field commit or a choice is one `EditFeature`, an equal value none,
   a refused text none; the form is rebuilt from the replica each frame,

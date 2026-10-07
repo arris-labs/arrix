@@ -391,6 +391,7 @@ impl ArrixApp {
             waiting |= !document.settled();
         }
         self.follow_sketches();
+        self.follow_forms();
         if waiting {
             ctx.request_repaint_after(POLL);
         }

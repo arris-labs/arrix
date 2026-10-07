@@ -339,3 +339,98 @@ fn the_name_is_the_forms_and_a_second_feature_gets_a_free_one() {
     open(&mut h, "Part", "New extrude");
     assert_eq!(form(&h).unwrap().name, "Extrude 1");
 }
+
+/// Creates an extrude with `OK` and opens its form from the tree.
+fn edit_extrude(h: &mut Harness<'_, ArrixApp>) {
+    open(h, "Part", "New extrude");
+    h.get_by_label("OK").click();
+    h.run_steps(3);
+    assert!(form(h).is_none());
+    h.run_steps(35);
+    let pos = h.get_by_label("Extrude 1").rect().center();
+    h.event(egui::Event::PointerMoved(pos));
+    h.step();
+    for pressed in [true, false, true, false] {
+        h.event(egui::Event::PointerButton {
+            pos,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: Modifiers::NONE,
+        });
+        h.step();
+    }
+    h.run_steps(3);
+}
+
+#[test]
+fn double_clicking_a_feature_opens_its_form_from_the_record() {
+    let mut h = app();
+    edit_extrude(&mut h);
+    let f = form(&h).expect("the edit form opened");
+    assert!(!f.create);
+    assert_eq!(
+        (f.title.as_str(), f.name.as_str()),
+        ("Extrude", "Extrude 1")
+    );
+    assert_eq!(text(&f, "distance"), "10 mm");
+    assert_eq!(gesture(&h), Some(0), "opening issues none");
+    assert_eq!(
+        h.query_all_by_label("OK").count(),
+        0,
+        "no OK on an edit form"
+    );
+}
+
+#[test]
+fn an_edit_commits_each_field_as_one_command() {
+    let mut h = app();
+    edit_extrude(&mut h);
+    // The name is the first box, the distance the second.
+    type_into(&mut h, 1, "12 mm");
+    assert_eq!(gesture(&h), Some(1));
+    assert_eq!(text(&form(&h).unwrap(), "distance"), "12 mm");
+    assert_eq!(features(&h)[0].1["params"]["distance"], "12 mm");
+    // The same value again is no command.
+    type_into(&mut h, 1, "12 mm");
+    assert_eq!(gesture(&h), Some(0));
+    // A text the field's kind refuses stays, with why, and is none.
+    type_into(&mut h, 1, "12 deg");
+    let f = form(&h).unwrap();
+    assert_eq!(text(&f, "distance"), "12 deg");
+    let why = field(&f, "distance").message.clone().expect("a reason");
+    assert!(why.starts_with("expr.unit-mismatch"), "{why}");
+    assert_eq!(gesture(&h), Some(0));
+    assert_eq!(features(&h)[0].1["params"]["distance"], "12 mm");
+    // A name is one command too.
+    type_into(&mut h, 0, "Plate");
+    assert_eq!(gesture(&h), Some(1));
+    assert_eq!(form(&h).unwrap().name, "Plate");
+    assert_eq!(features(&h)[0].1["name"], "Plate");
+}
+
+#[test]
+fn a_choice_is_one_command_and_shows_what_it_leaves_in() {
+    let mut h = app();
+    edit_extrude(&mut h);
+    assert!(!names(&form(&h).unwrap()).contains(&"target"));
+    h.get_all_by_role(Role::ComboBox).next().unwrap().click();
+    h.run_steps(2);
+    h.get_by_label("Cut").click();
+    h.run_steps(3);
+    assert_eq!(gesture(&h), Some(1));
+    assert!(names(&form(&h).unwrap()).contains(&"target"));
+    assert_eq!(features(&h)[0].1["choices"]["mode"], "cut");
+}
+
+#[test]
+fn undo_with_the_form_open_shows_the_document_and_undoing_the_feature_closes_it() {
+    let mut h = app();
+    edit_extrude(&mut h);
+    type_into(&mut h, 1, "12 mm");
+    h.key_press_modifiers(Modifiers::CTRL, Key::Z);
+    h.run_steps(30);
+    assert_eq!(text(&form(&h).unwrap(), "distance"), "10 mm");
+    h.key_press_modifiers(Modifiers::CTRL, Key::Z);
+    h.run_steps(30);
+    assert!(form(&h).is_none(), "the feature is gone");
+}
