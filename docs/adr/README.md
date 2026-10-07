@@ -55,3 +55,4 @@ Each rejected option and the one-line reason it lost.
 - [ADR-0014](0014-a-boolean-number-in-the-step.md): a feature numbers its booleans in a name's `mod` and `gen` steps, so several on one target name cleanly
 - [ADR-0015](0015-the-shell-is-configured-by-user-files.md): the shell is data, configured by the user's TOML files, failing soft; config never reaches `evaluate`
 - [ADR-0016](0016-the-agentic-user.md): the agentic user: invest in what agents can't rebuild, five constraints above it; the boundary opened before C2
+- [ADR-0017](0017-the-minimal-shell.md): the minimal shell: two docked bars, tree and property cards over the viewport, document tabs, panel modes `auto`/`shown`/`hidden`
