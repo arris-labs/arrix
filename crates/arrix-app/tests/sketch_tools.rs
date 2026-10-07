@@ -366,3 +366,170 @@ fn alt_suppresses_inference() {
     assert!(shown(&h).is_empty(), "{:?}", preview(&h));
     assert!((preview(&h).cursor[1] - 0.0104).abs() < 1e-4, "not snapped");
 }
+
+/// Whether two angles are one direction, a turn apart or not.
+fn same_angle(a: f64, b: f64) -> bool {
+    let turn = std::f64::consts::TAU;
+    ((a - b) / turn).round().mul_add(-turn, a - b).abs() < 1e-6
+}
+
+/// A circle is two clicks: its centre, then a point on the rim. The
+/// preview is the circle, and a point the rim passes through is bound.
+#[test]
+fn a_circle_is_one_command_holding_what_its_preview_showed() {
+    let mut h = sketching();
+    h.key_press(Key::C);
+    h.run_steps(2);
+    assert_eq!(tool(&h).as_deref(), Some("core.sketch.circle"));
+    click(&mut h, [20.0, 20.0]);
+    assert_eq!(gesture(&h), Some(0), "the centre is not geometry yet");
+    hover(&mut h, [35.0, 20.0]);
+    let p = preview(&h);
+    match p.curves.as_slice() {
+        [arrix_ui::CurveShape::Circle { centre, radius }] => {
+            assert!((centre[0] - 0.02).abs() < 1e-6 && (centre[1] - 0.02).abs() < 1e-6);
+            assert!((radius - 0.015).abs() < 1e-6, "{radius}");
+        }
+        other => panic!("{other:?}"),
+    }
+    assert!(p.glyphs.is_empty(), "free rim: nothing to bind");
+    click(&mut h, [35.0, 20.0]);
+    assert_eq!(gesture(&h), Some(1));
+    let s = stored(&h);
+    assert_eq!((s.points, s.lines), (1, 1));
+    assert!(s.constraints.is_empty(), "{:?}", s.constraints);
+    drawn(&mut h, 1);
+}
+
+/// A centre on the origin is pinned there; a rim click on an existing point
+/// makes the circle pass through it, as the glyph said.
+#[test]
+fn a_circle_binds_its_centre_and_a_point_on_its_rim() {
+    let mut h = sketching();
+    h.key_press(Key::L);
+    h.run_steps(2);
+    click(&mut h, [30.0, 40.0]);
+    click(&mut h, [50.0, 60.0]);
+    drawn(&mut h, 1);
+    h.key_press(Key::Escape);
+    h.run_steps(2);
+    h.key_press(Key::C);
+    h.run_steps(2);
+    hover(&mut h, [0.2, 0.1]);
+    assert_eq!(shown(&h), ["coincident_to_datum"]);
+    click(&mut h, [0.2, 0.1]);
+    hover(&mut h, [30.2, 40.1]);
+    assert_eq!(shown(&h), ["point_on_circle"], "{:?}", preview(&h));
+    click(&mut h, [30.2, 40.1]);
+    assert_eq!(gesture(&h), Some(1));
+    assert_eq!(
+        stored(&h).constraints,
+        ["coincident_to_datum", "point_on_circle"]
+    );
+    drawn(&mut h, 2);
+}
+
+/// Three points make an arc: the first two its ends, the third a point it
+/// passes through, and the arc runs counter-clockwise from its start.
+#[test]
+fn an_arc_is_three_clicks_and_one_command() {
+    let mut h = sketching();
+    h.key_press(Key::A);
+    h.run_steps(2);
+    assert_eq!(tool(&h).as_deref(), Some("core.sketch.arc"));
+    click(&mut h, [10.0, 0.0]);
+    hover(&mut h, [-10.0, 0.0]);
+    assert_eq!(preview(&h).curves.len(), 1, "the chord");
+    click(&mut h, [-10.0, 0.0]);
+    assert_eq!(gesture(&h), Some(0));
+    hover(&mut h, [0.0, 10.0]);
+    match preview(&h).curves.as_slice() {
+        [arrix_ui::CurveShape::Arc { centre, radius, .. }] => {
+            assert!(centre[0].abs() < 1e-6 && centre[1].abs() < 1e-6);
+            assert!((radius - 0.01).abs() < 1e-6);
+        }
+        other => panic!("{other:?}"),
+    }
+    click(&mut h, [0.0, 10.0]);
+    assert_eq!(gesture(&h), Some(1));
+    let s = stored(&h);
+    assert_eq!((s.points, s.lines), (3, 1), "two ends and a centre");
+    drawn(&mut h, 1);
+    let view = h.state().debug_state().sketch_view.unwrap();
+    match &view.curves[0].shape {
+        // Through the top: from the right end counter-clockwise to the left.
+        arrix_ui::CurveShape::Arc { start, end, .. } => {
+            assert!(same_angle(*start, 0.0), "{start}");
+            assert!(same_angle(*end, std::f64::consts::PI), "{end}");
+        }
+        other => panic!("{other:?}"),
+    }
+}
+
+/// Through the bottom instead: the same ends, and the arc starts at the
+/// other one.
+#[test]
+fn an_arc_through_the_other_side_starts_at_its_other_end() {
+    let mut h = sketching();
+    h.key_press(Key::A);
+    h.run_steps(2);
+    for uv in [[10.0, 0.0], [-10.0, 0.0], [0.0, -10.0]] {
+        click(&mut h, uv);
+    }
+    assert_eq!(gesture(&h), Some(1));
+    drawn(&mut h, 1);
+    let view = h.state().debug_state().sketch_view.unwrap();
+    match &view.curves[0].shape {
+        arrix_ui::CurveShape::Arc { start, end, .. } => {
+            assert!(same_angle(*start, std::f64::consts::PI), "{start}");
+            assert!(same_angle(*end, 0.0), "{end}");
+        }
+        other => panic!("{other:?}"),
+    }
+}
+
+/// Three points on a line make no arc: the click is refused and nothing is
+/// drawn.
+#[test]
+fn collinear_arc_points_draw_nothing() {
+    let mut h = sketching();
+    h.key_press(Key::A);
+    h.run_steps(2);
+    for uv in [[10.0, 0.0], [-10.0, 0.0], [0.0, 0.0]] {
+        click(&mut h, uv);
+    }
+    assert_eq!(gesture(&h), Some(0));
+    assert_eq!(stored(&h).lines, 0);
+}
+
+/// A line from outside a circle that ends where the snap showed a tangent
+/// commits `Tangent` alone: the end is on the rim, and not also a point on
+/// it.
+#[test]
+fn a_tangent_snap_from_a_lines_end_commits_tangent_alone() {
+    let mut h = sketching();
+    h.key_press(Key::C);
+    h.run_steps(2);
+    click(&mut h, [10.0, 5.0]);
+    click(&mut h, [30.0, 5.0]);
+    drawn(&mut h, 1);
+    h.key_press(Key::Escape);
+    h.run_steps(2);
+    h.key_press(Key::L);
+    h.run_steps(2);
+    click(&mut h, [60.0, 30.0]);
+    // The tangent point from (60, 30) on the circle of radius 20.
+    let (away_u, away_v): (f64, f64) = (60.0 - 10.0, 30.0 - 5.0);
+    let d = away_u.hypot(away_v);
+    let base = away_v.atan2(away_u);
+    let half = (20.0 / d).acos();
+    let t = [
+        10.0 + 20.0 * (base + half).cos(),
+        5.0 + 20.0 * (base + half).sin(),
+    ];
+    hover(&mut h, [t[0] + 0.1, t[1] + 0.1]);
+    assert_eq!(shown(&h), ["tangent"], "{:?}", preview(&h));
+    click(&mut h, [t[0] + 0.1, t[1] + 0.1]);
+    assert_eq!(gesture(&h), Some(1));
+    assert_eq!(stored(&h).constraints, ["tangent"]);
+}

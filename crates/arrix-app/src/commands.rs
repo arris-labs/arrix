@@ -6,8 +6,9 @@
 use std::sync::Arc;
 
 use arrix_config::{
-    CommandRegistry, CommandSpec, SKETCH_CREATE, SKETCH_DELETE, SKETCH_EDIT, SKETCH_FINISH,
-    SKETCH_LINE, SKETCH_RECTANGLE, SKETCH_SELECT, SKETCH_TOOL_CANCEL, Settings,
+    CommandRegistry, CommandSpec, SKETCH_ARC, SKETCH_CIRCLE, SKETCH_CREATE, SKETCH_DELETE,
+    SKETCH_EDIT, SKETCH_FINISH, SKETCH_LINE, SKETCH_RECTANGLE, SKETCH_SELECT, SKETCH_TOOL_CANCEL,
+    Settings,
 };
 use arrix_doc::Registry;
 use arrix_plugin_api::FeatureTypeSpec;
@@ -61,7 +62,8 @@ pub fn needs(command: &CommandSpec, cx: Context) -> Option<&'static str> {
         SKETCH_FINISH if !cx.sketching => Some("needs sketch mode"),
         SKETCH_EDIT if cx.sketching => Some("finish the sketch first"),
         SKETCH_EDIT if !cx.sketch_selected => Some("needs a sketch selected in the tree"),
-        SKETCH_DELETE | SKETCH_SELECT | SKETCH_LINE | SKETCH_RECTANGLE | SKETCH_TOOL_CANCEL
+        SKETCH_DELETE | SKETCH_SELECT | SKETCH_LINE | SKETCH_RECTANGLE | SKETCH_CIRCLE
+        | SKETCH_ARC | SKETCH_TOOL_CANCEL
             if !cx.sketching =>
         {
             Some("needs sketch mode")

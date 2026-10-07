@@ -41,10 +41,13 @@ pub const SKETCH_EDIT: &str = "core.sketch.edit";
 pub const SKETCH_FINISH: &str = "core.sketch.finish";
 /// Deleting what is selected in the open sketch.
 pub const SKETCH_DELETE: &str = "core.sketch.delete";
-/// The sketch's tools: selecting, and drawing lines and rectangles.
+/// The sketch's tools: selecting, and drawing lines, rectangles, circles
+/// and arcs.
 pub const SKETCH_SELECT: &str = "core.sketch.select";
 pub const SKETCH_LINE: &str = "core.sketch.line";
 pub const SKETCH_RECTANGLE: &str = "core.sketch.rectangle";
+pub const SKETCH_CIRCLE: &str = "core.sketch.circle";
+pub const SKETCH_ARC: &str = "core.sketch.arc";
 /// Escape while a drawing tool is active: ends what it is drawing, or with
 /// nothing pending returns to the select tool.
 pub const SKETCH_TOOL_CANCEL: &str = "core.sketch.tool.cancel";
@@ -187,6 +190,8 @@ impl CommandRegistry {
             (SKETCH_SELECT, "Select", &[][..]),
             (SKETCH_LINE, "Line", &["l"][..]),
             (SKETCH_RECTANGLE, "Rectangle", &["r"][..]),
+            (SKETCH_CIRCLE, "Circle", &["c"][..]),
+            (SKETCH_ARC, "Arc", &["a"][..]),
         ] {
             commands.push(CommandSpec {
                 ribbon: Some(RibbonPlacement {

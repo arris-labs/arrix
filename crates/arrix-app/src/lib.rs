@@ -22,10 +22,10 @@ use arrix_config::{
     CONFIG_RELOAD, CommandRegistry, Config, ConfigDiagnostic, ConfigSource, DOCUMENT_CLOSE,
     DOCUMENT_NEW, DOCUMENT_NEXT, DOCUMENT_PREVIOUS, EDIT_REDO, EDIT_UNDO, Keymap, MemorySource,
     PALETTE_CLOSE, PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN,
-    PANEL_PROPERTIES_TOGGLE, PANEL_TREE_TOGGLE, ParamDefaults, SELECTION_CLEAR, SKETCH_CREATE,
-    SKETCH_DELETE, SKETCH_EDIT, SKETCH_FINISH, SKETCH_LINE, SKETCH_RECTANGLE, SKETCH_SELECT,
-    SKETCH_TOOL_CANCEL, Settings, Theme, VIEW_FRONT, VIEW_HOME, VIEW_ISO, VIEW_PROJECTION_TOGGLE,
-    VIEW_RIGHT, VIEW_TOP,
+    PANEL_PROPERTIES_TOGGLE, PANEL_TREE_TOGGLE, ParamDefaults, SELECTION_CLEAR, SKETCH_ARC,
+    SKETCH_CIRCLE, SKETCH_CREATE, SKETCH_DELETE, SKETCH_EDIT, SKETCH_FINISH, SKETCH_LINE,
+    SKETCH_RECTANGLE, SKETCH_SELECT, SKETCH_TOOL_CANCEL, Settings, Theme, VIEW_FRONT, VIEW_HOME,
+    VIEW_ISO, VIEW_PROJECTION_TOGGLE, VIEW_RIGHT, VIEW_TOP,
 };
 use arrix_core::{FeatureId, IdMinter, RenderMesh};
 use arrix_plugin_api::FeatureTypeSpec;
@@ -694,6 +694,8 @@ impl ArrixApp {
             SKETCH_SELECT => self.set_tool(sketch_tools::Tool::Select),
             SKETCH_LINE => self.set_tool(sketch_tools::Tool::Line),
             SKETCH_RECTANGLE => self.set_tool(sketch_tools::Tool::Rectangle),
+            SKETCH_CIRCLE => self.set_tool(sketch_tools::Tool::Circle),
+            SKETCH_ARC => self.set_tool(sketch_tools::Tool::Arc),
             SKETCH_TOOL_CANCEL => self.cancel_tool(),
             EDIT_UNDO => self.edit(OpenDocument::undo),
             EDIT_REDO => self.edit(OpenDocument::redo),

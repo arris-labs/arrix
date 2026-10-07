@@ -57,6 +57,8 @@ the command registry and the setting specs; a test holds it fresh. Do not edit.
 | `core.sketch.select` | Select |  | sketch | core.sketch / Draw |
 | `core.sketch.line` | Line | l | sketch | core.sketch / Draw |
 | `core.sketch.rectangle` | Rectangle | r | sketch | core.sketch / Draw |
+| `core.sketch.circle` | Circle | c | sketch | core.sketch / Draw |
+| `core.sketch.arc` | Arc | a | sketch | core.sketch / Draw |
 | `core.sketch.tool.cancel` | End the drawing | escape | sketch-tool |  |
 | `core.ribbon.sketch` | Show the Sketch tab |  |  |  |
 | `core.ribbon.part` | Show the Part tab |  |  |  |

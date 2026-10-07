@@ -7,7 +7,7 @@
 //! draft before it and after: both carry the resolved values of the
 //! sketch's expressions, so only what the click made rides along.
 
-use arrix_config::{SKETCH_LINE, SKETCH_RECTANGLE, SKETCH_SELECT};
+use arrix_config::{SKETCH_ARC, SKETCH_CIRCLE, SKETCH_LINE, SKETCH_RECTANGLE, SKETCH_SELECT};
 use arrix_doc::Command;
 use arrix_sketch::{
     Constraint, Draft, Entity, EntityId, GlyphKind, Inferred, Point, PointId, Sketch, SketchEdit,
@@ -34,6 +34,8 @@ pub enum Tool {
     Select,
     Line,
     Rectangle,
+    Circle,
+    Arc,
 }
 
 impl Tool {
@@ -43,6 +45,8 @@ impl Tool {
             Self::Select => SKETCH_SELECT,
             Self::Line => SKETCH_LINE,
             Self::Rectangle => SKETCH_RECTANGLE,
+            Self::Circle => SKETCH_CIRCLE,
+            Self::Arc => SKETCH_ARC,
         }
     }
 
@@ -51,6 +55,8 @@ impl Tool {
             Self::Select => "Select",
             Self::Line => "Line",
             Self::Rectangle => "Rectangle",
+            Self::Circle => "Circle",
+            Self::Arc => "Arc",
         }
     }
 }
@@ -66,6 +72,17 @@ pub enum Pending {
     Chain { from: PointId, first: PointId },
     /// The rectangle's first corner.
     Corner { at: Uv, inferred: Vec<Inferred> },
+    /// The circle's centre, awaiting the click that gives the radius.
+    Centre { at: Uv, inferred: Vec<Inferred> },
+    /// The arc's first end.
+    ArcStart { at: Uv, inferred: Vec<Inferred> },
+    /// The arc's two ends, awaiting the point it passes through.
+    ArcEnd {
+        start: Uv,
+        start_inferred: Vec<Inferred>,
+        end: Uv,
+        end_inferred: Vec<Inferred>,
+    },
 }
 
 /// A drawing tool's state: session state, per open sketch.
@@ -109,7 +126,7 @@ impl Drawing {
         match self.pending.as_ref()? {
             Pending::LineStart { at, .. } => Some(*at),
             Pending::Chain { from, .. } => sketch.point(*from).map(Point::pos),
-            Pending::Corner { .. } => None,
+            _ => None,
         }
     }
 
@@ -120,8 +137,13 @@ impl Drawing {
         if pointer.suppress {
             return Snap::raw(cursor);
         }
+        // The arc's through point is a place, not a snap: nothing it
+        // could bind exists yet.
+        if matches!(self.pending, Some(Pending::ArcEnd { .. })) {
+            return Snap::raw(cursor);
+        }
         let from = self.direction_from(sketch);
-        snap_search(
+        let snap = snap_search(
             sketch,
             &SnapQuery {
                 cursor,
@@ -132,7 +154,14 @@ impl Drawing {
                 acquired_lines: &self.acquired_lines,
                 relations: self.tool == Tool::Line && from.is_some(),
             },
-        )
+        );
+        // A circle's radius click binds the one thing a rim can: a point
+        // it passes through. Any other snap would be drawn and not kept.
+        match (&self.pending, snap.inferences.as_slice()) {
+            (Some(Pending::Centre { .. }), [Inferred::OnPoint(_)]) => snap,
+            (Some(Pending::Centre { .. }), _) => Snap::raw(cursor),
+            _ => snap,
+        }
     }
 
     /// Follows the pointer: what it rests on for [`DWELL`] seconds is
@@ -176,11 +205,26 @@ impl Drawing {
         let pointer = self.pointer.filter(|_| self.tool != Tool::Select)?;
         let snap = self.snap(sketch, &pointer);
         let cursor = [snap.uv.0, snap.uv.1];
+        let radius = matches!(self.pending, Some(Pending::Centre { .. }));
         let curves = match &self.pending {
             Some(Pending::Corner { at, .. }) => rectangle(*at, cursor)
                 .windows(2)
                 .map(|w| line(w[0], w[1]))
                 .collect(),
+            Some(Pending::Centre { at, .. }) => {
+                let r = (cursor[0] - at[0]).hypot(cursor[1] - at[1]);
+                (r > 0.0)
+                    .then(|| CurveShape::Circle {
+                        centre: round(*at),
+                        radius: round1(r),
+                    })
+                    .into_iter()
+                    .collect()
+            }
+            Some(Pending::ArcStart { at, .. }) => vec![line(*at, cursor)],
+            Some(Pending::ArcEnd { start, end, .. }) => {
+                vec![arc_shape(*start, cursor, *end).unwrap_or_else(|| line(*start, *end))]
+            }
             _ => self
                 .direction_from(sketch)
                 .map(|from| line(from, cursor))
@@ -201,7 +245,12 @@ impl Drawing {
                     commits: g
                         .inferences
                         .iter()
-                        .map(|i| commits(sketch, snap.inferences[*i]).to_owned())
+                        .map(|i| match snap.inferences[*i] {
+                            // On a circle's radius click, a point is on the
+                            // rim, not coincident with the centre.
+                            Inferred::OnPoint(_) if radius => "point_on_circle".to_owned(),
+                            inferred => commits(sketch, inferred).to_owned(),
+                        })
                         .collect(),
                 })
                 .collect(),
@@ -233,6 +282,13 @@ impl Drawing {
             }
             (Tool::Rectangle, None) => format!("{name}: click the first corner."),
             (Tool::Rectangle, Some(_)) => format!("{name}: click the opposite corner."),
+            (Tool::Circle, None) => format!("{name}: click the centre."),
+            (Tool::Circle, Some(_)) => format!("{name}: click a point on the rim."),
+            (Tool::Arc, None) => format!("{name}: click where the arc starts."),
+            (Tool::Arc, Some(Pending::ArcStart { .. })) => {
+                format!("{name}: click where the arc ends.")
+            }
+            (Tool::Arc, Some(_)) => format!("{name}: click a point the arc passes through."),
             (Tool::Select, _) => String::new(),
         }
     }
@@ -245,6 +301,10 @@ fn acquire(list: &mut Vec<arrix_sketch::SketchEntityId>, id: arrix_sketch::Sketc
     if list.len() > MAX_ACQUIRED {
         list.remove(0);
     }
+}
+
+fn round1(x: f64) -> f64 {
+    (x * 1e9).round() / 1e9
 }
 
 fn round(p: Uv) -> Uv {
@@ -326,7 +386,16 @@ fn draw(drawing: &mut Drawing, draft: &mut Draft, snap: &Snap, tol: f64) -> bool
     let near = |p: Uv| (p[0] - at[0]).hypot(p[1] - at[1]) <= tol;
     match (drawing.tool, drawing.pending.take()) {
         (Tool::Select, _) => false,
-        (Tool::Line, None | Some(Pending::Corner { .. })) => {
+        (
+            Tool::Line,
+            None
+            | Some(
+                Pending::Corner { .. }
+                | Pending::Centre { .. }
+                | Pending::ArcStart { .. }
+                | Pending::ArcEnd { .. },
+            ),
+        ) => {
             drawing.pending = Some(Pending::LineStart {
                 at,
                 inferred: snap.inferences.clone(),
@@ -368,7 +437,17 @@ fn draw(drawing: &mut Drawing, draft: &mut Draft, snap: &Snap, tol: f64) -> bool
             }
             true
         }
-        (Tool::Rectangle, None | Some(Pending::LineStart { .. } | Pending::Chain { .. })) => {
+        (
+            Tool::Rectangle,
+            None
+            | Some(
+                Pending::LineStart { .. }
+                | Pending::Chain { .. }
+                | Pending::Centre { .. }
+                | Pending::ArcStart { .. }
+                | Pending::ArcEnd { .. },
+            ),
+        ) => {
             drawing.pending = Some(Pending::Corner {
                 at,
                 inferred: snap.inferences.clone(),
@@ -380,33 +459,198 @@ fn draw(drawing: &mut Drawing, draft: &mut Draft, snap: &Snap, tol: f64) -> bool
                 drawing.pending = Some(Pending::Corner { at: a, inferred });
                 return false;
             }
-            let corners = rectangle(a, at);
-            let [p0, p1, p2, p3] =
-                [0, 1, 2, 3].map(|i| draft.add_point(Point::new(corners[i][0], corners[i][1])));
-            for (i, (start, end)) in [(p0, p1), (p1, p2), (p2, p3), (p3, p0)]
-                .into_iter()
-                .enumerate()
-            {
-                let side = draft.add_entity(Entity::Line { start, end });
-                draft.add_constraint(if i % 2 == 0 {
-                    Constraint::Horizontal { line: side }
-                } else {
-                    Constraint::Vertical { line: side }
-                });
-            }
-            let bound: Vec<_> = inferred
-                .iter()
-                .filter_map(|i| i.bind(draft, p0, None))
-                .chain(
-                    snap.inferences
-                        .iter()
-                        .filter_map(|i| i.bind(draft, p2, None)),
-                )
-                .collect();
-            commit_inferences(draft, &bound);
+            add_rectangle(draft, a, at, &inferred, &snap.inferences);
             true
         }
+        (
+            Tool::Circle,
+            Some(Pending::Centre {
+                at: centre,
+                inferred,
+            }),
+        ) => {
+            let radius = (centre[0] - at[0]).hypot(centre[1] - at[1]);
+            if radius <= tol {
+                drawing.pending = Some(Pending::Centre {
+                    at: centre,
+                    inferred,
+                });
+                return false;
+            }
+            let c = add_circle(draft, centre, radius, &inferred, &snap.inferences);
+            acquire(&mut drawing.acquired_points, c);
+            true
+        }
+        (Tool::Circle, _) => {
+            drawing.pending = Some(Pending::Centre {
+                at,
+                inferred: snap.inferences.clone(),
+            });
+            false
+        }
+        (
+            Tool::Arc,
+            Some(Pending::ArcStart {
+                at: start,
+                inferred,
+            }),
+        ) => {
+            drawing.pending = Some(if near(start) {
+                Pending::ArcStart {
+                    at: start,
+                    inferred,
+                }
+            } else {
+                Pending::ArcEnd {
+                    start,
+                    start_inferred: inferred,
+                    end: at,
+                    end_inferred: snap.inferences.clone(),
+                }
+            });
+            false
+        }
+        (
+            Tool::Arc,
+            Some(Pending::ArcEnd {
+                start,
+                start_inferred,
+                end,
+                end_inferred,
+            }),
+        ) => {
+            let Some((centre, ccw)) = circle_through(start, at, end) else {
+                drawing.pending = Some(Pending::ArcEnd {
+                    start,
+                    start_inferred,
+                    end,
+                    end_inferred,
+                });
+                return false;
+            };
+            let ends = add_arc(
+                draft,
+                [start, end],
+                centre,
+                ccw,
+                [&start_inferred, &end_inferred],
+            );
+            for p in ends {
+                acquire(&mut drawing.acquired_points, p);
+            }
+            true
+        }
+        (Tool::Arc, _) => {
+            drawing.pending = Some(Pending::ArcStart {
+                at,
+                inferred: snap.inferences.clone(),
+            });
+            false
+        }
     }
+}
+
+/// The rectangle from corner `a` to `b`: four lines on four shared
+/// corners, the level sides `Horizontal` and the others `Vertical`, then
+/// the inferences of `a` and of `b` by the commit rule.
+fn add_rectangle(draft: &mut Draft, a: Uv, b: Uv, at_a: &[Inferred], at_b: &[Inferred]) {
+    let corners = rectangle(a, b);
+    let [p0, p1, p2, p3] =
+        [0, 1, 2, 3].map(|i| draft.add_point(Point::new(corners[i][0], corners[i][1])));
+    for (i, (start, end)) in [(p0, p1), (p1, p2), (p2, p3), (p3, p0)]
+        .into_iter()
+        .enumerate()
+    {
+        let side = draft.add_entity(Entity::Line { start, end });
+        draft.add_constraint(if i % 2 == 0 {
+            Constraint::Horizontal { line: side }
+        } else {
+            Constraint::Vertical { line: side }
+        });
+    }
+    let bound: Vec<_> = at_a
+        .iter()
+        .filter_map(|i| i.bind(draft, p0, None))
+        .chain(at_b.iter().filter_map(|i| i.bind(draft, p2, None)))
+        .collect();
+    commit_inferences(draft, &bound);
+}
+
+/// A circle about `centre`, with the centre's inferences and, from the
+/// radius click, a point the rim passes through. Returns the centre.
+fn add_circle(
+    draft: &mut Draft,
+    centre: Uv,
+    radius: f64,
+    at_centre: &[Inferred],
+    at_rim: &[Inferred],
+) -> PointId {
+    let c = draft.add_point(Point::new(centre[0], centre[1]));
+    let circle = draft.add_entity(Entity::Circle { center: c, radius });
+    let mut bound: Vec<_> = at_centre
+        .iter()
+        .filter_map(|i| i.bind(draft, c, None))
+        .collect();
+    bound.extend(at_rim.iter().filter_map(|i| match *i {
+        Inferred::OnPoint(p) => Inferred::OnCurve(circle).bind(draft, p, None),
+        _ => None,
+    }));
+    commit_inferences(draft, &bound);
+    c
+}
+
+/// An arc about `centre` between two ends, running counter-clockwise from
+/// the first when `ccw` and from the second when not, with each end's
+/// inferences. Returns the ends.
+fn add_arc(
+    draft: &mut Draft,
+    ends: [Uv; 2],
+    centre: Uv,
+    ccw: bool,
+    inferred: [&[Inferred]; 2],
+) -> [PointId; 2] {
+    let [s, e] = ends.map(|p| draft.add_point(Point::new(p[0], p[1])));
+    let c = draft.add_point(Point::new(centre[0], centre[1]));
+    let (start, end) = if ccw { (s, e) } else { (e, s) };
+    draft.add_entity(Entity::Arc {
+        center: c,
+        start,
+        end,
+    });
+    let bound: Vec<_> = inferred[0]
+        .iter()
+        .filter_map(|i| i.bind(draft, s, None))
+        .chain(inferred[1].iter().filter_map(|i| i.bind(draft, e, None)))
+        .collect();
+    commit_inferences(draft, &bound);
+    [s, e]
+}
+
+/// The centre of the circle through `s`, `t` and `e`, and whether the
+/// counter-clockwise arc from `s` to `e` is the one through `t`; `None`
+/// when the three are on a line.
+fn circle_through(s: Uv, t: Uv, e: Uv) -> Option<(Uv, bool)> {
+    let (b, c) = ([t[0] - s[0], t[1] - s[1]], [e[0] - s[0], e[1] - s[1]]);
+    let d = 2.0 * (b[0] * c[1] - b[1] * c[0]);
+    let (bb, cc) = (b[0] * b[0] + b[1] * b[1], c[0] * c[0] + c[1] * c[1]);
+    if d.abs() <= 1e-6 * bb.sqrt() * cc.sqrt() {
+        return None;
+    }
+    let u = [(c[1] * bb - b[1] * cc) / d, (b[0] * cc - c[0] * bb) / d];
+    Some(([s[0] + u[0], s[1] + u[1]], d > 0.0))
+}
+
+/// The arc from `s` to `e` through `t`, as the view draws one.
+fn arc_shape(s: Uv, t: Uv, e: Uv) -> Option<CurveShape> {
+    let (centre, ccw) = circle_through(s, t, e)?;
+    let (from, to) = if ccw { (s, e) } else { (e, s) };
+    let angle = |p: Uv| (p[1] - centre[1]).atan2(p[0] - centre[0]);
+    Some(CurveShape::Arc {
+        centre: round(centre),
+        radius: round1((s[0] - centre[0]).hypot(s[1] - centre[1])),
+        start: round1(angle(from)),
+        end: round1(angle(to)),
+    })
 }
 
 /// A segment from `from` to a new point at `at`, with the inferences of

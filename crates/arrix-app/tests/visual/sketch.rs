@@ -216,3 +216,55 @@ fn sketch_draw() {
         snapshot::check(h, "sketch_draw");
     });
 }
+
+/// The circle and arc tools: a circle drawn, then an arc's two ends and its
+/// preview through the pointer; each finished one is one command, a pending
+/// click none.
+#[test]
+fn sketch_round() {
+    harness::with_app("sketch_round", |h| {
+        h.state_mut().seed_ids(1);
+        h.key_press_modifiers(egui::Modifiers::CTRL, egui::Key::N);
+        harness::wait_settled(h);
+        h.get_by_label("New sketch").click();
+        h.run_steps(3);
+        wait_turned(h);
+        let at = |h: &Harness<'_>, uv: [f64; 2]| {
+            h.state()
+                .sketch_point([uv[0] * 1e-3, uv[1] * 1e-3])
+                .expect("drawn")
+        };
+        let click = |h: &mut Harness<'_>, uv: [f64; 2]| {
+            let pos = at(h, uv);
+            h.event(egui::Event::PointerMoved(pos));
+            h.step();
+            for pressed in [true, false] {
+                h.event(egui::Event::PointerButton {
+                    pos,
+                    button: egui::PointerButton::Primary,
+                    pressed,
+                    modifiers: egui::Modifiers::NONE,
+                });
+                h.step();
+            }
+            h.run_steps(3);
+        };
+        h.key_press(egui::Key::C);
+        h.run_steps(2);
+        click(h, [20.0, 20.0]);
+        assert_eq!(gesture(h), Some(0), "a centre is no command");
+        click(h, [35.0, 20.0]);
+        assert_eq!(gesture(h), Some(1), "one command per circle");
+        harness::wait_settled(h);
+        h.key_press(egui::Key::A);
+        h.run_steps(2);
+        click(h, [50.0, 10.0]);
+        click(h, [80.0, 10.0]);
+        assert_eq!(gesture(h), Some(0), "the ends are no command");
+        let pos = at(h, [65.0, 30.0]);
+        h.event(egui::Event::PointerMoved(pos));
+        h.run_steps(3);
+        harness::wait_settled(h);
+        snapshot::check(h, "sketch_round");
+    });
+}

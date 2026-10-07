@@ -164,7 +164,7 @@ Complexity: **[1]** routine; **[2]** careful; **[3]** unproven.
   candidate is drawn and not committed, a conflicting one neither; one
   command per click; a scenario with a rectangle drawn off the origin and
   one snapped to it.
-- [ ] **[2]** Step 8 — The circle (centre, then radius) and arc tools (⚠
+- [x] **[2]** Step 8 — The circle (centre, then radius) and arc tools (⚠
   OPEN 3) on the same snap and commit rule; a tangent snap from a line's
   end commits `Tangent` alone where the probe says so. Tests as step 7's.
 - [ ] **[2]** Step 9 — The drag. A press on a point or a curve in the
@@ -312,10 +312,14 @@ accepted, and the step 1 drag benchmark asserts its budget.
   first); `core.sketch.tool.cancel` is the extra command. A conflicting
   inference cannot come out of the search (it places the cursor where its
   inferences hold), so its test hands one to the click's path directly.
-- ⚠ OPEN 3: the arc tool's gesture: centre, start, end; three points
-  (start, end, through); or both, the second sharing the button. Default
-  proposed: three-point, as the most common, with tangent arcs left out.
-  Human, by step 8.
+- OPEN 3 (closed at step 8, by the human): three points (start, end, a
+  point it passes through); tangent arcs left out.
+- Finding (step 8): a circle's radius click and an arc's through click
+  commit less than the first clicks do: the rim binds only a point it
+  passes through (`PointOnCircle`, the glyph says so), and the through
+  point is a plain place with no snap, since nothing it could bind exists
+  yet. The tangent snap from a line's end already committed `Tangent`
+  alone (step 2's probe); step 8 holds it with a test.
 - ⚠ OPEN 4: a dimension that would over-constrain: placed as a reference
   dimension (shown, not driving), or refused with the reason. Default
   proposed: reference, as the ported code did. Agent, by step 11, unless

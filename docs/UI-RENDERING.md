@@ -292,7 +292,8 @@ turns to face the plane in orthographic projection.
   stands on it (`SketchEdit::remove`) as one command, and none when there
   is nothing to remove.
 - **The tools** are in the Sketch tab's Draw group: `core.sketch.select`,
-  `core.sketch.line` (L) and `core.sketch.rectangle` (R), the one in use
+  `core.sketch.line` (L), `core.sketch.rectangle` (R),
+  `core.sketch.circle` (C) and `core.sketch.arc` (A), the one in use
   drawn pressed. A drawing tool's pointer highlights nothing and selects
   nothing: every frame it is over the viewport its snap is searched over
   the solved draft and drawn as the `SketchView`'s `preview` (the cursor
@@ -310,7 +311,18 @@ turns to face the plane in orthographic projection.
   chain does), the two level sides `Horizontal` and the others
   `Vertical`, then the first corner's inferences and the opposite
   corner's, by the commit rule; a click level or plumb with the first
-  corner draws nothing. The click's edit is the diff between the solved
+  corner draws nothing. The circle is two clicks, the centre issuing
+  nothing: its centre's inferences are bound, and a radius click snaps
+  to a point only (what it binds is that the rim passes through it,
+  `PointOnCircle`, so the glyph says that and no other snap is shown
+  there); a radius within the snap tolerance draws nothing. The arc is
+  three clicks, the first two its ends, with their inferences, and the
+  third a point it passes through, a plain place with no snap: the arc
+  is the circle through the three, counter-clockwise from whichever end
+  it runs from, its centre a free point; three points on a line draw
+  nothing. A line from outside a circle or arc that ends at the tangent
+  snap commits `Tangent` alone (the end is placed on the rim, not bound
+  to it). The click's edit is the diff between the solved
   draft before it and after it, solved again (both carry the resolved
   values of the sketch's expressions, so only what the click made rides
   along), and the draft it leaves is drawn until the evaluation of the
