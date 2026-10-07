@@ -20,6 +20,23 @@ pub struct RibbonView {
     pub tabs: Vec<RibbonTab>,
     /// The id of the open tab.
     pub active: String,
+    /// The open tab's groups, left to right.
+    pub groups: Vec<RibbonGroup>,
+}
+
+/// A titled run of buttons in the open tab.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct RibbonGroup {
+    pub title: String,
+    pub commands: Vec<RibbonCommand>,
+}
+
+/// A ribbon button: a command and whether it applies right now.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct RibbonCommand {
+    pub id: String,
+    pub title: String,
+    pub enabled: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -58,4 +75,6 @@ pub struct StatusView {
 pub enum UiIntent {
     /// A ribbon tab was clicked: session state, no command.
     RibbonTabSelected { tab: String },
+    /// A command was invoked, by whatever means (a ribbon button now).
+    CommandInvoked { command: String },
 }

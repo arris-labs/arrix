@@ -5,4 +5,7 @@ mod shell;
 pub mod view;
 
 pub use shell::{ShellLayout, ShellResponse, shell};
-pub use view::{RibbonTab, RibbonView, ShellView, StatusView, TreePart, TreeView, UiIntent};
+pub use view::{
+    RibbonCommand, RibbonGroup, RibbonTab, RibbonView, ShellView, StatusView, TreePart, TreeView,
+    UiIntent,
+};

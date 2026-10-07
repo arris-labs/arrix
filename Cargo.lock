@@ -384,8 +384,10 @@ dependencies = [
 name = "arrix-app"
 version = "0.0.0"
 dependencies = [
+ "arrix-config",
  "arrix-core",
  "arrix-doc",
+ "arrix-gears",
  "arrix-kernel",
  "arrix-plugin-api",
  "arrix-plugin-host",
@@ -422,6 +424,7 @@ name = "arrix-config"
 version = "0.0.0"
 dependencies = [
  "arrix-core",
+ "arrix-plugin-api",
  "serde",
  "serde_json",
  "toml",

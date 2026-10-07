@@ -1,11 +1,13 @@
 //! The application: the shell, the command registry, and the translation
 //! between document and view types (docs/UI-RENDERING.md §The shell).
 
+mod commands;
 mod debug;
 
 pub use debug::DebugState;
 
-use arrix_ui::{RibbonTab, RibbonView, ShellLayout, ShellView, StatusView, TreeView, UiIntent};
+use arrix_config::{CommandRegistry, Settings};
+use arrix_ui::{ShellLayout, ShellView, StatusView, TreeView, UiIntent};
 
 /// Client-side state that is not in the document (SEED.md §6.1 rule 4).
 struct Session {
@@ -15,6 +17,8 @@ struct Session {
 /// The application state eframe drives.
 pub struct ArrixApp {
     session: Session,
+    commands: CommandRegistry,
+    settings: Settings,
     /// What the last frame drew, for [`ArrixApp::debug_state`].
     drawn: Option<Drawn>,
 }
@@ -28,6 +32,8 @@ struct Drawn {
 impl ArrixApp {
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         Self {
+            commands: commands::command_registry(&commands::feature_types()),
+            settings: Settings::default(),
             session: Session {
                 ribbon_tab: "core.sketch".into(),
             },
@@ -38,15 +44,13 @@ impl ArrixApp {
     /// The view the shell is drawn from: a projection of the session (and,
     /// from M1, of the document and its events).
     fn shell_view(&self) -> ShellView {
-        let tab = |id: &str, title: &str| RibbonTab {
-            id: id.into(),
-            title: title.into(),
-        };
         ShellView {
-            ribbon: RibbonView {
-                tabs: vec![tab("core.sketch", "Sketch"), tab("core.part", "Part")],
-                active: self.session.ribbon_tab.clone(),
-            },
+            ribbon: commands::ribbon(
+                &self.commands,
+                &self.settings,
+                &self.session.ribbon_tab,
+                commands::Context::default(),
+            ),
             tree: TreeView::default(),
             status: StatusView {
                 generation: 0,
@@ -60,6 +64,9 @@ impl ArrixApp {
     fn apply(&mut self, intent: UiIntent) {
         match intent {
             UiIntent::RibbonTabSelected { tab } => self.session.ribbon_tab = tab,
+            // No command applies yet: the creation commands wait for an
+            // open document (M3's document plan).
+            UiIntent::CommandInvoked { .. } => {}
         }
     }
 }

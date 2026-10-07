@@ -169,7 +169,7 @@ None. No step calls the kernel.
   - The layer lint's edges are updated, and the crate builds for wasm32.
   - Tests: every diagnostic case, the layer order, and a clean file giving
     none.
-- [ ] **[2]** Step 3: build the command registry.
+- [x] **[2]** Step 3: build the command registry.
   - `CommandSpec` has an id, title, ribbon tab and group, default keys and
     a `when` context.
   - The core table holds `core.palette.open`, `core.config.reload`,
@@ -319,6 +319,9 @@ The whole gate is green, the wasm build included.
   modification time (no dependency, about 1 s), the `notify` crate, or
   reload-on-command only. Tests use the command either way. Agent decides
   by step 10.
-- ⚠ OPEN 4: may the user hide core ribbon tabs (`core.sketch`,
-  `core.part`), or only plugin tabs? Preferred: any tab, since the palette
-  still reaches every command. Human, by step 3.
+- ⚠ OPEN 4 (answered): the user may hide any tab, core ones included,
+  since the palette still reaches every command.
+- Step 3 found: `arrix-app` needs its own Tier 0 registration list to
+  know the feature types (like the CLI's), so the layer lint gains the
+  `arrix-app` → `arrix-gears` edge. A plugin's tab is titled from its id
+  (`gears` → Gears) until the registry carries manifest titles.

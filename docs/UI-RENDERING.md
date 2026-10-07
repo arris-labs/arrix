@@ -39,13 +39,18 @@ as C1 lands, and the commit that builds it keeps it true.
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-- **The command registry** in `arrix-app` holds every user action as a
-  `CommandSpec`: id (`core.extrude`, `gears.spur`), title, icon, shortcut,
-  ribbon placement, and whether it applies in the current session state.
-  The ribbon, the command palette, the context menus and the shortcut map
-  all read it. A plugin's ribbon group and commands land in the same
-  registry; **installing a plugin adds a ribbon tab, never a mode**
-  (`SEED.md` §5).
+- **The command registry** holds every user action as a `CommandSpec`: id
+  (`core.palette.open`, `gears.spur.create`), title, ribbon placement,
+  default keys, the keymap context they apply in, and whether it needs an
+  open document. The data is in `arrix-config`; `arrix-app` owns whether a
+  command applies in the current session state, and the dispatch. The
+  ribbon, the command palette, the context menus and the shortcut map all
+  read it. One `<type>.create` exists per registered feature type, the
+  plugins' included, and each tab has a `core.ribbon.<tab>` command. A
+  creation command is disabled while no document is open. **Installing a
+  plugin adds a ribbon tab, never a mode** (`SEED.md` §5).
+  `ui.ribbon.hidden-tabs` hides any tab, core ones too; the palette still
+  reaches every command.
 - **The command palette** (`Ctrl+K`) searches every registered command by
   title and id, the plugins' included.
 - **The feature tree** shows each part's history with state per feature:
@@ -74,7 +79,8 @@ rule).
   `RibbonView`, `PaletteView`, `DiagnosticsView`, `SketchView`,
   `SceneView`. They are serialisable, which is what makes them testable
   and what a thin client would receive. Built so far: `ShellView`, holding
-  a `RibbonView` (tabs and the open one), a `TreeView` (parts) and a
+  a `RibbonView` (tabs, the open one, and its groups of buttons with
+  whether each is enabled), a `TreeView` (parts) and a
   `StatusView` (generation, diagnostics count, display units). The
   property panel is empty until forms exist.
 - **The shell's layout** is a function of the window size alone: the

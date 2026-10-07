@@ -85,6 +85,25 @@ fn ribbon_ui(ui: &mut egui::Ui, ribbon: &RibbonView, intents: &mut Vec<UiIntent>
         }
     });
     ui.separator();
+    ui.horizontal_top(|ui| {
+        for group in &ribbon.groups {
+            ui.vertical(|ui| {
+                ui.horizontal(|ui| {
+                    for command in &group.commands {
+                        let button =
+                            ui.add_enabled(command.enabled, egui::Button::new(&command.title));
+                        if button.clicked() {
+                            intents.push(UiIntent::CommandInvoked {
+                                command: command.id.clone(),
+                            });
+                        }
+                    }
+                });
+                ui.weak(&group.title);
+            });
+            ui.separator();
+        }
+    });
 }
 
 fn tree_ui(ui: &mut egui::Ui, tree: &TreeView) {
