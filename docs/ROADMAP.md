@@ -66,7 +66,9 @@ spec (ADR-0018), choices and `shown_when` in plugin API 0.5, previews as
 speculative evaluations (ADR-0019), the create and edit forms, references
 picked in the scene and the tree, finished sketches in part mode, lost-reference
 and failure diagnostics on the form, and the `forms_accept` scenario. M3
-continues with its remaining accept (frozen badge, gesture-count test).
+plan 5 (`m3-accept`) landed 2026-10-08: the gesture log, the frozen badge
+on a frozen feature's faces, and the `m3_accept` scenario (sketch to failed
+fillet, reopened without `gears`, width edited), so M3 has landed; M4 next.
 Seeded 2026-09-26.**
 
 Milestones are ordered by risk after the harness: the document and the

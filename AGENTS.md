@@ -42,8 +42,10 @@ viewport_accept`); sketch mode (`sketch-mode`; `cargo test -p arrix-app
 **M3 plan 4 landed 2026-10-08:** forms from the feature type's spec, plugin
 API 0.5 choices, previews (`forms`, ADR-0018, ADR-0019; `cargo test -p
 arrix-app --test visual forms_accept`).
-**Now:** M3's last plan (frozen badge, gesture-count test, closing
-scenario), to be planned.
+**M3 plan 5 landed 2026-10-08:** the gesture log, the frozen badge and the
+closing scenario; **M3 has landed** (`cargo test -p arrix-app --test visual
+m3_accept`).
+**Now:** M4 (exchange and batch), to be planned; `/close-cycle` at its end.
 
 ## Rules that are not derivable from the code
 
