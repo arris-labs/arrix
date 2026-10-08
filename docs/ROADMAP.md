@@ -90,8 +90,8 @@ Three milestones, a plan each, the riskiest first:
 
 - `arrix serve --stdio`: the `Session` protocol framed on stdio (commands
   in, events out, `save`, preview, export), the same `LocalSession` behind
-  it; the wire encoding decided by an ADR that measures JSON-RPC against a
-  binary encoding (the ⚠ OPEN in `docs/PLUGINS.md`).
+  it; the wire JSON-RPC, newline-framed, generated from the WIT world
+  (ADR-0022, by a measured spike).
 - The Tier 2 host in `arrix-plugin-host`: one process per plugin over the
   same encoding, capabilities from the manifest, a crash or timeout as that
   feature's diagnostic with its result frozen.

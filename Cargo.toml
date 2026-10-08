@@ -92,6 +92,10 @@ blake3 = { version = "1", default-features = false, features = ["std", "pure"] }
 wit-bindgen = { version = "0.62", default-features = false, features = ["macros"] }
 wit-parser = "0.259"
 proptest = "1"
+# The wire spike (crates/arrix-cli/tests/wire_spike.rs, ADR-0022): the
+# encodings it measures JSON against. Dev-only, run by name.
+ciborium = "0.2"
+base64 = "0.22"
 
 # The headless visual harness (docs/UI-RENDERING.md §Visual debugging):
 # drives the real eframe app and renders through wgpu, preferring a CPU

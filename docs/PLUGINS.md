@@ -219,12 +219,12 @@ change, reviewed like any other, never a private hook.
   bytes (ADR-0021). Out-of-process Python gets numpy, torch and CUDA for
   its own computation, and in remote mode the server's GPU.
 
-⚠ OPEN: the Tier 2 wire encoding, JSON-RPC or a binary encoding of the
-WIT types (the boundary-opened cycle). Agent proposes; ADR. The constraint
-either way: the encoding is derived from the WIT world, not written by
-hand beside it. ADR-0016 leans to JSON-RPC: an agent reads it, any
-language speaks it, and `arrix serve --stdio` uses the same framing; the
-cycle's ADR measures size and speed before closing it.
+The Tier 2 wire is JSON-RPC 2.0, one object per line, its methods and
+shapes generated from the WIT world (ADR-0022): `kernel.extrude`,
+`feature.evaluate`, a record as an object, a variant as a one-key object, a
+`result` as `{"ok": …}` or `{"err": …}`, a resource as its handle, bulk
+`f32` and `u32` runs as base64. `arrix serve --stdio` uses the same
+framing. A plugin calls `kernel.*` while it answers `feature.evaluate`.
 
 ## The manifest
 
@@ -439,5 +439,4 @@ test` for any tier).
 
 ## Open questions
 
-- ⚠ OPEN: the Tier 2 wire encoding (§Three tiers). The boundary-opened
-  cycle; leaning to JSON-RPC (ADR-0016); agent proposes; ADR.
+None open. The Tier 2 wire encoding was settled by ADR-0022.

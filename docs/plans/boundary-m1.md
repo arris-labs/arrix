@@ -89,7 +89,7 @@ fuse, cut, common, fillet, chamfer, copy, mirror). Arris's Python binding
   sandboxed, `SEED.md` §8.4 amended) and `docs/ROADMAP.md` §The boundary
   opened committed: status open, its SDK line amended, milestones M1 to
   M3 as in the idea's recommendation; the idea file deleted. Docs only.
-- [ ] **[3]** Step 2 — The wire spike and ADR-0022: a `--nocapture` test
+- [x] **[3]** Step 2 — The wire spike and ADR-0022: a `--nocapture` test
   measuring JSON against CBOR on the bracket's `meshed` events (size,
   encode, decode) and 1,000 `evaluate`-shaped round trips with ten kernel
   callbacks each over a real pipe to a child process; ADR-0022 written

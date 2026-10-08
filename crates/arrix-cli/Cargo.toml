@@ -22,9 +22,19 @@ serde_json.workspace = true
 web-time.workspace = true
 
 [dev-dependencies]
+# The wire spike (tests/wire_spike.rs, ADR-0022).
+ciborium.workspace = true
+base64.workspace = true
+serde.workspace = true
 # The scenario tests draw sketches (tests/slice.rs, tests/gears.rs).
 arrix-sketch.workspace = true
 
 [[bin]]
 name = "arrix"
 path = "src/main.rs"
+
+# The wire spike (ADR-0022): measured on demand, compared against nothing.
+[[test]]
+name = "wire_spike"
+path = "tests/wire_spike.rs"
+test = false
