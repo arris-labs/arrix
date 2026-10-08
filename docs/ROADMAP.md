@@ -61,7 +61,13 @@ scenario. M3 plan 3 (`sketch-mode`) landed 2026-10-08: the drag inside its
 and leaving sketch mode, the `SketchView` overlay, the drawing, constraint,
 dimension and modify tools, regions shaded as extrude takes them, the
 unreached constraint kinds gated, and the `sketch_accept` scenario. M3
-continues with the forms. Seeded 2026-09-26.**
+plan 4 (`forms`) landed 2026-10-08: forms rendered from the feature type's
+spec (ADR-0018), choices and `shown_when` in plugin API 0.5, previews as
+speculative evaluations (ADR-0019), the create and edit forms, references
+picked in the scene and the tree, finished sketches in part mode, lost-reference
+and failure diagnostics on the form, and the `forms_accept` scenario. M3
+continues with its remaining accept (frozen badge, gesture-count test).
+Seeded 2026-09-26.**
 
 Milestones are ordered by risk after the harness: the document and the
 plugin feature are proven headless (M1) before the part features (M2), the
