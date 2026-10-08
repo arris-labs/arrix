@@ -3,6 +3,7 @@
 //! (docs/ARCHITECTURE.md §Crates).
 
 mod diagnostic;
+mod export;
 pub mod geom;
 mod id;
 mod mesh;
@@ -12,6 +13,7 @@ mod reference;
 pub mod units;
 
 pub use diagnostic::{Diagnostic, DiagnosticCode, InvalidCode, Severity};
+pub use export::ExportFormat;
 pub use geom::{Axis, Frame, Motion, Profile, ProfileLoop, ProfileSegment};
 pub use glam::{DVec2, DVec3};
 pub use id::{

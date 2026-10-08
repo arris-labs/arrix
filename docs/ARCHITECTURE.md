@@ -185,7 +185,11 @@ geometry from provenance, and to make every kernel call a record.
   ArriX-signature operations: `extrude`, `revolve`, `boolean`, `fillet`,
   `chamfer`, `transform`, `mirror`, primitives, `project_to_plane`,
   `face_frame`, `mass_properties`, `tessellate`, `export_step`,
-  `export_stl`, `export_obj`. Handles
+  `export_stl`, `export_obj` (built: each one recorded call,
+  `KernelOp::Export { format }`, over the bodies given as its operands;
+  STEP of the exact B-rep, STL and OBJ of the refined meshes in one file;
+  lengths in metres as the model has them, see `docs/BACKLOG.md` on
+  STEP's declared unit). Handles
   it returns are opaque (`KernelBody`) and valid while a cache entry
   holds them; a plugin sees only its own evaluation's, by handle.
   Built: `extrude` (a keyed `Profile` along its plane's normal, a
@@ -297,7 +301,10 @@ geometry from provenance, and to make every kernel call a record.
   (`chord`, `face`, `grid-too-large`, `corners`, `non-finite-position`,
   `invalid-input`, …) for tessellation, `kernel.interrupted` for any
   call the interrupt stopped (`kernel.interrupted.budget` for a spent
-  step budget), whatever the call was, since the stop is the caller's, and `kernel.naming`,
+  step budget), whatever the call was, since the stop is the caller's,
+  `kernel.export.<error>` (`no-bodies`, `unsupported`, `lumps`,
+  `not-found`, `non-finite`, `too-many-triangles`) for a format that could
+  not be written, and `kernel.naming`,
   `kernel.unknown-body`, `kernel.unknown-name`, `kernel.wrong-kind` for
   ArriX's own refusals. The same failure across a thousand documents is one row with
   a count in `arrix eval`'s summary.

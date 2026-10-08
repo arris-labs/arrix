@@ -24,10 +24,7 @@ impl crate::Kernel {
         detail: MeshDetail,
     ) -> Result<RenderMesh, KernelError> {
         let target = self.entry(body)?.body;
-        let diagonal = edge_box(&self.model, target)
-            .map(|(lo, hi)| (hi - lo).length())
-            .unwrap_or(0.0);
-        let chord = detail.chord_fraction() * diagonal;
+        let chord = self.chord(target, detail);
         let call = self.begin(KernelOp::Tessellate { detail, chord }, &[body])?;
         let request = MeshRequest::new(chord).with_corners();
         let mesh = self
@@ -35,6 +32,16 @@ impl crate::Kernel {
             .map_err(|e| KernelError::mesh(call, &e))?;
         render_mesh(&self.model, target, &self.entry(body)?.names, &mesh, chord)
             .map_err(|message| KernelError::Naming { call, message })
+    }
+}
+
+impl crate::Kernel {
+    /// The chord `detail` comes to on `body`.
+    pub(crate) fn chord(&self, body: Body, detail: MeshDetail) -> f64 {
+        let diagonal = edge_box(&self.model, body)
+            .map(|(lo, hi)| (hi - lo).length())
+            .unwrap_or(0.0);
+        detail.chord_fraction() * diagonal
     }
 }
 

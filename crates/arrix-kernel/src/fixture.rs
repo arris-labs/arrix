@@ -212,6 +212,8 @@ impl FixtureRecipe {
             | KernelOp::MassProperties
             | KernelOp::Tessellate { .. }
             | KernelOp::ToBytes => name(failed.sources[0]),
+            // Several operands and no one result to name.
+            KernelOp::Export { .. } => return Err(FixtureError::NoStep { call, op: "export" }),
             _ => name(call),
         };
         Ok(Self {
@@ -363,7 +365,7 @@ fn push_steps(
         | KernelOp::MassProperties
         | KernelOp::Tessellate { .. }
         | KernelOp::ToBytes => return Ok(()),
-        KernelOp::FromBytes { .. } => {
+        KernelOp::Export { .. } | KernelOp::FromBytes { .. } => {
             return Err(FixtureError::NoStep {
                 call,
                 op: op_word(&record.op),
@@ -431,6 +433,7 @@ fn op_word(op: &KernelOp) -> &'static str {
         KernelOp::MassProperties => "mass_properties",
         KernelOp::Tessellate { .. } => "tessellate",
         KernelOp::ToBytes => "to_bytes",
+        KernelOp::Export { .. } => "export",
         KernelOp::FromBytes { .. } => "from_bytes",
     }
 }
