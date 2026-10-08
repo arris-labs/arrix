@@ -166,6 +166,8 @@ fn mesh_category(e: &MeshError) -> &'static str {
         MeshError::Face { .. } => "kernel.mesh.face",
         MeshError::GridTooLarge { .. } => "kernel.mesh.grid-too-large",
         MeshError::Corners(_) => "kernel.mesh.corners",
+        MeshError::NotInBody { .. } => "kernel.mesh.not-in-body",
+        MeshError::WeldMismatch { .. } => "kernel.mesh.weld-mismatch",
         MeshError::Internal(_) => "kernel.mesh.internal",
         MeshError::Interrupted(stop) => interrupted(stop),
     }
@@ -203,35 +205,22 @@ fn category(e: &OpError) -> String {
     }
 }
 
-fn reason_word(reason: &Reason) -> &'static str {
-    match reason {
-        Reason::NonFinite { .. } => "non-finite",
-        Reason::NotPositive { .. } => "not-positive",
-        Reason::ZeroThickness => "zero-thickness",
-        Reason::ProfileCrossesAxis => "profile-crosses-axis",
-        Reason::AxisNotInProfilePlane => "axis-not-in-profile-plane",
-        Reason::AngleAboveTurn => "angle-above-turn",
-        Reason::SpindleTorus => "spindle-torus",
-        Reason::EllipticRevolve { .. } => "elliptic-revolve",
-        Reason::DirectionNotNormal => "direction-not-normal",
-        Reason::NotSolid => "not-solid",
-        Reason::Empty => "empty",
-        Reason::TangentContact => "tangent-contact",
-        Reason::BesideSingularity => "beside-singularity",
-        Reason::NonManifold => "non-manifold",
-        Reason::NoEdges => "no-edges",
-        Reason::RepeatedEdge => "repeated-edge",
-        Reason::EdgeNotInBody => "edge-not-in-body",
-        Reason::BlendTooLarge => "blend-too-large",
-        Reason::TangentChain => "tangent-chain",
-        Reason::VertexBlend => "vertex-blend",
-        Reason::NotProjectable => "not-projectable",
-        Reason::DegenerateEdge => "degenerate-edge",
-        Reason::ProjectionCollapses => "projection-collapses",
-        Reason::NotPlanar => "not-planar",
-        Reason::OutOfDomain => "out-of-domain",
-        Reason::Singular => "singular",
+/// The leaf reason's name, lower-kebab (`BlendTooLarge` is `blend-too-large`).
+/// Arris keeps `Reason::name` stable across regroupings, so the codes a
+/// histogram counts under do not move when the groups do.
+fn reason_word(reason: &Reason) -> String {
+    let mut word = String::new();
+    for (i, c) in reason.name().chars().enumerate() {
+        if c.is_ascii_uppercase() {
+            if i > 0 {
+                word.push('-');
+            }
+            word.push(c.to_ascii_lowercase());
+        } else {
+            word.push(c);
+        }
     }
+    word
 }
 
 fn fault_word(fault: &Fault) -> &'static str {

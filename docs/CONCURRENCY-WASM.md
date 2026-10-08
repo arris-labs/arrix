@@ -294,8 +294,8 @@ cached (its inputs do not move with the width). Inside those two, the
 boolean is 38 ms and the blend 13 ms, and the rest is the mass properties
 each feature takes of its body: about 95 ms each, in Arris's
 `measure::mass_properties`, for a body that carries the gear's 240 faces
-(the gear's extrude alone measures in 84 ms). Arris 0.5 and 0.7-dev replay
-it alike in a release build, about 90 ms, from the recipe
+(the gear's extrude alone measures in 84 ms). Arris 0.5, 0.6 and 0.7-dev replay
+it alike in a release build, about 90 ms (the benchmark on 0.6: 348 ms), from the recipe
 `crates/arrix-kernel/tests/recipes/bracket-mass-properties`. ArriX also
 measures some bodies more than once (the hole's and the pattern's
 results, 2 to 8 ms each). The coarse mesh after the evaluation is 9 ms.

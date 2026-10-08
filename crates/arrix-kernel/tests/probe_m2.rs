@@ -26,7 +26,7 @@ use std::f64::consts::{FRAC_PI_2, TAU};
 use arris::Control;
 use arris::geom::{Profile, ProfileLoop, ProfileSegment};
 use arris::math::{Axis, Frame, Isometry, Point2, Point3, Precision, Reflection, Vec3};
-use arris::ops::{self, Fault, OpError, Reason, SplitFault};
+use arris::ops::{self, BlendReason, Fault, OpError, Reason, SplitFault};
 use arris::topo::provenance::SweepPart;
 use arris::topo::{Body, EntityId, Model, Orientation, Origin, Provenance, Role, Shape};
 
@@ -488,7 +488,7 @@ fn an_oversize_fillet_is_blend_too_large() {
             matches!(
                 err,
                 OpError::Degenerate {
-                    reason: Reason::BlendTooLarge,
+                    reason: Reason::Blend(BlendReason::TooLarge),
                     ..
                 }
             ),
@@ -532,7 +532,7 @@ fn a_second_fillet_leaves_the_first_alone_or_is_too_large_for_it() {
         matches!(
             err,
             OpError::Degenerate {
-                reason: Reason::BlendTooLarge,
+                reason: Reason::Blend(BlendReason::TooLarge),
                 ..
             }
         ),

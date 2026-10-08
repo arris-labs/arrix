@@ -35,7 +35,7 @@ unless an ADR says otherwise.
 Crates live in `crates/<name>/`, plugins in `plugins/<name>/` (package
 `arrix-<name>`: `plugins/gears` is `arrix-gears`). External versions are
 pinned once, in the root `Cargo.toml`'s `[workspace.dependencies]`:
-`arris` 0.5, and one egui minor for `egui`, `eframe`, `egui-wgpu` and the
+`arris` 0.6, and one egui minor for `egui`, `eframe`, `egui-wgpu` and the
 dev-only `egui_kittest` (0.36). The table's externals not yet in a
 manifest (`wgpu` directly, `wasmtime`)
 join with the code that needs them; `miniz_oxide` (0.9, deflate, no default
@@ -451,14 +451,14 @@ A step blocked on an ask names it and waits.
 | A3 | cancellation: an interrupt token, optionally a step budget | C1: superseded evaluations; C4: the browser | released in 0.4.0 (`Control`), taken in C1 M4 |
 | A11 | `ops::mirror` | C1: the mirror feature | released in 0.4.0, taken in C1 M2 |
 | A4 | STEP product structure | C2 | released in 0.4.0 (`Read::products`, `step::write_products`), not taken |
-| A8 | multi-tool booleans (`cut_many`, `fuse_many`) | a pattern's holes in one boolean | released in 0.6.0, not taken (`docs/BACKLOG.md`) |
+| A8 | multi-tool booleans (`cut_many`, `fuse_many`) | a pattern's holes in one boolean | released in 0.6.0, not used yet (`docs/BACKLOG.md`) |
 | A9 | per-face tessellation (`tessellate_faces`, `TriMesh::weld`) | per-face mesh caching | released in 0.6.0, not taken |
 | A10 | the Python binding | C3: the Tier 2 SDK | released by 2026-10-01, not taken |
 | A5 | `region2` as public API | C1–C2: sketch regions | open; the ported arrangement is used |
 | A6, A7 | the query cycle; the sweep and healing cycles (A7's shell and offset are in 0.6.0) | C2 and later | open |
 
-The pin is `arris` 0.5; 0.6.0 is released and its bump is its own change
-(`docs/BACKLOG.md`).
+The pin is `arris` 0.6 (taken after C1, with its one change: `Reason` is
+grouped, and `arrix-kernel` keys a refusal on the leaf's `Reason::name`).
 
 This table is brought up to date at every cycle close (`/close-cycle`).
 

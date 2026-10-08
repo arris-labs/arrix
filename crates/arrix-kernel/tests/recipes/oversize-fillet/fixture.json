@@ -1,5 +1,5 @@
 {
-  "description": "ArriX's kernel call 1 (fillet) on arris 0.5.0, which failed as kernel.degenerate.blend-too-large: the call and every call that made its operands, one step each named c<call>, exported from their records. Lengths in metres.",
+  "description": "ArriX's kernel call 1 (fillet) on arris 0.6.0, which failed as kernel.degenerate.blend-too-large: the call and every call that made its operands, one step each named c<call>, exported from their records. Lengths in metres.",
   "steps": [
     {
       "op": "profile",

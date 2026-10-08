@@ -28,7 +28,7 @@ skills for the idea → plan → work → retire → close-cycle pipeline live i
 design docs of `SEED.md` §10.2 written.
 **C1 done 2026-10-08** (M0 to M4: the gate and harness, the document and a
 plugin feature in its history, part features and naming, the app, export and
-batch; `arris` 0.5; ADR-0004 to ADR-0020): `cargo test -p arrix-cli --test
+batch; `arris` 0.5, 0.6 after; ADR-0004 to ADR-0020): `cargo test -p arrix-cli --test
 c1_accept` is its accept, `--test c1_benchmark -- --nocapture` its budgets
 (the first coarse mesh misses, an Arris finding), `cargo test -p arrix-app
 --test visual m3_accept` the app's.
