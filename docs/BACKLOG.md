@@ -6,7 +6,7 @@ committed to. Rejected ideas keep one line below with the reason, so the same
 idea is not brainstormed twice.
 
 - Tier 1 guest SDK: `wit-bindgen`'s `export!` emits `unsafe`, which the workspace forbids; an ADR for where the exception lives, in C3 (plans/c1-m1-document step 3)
-- Structural sharing of document snapshots and an incremental DAG rebuild, each when the C1 benchmark's command-apply budget asks for it (plans/c1-m1-document steps 5 and 13)
+- Structural sharing of document snapshots and an incremental DAG rebuild, each when a command-apply budget asks for it; the C1 benchmark's bracket applies a command in 0.1 ms against 1 ms, so a much larger document first (plans/c1-m1-document steps 5 and 13, plans/c1-m4 step 16)
 - Upstream failure reporting: the opt-in, locally shrunk, previewed report of a kernel failure to Arris (`SEED.md` §6.6), its transport and where reports land
 - Replay of public feature-history datasets through the batch API as an Arris corpus source, each dataset's licence checked first (`SEED.md` §6.6)
 - Parameter-sweep continuity checks over the batch API: volume, area and topology across a swept parameter, a jump reported as a failure (`SEED.md` §6.6)
@@ -37,6 +37,7 @@ idea is not brainstormed twice.
 - The first body of a document is a speck under its preview: the camera frames once, on the first mesh heard, and a preview is never framed, so a plate previewed before any body exists shows tiny until OK and Home; framing the preview's bodies while nothing else is framed would fix it (plans/m3-accept step 4)
 - A failed modifier leaves its target's last body drawn: the scene drops stale bodies only when a refined mesh of the new generation arrives (`documents.rs`, `Meshed`), so an evaluation with no final body (a fillet too big for its edge, ADR-0007: the body is unavailable) keeps the previous generation's meshes on screen while a fresh open of the same document draws none; a `Finished` that says how many bodies follow, or the 1 s no-bodies path clearing the scene, would fix it, and `m3_accept_failed` and `forms_accept` goldens would change (plans/m3-accept step 5)
 - Exported lengths are the model's metres, and Arris 0.5's STEP writer declares them millimetres ("every number passes through unchanged"), so a 20 mm plate reads as 0.02 mm in another CAD and a slicer reads the STL a thousandth the size; Arris has no scale operation or unit option on `step::write`, so the fix is an Arris ask (a length unit on the writer) and, for the meshes, scaling the positions to millimetres here; the human decides the unit of ArriX's exchange files first (plans/c1-m4 step 4)
+- The first coarse mesh after a width edit of the bracket misses its 150 ms budget at 324 ms (290 ms in release), nearly all of it Arris: the gear's join 135 ms and the fillet on its edge 112 ms, re-run on every edit of the plate. Either an Arris ask (the boolean and the blend against a 20-tooth gear, profiled there) or a coarse mesh of an earlier body while the slow tail of the history evaluates; which is the human's call (plans/c1-m4 step 16, `docs/CONCURRENCY-WASM.md` §Budgets)
 
 ## Rejected
 

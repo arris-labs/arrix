@@ -365,6 +365,7 @@ Everything is checkable without a human looking at a screen (`SEED.md`
 | Protocol | every command and event serialised through JSON and back |
 | UI | headless `egui_kittest` snapshots on wgpu, each a text golden: the `debug_state()` JSON and a coarse frame; images rendered on demand, never committed (`docs/UI-RENDERING.md` §Visual debugging, ADR-0001) |
 | Slice | M1's accept, `crates/arrix-cli/tests/slice.rs`: a plate, a gear and a pocket built by commands through `LocalSession`; every acceptance criterion (edit, saves in both forms, frozen without the plugin, stale, re-frozen, undo byte for byte); the frozen goldens are the lines `arrix eval` prints for the session's save, the blobs never committed (ADR-0001) |
+| Benchmark | C1's, `crates/arrix-cli/tests/c1_benchmark.rs` on the bracket: medians printed with `--nocapture`, the met budgets of `docs/CONCURRENCY-WASM.md` §Budgets asserted, a missed one reported |
 | CLI | golden JSON of `arrix eval` over the scenario documents: the binary run from the workspace root by `crates/arrix-cli/tests/eval.rs`, compared byte for byte with `crates/arrix-cli/tests/golden/<name>.jsonl` |
 
 A wanted behaviour that does not work yet is not an `#[ignore]`d test. If

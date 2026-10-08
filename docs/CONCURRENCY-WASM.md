@@ -221,13 +221,13 @@ measured number written here.
 | What | Target |
 |---|---|
 | A UI frame with the C1 acceptance part on screen | ≤ 16 ms; measured 0.09 ms median |
-| Applying a command (authority and replica) | ≤ 1 ms |
+| Applying a command (authority and replica) | ≤ 1 ms; gated, measured 0.1 ms median |
 | One sketch-drag solve on a 200-entity sketch | ≤ 4 ms, on the UI thread; gated, measured 0.38 ms median |
 | One inference verdict (`check_candidate`) on a drawn part's sketch | inside the frame, on the UI thread; measured 0.1–0.6 ms median |
-| First coarse mesh after a parameter edit of the acceptance part | ≤ 150 ms |
-| Cancellation latency once A3 lands | ≤ 50 ms |
-| Save and load of the acceptance document | ≤ 100 ms each |
-| `arrix eval` throughput over the scenario documents | reported, no target yet |
+| First coarse mesh after a parameter edit of the acceptance part | ≤ 150 ms; missed, measured 324 ms median |
+| Cancellation latency | ≤ 50 ms; gated, measured 10 ms median |
+| Save and load of the acceptance document | ≤ 100 ms each; gated, measured under 0.5 ms |
+| `arrix eval` throughput over the scenario documents | reported, no target yet; 6.9 documents a second, 21 with `--jobs 4` |
 
 The UI frame was measured with the slice (its one pocketed body, refined,
 1,788 triangles) and its tree card on screen at 1440 × 900: the app's frame as the CPU does it, which is the view built,
@@ -270,6 +270,30 @@ holes, a slot) with a line mid-draw, 0.11 ms median for `Ok`, 0.12 ms for
 7950X, 0.2, 0.2 and 1.0 ms in the dev profile
 (`crates/arrix-sketch/tests/inference_probe.rs`, reported, asserted only
 under a generous 50 ms ceiling).
+
+The C1 benchmark measures the rest on the bracket, C1's acceptance part
+(`tests/docs/bracket`: a plate with a pocket, three counterbored holes,
+two filleted edges, a spur gear joined and an edge of it filleted), in the
+dev profile on a Ryzen 9 7950X (`cargo test -p arrix-cli --test
+c1_benchmark -- --nocapture`); each is a median over runs, and a met budget
+is asserted at the budget itself, five times or more above the number.
+A width edit applied by the authority (the debug build's document hash
+included) takes 0.10 ms, and by a replica (its hash checked) 0.10 ms;
+0.011 ms each in a release build. Saving the bracket as the session saves
+it, to a directory or an `.arrx`, takes 0.2 to 0.4 ms, and loading it as
+much. A newer width edit submitted while the one before is joining the gear
+hears its first event 10 ms later (6 ms in release), which is the stop
+inside the boolean, the restart, and the plate's sketch evaluated again.
+`arrix eval tests/docs` (nine documents) takes 1.30 s on one thread and
+0.43 s with `--jobs 4`.
+
+The first coarse mesh after a width edit is missed: 324 ms median, 290 ms
+in a release build. The evaluation is 315 ms of it, and two features are
+most of that, both inside Arris (whose crates the dev profile already
+builds optimised): the gear's join, 135 ms, and the fillet on its edge,
+112 ms; the pattern is 38 ms and the hole 11, and the gear itself is cached
+(its inputs do not move with the width). The coarse mesh after it is 9 ms.
+`docs/BACKLOG.md` has the line.
 
 ## Open questions
 

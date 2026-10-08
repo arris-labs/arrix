@@ -267,7 +267,7 @@ and names it; nothing is worked around.
 | Names do not hold through booleans and patterns | retired: the kernel half by `crates/arrix-kernel/tests/naming_scenarios.rs`, the document half by `crates/arrix-cli/tests/naming_scenarios.rs`, each scenario with its opposite case |
 | The sketcher port drags in scope | only UI-reachable constraint kinds enabled; the size lint's allowlist watched |
 | The WIT world and the Tier 0 traits drift apart before C3 builds Tier 1 | a test in M1 holding the traits equal to the generated bindings |
-| Replicas and serialised commands cost too much | the command-apply budget, measured in M4 |
+| Replicas and serialised commands cost too much | retired: a command applies in 0.1 ms on the bracket, by the authority and by a replica, against 1 ms (`crates/arrix-cli/tests/c1_benchmark.rs`, gated) |
 | Headless GPU snapshots flake | scenarios serial, one adapter (lavapipe) as the reference, a missing adapter skips loudly, the coarse frame's per-cell tolerance absorbing driver noise |
 
 ---
