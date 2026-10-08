@@ -32,6 +32,8 @@ idea is not brainstormed twice.
 - Mouse bindings in the keymap: the viewport's gestures (orbit, pan, zoom, pick) are fixed now (plans/viewport-port step 12)
 - The evaluator saying "meshed" explicitly, so a generation with no final body clears the old bodies from the scene instead of leaving them until the next one with a body (plans/viewport-port step 7)
 - The GPU side of the frame budget, measured on a reference GPU in CI; lavapipe says nothing about one (plans/viewport-port step 13)
+- Candidates of a lost reference told apart in the form: they read alike ("Edge of Extrude 1" five times), so a hover that marks one in the scene, or a hint of where it is, is wanted (plans/forms step 10)
+- A failed modifier showing the body its reader last saw, greyed, so a lost edge's candidates can be picked in the viewport and not only from the form's rows; reopens ADR-0007's "unavailable, never an earlier version" for display only (plans/forms step 10)
 
 ## Rejected
 

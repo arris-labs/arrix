@@ -180,7 +180,7 @@ None new. Previews use the operations the features already call and
   feature's diagnostic heads its form and its referenced entities are
   highlighted; a frozen or frozen-stale feature opens read only, its
   stored values by name when its type is absent, with the reason.
-- [ ] **[2]** Step 11: the `forms_accept` scenario (below), its golden
+- [x] **[2]** Step 11: the `forms_accept` scenario (below), its golden
   written with `UPDATE_SNAPSHOTS=1` after the scratch and baseline
   images were read, and `docs/UI-RENDERING.md` brought up to the code
   in the same commit.
@@ -269,3 +269,9 @@ UI alone on a document whose sketch is drawn in sketch mode:
   candidates are still marked in the scene (and in the finished sketches,
   for region and sketch ones), where something is drawn. Step 11's
   scenario re-binds with a row.
+- Found 2026-10-08 at step 11: the sketch is redrawn by deleting the
+  bottom line and drawing it again, which loses the extrude's region
+  first (the fillet is then unavailable, not lost); the scenario re-binds
+  the region with a candidate row, then the edge with another, each one
+  command. The document's parameter is `width` (the sketch-mode document's),
+  where the acceptance text says `w`. Two backlog lines came of it.

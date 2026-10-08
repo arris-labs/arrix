@@ -728,6 +728,9 @@ the way in.
   scenario, `crates/arrix-app/tests/snapshots/<name>.json`, holding two
   things: the `debug_state()` at that moment, and the **coarse frame**.
   Scenarios run one at a time: concurrent software devices are not safe.
+  `forms_accept` is the property card's: a plate made, edited, filleted
+  and re-bound through the forms alone, its golden taken on the lost
+  fillet's form (`debug_state().shell.form`, `marked`, `preview`).
 - **The reference adapter is a CPU one**, Mesa's lavapipe. The harness
   requires it: a hardware GPU rasterises differently, so a scenario is
   never run on one. Without a CPU adapter a scenario skips, written
