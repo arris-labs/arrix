@@ -170,6 +170,13 @@ impl World {
             funcs,
         }
     }
+
+    pub fn find(&self, name: &str) -> &TypeDef {
+        self.types
+            .iter()
+            .find(|t| t.name == name)
+            .unwrap_or_else(|| panic!("no type {name} in the world"))
+    }
 }
 
 fn docs(d: &wit_parser::Docs) -> String {

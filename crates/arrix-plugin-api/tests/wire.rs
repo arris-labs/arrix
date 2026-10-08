@@ -2,7 +2,8 @@
 //! tiers), held fresh.
 //!
 //! One reading of `wit/arrix-plugin.wit` makes every artefact of the wire:
-//! the JSON Schema of each type and of each function (`wire/`). A WIT
+//! the JSON Schema of each type and of each function (`wire/`), and the
+//! Rust codec of `arrix-plugin-host` (`src/wire/generated.rs`). A WIT
 //! change that is not followed by a regeneration fails here, and so does a WIT item the generators cannot
 //! carry. Regenerate with
 //! `UPDATE_SNAPSHOTS=1 cargo test -p arrix-plugin-api --test wire`, then
@@ -12,6 +13,8 @@ use std::path::PathBuf;
 
 #[path = "wire/model.rs"]
 mod model;
+#[path = "wire/rust.rs"]
+mod rust;
 #[path = "wire/schema.rs"]
 mod schema;
 
@@ -29,6 +32,10 @@ fn outputs(world: &model::World) -> Vec<(PathBuf, String)> {
         (
             "crates/arrix-plugin-api/wire/methods.json".into(),
             schema::methods_json(world),
+        ),
+        (
+            "crates/arrix-plugin-host/src/wire/generated.rs".into(),
+            rust::generate(world),
         ),
     ]
 }

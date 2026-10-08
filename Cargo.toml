@@ -96,6 +96,8 @@ proptest = "1"
 # encodings it measures JSON against. Dev-only, run by name.
 ciborium = "0.2"
 base64 = "0.22"
+# The wire tests' JSON Schema check (crates/arrix-plugin-host/tests/support).
+regex = "1"
 
 # The headless visual harness (docs/UI-RENDERING.md §Visual debugging):
 # drives the real eframe app and renders through wgpu, preferring a CPU
