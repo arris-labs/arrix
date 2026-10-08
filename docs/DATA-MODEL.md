@@ -2,26 +2,9 @@
 
 What a document is, how it changes, how it evaluates, how its geometry is
 named and how it is written to disk. The charter is `SEED.md` §6.4–§6.5;
-this document is the design those sections commit to. Built: the id types
-(§Identifiers), `Ref` and `SlotName` (§References), the persistent-name
-types and their text form (§Persistent naming), the document's types,
-the feature-type registry and the derived DAG (§The dependency DAG),
-commands, the authority and per-author undo (§Commands and undo, less
-plugin-data edits), the sketch record and its `SketchEdit` (§Sketches),
-saving and opening the directory form and the deterministic `.arrx` zip,
-schema 3 with its migration chain and blobs (§File format), frozen
-results written on save and the frozen states of the evaluator (§Frozen
-results, §Evaluation), names from an
-extrude's and the booleans' provenance in `arrix-kernel` (§Persistent
-naming), expressions
-(`arrix_doc::expr`, §Parameters and expressions), the evaluator with its
-cache (§Evaluation), body-slot versions and consumption (§Bodies across
-features), `core.datum-plane`, `core.sketch`, `core.extrude`, `core.boolean`, and a plugin
-feature (`gears.spur`) on the built-ins' one path, referenced downstream
-by persistent name.
-`arrix eval` reads either form and takes `--without-plugin`. Each other
-section becomes true as C1 lands, and the commit that builds it
-keeps it true.
+this document is the design those sections commit to. Built, as of C1:
+everything below but plugin-data edits (§Commands and undo) and the
+plugin-record nodes, which wait for the boundary-opened cycle.
 
 Types live in `arrix-doc` unless named otherwise. Persistent-reference types
 live in `arrix-core`, so that `arrix-plugin-api` and `arrix-ui` can carry

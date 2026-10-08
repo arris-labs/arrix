@@ -4,21 +4,11 @@ The crates, the rules between them, the one data flow, where threads run,
 the kernel's choke point, errors, testing and the gate. The charter is
 `SEED.md` §6; the document model is `docs/DATA-MODEL.md`, the plugin model
 `docs/PLUGINS.md`, the UI `docs/UI-RENDERING.md`, threads and the browser
-`docs/CONCURRENCY-WASM.md`. Built: the workspace with every crate
-(`arrix-core`'s units, ids, references, persistent names, frames and
-profiles, and `Diagnostic`, `arrix-kernel`'s first slice of §The kernel
-choke point, `arrix-plugin-api` 0.5.0, `arrix-doc`'s
-expressions, document, DAG, commands and undo, evaluator and cache, the
-directory form's and the zip's save and open with the migration chain,
-frozen results, and the `arrix eval` line (`--without-plugin`),
-`arrix-sketch` (the model, solver, diagnostics, validation, regions and
-their profiles, trim, extend, offset, mirror, `SketchEdit`, inference),
-`arrix-plugin-host`'s Tier 0, `plugins/gears`, the empty shell in
-`arrix-ui` and `arrix-app`, the rest stubs), §The protocol boundary
-(`LocalSession` and replicas), §Errors and diagnostics, the document,
-evaluation, naming, protocol, UI, CLI and sketch-solver rows of §Testing and the
-plugins row's determinism and round trip, and §Gates. Each other section becomes true as
-C1 lands, and the commit that builds it keeps it true.
+`docs/CONCURRENCY-WASM.md`. Built, as of C1: every crate of §Crates
+but the Tier 1 and Tier 2 halves of `arrix-plugin-host` and `python/arrix`
+(`arrix-plugin-api` is at 0.5.0), the protocol boundary, errors and
+diagnostics, the kernel choke point, the testing layers and the gates. Where
+a section says "not built", it is later than C1.
 
 ## Crates and the layer rule
 
@@ -450,18 +440,25 @@ passes, and with `ARRIX_REQUIRE_GPU=1`, as in CI, it fails
 
 Arris is a crates.io dependency with a pinned minor, and `[patch.crates-io]`
 only for an unreleased fix (`SEED.md` §8.3). What ArriX asks of it is
-recorded in Arris's repository (`docs/ideas/arrix-consumer-asks.md` there).
+recorded in Arris's repository (`docs/ideas/plugin-cad-consumer-asks.md`
+there; the file was renamed after the seed).
 A step blocked on an ask names it and waits.
 
 | Ask | What | Needed by | State |
 |---|---|---|---|
-| A1 | consumer roles: `Role::Consumer { namespace, key }` | C1: plugin topology built directly | asked |
+| A1 | consumer roles: `Role::Consumer { namespace, key }` | C1: plugin topology built directly | released in 0.4.0, not taken: `gears.spur` extrudes and needs none |
 | A2 | body bytes with a compatibility policy | C1: frozen results (fixture recipes replay the calls: Arris's recipe has no body-bytes operand); C3: the Tier 2 boundary | released in 0.4.0, taken in C1 M1 |
 | A3 | cancellation: an interrupt token, optionally a step budget | C1: superseded evaluations; C4: the browser | released in 0.4.0 (`Control`), taken in C1 M4 |
 | A11 | `ops::mirror` | C1: the mirror feature | released in 0.4.0, taken in C1 M2 |
-| A5 | `region2` as public API | C1–C2: sketch regions | asked |
-| A4 | STEP product structure | C2 | asked |
-| A8, A9, A6, A7, A10 | multi-tool booleans, per-face tessellation, the query cycle, the sweep and healing cycles, the Python binding | C2 and later | asked |
+| A4 | STEP product structure | C2 | released in 0.4.0 (`Read::products`, `step::write_products`), not taken |
+| A8 | multi-tool booleans (`cut_many`, `fuse_many`) | a pattern's holes in one boolean | released in 0.6.0, not taken (`docs/BACKLOG.md`) |
+| A9 | per-face tessellation (`tessellate_faces`, `TriMesh::weld`) | per-face mesh caching | released in 0.6.0, not taken |
+| A10 | the Python binding | C3: the Tier 2 SDK | released by 2026-10-01, not taken |
+| A5 | `region2` as public API | C1–C2: sketch regions | open; the ported arrangement is used |
+| A6, A7 | the query cycle; the sweep and healing cycles (A7's shell and offset are in 0.6.0) | C2 and later | open |
+
+The pin is `arris` 0.5; 0.6.0 is released and its bump is its own change
+(`docs/BACKLOG.md`).
 
 This table is brought up to date at every cycle close (`/close-cycle`).
 

@@ -3,13 +3,12 @@
 The plugin model is ArriX's reason to exist (`SEED.md` §3, §6.3): one
 interface, versioned apart from the app, hosted three ways, and enough of it
 that first-party domains need nothing else. This document is the design of
-`arrix-plugin-api` and `arrix-plugin-host`. Built: the world and its Rust
-traits at 0.5.0 (§One interface), manifests (§The manifest), Tier 0
-hosting (§Three tiers), and the first plugin, `plugins/gears` with
-`gears.spur` (its crate docs state its geometry and tolerance). Each other section becomes true as its
-cycle lands (Tier 0 in C1, Tier 2 and the test kit in the boundary-opened
-cycle, Tier 1 in C3; ADR-0016), and the
-commit that builds it keeps it true.
+`arrix-plugin-api` and `arrix-plugin-host`. Built, as of C1: the world and
+its Rust traits at 0.5.0 (§One interface), manifests (§The manifest), Tier 0
+hosting (§Three tiers), the in-tree test kit's determinism and round-trip
+checks, and the first plugin, `plugins/gears` with `gears.spur` (its crate
+docs state its geometry and tolerance). Tier 2 and the packaged test kit
+come with the boundary-opened cycle, Tier 1 with C3 (ADR-0016).
 
 ## One interface, defined once
 
@@ -192,7 +191,7 @@ change, reviewed like any other, never a private hook.
   linker tricks, which do not work on wasm. A plugin crate exports its
   manifest's text (`MANIFEST`, `include_str!` of its
   `arrix-plugin.toml`) and its `Feature`; `arrix-app` gets its list when
-  it first evaluates (M3). A build without a plugin is a build that
+  it first evaluates (`crates/arrix-app/src/commands.rs`). A build without a plugin is a build that
   leaves it off the list, and the CLI can also disable a compiled-in
   plugin for a run (`--without-plugin <id>`, with frozen results), which
   is how the frozen path is tested.

@@ -2,11 +2,10 @@
 
 Where work runs, how an edit supersedes an evaluation, what determinism
 promises, how many documents are evaluated at once, what the browser build
-is, and the performance budgets. Built: `arrix eval` on one document
-directory or `.arrx` zip, with `--without-plugin` (§Batch evaluation), the evaluator with its cache (§The
-evaluator), and `LocalSession`'s session thread and evaluator worker
-with the clients' replicas (§Roles and threads). Each other section becomes true as its cycle lands (the native executor and batch evaluation
-in C1, the browser in C4), and the commit that builds it keeps it true.
+is, and the performance budgets. Built, as of C1: the evaluator with its cache and
+cancellation, `LocalSession`'s session thread and evaluator worker with the
+clients' replicas, `arrix eval` and its batch mode, and the budgets measured.
+The browser is C4 (§The browser build).
 
 ## Roles and threads
 
@@ -214,9 +213,9 @@ compiling; C4 makes it run.
 
 ## Budgets
 
-Targets, not gates, until the C1 benchmark measures them on the reference
-machine; a target becomes a gate in the plan that first meets it, with the
-measured number written here.
+Targets, measured by the C1 benchmark on the reference machine. A target
+becomes a gate in the plan that first meets it, with the measured number
+written here; a missed one stays a target and a backlog line.
 
 | What | Target |
 |---|---|

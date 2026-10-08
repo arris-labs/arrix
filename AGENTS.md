@@ -24,22 +24,16 @@ skills for the idea → plan → work → retire → close-cycle pipeline live i
 
 ## Current state
 
-**Seeded 2026-09-26.** `SEED.md` agreed; the docs system is scaffolded; the
-design docs of `SEED.md` §10.2 are written, with C1 in full in
-`docs/ROADMAP.md` (M0 gate and harness → M1 the document and a plugin
-feature → M2 part features and naming → M3 the app → M4 exchange and batch).
-**C1 M0 landed 2026-09-26** (workspace, gate, headless visual harness).
-**M1 landed 2026-10-02:** the document, evaluator and `LocalSession`, the
-ported sketcher, bodies, frozen results, `gears.spur` as a Tier 0 plugin
-(`arris` 0.4). **M2 landed 2026-10-07:** naming at the kernel and every core
-feature type (`arris` 0.5; `cargo test -p arrix-cli --test naming_scenarios`).
-**M3 landed 2026-10-08:** the shell as TOML data, the wgpu viewport,
-sketch mode, forms and previews, the gesture log (ADR-0015 to ADR-0019;
-`cargo test -p arrix-app --test visual m3_accept`).
-**M4 landed 2026-10-08:** export, `arrix eval` complete, cancellation and
-budgets, a name following its consumer (ADR-0020); C1's accept green (`cargo test -p arrix-cli --test
-c1_accept`), its benchmark measured (`--test c1_benchmark`).
-**Now:** `/close-cycle` for C1.
+**Seeded 2026-09-26.** `SEED.md` agreed; the docs system scaffolded; the
+design docs of `SEED.md` §10.2 written.
+**C1 done 2026-10-08** (M0 to M4: the gate and harness, the document and a
+plugin feature in its history, part features and naming, the app, export and
+batch; `arris` 0.5; ADR-0004 to ADR-0020): `cargo test -p arrix-cli --test
+c1_accept` is its accept, `--test c1_benchmark -- --nocapture` its budgets
+(the first coarse mesh misses, an Arris finding), `cargo test -p arrix-app
+--test visual m3_accept` the app's.
+**Next:** the boundary opened (ADR-0016), proposed in `docs/ROADMAP.md`
+and waiting on the human's commitment, then `/idea` and `/plan`.
 
 ## Rules that are not derivable from the code
 

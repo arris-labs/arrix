@@ -5,9 +5,9 @@ the viewport and picking, and how the agent sees all of it headless. Crates:
 `arrix-ui` (widgets over view types), `arrix-viewport` (wgpu), `arrix-app`
 (the shell and the translation to and from the document). The stack is
 egui/eframe/wgpu (`SEED.md` §9), pinned to one egui minor for the workspace.
-Built: the empty shell's layout and its first view types (§View types) and
-the headless harness (§Visual debugging). Each other section becomes true
-as C1 lands, and the commit that builds it keeps it true.
+Built, as of C1: the shell (ADR-0017), the viewport and picking, sketch
+mode, forms and previews, the configurable shell (ADR-0015) and the
+headless harness. Where a section says "not built", it is later than C1.
 
 ## Principles
 
