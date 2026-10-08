@@ -4,6 +4,7 @@ mod accept;
 mod camera;
 mod coarse;
 mod fixture;
+mod form_diagnostics;
 mod form_pick;
 mod harness;
 mod highlight;

@@ -703,6 +703,7 @@ impl ArrixApp {
             | UiIntent::ChoiceSelected { .. }
             | UiIntent::ReferenceFieldActivated { .. }
             | UiIntent::ReferenceRemoved { .. }
+            | UiIntent::CandidatePicked { .. }
             | UiIntent::FormOk
             | UiIntent::FormCancelled) => self.form_intent(intent),
         }

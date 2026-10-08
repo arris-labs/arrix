@@ -13,7 +13,7 @@ use arrix_ui::PartSketchItem;
 use arrix_viewport::BodyKey;
 
 use crate::ArrixApp;
-use crate::form::{feature_record, takes};
+use crate::form::{CANDIDATES_SHOWN, feature_record, lost_refs, standing, takes};
 
 /// What the user picked, before a field decides what it means.
 enum Pick {
@@ -139,6 +139,22 @@ fn after_pick(held: Option<&Input>, list: bool, r: Ref, extend: bool) -> Option<
     (!refs.is_empty()).then_some(Input::Many(refs))
 }
 
+/// `held` with its lost references replaced by `r`, at the place of the
+/// first, unless `r` is already in the list.
+fn rebind(held: &Input, lost: &[Ref], r: Ref) -> Input {
+    let mut refs = Vec::new();
+    let mut placed = held.refs().contains(&r);
+    for x in held.refs() {
+        if !lost.contains(x) {
+            refs.push(x.clone());
+        } else if !placed {
+            refs.push(r.clone());
+            placed = true;
+        }
+    }
+    Input::Many(refs)
+}
+
 impl ArrixApp {
     fn feature_spec(&self, id: FeatureId) -> Option<FeatureTypeSpec> {
         let record = feature_record(self.active_document()?, id)?;
@@ -148,7 +164,8 @@ impl ArrixApp {
             .cloned()
     }
 
-    /// Every reference the open form's fields hold.
+    /// Every reference the open form's fields hold, and an edit form's
+    /// diagnostic names or offers.
     pub(crate) fn form_refs(&self) -> Vec<Ref> {
         let Some(document) = self.active_document() else {
             return Vec::new();
@@ -157,10 +174,24 @@ impl ArrixApp {
             return Vec::new();
         };
         let record = form.edit.and_then(|f| feature_record(document, f));
-        form.held(record)
+        let mut refs: Vec<Ref> = form
+            .held(record)
             .values()
             .flat_map(|input| input.refs().iter().cloned())
-            .collect()
+            .collect();
+        // What the feature's diagnostic is about, and what a lost
+        // reference may be re-picked as, are shown with them.
+        if let Some(d) = form
+            .edit
+            .and_then(|f| standing(document, f))
+            .and_then(|s| s.diagnostic)
+        {
+            refs.extend(d.refs);
+            refs.extend(d.candidates);
+        }
+        let mut seen = std::collections::HashSet::new();
+        refs.retain(|r| seen.insert(r.clone()));
+        refs
     }
 
     /// What the open form's reference fields hold in the scene, to draw as
@@ -263,8 +294,52 @@ impl ArrixApp {
             return;
         };
         let record = form.edit.and_then(|f| feature_record(document, f));
-        let next = after_pick(form.held(record).get(field), list, r, extend);
+        let lost = form
+            .edit
+            .and_then(|f| standing(document, f))
+            .and_then(|s| s.diagnostic)
+            .map(|d| lost_refs(&d).to_vec())
+            .unwrap_or_default();
+        let held = form.held(record).get(field);
+        let next = match held {
+            // A pick into a list that holds a lost reference re-binds it
+            // in place; the rest of the list stays.
+            Some(input) if list && input.refs().iter().any(|x| lost.contains(x)) => {
+                Some(rebind(input, &lost, r))
+            }
+            _ => after_pick(held, list, r, extend),
+        };
         self.set_reference(field, next);
+    }
+
+    /// The candidate at `index` of a lost reference's list was taken for
+    /// `field`: the pick it would have been, one `EditFeature`.
+    pub(crate) fn pick_candidate(&mut self, field: &str, index: usize) {
+        let Some(document) = self.active_document() else {
+            return;
+        };
+        let Some(form) = document.form.as_ref() else {
+            return;
+        };
+        let Some(feature) = form.edit else {
+            return;
+        };
+        let record = feature_record(document, feature);
+        let holds_lost = standing(document, feature)
+            .and_then(|s| s.diagnostic)
+            .filter(|d| {
+                form.held(record)
+                    .get(field)
+                    .is_some_and(|i| i.refs().iter().any(|r| lost_refs(d).contains(r)))
+            });
+        let Some(r) = holds_lost.and_then(|d| d.candidates.get(index).cloned()) else {
+            return;
+        };
+        if index >= CANDIDATES_SHOWN {
+            return;
+        }
+        let list = form.spec.inputs.iter().any(|i| i.name == field && i.list);
+        self.put_reference(field, list, r, false);
     }
 
     /// The value at `index` of a reference field was removed.

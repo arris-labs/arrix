@@ -88,6 +88,12 @@ pub enum FieldValue {
         /// This is the field a pick fills.
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         active: bool,
+        /// For a field that holds a lost reference: what it may be
+        /// re-picked as, best first, each a row that rebinds it. The scene
+        /// may have nothing to click (a failed feature has no body), so
+        /// the form offers them itself.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        candidates: Vec<String>,
     },
 }
 
@@ -227,11 +233,18 @@ fn field_ui(ui: &mut egui::Ui, form: &FormView, field: &FormField, intents: &mut
             values,
             list,
             active,
-        } => reference_ui(ui, field, takes, values, *list, *active, intents),
+            candidates,
+        } => reference_ui(
+            ui, field, takes, values, *list, *active, candidates, intents,
+        ),
     }
     ui.end_row();
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the field's parts, as the view has them"
+)]
 fn reference_ui(
     ui: &mut egui::Ui,
     field: &FormField,
@@ -239,6 +252,7 @@ fn reference_ui(
     values: &[ReferenceValueView],
     list: bool,
     active: bool,
+    candidates: &[String],
     intents: &mut Vec<UiIntent>,
 ) {
     let title = ui.selectable_label(active, &field.title);
@@ -289,6 +303,17 @@ fn reference_ui(
                 }
             });
         message(ui, field);
+        if !candidates.is_empty() {
+            ui.weak("Re-pick as, best first:");
+            for (index, candidate) in candidates.iter().enumerate() {
+                if ui.small_button(candidate).clicked() {
+                    intents.push(UiIntent::CandidatePicked {
+                        field: field.name.clone(),
+                        index,
+                    });
+                }
+            }
+        }
     });
 }
 

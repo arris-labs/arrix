@@ -174,7 +174,7 @@ None new. Previews use the operations the features already call and
   blocking the UI. `debug_state()` reports the preview's state and
   bodies. A scenario of an extrude's preview and its committed result
   with the same counts.
-- [ ] **[2]** Step 10: diagnostics on the form. A `ref.lost` input shows
+- [x] **[2]** Step 10: diagnostics on the form. A `ref.lost` input shows
   lost in its field, its candidates highlighted in the viewport, and a
   pick of one re-binds it (one `EditFeature`, never automatic); a failed
   feature's diagnostic heads its form and its referenced entities are
@@ -259,3 +259,13 @@ UI alone on a document whose sketch is drawn in sketch mode:
   bodies, replaced ones included, so a pick lands on the document. The
   form's state tag moved onto its title row, since a preview's state
   comes and goes and shifted the fields under the pointer.
+- Found 2026-10-08 at step 10: a failed modifier leaves its part with no
+  body (ADR-0007: the reader is unavailable, never given an earlier
+  version), so after a lost edge there is nothing in the viewport to click
+  and the step's "a pick of one re-binds it" could not be done in the
+  scene alone. The form lists the diagnostic's first eight candidates as
+  rows (`FieldValue::Reference::candidates`, `UiIntent::CandidatePicked`),
+  best first; a pick of any fitting entity also re-binds, in place. The
+  candidates are still marked in the scene (and in the finished sketches,
+  for region and sketch ones), where something is drawn. Step 11's
+  scenario re-binds with a row.

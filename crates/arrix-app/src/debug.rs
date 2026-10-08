@@ -36,6 +36,11 @@ pub struct DebugState {
     /// What is selected in the active view, by persistent name.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub selection: Option<PersistentName>,
+    /// What the open form marks in the scene, drawn as the selection is:
+    /// its fields' references, and an edit form's diagnostic's references
+    /// and candidates.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub marked: Vec<PersistentName>,
     /// What the pointer is over in the active view, by persistent name.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hover: Option<PersistentName>,
@@ -204,6 +209,7 @@ impl ArrixApp {
                 preview: None,
                 camera: None,
                 selection: None,
+                marked: Vec::new(),
                 hover: None,
                 picking: false,
                 sketch: None,
@@ -267,6 +273,7 @@ impl ArrixApp {
             selection: self
                 .active_document()
                 .and_then(|d| d.view.selection.clone()),
+            marked: self.form_marks(),
             hover: self.active_document().and_then(|d| d.view.hover.clone()),
             picking: self
                 .active_document()

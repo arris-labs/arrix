@@ -287,6 +287,9 @@ pub enum UiIntent {
     ReferenceFieldActivated { field: String },
     /// The value at `index` of a reference field was removed.
     ReferenceRemoved { field: String, index: usize },
+    /// The candidate at `index` (best first) of a field holding a lost
+    /// reference was taken: one command re-binds it.
+    CandidatePicked { field: String, index: usize },
     /// A create form's OK: one command that adds the feature.
     FormOk,
     /// A create form's Cancel, or Escape: the draft goes, no command.

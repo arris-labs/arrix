@@ -123,7 +123,7 @@ else what to do next.
   feature, not only on plugins.
 - **Diagnostics** show on the feature, in the status bar count, and as
   highlighted references in the viewport. A lost reference opens a re-pick
-  with its candidates highlighted.
+  with its candidates highlighted, and listed in its form (below).
 - Display units are mm and deg by default, a document preference
   (`docs/DATA-MODEL.md` §Parameters and expressions). Every numeric field
   accepts an expression.
@@ -161,9 +161,10 @@ rule).
   `FieldValue`: `Quantity { text, unit }` (an expression; the unit names
   what the text is measured in with none; a count has none), `Choice {
   selected, options, clearable }` (a combo; `clearable` where the choice
-  has no default), or `Reference { takes, values, list, active }` (each
-  value a row with a remove button and a lost one in red; the active field
-  is the one a pick fills). One renderer, `arrix_ui::form`, draws every
+  has no default), or `Reference { takes, values, list, active,
+  candidates }` (each value a row with a remove button and a lost one in
+  red; the active field is the one a pick fills; `candidates` are a lost
+  value's re-pick rows, best first). One renderer, `arrix_ui::form`, draws every
   type's form, so a plugin's is a built-in's. A text box's buffer is the
   renderer's, kept in egui memory by form id and field name: it follows
   the view's text when that changes (an undo with the form open) and keeps
@@ -179,7 +180,8 @@ rule).
   { field, text }` (uncommitted), `FieldCommitted { field, text }`,
   `NameCommitted { text }`, `ChoiceSelected { field, value }` (`None`
   clears a choice that may be unset), `ReferenceFieldActivated { field }`,
-  `ReferenceRemoved { field, index }`, `FormOk` and `FormCancelled`;
+  `ReferenceRemoved { field, index }`, `CandidatePicked { field, index }`,
+  `FormOk` and `FormCancelled`;
   `CommandInvoked { command }` (a ribbon button, a palette row or a key),
   `RibbonTabSelected { tab }`, `PaletteQuery { text }`, `PaletteClosed`,
   `DocumentTabSelected { index }`, `DocumentTabClosed { index }`,
@@ -301,6 +303,23 @@ name field is one; a text equal to the record's, or one the form's rules
 refuse (kept in its field with the reason), issues none. Enter and Escape
 only close it. A typed text the record does not say yet is kept until it
 does, so a committed field does not flicker back to the old value.
+
+An edit form heads with where the feature stands and what evaluation said
+of it (`standing_of`, the tree's own answer). A failed feature's diagnostic
+shows under the title, and the entities it is about are marked in the scene
+as a selection is. A `ref.lost` diagnostic marks the field that holds a lost
+reference: the value in red, a message, the field made the active one when
+the loss is first seen, and the diagnostic's candidates marked in the
+scene, region and sketch ones in the finished sketches. A failed modifier
+leaves its part with no body to click (ADR-0007: the reader is unavailable
+rather than given an earlier version), so the form also lists the first
+eight candidates as rows, best first; taking one, or picking any fitting
+entity into the field, is one `EditFeature` that replaces the lost
+reference in place, and never happens by itself. A frozen or frozen-stale
+feature opens read only: its fields are disabled, the reason says which
+type or version is missing, and a feature whose type is absent shows the
+names and values its record stores. A read-only form takes no edit
+intent.
 
 Tier 0 drawing its own egui is an escape hatch decided by ADR when a real
 plugin needs it, not before.
@@ -673,7 +692,9 @@ draws). Ported, reviewed on the way in (`SEED.md` §8.1).
   field asking the scene's pick is all there is. A click on one is a pick
   into the field (`Ref::Region` with the key the evaluator gave,
   `Ref::Sketch`), no selection. What the form's fields hold is drawn
-  selected. `debug_state()` lists the sketches drawn.
+  selected, and so does what an edit form's diagnostic names or offers
+  (`debug_state().marked` lists the scene's). `debug_state()` lists the
+  sketches drawn.
 - **The create form's preview** (ADR-0019, `preview.rs`). While a create
   form's draft is complete enough to evaluate (every reference field shown
   holds one, and its texts parse as OK's would), the tab asks its session

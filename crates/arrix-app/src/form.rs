@@ -9,14 +9,18 @@
 
 use std::collections::BTreeMap;
 
-use arrix_core::{FeatureId, Id, IdMinter, Input, PartId, QuantityKind, Ref};
+use arrix_core::{Diagnostic, FeatureId, Id, IdMinter, Input, PartId, QuantityKind, Ref};
 use arrix_doc::expr::Expr;
-use arrix_doc::{Command, Document, FeatureEdit, FeatureRecord, FeatureTypeId, Part};
-use arrix_plugin_api::{FeatureTypeSpec, InputKind, ShownWhen};
-use arrix_ui::{ChoiceOptionView, FieldValue, FormField, FormView, ReferenceValueView, UiIntent};
+use arrix_doc::{Command, Document, FeatureEdit, FeatureRecord, FeatureTypeId, FrozenReason, Part};
+use arrix_plugin_api::{
+    ChoiceOption, ChoiceSpec, FeatureTypeSpec, InputKind, InputSpec, ParamSpec, ShownWhen,
+};
+use arrix_ui::{
+    ChoiceOptionView, FieldValue, FormDiagnostic, FormField, FormView, ReferenceValueView, UiIntent,
+};
 
 use crate::ArrixApp;
-use crate::documents::OpenDocument;
+use crate::documents::{OpenDocument, Standing, standing_of};
 
 /// A form being filled: a create form's draft, or an edit form over a
 /// feature's record.
@@ -49,6 +53,12 @@ pub struct Form {
     /// none, minted when first needed: the preview's and OK's are the same.
     feature: Option<Id>,
     part: Option<Id>,
+    /// An edit form's feature type is not available: the form shows the
+    /// record's stored values by name, read only.
+    absent: bool,
+    /// The references the feature's diagnostic last called lost: when they
+    /// change, the field holding one becomes the active one.
+    lost_seen: Vec<Ref>,
 }
 
 /// What a quantity of `kind` is measured in when its text names no unit.
@@ -60,6 +70,28 @@ fn unit_hint(kind: QuantityKind) -> &'static str {
         QuantityKind::Count | QuantityKind::Ratio => "",
     }
 }
+
+/// The references a lost-reference diagnostic is about; none for any other.
+pub(crate) fn lost_refs(d: &Diagnostic) -> &[Ref] {
+    if d.code.to_string().starts_with("ref.lost") {
+        &d.refs
+    } else {
+        &[]
+    }
+}
+
+/// Where the feature stands, with what evaluation said of it.
+pub(crate) fn standing(document: &OpenDocument, feature: FeatureId) -> Option<Standing> {
+    let doc = document.replica.document();
+    doc.parts().values().find_map(|part| {
+        let index = part.history.iter().position(|id| *id == feature)?;
+        let record = part.features.get(&feature)?;
+        Some(standing_of(&document.replica, part, index, record))
+    })
+}
+
+/// How many of a lost reference's candidates its form lists.
+pub(crate) const CANDIDATES_SHOWN: usize = 8;
 
 /// What an input takes, in words, for a field that is asking.
 pub(crate) fn takes(kind: InputKind) -> &'static str {
@@ -96,6 +128,8 @@ impl Form {
             active: None,
             feature: None,
             part: None,
+            absent: false,
+            lost_seen: Vec::new(),
         }
     }
 
@@ -114,7 +148,58 @@ impl Form {
             active: None,
             feature: None,
             part: None,
+            absent: false,
+            lost_seen: Vec::new(),
         }
+    }
+
+    /// An edit form over `record` whose type is not available: a spec
+    /// made of the names the record stores, so its values show read only.
+    pub fn edit_stored(record: &FeatureRecord) -> Self {
+        let spec = FeatureTypeSpec {
+            id: record.type_id.to_string(),
+            version: record.type_version,
+            title: record.type_id.to_string(),
+            params: record
+                .params
+                .keys()
+                .map(|name| ParamSpec {
+                    name: name.clone(),
+                    title: name.clone(),
+                    kind: QuantityKind::Count,
+                    default: String::new(),
+                    shown_when: None,
+                })
+                .collect(),
+            choices: record
+                .choices
+                .iter()
+                .map(|(name, value)| ChoiceSpec {
+                    name: name.clone(),
+                    title: name.clone(),
+                    options: vec![ChoiceOption {
+                        name: value.clone(),
+                        title: value.clone(),
+                    }],
+                    default: None,
+                })
+                .collect(),
+            inputs: record
+                .inputs
+                .iter()
+                .map(|(name, input)| InputSpec {
+                    name: name.clone(),
+                    title: name.clone(),
+                    kind: InputKind::Tool,
+                    list: matches!(input, Input::Many(_)),
+                    shown_when: None,
+                })
+                .collect(),
+            outputs: Vec::new(),
+        };
+        let mut form = Self::edit(&spec, record.id);
+        form.absent = true;
+        form
     }
 
     /// What choice `name` holds: the record's or the user's pick, else the
@@ -142,7 +227,14 @@ impl Form {
     /// The form as the card draws it: the choices first (they decide what
     /// else shows), then the inputs, then the parameters, each in the
     /// spec's order.
-    pub fn view(&self, record: Option<&FeatureRecord>, label: &dyn Fn(&Ref) -> String) -> FormView {
+    pub fn view(
+        &self,
+        record: Option<&FeatureRecord>,
+        label: &dyn Fn(&Ref) -> String,
+        standing: Option<&Standing>,
+    ) -> FormView {
+        let diagnostic = standing.and_then(|s| s.diagnostic.as_ref());
+        let lost = diagnostic.map_or(&[][..], lost_refs);
         let mut fields = Vec::new();
         for c in &self.spec.choices {
             fields.push(FormField {
@@ -169,29 +261,51 @@ impl Form {
             .iter()
             .filter(|i| self.shown(record, &i.shown_when))
         {
+            let values: Vec<_> = self
+                .held(record)
+                .get(&i.name)
+                .map(|input| {
+                    input
+                        .refs()
+                        .iter()
+                        .map(|r| ReferenceValueView {
+                            label: label(r),
+                            lost: lost.contains(r),
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
             fields.push(FormField {
                 name: i.name.clone(),
                 title: i.title.clone(),
                 value: FieldValue::Reference {
-                    takes: takes(i.kind).to_owned(),
-                    values: self
-                        .held(record)
-                        .get(&i.name)
-                        .map(|input| {
-                            input
-                                .refs()
+                    takes: if self.absent {
+                        String::new()
+                    } else {
+                        takes(i.kind).to_owned()
+                    },
+                    candidates: if values.iter().any(|v| v.lost) {
+                        diagnostic.map_or_else(Vec::new, |d| {
+                            d.candidates
                                 .iter()
-                                .map(|r| ReferenceValueView {
-                                    label: label(r),
-                                    lost: false,
-                                })
+                                .take(CANDIDATES_SHOWN)
+                                .enumerate()
+                                .map(|(n, r)| format!("{}. {}", n + 1, label(r)))
                                 .collect()
                         })
-                        .unwrap_or_default(),
+                    } else {
+                        Vec::new()
+                    },
+                    values: values.clone(),
                     list: i.list,
                     active: self.active.as_deref() == Some(i.name.as_str()),
                 },
-                message: None,
+                message: values.iter().any(|v| v.lost).then(|| {
+                    match diagnostic.map_or(0, |d| d.candidates.len()) {
+                        0 => "lost: nothing like it is left; pick another".to_owned(),
+                        _ => "lost: pick one of the highlighted candidates".to_owned(),
+                    }
+                }),
             });
         }
         for p in self
@@ -218,11 +332,40 @@ impl Form {
                 Some(r) => self.renamed.clone().unwrap_or_else(|| r.name.clone()),
                 None => self.name.clone(),
             },
-            state: None,
-            diagnostic: None,
-            read_only: None,
+            state: standing.map(|s| s.state),
+            diagnostic: diagnostic.map(|d| FormDiagnostic {
+                code: d.code.to_string(),
+                message: d.message.clone(),
+            }),
+            read_only: self.read_only(record, standing),
             fields,
         }
+    }
+
+    /// Why an edit form's values are read only: the feature shows a stored
+    /// result, or its type is not available.
+    fn read_only(
+        &self,
+        record: Option<&FeatureRecord>,
+        standing: Option<&Standing>,
+    ) -> Option<String> {
+        let id = &self.spec.id;
+        let frozen = standing.and_then(|s| s.frozen);
+        let mut why = match frozen {
+            Some(info) => match info.reason {
+                FrozenReason::Missing => format!("Feature type {id} is not available"),
+                FrozenReason::Version => {
+                    format!("Feature type {id} is not at the version the result was made under")
+                }
+            },
+            None if self.absent => format!("Feature type {id} is not available"),
+            None => return None,
+        };
+        why.push_str("; showing the stored result and values, read only.");
+        if frozen.is_some_and(|f| f.stale) && record.is_some() {
+            why.push_str(" Its inputs differ from the stored result's.");
+        }
+        Some(why)
     }
 
     /// The references held: the record's, else the draft's.
@@ -394,14 +537,14 @@ impl ArrixApp {
         let Some(record) = feature_record(document, feature) else {
             return;
         };
-        let Some(spec) = self
+        let form = match self
             .feature_types
             .iter()
             .find(|t| t.id == record.type_id.as_str())
-        else {
-            return;
+        {
+            Some(spec) => Form::edit(spec, feature),
+            None => Form::edit_stored(record),
         };
-        let form = Form::edit(spec, feature);
         if let Some(document) = self.documents.get_mut(self.active) {
             document.form = Some(form);
         }
@@ -414,9 +557,12 @@ impl ArrixApp {
         let doc = document.replica.document();
         let label = |r: &Ref| crate::form_pick::label(doc, r);
         match form.edit {
-            Some(feature) => Some(form.view(Some(feature_record(document, feature)?), &label)),
+            Some(feature) => {
+                let record = feature_record(document, feature)?;
+                Some(form.view(Some(record), &label, standing(document, feature).as_ref()))
+            }
             None => {
-                let mut view = form.view(None, &label);
+                let mut view = form.view(None, &label, None);
                 if let Some(feature) = form.draft_feature() {
                     (view.state, view.diagnostic) = document.preview.header(feature);
                 }
@@ -437,7 +583,27 @@ impl ArrixApp {
                 document.form = None;
                 continue;
             };
+            let lost: Vec<Ref> = standing(document, feature)
+                .and_then(|s| s.diagnostic)
+                .map(|d| lost_refs(&d).to_vec())
+                .unwrap_or_default();
             if let Some(form) = &mut document.form {
+                // A reference that has just been lost asks to be re-picked:
+                // its field becomes the one a pick fills.
+                if form.lost_seen != lost {
+                    if !form.absent
+                        && let Some(field) = record.inputs.iter().find_map(|(name, input)| {
+                            input
+                                .refs()
+                                .iter()
+                                .any(|r| lost.contains(r))
+                                .then(|| name.clone())
+                        })
+                    {
+                        form.active = Some(field);
+                    }
+                    form.lost_seen = lost;
+                }
                 let refused = &form.refused;
                 form.texts.retain(|k, t| {
                     refused.contains_key(k) || record.params.get(k).is_none_or(|e| e.text() != t)
@@ -455,6 +621,10 @@ impl ArrixApp {
 
     /// What the user did in the open form.
     pub(crate) fn form_intent(&mut self, intent: UiIntent) {
+        // A form that shows a stored result takes no edit; it can be closed.
+        if self.form_read_only() && !matches!(intent, UiIntent::FormOk | UiIntent::FormCancelled) {
+            return;
+        }
         match intent {
             UiIntent::FieldEdited { field, text } => {
                 if let Some(form) = self.form_mut()
@@ -491,10 +661,27 @@ impl ArrixApp {
                 }
             }
             UiIntent::ReferenceRemoved { field, index } => self.remove_reference(&field, index),
+            UiIntent::CandidatePicked { field, index } => self.pick_candidate(&field, index),
             UiIntent::FormOk => self.form_ok(),
             UiIntent::FormCancelled => self.form_cancel(),
             _ => {}
         }
+    }
+
+    /// The open edit form shows a stored result, or a type that is not
+    /// available.
+    fn form_read_only(&self) -> bool {
+        let Some(document) = self.active_document() else {
+            return false;
+        };
+        let Some(form) = document.form.as_ref() else {
+            return false;
+        };
+        form.absent
+            || form
+                .edit
+                .and_then(|f| standing(document, f))
+                .is_some_and(|s| s.frozen.is_some())
     }
 
     pub(crate) fn form_mut(&mut self) -> Option<&mut Form> {

@@ -45,6 +45,7 @@ fn view() -> FormView {
                     values: vec![],
                     list: false,
                     active: true,
+                    candidates: vec![],
                 },
             ),
             field(
@@ -85,6 +86,7 @@ fn view() -> FormView {
                     ],
                     list: true,
                     active: false,
+                    candidates: vec!["Edge 4".into(), "Edge 9".into()],
                 },
             ),
         ],
@@ -265,6 +267,20 @@ fn a_choice_and_the_reference_fields_say_what_was_done() {
         [UiIntent::ReferenceRemoved {
             field: "edges".into(),
             index: 0
+        }]
+    );
+}
+
+#[test]
+fn a_lost_references_candidates_are_rows_that_rebind_it() {
+    let mut h = harness(view());
+    h.run();
+    h.get_by_label("Edge 9").click();
+    assert_eq!(
+        take(&mut h),
+        [UiIntent::CandidatePicked {
+            field: "edges".into(),
+            index: 1
         }]
     );
 }

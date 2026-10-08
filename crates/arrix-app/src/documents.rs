@@ -7,10 +7,10 @@ use std::collections::BTreeSet;
 use std::time::Duration;
 
 use crate::sketch_mode::SketchMode;
-use arrix_core::{FeatureId, Id, MeshDetail, PersistentName};
+use arrix_core::{Diagnostic, FeatureId, Id, MeshDetail, PersistentName};
 use arrix_doc::{
     AuthorId, Command, CommandEnvelope, Document, DocumentSource, EventStream, FeatureOutcome,
-    Generation, LocalSession, Outcome, Registry, Replica, Session, SessionEvent,
+    FrozenInfo, Generation, LocalSession, Outcome, Registry, Replica, Session, SessionEvent,
 };
 use arrix_ui::{FeatureState, TreeFeature, TreePart, TreeView};
 use arrix_viewport::{BodyKey, GpuMesh, OrbitCamera, PendingPick, Renderer, Scene};
@@ -75,6 +75,60 @@ impl ViewState {
     }
 }
 
+/// Where a feature stands and what evaluation said of it: the tree's tag
+/// and the form's header read the same answer.
+pub(crate) struct Standing {
+    pub state: FeatureState,
+    /// The failure, or the first thing worth knowing of a feature that
+    /// evaluated.
+    pub diagnostic: Option<Diagnostic>,
+    /// Set when the feature shows a stored result.
+    pub frozen: Option<FrozenInfo>,
+}
+
+/// `record`, at `index` of `part`, as the replica's heard outcomes have it.
+pub(crate) fn standing_of(
+    replica: &Replica,
+    part: &arrix_doc::Part,
+    index: usize,
+    record: &arrix_doc::FeatureRecord,
+) -> Standing {
+    let plain = |state| Standing {
+        state,
+        diagnostic: None,
+        frozen: None,
+    };
+    if part.rollback.is_some_and(|bar| index >= bar) {
+        return plain(FeatureState::RolledBack);
+    }
+    if record.suppressed {
+        return plain(FeatureState::Suppressed);
+    }
+    match replica.outcome(record.id).map(|(_, o)| o) {
+        None => plain(FeatureState::Evaluating),
+        Some(FeatureOutcome::Suppressed) => plain(FeatureState::Suppressed),
+        Some(FeatureOutcome::RolledBack) => plain(FeatureState::RolledBack),
+        Some(FeatureOutcome::Failed { diagnostic, .. }) => Standing {
+            state: FeatureState::Failed,
+            diagnostic: Some(diagnostic.clone()),
+            frozen: None,
+        },
+        Some(FeatureOutcome::Ok {
+            frozen,
+            diagnostics,
+            ..
+        }) => Standing {
+            state: match frozen {
+                Some(info) if info.stale => FeatureState::FrozenStale,
+                Some(_) => FeatureState::Frozen,
+                None => FeatureState::Ok,
+            },
+            diagnostic: diagnostics.first().cloned(),
+            frozen: *frozen,
+        },
+    }
+}
+
 /// The tree card's view of the part `part`: each feature with where it
 /// stands, from the replica's document and the outcomes it has heard.
 fn tree_part(replica: &Replica, part: &arrix_doc::Part, selected: Option<FeatureId>) -> TreePart {
@@ -84,40 +138,17 @@ fn tree_part(replica: &Replica, part: &arrix_doc::Part, selected: Option<Feature
         .enumerate()
         .filter_map(|(index, id)| Some((index, part.features.get(id)?)))
         .map(|(index, record)| {
-            let outcome = replica.outcome(record.id).map(|(_, o)| o);
-            let (state, note) = if part.rollback.is_some_and(|bar| index >= bar) {
-                (FeatureState::RolledBack, None)
-            } else if record.suppressed {
-                (FeatureState::Suppressed, None)
-            } else {
-                match outcome {
-                    None => (FeatureState::Evaluating, None),
-                    Some(FeatureOutcome::Suppressed) => (FeatureState::Suppressed, None),
-                    Some(FeatureOutcome::RolledBack) => (FeatureState::RolledBack, None),
-                    Some(FeatureOutcome::Failed { diagnostic, .. }) => {
-                        (FeatureState::Failed, Some(diagnostic.message.clone()))
-                    }
-                    Some(FeatureOutcome::Ok {
-                        frozen: Some(info),
-                        diagnostics,
-                        ..
-                    }) => (
-                        if info.stale {
-                            FeatureState::FrozenStale
-                        } else {
-                            FeatureState::Frozen
-                        },
-                        diagnostics.first().map(|d| d.message.clone()),
-                    ),
-                    Some(FeatureOutcome::Ok { .. }) => (FeatureState::Ok, None),
-                }
-            };
+            let standing = standing_of(replica, part, index, record);
+            let noted = matches!(
+                standing.state,
+                FeatureState::Failed | FeatureState::Frozen | FeatureState::FrozenStale
+            );
             TreeFeature {
                 id: record.id.0.to_string(),
                 name: record.name.clone(),
                 kind: record.type_id.to_string(),
-                state,
-                note,
+                state: standing.state,
+                note: standing.diagnostic.filter(|_| noted).map(|d| d.message),
                 selected: selected == Some(record.id),
             }
         })
