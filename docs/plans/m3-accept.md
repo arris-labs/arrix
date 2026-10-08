@@ -98,7 +98,7 @@ probed at step 2, in this repository.
   `frozen_badge`: `tests/docs/slice` opened without `gears` shows the
   badge on the gear's faces, frozen; a width edit through the form makes
   it frozen-stale. Golden written, frame read before it is committed.
-- [ ] **[2]** Step 4 — `m3_accept`, part mode up to the failed fillet:
+- [x] **[2]** Step 4 — `m3_accept`, part mode up to the failed fillet:
   new document, the plate's sketch drawn with an inference shown and
   committed, the extrude's preview then OK, a face of the plate picked,
   a datum plane made, the gears tab opened and the spur gear's form

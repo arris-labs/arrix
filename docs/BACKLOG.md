@@ -35,6 +35,7 @@ idea is not brainstormed twice.
 - Candidates of a lost reference told apart in the form: they read alike ("Edge of Extrude 1" five times), so a hover that marks one in the scene, or a hint of where it is, is wanted (plans/forms step 10)
 - A failed modifier showing the body its reader last saw, greyed, so a lost edge's candidates can be picked in the viewport and not only from the form's rows; reopens ADR-0007's "unavailable, never an earlier version" for display only (plans/forms step 10)
 - A name a join leaves unchanged can't be read downstream: a tool body's edge that `core.boolean` did not touch keeps `chain: []`, so `locate` looks only in the tool's slot, which the join consumed, and a fillet on a joined gear's edge fails `slot.consumed`, live or frozen; the join could add a step to its tool's names, or `locate` follow a consumed slot into its consumer's version (ADR-0007; plans/m3-accept step 2)
+- The first body of a document is a speck under its preview: the camera frames once, on the first mesh heard, and a preview is never framed, so a plate previewed before any body exists shows tiny until OK and Home; framing the preview's bodies while nothing else is framed would fix it (plans/m3-accept step 4)
 
 ## Rejected
 

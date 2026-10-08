@@ -757,6 +757,8 @@ the way in.
   scenario, `crates/arrix-app/tests/snapshots/<name>.json`, holding two
   things: the `debug_state()` at that moment, and the **coarse frame**.
   Scenarios run one at a time: concurrent software devices are not safe.
+  A failure's message names the kernel call by its count in the session,
+  which previews make vary, so a golden reads `kernel call N` for it.
   `forms_accept` is the property card's: a plate made, edited, filleted
   and re-bound through the forms alone, its golden taken on the lost
   fillet's form (`debug_state().shell.form`, `marked`, `preview`).
@@ -764,6 +766,12 @@ the way in.
   chip at the gear, hovering it gives the reason, and the plate made
   thicker through its form makes it stale (`frozen_badge`,
   `frozen_badge_stale` goldens; `debug_state().badges`).
+  `m3_accept` is M3's: a plate sketched with its origin inference shown,
+  extruded through its preview, a face picked, a datum plane made from it,
+  a spur gear from the Gears tab on that plane, the two joined, and a
+  fillet too big for its edge failing in the tree while the rest
+  evaluates, every gesture one command or none (goldens `m3_accept_preview`,
+  `m3_accept_gear`, `m3_accept_failed`).
 - **The reference adapter is a CPU one**, Mesa's lavapipe. The harness
   requires it: a hardware GPU rasterises differently, so a scenario is
   never run on one. Without a CPU adapter a scenario skips, written

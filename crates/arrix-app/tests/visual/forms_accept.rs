@@ -28,11 +28,11 @@ pub(crate) fn wait(h: &mut Harness<'_>, what: &str, done: impl Fn(&Harness<'_>) 
     h.run_steps(2);
 }
 
-fn form(h: &Harness<'_>) -> Option<FormView> {
+pub(crate) fn form(h: &Harness<'_>) -> Option<FormView> {
     h.state().debug_state().shell?.form
 }
 
-fn gesture(h: &Harness<'_>) -> Option<usize> {
+pub(crate) fn gesture(h: &Harness<'_>) -> Option<usize> {
     h.state().debug_state().gesture_commands
 }
 
@@ -43,14 +43,14 @@ fn field<'a>(f: &'a FormView, name: &str) -> &'a arrix_ui::FormField {
         .unwrap_or_else(|| panic!("no field {name} in {:?}", f.fields))
 }
 
-fn text(f: &FormView, name: &str) -> String {
+pub(crate) fn text(f: &FormView, name: &str) -> String {
     match &field(f, name).value {
         FieldValue::Quantity { text, .. } => text.clone(),
         other => panic!("{name} is {other:?}"),
     }
 }
 
-fn refs(f: &FormView, name: &str) -> Vec<(String, bool)> {
+pub(crate) fn refs(f: &FormView, name: &str) -> Vec<(String, bool)> {
     match &field(f, name).value {
         FieldValue::Reference { values, .. } => {
             values.iter().map(|v| (v.label.clone(), v.lost)).collect()
@@ -60,14 +60,14 @@ fn refs(f: &FormView, name: &str) -> Vec<(String, bool)> {
 }
 
 /// Waits until the active form's header says `state`.
-fn wait_state(h: &mut Harness<'_>, state: FeatureState) -> FormView {
+pub(crate) fn wait_state(h: &mut Harness<'_>, state: FeatureState) -> FormView {
     wait(h, &format!("the form says {state:?}"), |h| {
         form(h).is_some_and(|f| f.state == Some(state))
     });
     form(h).unwrap()
 }
 
-fn sketch_at(h: &Harness<'_>, uv: [f64; 2]) -> egui::Pos2 {
+pub(crate) fn sketch_at(h: &Harness<'_>, uv: [f64; 2]) -> egui::Pos2 {
     h.state()
         .sketch_point([uv[0] * MM, uv[1] * MM])
         .expect("the sketch is drawn")
@@ -83,7 +83,7 @@ pub(crate) fn button(h: &mut Harness<'_>, pos: egui::Pos2, pressed: bool) {
     h.step();
 }
 
-fn sketch_click(h: &mut Harness<'_>, uv: [f64; 2]) {
+pub(crate) fn sketch_click(h: &mut Harness<'_>, uv: [f64; 2]) {
     let pos = sketch_at(h, uv);
     h.event(egui::Event::PointerMoved(pos));
     h.step();
@@ -92,7 +92,7 @@ fn sketch_click(h: &mut Harness<'_>, uv: [f64; 2]) {
     h.run_steps(3);
 }
 
-fn key(h: &mut Harness<'_>, key: Key) {
+pub(crate) fn key(h: &mut Harness<'_>, key: Key) {
     h.key_press(key);
     h.run_steps(2);
 }
@@ -131,20 +131,20 @@ pub(crate) fn type_into(h: &mut Harness<'_>, n: usize, text: &str) {
     h.run_steps(3);
 }
 
-fn open_form(h: &mut Harness<'_>, tab: &str, button: &str) {
+pub(crate) fn open_form(h: &mut Harness<'_>, tab: &str, button: &str) {
     h.get_all_by_label(tab).next().unwrap().click();
     h.run_steps(3);
     h.get_by_label(button).click();
     h.run_steps(3);
 }
 
-fn world_click(h: &mut Harness<'_>, p: [f64; 3]) {
+pub(crate) fn world_click(h: &mut Harness<'_>, p: [f64; 3]) {
     let at = h.state().screen_point(p).expect("in front of the camera");
     click_viewport(h, at);
     h.run_steps(3);
 }
 
-fn bodies(h: &Harness<'_>) -> Vec<(String, u32)> {
+pub(crate) fn bodies(h: &Harness<'_>) -> Vec<(String, u32)> {
     h.state()
         .debug_state()
         .bodies

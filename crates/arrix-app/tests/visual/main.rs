@@ -10,6 +10,7 @@ mod forms_accept;
 mod frozen_badge;
 mod harness;
 mod highlight;
+mod m3_accept;
 mod preview;
 mod sketch;
 mod sketch_accept;

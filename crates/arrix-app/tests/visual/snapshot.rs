@@ -51,8 +51,10 @@ pub fn check_with(h: &mut Harness<'_, ArrixApp>, name: &str, tolerance: Toleranc
     // Through text and back, as the golden was: two equal texts then give
     // equal values, whatever the float parser does.
     let state = serde_json::to_string(&h.state().debug_state()).expect("serialise debug_state");
+    let mut debug_state: Value = serde_json::from_str(&state).expect("parse debug_state");
+    scrub(&mut debug_state);
     let actual = Golden {
-        debug_state: serde_json::from_str(&state).expect("parse debug_state"),
+        debug_state,
         coarse_frame: CoarseFrame::reduce(&frame, CELL),
     };
     let path = golden_path(name);
@@ -70,8 +72,9 @@ pub fn check_with(h: &mut Harness<'_, ArrixApp>, name: &str, tolerance: Toleranc
             png.display()
         )
     });
-    let golden: Golden = serde_json::from_str(&text)
+    let mut golden: Golden = serde_json::from_str(&text)
         .unwrap_or_else(|err| panic!("malformed golden {}: {err}", path.display()));
+    scrub(&mut golden.debug_state);
     let mut problems = Vec::new();
     if let Some(diff) = first_difference("", &golden.debug_state, &actual.debug_state) {
         problems.push(format!("debug_state differs at {diff}"));
@@ -92,6 +95,33 @@ pub fn check_with(h: &mut Harness<'_, ArrixApp>, name: &str, tolerance: Toleranc
         problems.join("\n"),
         png.display()
     );
+}
+
+/// Takes out of `value` what depends on how many evaluations ran before the
+/// moment, which a scenario does not control: a failure's message names the
+/// kernel call by its count in the session, and previews and refined meshes
+/// make that count vary from run to run. `kernel call 35` reads `kernel call N`.
+fn scrub(value: &mut Value) {
+    match value {
+        Value::String(text) => {
+            let mut out = String::with_capacity(text.len());
+            let mut rest = text.as_str();
+            while let Some(at) = rest.find("kernel call ") {
+                let (head, tail) = rest.split_at(at + "kernel call ".len());
+                out.push_str(head);
+                let digits = tail.bytes().take_while(u8::is_ascii_digit).count();
+                if digits > 0 {
+                    out.push('N');
+                }
+                rest = &tail[digits..];
+            }
+            out.push_str(rest);
+            *text = out;
+        }
+        Value::Array(items) => items.iter_mut().for_each(scrub),
+        Value::Object(map) => map.values_mut().for_each(scrub),
+        _ => {}
+    }
 }
 
 /// Writes `<name>.diff.png` against `<name>.before.png` beside the frame,
