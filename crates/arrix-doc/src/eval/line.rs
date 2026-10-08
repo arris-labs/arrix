@@ -23,10 +23,14 @@ pub struct EvalLine {
     pub bodies: Vec<BodyLine>,
 }
 
-/// A point of `--sweep`. Its shape comes with the flag (M4); until then no
-/// line has one.
+/// A point of `--sweep`: what was swept as the flag named it, the point's
+/// place and its value in SI.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum SweepPoint {}
+pub struct SweepPoint {
+    pub target: String,
+    pub index: usize,
+    pub value: f64,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]

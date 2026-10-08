@@ -18,6 +18,7 @@ mod project;
 mod resolve;
 #[cfg(test)]
 mod sketch_tests;
+mod sweep;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
@@ -42,6 +43,7 @@ pub use fixtures::{FailedCall, Run, SavedRecipe, run};
 pub use hash::InputHash;
 pub use line::{BodyLine, EvalLine, EvalStatus, FeatureLine, ParamLine, SweepPoint, eval};
 pub use meshing::{BodySlot, FinalBody};
+pub use sweep::{Sweep, SweepError, sweep};
 
 use crate::dag::{Dag, Node};
 use crate::document::{Document, FeatureRecord, Part};

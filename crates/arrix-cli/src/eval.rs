@@ -6,7 +6,7 @@ use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use arrix_doc::{EvalStatus, Registry};
+use arrix_doc::{EvalStatus, Registry, Run, Sweep};
 
 use crate::load::{Loaded, registry_without};
 
@@ -14,6 +14,8 @@ pub struct Args<'a> {
     pub paths: &'a [PathBuf],
     pub without: &'a [String],
     pub save_fixtures: Option<&'a Path>,
+    /// The `--sweep` flag as typed.
+    pub sweep: Option<&'a str>,
 }
 
 /// What became of one document: its line was printed (clean or with a
@@ -43,6 +45,13 @@ pub fn run(args: &Args) -> ExitCode {
             return ExitCode::from(2);
         }
     };
+    let sweep = match args.sweep.map(str::parse::<Sweep>).transpose() {
+        Ok(sweep) => sweep,
+        Err(err) => {
+            eprintln!("arrix eval: {err}");
+            return ExitCode::from(2);
+        }
+    };
     let mut worst = Status::Clean;
     let mut documents = Vec::new();
     for path in args.paths {
@@ -55,23 +64,41 @@ pub fn run(args: &Args) -> ExitCode {
         }
     }
     for doc in &documents {
-        worst = worst.max(one(doc, &registry, args.save_fixtures));
+        worst = worst.max(one(doc, &registry, args.save_fixtures, sweep.as_ref()));
     }
     worst.code()
 }
 
-/// Evaluates one document and prints its line.
-fn one(doc: &Path, registry: &Registry, save_fixtures: Option<&Path>) -> Status {
+/// Evaluates one document, or each point of the sweep, and prints a line
+/// for each; the worst of them is its status.
+fn one(
+    doc: &Path,
+    registry: &Registry,
+    save_fixtures: Option<&Path>,
+    sweep: Option<&Sweep>,
+) -> Status {
     let name = doc.to_string_lossy();
-    let run = Loaded::open(doc)
-        .and_then(|source| arrix_doc::run(&name, &source, registry).map_err(|e| e.to_string()));
-    let run = match run {
-        Ok(run) => run,
+    let runs = Loaded::open(doc).and_then(|source| match sweep {
+        Some(sweep) => arrix_doc::sweep(&name, &source, registry, sweep).map_err(|e| e.to_string()),
+        None => arrix_doc::run(&name, &source, registry)
+            .map(|run| vec![run])
+            .map_err(|e| e.to_string()),
+    });
+    let runs = match runs {
+        Ok(runs) => runs,
         Err(err) => {
             eprintln!("arrix eval: {name}: {err}");
             return Status::Unreadable;
         }
     };
+    let mut worst = Status::Clean;
+    for run in &runs {
+        worst = worst.max(print(run, save_fixtures));
+    }
+    worst
+}
+
+fn print(run: &Run, save_fixtures: Option<&Path>) -> Status {
     if let Some(dir) = save_fixtures
         && let Err(err) = save_recipes(dir, &run.failures)
     {

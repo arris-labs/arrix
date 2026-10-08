@@ -46,6 +46,13 @@ enum Command {
         /// stderr and skipped.
         #[arg(long = "save-fixtures", value_name = "DIR")]
         save_fixtures: Option<PathBuf>,
+        /// Evaluate each document at N values of one number, a line per
+        /// point: `<param>=<from>..<to>:<n>` for a document parameter,
+        /// `<feature>.<field>=<from>..<to>:<n>` for a feature's numeric
+        /// field (the feature by name or id). The ends are constant
+        /// expressions (`10 mm`).
+        #[arg(long, value_name = "TARGET=FROM..TO:N")]
+        sweep: Option<String>,
     },
     /// Write a document's final bodies (or the `--body` ones) as a STEP,
     /// STL or OBJ file, in metres. Exit status: 0 when written from a clean
@@ -123,10 +130,12 @@ fn main() -> ExitCode {
             paths,
             without,
             save_fixtures,
+            sweep,
         } => eval::run(&eval::Args {
             paths: &paths,
             without: &without,
             save_fixtures: save_fixtures.as_deref(),
+            sweep: sweep.as_deref(),
         }),
         Command::Export {
             doc,
