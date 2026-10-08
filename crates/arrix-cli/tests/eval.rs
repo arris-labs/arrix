@@ -171,3 +171,121 @@ fn without_a_plugin_this_build_lacks_is_a_usage_error() {
     assert_eq!(out.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&out.stderr).contains("no such plugin"));
 }
+
+fn arrix_eval_args(args: &[&str]) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_arrix"))
+        .current_dir(workspace())
+        .arg("eval")
+        .args(args)
+        .output()
+        .expect("run arrix")
+}
+
+/// The `doc` of each line printed.
+fn docs(out: &Output) -> Vec<String> {
+    String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .map(|l| {
+            let v: serde_json::Value = serde_json::from_str(l).unwrap();
+            v["doc"].as_str().unwrap().to_owned()
+        })
+        .collect()
+}
+
+/// A directory with no `document.json` is searched: every document below
+/// it, sorted by path, one line each, and the exit status is the worst (1:
+/// the oversize fillet fails).
+#[test]
+fn a_directory_of_documents_prints_a_golden_line_for_each() {
+    let out = arrix_eval_args(&["tests/docs"]);
+    assert_eq!(out.status.code(), Some(1));
+    let golden =
+        std::fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/golden/eval_docs.jsonl"))
+            .expect("read the golden");
+    assert_eq!(
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&golden)
+    );
+    assert!(out.stderr.is_empty());
+}
+
+/// Paths are evaluated in the order given, whatever their names sort as,
+/// and a directory and a document mix.
+#[test]
+fn paths_are_printed_in_the_order_given() {
+    let out = arrix_eval_args(&[
+        "tests/docs/slice",
+        "tests/docs/migrations",
+        "tests/docs/empty",
+    ]);
+    assert_eq!(out.status.code(), Some(0));
+    assert_eq!(
+        docs(&out),
+        [
+            "tests/docs/slice",
+            "tests/docs/migrations/schema-1",
+            "tests/docs/migrations/schema-2",
+            "tests/docs/empty",
+        ]
+    );
+}
+
+/// A path that cannot be read is said on stderr and exits 2, but the
+/// documents around it still print.
+#[test]
+fn an_unreadable_path_among_documents_exits_2_and_the_rest_print() {
+    let out = arrix_eval_args(&["tests/docs/empty", "tests/docs/no-such", "tests/docs/slice"]);
+    assert_eq!(out.status.code(), Some(2));
+    assert_eq!(docs(&out), ["tests/docs/empty", "tests/docs/slice"]);
+    assert!(String::from_utf8_lossy(&out.stderr).contains("no-such: no such directory"));
+}
+
+#[test]
+fn a_directory_without_a_document_exits_2() {
+    let dir = scratch_doc("hollow", "{}");
+    std::fs::remove_file(dir.join("document.json")).unwrap();
+    assert_refused(&arrix_eval(&dir), "no document here");
+}
+
+/// `--without-plugin` applies to every document: the gear freezes in the
+/// one that has it and the others are as before.
+#[test]
+fn without_a_plugin_applies_to_every_document() {
+    let with = arrix_eval_args(&["tests/docs/gear-on-plane", "tests/docs/empty"]);
+    assert_eq!(with.status.code(), Some(0));
+    let without = arrix_eval_args(&[
+        "--without-plugin",
+        "gears",
+        "tests/docs/gear-on-plane",
+        "tests/docs/empty",
+    ]);
+    assert_eq!(without.status.code(), Some(1));
+    let lines: Vec<_> = String::from_utf8_lossy(&without.stdout)
+        .lines()
+        .map(str::to_owned)
+        .collect();
+    assert!(lines[0].contains("plugin.frozen.missing"));
+    assert_eq!(
+        lines[1],
+        String::from_utf8_lossy(&with.stdout)
+            .lines()
+            .nth(1)
+            .unwrap()
+    );
+}
+
+/// `--save-fixtures` collects the recipes of every document in one place.
+#[test]
+fn save_fixtures_spans_the_documents() {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("eval-fixtures");
+    let _ = std::fs::remove_dir_all(&dir);
+    let out = arrix_eval_args(&["--save-fixtures", dir.to_str().unwrap(), "tests/docs"]);
+    assert_eq!(out.status.code(), Some(1));
+    let saved: Vec<_> = std::fs::read_dir(&dir)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(saved.len(), 1, "{saved:?}");
+    assert!(saved[0].starts_with("kernel."), "{saved:?}");
+    assert!(dir.join(&saved[0]).join("fixture.json").is_file());
+}

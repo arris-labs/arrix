@@ -4,13 +4,13 @@
 mod catalog;
 mod config;
 mod describe;
+mod eval;
 mod export;
 mod load;
 mod plugins;
 mod schema;
 mod source;
 
-use std::io::Write as _;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -25,13 +25,17 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Evaluate a document and print one JSON line for it. Exit status: 0
-    /// when every feature evaluated, 1 when one failed, 2 when the document
-    /// could not be read.
+    /// Evaluate documents and print one JSON line for each, in the order
+    /// given. Exit status: 0 when every feature of every document
+    /// evaluated, 1 when one failed, 2 when a document could not be read
+    /// (the others still print).
     Eval {
-        /// A document directory (the unzipped form of an `.arrx`), or an
-        /// `.arrx` file.
-        doc: PathBuf,
+        /// Document directories (the unzipped form of an `.arrx`) and
+        /// `.arrx` files. A directory with no `document.json` is searched:
+        /// its `.arrx` files and document directories are evaluated, sorted
+        /// by path.
+        #[arg(required = true, value_name = "PATH")]
+        paths: Vec<PathBuf>,
         /// Evaluate as a build without this plugin would (repeatable): its
         /// features evaluate frozen.
         #[arg(long = "without-plugin", value_name = "ID")]
@@ -116,10 +120,14 @@ enum ConfigCommand {
 fn main() -> ExitCode {
     match Cli::parse().command {
         Command::Eval {
-            doc,
+            paths,
             without,
             save_fixtures,
-        } => eval(&doc, &without, save_fixtures.as_deref()),
+        } => eval::run(&eval::Args {
+            paths: &paths,
+            without: &without,
+            save_fixtures: save_fixtures.as_deref(),
+        }),
         Command::Export {
             doc,
             format,
@@ -148,63 +156,4 @@ fn main() -> ExitCode {
             command: ConfigCommand::Catalog,
         } => catalog::run(),
     }
-}
-
-fn eval(
-    doc: &std::path::Path,
-    without: &[String],
-    save_fixtures: Option<&std::path::Path>,
-) -> ExitCode {
-    let name = doc.to_string_lossy();
-    let registry = match load::registry_without(without) {
-        Ok(registry) => registry,
-        Err(err) => {
-            eprintln!("arrix eval: {err}");
-            return ExitCode::from(2);
-        }
-    };
-    let line = load::Loaded::open(doc)
-        .and_then(|source| arrix_doc::run(&name, &source, &registry).map_err(|e| e.to_string()));
-    let run = match line {
-        Ok(run) => run,
-        Err(err) => {
-            eprintln!("arrix eval: {name}: {err}");
-            return ExitCode::from(2);
-        }
-    };
-    if let Some(dir) = save_fixtures
-        && let Err(err) = save_recipes(dir, &run.failures)
-    {
-        eprintln!("arrix eval: --save-fixtures {}: {err}", dir.display());
-        return ExitCode::from(2);
-    }
-    let line = run.line;
-    let json = serde_json::to_string(&line).expect("an eval line is plain data");
-    if writeln!(std::io::stdout(), "{json}").is_err() {
-        return ExitCode::from(2);
-    }
-    match line.status {
-        arrix_doc::EvalStatus::Ok => ExitCode::SUCCESS,
-        arrix_doc::EvalStatus::Failed => ExitCode::from(1),
-    }
-}
-
-/// Writes each failure's recipe under `dir`, one directory per recipe; one
-/// that has none is said on stderr and the rest are still written.
-fn save_recipes(dir: &std::path::Path, failures: &[arrix_doc::FailedCall]) -> std::io::Result<()> {
-    for failure in failures {
-        match &failure.recipe {
-            Ok(recipe) => {
-                let at = dir.join(&recipe.name);
-                std::fs::create_dir_all(&at)?;
-                std::fs::write(at.join("fixture.json"), &recipe.json)?;
-                eprintln!("arrix eval: saved {}", at.display());
-            }
-            Err(err) => eprintln!(
-                "arrix eval: feature {} ({}) has no recipe: {err}",
-                failure.feature, failure.code
-            ),
-        }
-    }
-    Ok(())
 }
