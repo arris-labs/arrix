@@ -42,13 +42,23 @@ preclude (`SEED.md` §6.1). Locally all three are in one process.
   evaluation, the evaluator finishes or cancels its current feature, then
   continues from the new snapshot. Outputs whose input hash did not change
   are reused from the cache, so continuing is cheap.
-- **Cancellation.** A feature whose inputs changed is cancelled, not
-  finished: an interrupt token passed to the kernel, which stops at a loop
-  boundary and rolls its transaction back (Arris ask A3). Until A3 lands,
-  cancellation is checked between kernel calls only, and one stale
-  operation may run to completion; its result is cached if its hash is
-  still wanted and dropped if not. No thread is ever killed. As built,
-  the check is between features, below.
+- **Cancellation.** A superseded evaluation stops inside its kernel call,
+  not after it. The evaluator's `Kernel` owns an interrupt flag (an
+  `Arc<AtomicBool>`, no clock, so the same on wasm) and passes its poll to
+  every Arris call as a `Control` (Arris ask A3); a raised flag stops the
+  running call at its next loop boundary with the model rolled back, and
+  fails every later call until it is lowered. No thread is ever killed.
+  As built: the session thread raises the flag, then queues each commit's
+  snapshot (in that order, so a worker that lowers the flag on taking a job
+  never lowers a raise whose job is still to come); the worker lowers it on
+  taking a job. A feature stopped by it (`kernel.interrupted`) publishes no
+  event and caches nothing, and the evaluation returns at once; the worker
+  starts over on the newest snapshot, with the cache warm for the features
+  the edit kept. A mesh stopped the same way publishes no event. Only a
+  commit raises the flag: a preview never stops a commit, and a preview a
+  commit or a newer preview supersedes stops at its next feature or mesh.
+  A spent step budget (`kernel.interrupted.budget`) is a failure like any
+  other, not a stop.
 - **Events carry their generation.** A client drops an event older than
   the latest generation it has drawn for that feature.
   As built: the worker publishes each feature's event as it is made and

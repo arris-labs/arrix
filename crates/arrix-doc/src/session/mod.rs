@@ -8,6 +8,8 @@
 //! (docs/DATA-MODEL.md §Identifiers) with an `IdMinter` seeded by its
 //! caller; nothing here mints, so nothing here needs entropy.
 
+#[cfg(test)]
+mod interrupt_tests;
 mod local;
 mod preview;
 #[cfg(test)]

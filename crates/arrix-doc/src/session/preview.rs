@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use super::SessionEvent;
 use crate::authority::{AuthorId, Generation};
 use crate::document::Document;
-use crate::eval::{BodySlot, Evaluator, FinalBody};
+use crate::eval::{BodySlot, Evaluator, FinalBody, interrupted};
 
 /// A client's name for one of its previews, counted by the client.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -168,12 +168,16 @@ pub(super) fn run(
             if queue.stops_preview() {
                 return;
             }
+            let mesh = evaluator.mesh(body, detail);
+            if matches!(&mesh, Err(d) if interrupted(d)) {
+                return;
+            }
             publish(SessionEvent::PreviewMeshed {
                 tag: job.tag,
                 part: body.part,
                 slot: body.slot.clone(),
                 detail,
-                mesh: evaluator.mesh(body, detail),
+                mesh,
             });
         }
     }

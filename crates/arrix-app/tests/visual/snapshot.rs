@@ -101,9 +101,14 @@ pub fn check_with(h: &mut Harness<'_, ArrixApp>, name: &str, tolerance: Toleranc
 /// moment, which a scenario does not control: a failure's message names the
 /// kernel call by its count in the session, and previews and refined meshes
 /// make that count vary from run to run. `kernel call 35` reads `kernel call N`.
+/// The same goes for the generation of an Arris entity id in such a message:
+/// a call a newer commit stopped (docs/CONCURRENCY-WASM.md §The evaluator)
+/// frees entities, and the next one reusing the slot reads `e1323g1`, not
+/// `e1323`.
 fn scrub(value: &mut Value) {
     match value {
         Value::String(text) => {
+            *text = without_generations(text);
             let mut out = String::with_capacity(text.len());
             let mut rest = text.as_str();
             while let Some(at) = rest.find("kernel call ") {
@@ -122,6 +127,34 @@ fn scrub(value: &mut Value) {
         Value::Object(map) => map.values_mut().for_each(scrub),
         _ => {}
     }
+}
+
+/// `text` with the `g<digits>` generation after each `e<digits>` entity id
+/// taken out.
+fn without_generations(text: &str) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let digits = |from: usize| {
+        chars[from..]
+            .iter()
+            .take_while(|c| c.is_ascii_digit())
+            .count()
+    };
+    let mut out = String::with_capacity(text.len());
+    let mut i = 0;
+    while i < chars.len() {
+        out.push(chars[i]);
+        let starts_id = chars[i] == 'e' && (i == 0 || !chars[i - 1].is_alphanumeric());
+        i += 1;
+        if starts_id {
+            let id = digits(i);
+            out.extend(&chars[i..i + id]);
+            i += id;
+            if id > 0 && chars.get(i) == Some(&'g') {
+                i += 1 + digits(i + 1);
+            }
+        }
+    }
+    out
 }
 
 /// Writes `<name>.diff.png` against `<name>.before.png` beside the frame,

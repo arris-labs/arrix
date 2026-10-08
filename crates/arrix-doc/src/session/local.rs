@@ -11,8 +11,9 @@ use std::sync::mpsc::{Receiver, Sender, channel};
 use super::preview::{self, Job, PreviewJob, Queue};
 use super::{DocHash, EventStream, PreviewTag, Request, Session, SessionEvent, files};
 use crate::authority::{Authority, Generation, Outcome, Rejected};
-use crate::eval::EvalEvent;
+use crate::eval::{EvalEvent, interrupted};
 use arrix_core::{FeatureId, MeshDetail};
+use arrix_kernel::Interrupt;
 
 use crate::document::Document;
 use crate::eval::{Evaluator, FeatureOutcome, InputHash};
@@ -52,12 +53,18 @@ impl LocalSession {
     pub fn open(document: Document, registry: Registry) -> std::io::Result<Self> {
         let (inbox, rx) = channel();
         let (jobs, job_rx) = channel();
+        let (handle, interrupt_rx) = channel();
         let publish = inbox.clone();
         let worker = executor::spawn("arrix-evaluator", move || {
-            evaluate(Evaluator::new(registry), &job_rx, &publish);
+            let evaluator = Evaluator::new(registry);
+            let _ = handle.send(evaluator.interrupt());
+            evaluate(evaluator, &job_rx, &publish);
         })?;
+        let interrupt = interrupt_rx
+            .recv()
+            .expect("the evaluator thread hands out its interrupt first");
         let thread = executor::spawn("arrix-session", move || {
-            serve(Authority::new(document), &rx, jobs, worker);
+            serve(Authority::new(document), &rx, jobs, worker, &interrupt);
         })?;
         Ok(Self {
             inbox,
@@ -107,15 +114,30 @@ impl Drop for LocalSession {
 /// change, then hands the evaluator the new snapshot. A preview's events
 /// reach subscribers only while it is the session's preview: a newer
 /// preview, a clear or an applied change ends it.
-fn serve(mut authority: Authority, inbox: &Receiver<Msg>, jobs: Sender<Job>, worker: Worker) {
+fn serve(
+    mut authority: Authority,
+    inbox: &Receiver<Msg>,
+    jobs: Sender<Job>,
+    worker: Worker,
+    interrupt: &Interrupt,
+) {
     let mut subscribers: Vec<Sender<SessionEvent>> = Vec::new();
     // ADR-0009: the latest result of each plugin feature, and the input
     // hash each feature last evaluated under, with its generation.
     let mut kept: BTreeMap<FeatureId, Arc<Frozen>> = BTreeMap::new();
     let mut hashes: BTreeMap<FeatureId, (Generation, InputHash)> = BTreeMap::new();
     let mut previewing: Option<PreviewTag> = None;
-    let snapshot = |a: &Authority| Job::Commit((a.generation(), Arc::new(a.document().clone())));
-    let _ = jobs.send(snapshot(&authority));
+    // The flag goes up before the snapshot is queued, so a worker that
+    // takes the snapshot and lowers the flag never lowers a raise that
+    // is still to be followed by its job.
+    let commit = |a: &Authority| {
+        interrupt.raise();
+        let _ = jobs.send(Job::Commit((
+            a.generation(),
+            Arc::new(a.document().clone()),
+        )));
+    };
+    commit(&authority);
     while let Ok(msg) = inbox.recv() {
         match msg {
             Msg::Request(request, reply) => {
@@ -154,7 +176,7 @@ fn serve(mut authority: Authority, inbox: &Receiver<Msg>, jobs: Sender<Job>, wor
                     };
                     subscribers.retain(|s| s.send(event.clone()).is_ok());
                     previewing = None;
-                    let _ = jobs.send(snapshot(&authority));
+                    commit(&authority);
                 }
                 let _ = reply.send(result);
             }
@@ -223,7 +245,10 @@ fn evaluate(mut evaluator: Evaluator, jobs: &Receiver<Job>, publish: &Sender<Msg
     // The final bodies of the newest commit's finished evaluation, which a
     // preview's bodies are told changed or not against.
     let mut committed = Vec::new();
+    let interrupt = evaluator.interrupt();
     while queue.wait() {
+        // Whatever raised the flag is the job taken now, or an older one.
+        interrupt.lower();
         if let Some((generation, doc)) = queue.commit.take() {
             let done = evaluator.evaluate_while(&doc, |event| {
                 let event = SessionEvent::Evaluated {
@@ -273,12 +298,16 @@ fn mesh_finals(
             if queue.commit.is_some() || queue.gone {
                 return;
             }
+            let mesh = evaluator.mesh(body, detail);
+            if matches!(&mesh, Err(d) if interrupted(d)) {
+                return;
+            }
             let event = SessionEvent::Meshed {
                 generation,
                 part: body.part,
                 slot: body.slot.clone(),
                 detail,
-                mesh: evaluator.mesh(body, detail),
+                mesh,
             };
             let _ = publish.send(Msg::Publish(event));
         }

@@ -109,7 +109,7 @@ fn next(events: &EventStream) -> SessionEvent {
 
 /// Follows `events` until the evaluation of `generation` finished, and
 /// returns every event on the way.
-fn until_finished(
+pub(super) fn until_finished(
     events: &EventStream,
     replica: &mut Replica,
     generation: u64,

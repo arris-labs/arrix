@@ -29,7 +29,7 @@ use arrix_core::{
     Diagnostic, FeatureId, Frame, ParamId, Profile, Quantity, Ref, Severity, SlotName, TopoKind,
 };
 use arrix_core::{MeshDetail, RegionKey, RenderMesh};
-use arrix_kernel::{CallIndex, Kernel, KernelBody, KernelCall, KernelError};
+use arrix_kernel::{CallIndex, Interrupt, Kernel, KernelBody, KernelCall, KernelError};
 use arrix_plugin_api::{
     Body, InputKind, InputValue, OutputValue, ParamValue, ResolvedInput, SlotKind, Tool, ToolOp,
 };
@@ -275,6 +275,12 @@ impl From<Diagnostic> for Failure {
     }
 }
 
+/// Whether `d` is a kernel call stopped by the interrupt flag, as opposed
+/// to a spent budget, which is a failure like any other.
+pub(crate) fn interrupted(d: &Diagnostic) -> bool {
+    d.code.as_str() == "kernel.interrupted"
+}
+
 fn error(code: &str, message: impl Into<String>) -> Diagnostic {
     Diagnostic::new(Severity::Error, code, message).expect("a literal code is well-formed")
 }
@@ -326,6 +332,14 @@ impl Evaluator {
         &self.registry
     }
 
+    /// The handle that stops the running kernel call from another thread
+    /// (docs/CONCURRENCY-WASM.md §The evaluator). Raised, every call fails
+    /// as `kernel.interrupted` until it is lowered; an evaluation that
+    /// meets one stops there with nothing published for that feature.
+    pub fn interrupt(&self) -> Interrupt {
+        self.kernel.interrupt()
+    }
+
     /// Every kernel call made so far, in call order.
     pub fn kernel_calls(&self) -> &[KernelCall] {
         self.kernel.records()
@@ -347,8 +361,10 @@ impl Evaluator {
     /// Evaluates `doc` as [`Evaluator::evaluate`] does, handing each
     /// feature's event to `go` as it is made. When `go` returns `false` the
     /// evaluation stops there, between features, and returns `None`: a
-    /// newer snapshot wins (docs/CONCURRENCY-WASM.md §The evaluator). What
-    /// it computed so far stays cached.
+    /// newer snapshot wins (docs/CONCURRENCY-WASM.md §The evaluator). It
+    /// also stops, in the middle of a feature, when the [`interrupt`]
+    /// (Evaluator::interrupt) stops a kernel call. What it computed so far
+    /// stays cached.
     pub fn evaluate_while(
         &mut self,
         doc: &Document,
@@ -366,6 +382,13 @@ impl Evaluator {
             let Node::Feature(id) = node else { continue };
             let place = doc.feature(*id).expect("the DAG's features are the doc's");
             let (outcome, state) = self.feature(doc, &dag, place, &params, &states);
+            // The stop is the caller's, not the feature's: no event, and
+            // `compute` cached nothing for it.
+            if matches!(&outcome, FeatureOutcome::Failed { diagnostic, .. } if interrupted(diagnostic))
+            {
+                self.collect();
+                return None;
+            }
             states.insert(*id, state);
             let event = EvalEvent {
                 feature: *id,
