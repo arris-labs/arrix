@@ -188,6 +188,31 @@ impl FixtureRecipe {
         call: CallIndex,
         code: &DiagnosticCode,
     ) -> Result<Self, FixtureError> {
+        Self::build(
+            records,
+            call,
+            &format!("which failed as {code}"),
+            expect_error(code),
+        )
+    }
+
+    /// The recipe of `call`, which succeeded and is kept for another
+    /// reason, `why` ("measured slow: …"): built as [`of`](Self::of)'s,
+    /// asserting no refusal.
+    pub fn measured(
+        records: &[KernelCall],
+        call: CallIndex,
+        why: &str,
+    ) -> Result<Self, FixtureError> {
+        Self::build(records, call, why, None)
+    }
+
+    fn build(
+        records: &[KernelCall],
+        call: CallIndex,
+        why: &str,
+        expect_error: Option<&'static str>,
+    ) -> Result<Self, FixtureError> {
         let failed = get(records, call)?;
         let mut closure = BTreeSet::new();
         let mut stack = vec![call];
@@ -218,9 +243,9 @@ impl FixtureRecipe {
         };
         Ok(Self {
             description: format!(
-                "ArriX's kernel call {} ({}) on arris {}, which failed as {code}: the \
-                 call and every call that made its operands, one step each named \
-                 c<call>, exported from their records. Lengths in metres.",
+                "ArriX's kernel call {} ({}) on arris {}, {why}: the call and every \
+                 call that made its operands, one step each named c<call>, exported \
+                 from their records. Lengths in metres.",
                 call.0,
                 op_word(&failed.op),
                 failed.arris_version,
@@ -236,7 +261,7 @@ impl FixtureRecipe {
                     _ => 1e-5,
                 },
             },
-            analytic: expect_error(code).map(|expect_error| Analytic { expect_error }),
+            analytic: expect_error.map(|expect_error| Analytic { expect_error }),
         })
     }
 

@@ -289,11 +289,18 @@ inside the boolean, the restart, and the plate's sketch evaluated again.
 
 The first coarse mesh after a width edit is missed: 324 ms median, 290 ms
 in a release build. The evaluation is 315 ms of it, and two features are
-most of that, both inside Arris (whose crates the dev profile already
-builds optimised): the gear's join, 135 ms, and the fillet on its edge,
-112 ms; the pattern is 38 ms and the hole 11, and the gear itself is cached
-(its inputs do not move with the width). The coarse mesh after it is 9 ms.
-`docs/BACKLOG.md` has the line.
+most of that, the gear's join (135 ms) and the fillet on its edge
+(112 ms); the pattern is 38 ms and the hole 11, and the gear itself is
+cached (its inputs do not move with the width). Inside those two, the
+boolean is 38 ms and the blend 13 ms, and the rest is the mass properties
+each feature takes of its body: about 95 ms each, in Arris's
+`measure::mass_properties`, for a body that carries the gear's 240 faces
+(the gear's extrude alone measures in 84 ms). Arris 0.5 and 0.7-dev replay
+it alike in a release build, about 90 ms, from the recipe
+`crates/arrix-kernel/tests/recipes/bracket-mass-properties`. ArriX also
+measures some bodies more than once (the hole's and the pattern's
+results, 2 to 8 ms each). The coarse mesh after the evaluation is 9 ms.
+`docs/BACKLOG.md` has both lines.
 
 ## Open questions
 

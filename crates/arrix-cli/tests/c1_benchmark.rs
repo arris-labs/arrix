@@ -4,21 +4,22 @@
 //! median over runs, printed with `--nocapture`; a budget the reference
 //! machine meets with room is asserted, so a regression past it fails.
 //!
-//! One test, so its sections never run beside each other or beside
-//! another test of this binary.
+//! One test, so its sections never run beside each other; the other test
+//! here writes no timing.
 
 mod common;
 
 use std::collections::BTreeMap;
 use std::time::Duration;
 
+use arrix_kernel::{CallIndex, FixtureRecipe, KernelOp};
 use web_time::Instant;
 
 use arrix_core::{FeatureId, Id, MeshDetail, ParamId};
 use arrix_doc::{
-    AuthorId, Authority, Command, CommandEnvelope, DocHash, Document, EventStream, Generation,
-    LocalSession, MemorySource, Outcome, Replica, Request, Session, SessionEvent, expr::Expr, open,
-    open_zip, save, save_zip,
+    AuthorId, Authority, Command, CommandEnvelope, DocHash, Document, Evaluator, EventStream,
+    Generation, LocalSession, MemorySource, Outcome, Replica, Request, Session, SessionEvent,
+    expr::Expr, open, open_zip, save, save_zip,
 };
 use common::{read_tree, workspace};
 
@@ -331,6 +332,41 @@ fn eval_throughput(runs: usize) {
     }
 }
 
+/// The recipe of the call that makes most of a width edit's time: the
+/// mass properties of the bracket's last body, which carries the gear's
+/// 240 faces, about 90 ms in Arris alone (`docs/BACKLOG.md`). Written to
+/// `crates/arrix-kernel/tests/recipes/` beside the failures' recipes, for
+/// Arris to measure; rewritten under `UPDATE_SNAPSHOTS=1`.
+#[test]
+fn the_slow_measurement_is_a_recipe() {
+    let mut evaluator = Evaluator::new(common::registry());
+    evaluator.evaluate(&bracket());
+    let records = evaluator.kernel_calls();
+    let last = records
+        .iter()
+        .rposition(|r| matches!(r.op, KernelOp::MassProperties))
+        .expect("the bracket is measured");
+    let recipe = FixtureRecipe::measured(
+        records,
+        CallIndex(last as u32),
+        "measured slow: about 90 ms for the mass properties of the bracket's last \
+         body, three times its fuse with the gear (plans/c1-m4 step 16)",
+    )
+    .unwrap()
+    .to_json();
+    let path =
+        workspace().join("crates/arrix-kernel/tests/recipes/bracket-mass-properties/fixture.json");
+    if std::env::var_os("UPDATE_SNAPSHOTS").is_some() {
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, &recipe).unwrap();
+    }
+    assert!(
+        std::fs::read_to_string(&path).is_ok_and(|on_disk| on_disk == recipe),
+        "{} differs; rerun with UPDATE_SNAPSHOTS=1 and read the diff",
+        path.display()
+    );
+}
+
 #[test]
 fn c1_benchmark() {
     let profile = if cfg!(debug_assertions) {
@@ -357,7 +393,7 @@ fn c1_benchmark() {
         "save and load ≤ 100 ms each"
     );
     assert!(cancel <= ms(50), "cancellation ≤ 50 ms");
-    // Missed (docs/BACKLOG.md): the join and the gear's fillet take most of
-    // it, inside Arris. Reported, not asserted.
+    // Missed (docs/BACKLOG.md): Arris's mass properties of the bodies that
+    // carry the gear take most of it. Reported, not asserted.
     let _ = coarse;
 }
