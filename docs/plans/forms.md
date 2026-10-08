@@ -161,7 +161,7 @@ None new. Previews use the operations the features already call and
   sketches' hit test are ranked so a sketch item over a face wins while
   such a field is active, and never otherwise. Scratch render read
   before the snapshot.
-- [ ] **[3]** Step 9: the preview in the app. Every create-form change
+- [x] **[3]** Step 9: the preview in the app. Every create-form change
   that leaves the draft complete enough to evaluate sends a
   `Request::Preview`; the viewport draws the previewed part in place of
   the current one (bodies a preview replaces hidden, new or changed ones
@@ -250,3 +250,12 @@ UI alone on a document whose sketch is drawn in sketch mode:
   waits behind the newest commit's evaluation and meshing and never stops
   it; a commit, a newer preview or a clear stops a running one, and an
   applied change ends it.
+- Decided 2026-10-08 at step 9: a draft is complete enough to preview
+  when every reference field shown holds one and its texts parse; no
+  input is optional today (a choice hides the ones that are). The draft's
+  feature and part ids are minted on first need and kept, so the preview
+  and OK add the same feature and OK hits the cache. A preview body is
+  drawn tinted and never picked: the pick pass still draws the document's
+  bodies, replaced ones included, so a pick lands on the document. The
+  form's state tag moved onto its title row, since a preview's state
+  comes and goes and shifted the fields under the pointer.

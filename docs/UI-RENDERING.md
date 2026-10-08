@@ -674,6 +674,23 @@ draws). Ported, reviewed on the way in (`SEED.md` §8.1).
   into the field (`Ref::Region` with the key the evaluator gave,
   `Ref::Sketch`), no selection. What the form's fields hold is drawn
   selected. `debug_state()` lists the sketches drawn.
+- **The create form's preview** (ADR-0019, `preview.rs`). While a create
+  form's draft is complete enough to evaluate (every reference field shown
+  holds one, and its texts parse as OK's would), the tab asks its session
+  for a `Request::Preview` of the very command OK submits, once per change
+  of the draft or of the generation; the draft's feature and part ids are
+  minted once, so the preview's bodies and OK's are the same, cache hit
+  included. A draft that stops being complete, Cancel and OK clear it. The
+  scene keeps the preview's bodies in a list of their own: each new or
+  changed body is drawn tinted green, whole, and a document body the
+  preview changed or consumed is left out of the colour pass. The preview
+  is never picked, located or framed: the pick pass still draws the
+  document's bodies, replaced ones included, so a pick while it shows
+  lands on what the document holds. Its events are matched to the last
+  preview asked for, a superseded one's dropped. The form's header shows
+  the draft's outcome in the preview (evaluating until it is heard, then
+  its state and diagnostic, or the authority's refusal). Nothing of it is
+  a command, and nothing waits on it: its answer arrives as events.
 - **Overlays**: the sketch (points, curves, constraint glyphs,
   dimensions), plugin drawables, diagnostics highlights, frozen badges on
   bodies from frozen features.
@@ -748,7 +765,10 @@ the way in.
   finished, settled), `bodies` (counts and bounds), `camera` (pose,
   projection and the 16 numbers of its view-projection), `selection`,
   `hover` and whether a `picking` is in flight, each left out while empty;
-  the sketch joins as its part of the app is built.
+  the sketch joins as its part of the app is built. While a create form
+  previews, `preview` says whether its outcome is `heard` and its bodies
+  drawn refined (`settled`), its `bodies` as `bodies` lists the
+  document's, and the document bodies it `replaced`.
 - **A mesh without a document**: `ArrixApp::show_mesh(key, mesh)` puts a
   `RenderMesh` on screen as a `Meshed` event will; the scenarios' fixture
   box (`tests/visual/fixture.rs`) pins the renderer apart from the kernel.

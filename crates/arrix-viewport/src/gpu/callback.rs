@@ -24,8 +24,11 @@ pub struct BodyDraw {
     pub point_buffer: wgpu::Buffer,
     pub point_ids: wgpu::Buffer,
     pub point_count: u32,
-    /// Whether a pick id can tell it apart (`crate::pick`).
+    /// Whether a pick id can tell it apart (`crate::pick`): never a
+    /// preview's body.
     pub pickable: bool,
+    /// Whether the colour pass draws it: not a body a preview replaces.
+    pub drawn: bool,
 }
 
 /// One frame of the viewport, as handles: wgpu's are reference-counted, so
@@ -46,7 +49,8 @@ pub struct ViewportCallback {
     pub blit_bind_group: wgpu::BindGroup,
     /// The pick pass, on a frame a pick was asked for.
     pub pick: Option<PickPass>,
-    /// Hover, then selection, restyled over the scene.
+    /// Hover, then selection, restyled over the scene; then the tint of
+    /// each preview body.
     pub highlights: Vec<HighlightDraw>,
 }
 
@@ -122,8 +126,9 @@ impl ViewportCallback {
 
         // A draw per body at its own model offset: N bodies cost N draws,
         // never a merge.
+        let drawn = || self.bodies.iter().filter(|b| b.drawn);
         pass.set_pipeline(&self.pipelines.faces);
-        for body in &self.bodies {
+        for body in drawn() {
             pass.set_bind_group(1, &self.model_bind_group, &[body.model_offset]);
             pass.set_vertex_buffer(0, body.vertex_buffer.slice(..));
             pass.set_index_buffer(body.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
@@ -132,7 +137,7 @@ impl ViewportCallback {
         // Every face is in the depth buffer before the first edge tests
         // against it.
         pass.set_pipeline(&self.pipelines.edges);
-        for body in &self.bodies {
+        for body in drawn() {
             pass.set_bind_group(1, &self.model_bind_group, &[body.model_offset]);
             pass.set_vertex_buffer(0, body.edge_buffer.slice(..));
             pass.draw(0..body.edge_vertex_count, 0..1);

@@ -9,9 +9,9 @@
 
 use std::collections::BTreeMap;
 
-use arrix_core::{FeatureId, Input, PartId, QuantityKind, Ref};
+use arrix_core::{FeatureId, Id, IdMinter, Input, PartId, QuantityKind, Ref};
 use arrix_doc::expr::Expr;
-use arrix_doc::{Command, FeatureEdit, FeatureRecord, FeatureTypeId, Part};
+use arrix_doc::{Command, Document, FeatureEdit, FeatureRecord, FeatureTypeId, Part};
 use arrix_plugin_api::{FeatureTypeSpec, InputKind, ShownWhen};
 use arrix_ui::{ChoiceOptionView, FieldValue, FormField, FormView, ReferenceValueView, UiIntent};
 
@@ -45,6 +45,10 @@ pub struct Form {
     pub(crate) inputs: BTreeMap<String, Input>,
     /// The reference field a pick fills.
     pub(crate) active: Option<String>,
+    /// A create form's feature id, and its part's when the document has
+    /// none, minted when first needed: the preview's and OK's are the same.
+    feature: Option<Id>,
+    part: Option<Id>,
 }
 
 /// What a quantity of `kind` is measured in when its text names no unit.
@@ -90,6 +94,8 @@ impl Form {
             choices: BTreeMap::new(),
             inputs: BTreeMap::new(),
             active: None,
+            feature: None,
+            part: None,
         }
     }
 
@@ -106,6 +112,8 @@ impl Form {
             choices: BTreeMap::new(),
             inputs: BTreeMap::new(),
             active: None,
+            feature: None,
+            part: None,
         }
     }
 
@@ -276,6 +284,54 @@ impl Form {
     }
 }
 
+impl Form {
+    /// The draft's feature, once its id is minted.
+    pub(crate) fn draft_feature(&self) -> Option<FeatureId> {
+        self.feature.map(FeatureId)
+    }
+
+    /// The command OK submits on `doc`: one `AddFeature` at the end of the
+    /// first part, or, in a document with no part, a `Group` that adds one
+    /// with it. Or why the draft cannot be added.
+    pub(crate) fn command(
+        &mut self,
+        doc: &Document,
+        ids: &mut IdMinter,
+    ) -> Result<Command, String> {
+        let feature = FeatureId(crate::preview::minted(&mut self.feature, ids));
+        let record = self.record(feature)?;
+        Ok(match doc.parts().values().next() {
+            Some(part) => Command::AddFeature {
+                part: part.id,
+                at: part.history.len(),
+                record,
+            },
+            None => {
+                let part = PartId(crate::preview::minted(&mut self.part, ids));
+                Command::Group {
+                    label: format!("Create {}", self.spec.title.to_lowercase()),
+                    commands: vec![
+                        Command::AddPart {
+                            part: Part {
+                                id: part,
+                                name: "Part 1".into(),
+                                history: Vec::new(),
+                                features: BTreeMap::new(),
+                                rollback: None,
+                            },
+                        },
+                        Command::AddFeature {
+                            part,
+                            at: 0,
+                            record,
+                        },
+                    ],
+                }
+            }
+        })
+    }
+}
+
 /// The record of `feature` in the document the tab holds.
 pub(crate) fn feature_record(
     document: &OpenDocument,
@@ -359,7 +415,13 @@ impl ArrixApp {
         let label = |r: &Ref| crate::form_pick::label(doc, r);
         match form.edit {
             Some(feature) => Some(form.view(Some(feature_record(document, feature)?), &label)),
-            None => Some(form.view(None, &label)),
+            None => {
+                let mut view = form.view(None, &label);
+                if let Some(feature) = form.draft_feature() {
+                    (view.state, view.diagnostic) = document.preview.header(feature);
+                }
+                Some(view)
+            }
         }
     }
 
@@ -563,56 +625,25 @@ impl ArrixApp {
             self.form_cancel();
             return;
         }
-        let Some(form) = self.active_document().and_then(|d| d.form.clone()) else {
+        let Some(document) = self.documents.get_mut(self.active) else {
             return;
         };
-        let feature = FeatureId(self.ids.next_id());
-        let record = match form.record(feature) {
-            Ok(record) => record,
+        let Some(form) = document.form.as_mut() else {
+            return;
+        };
+        let command = match form.command(document.replica.document(), &mut self.ids) {
+            Ok(command) => command,
             Err(reason) => {
                 self.session.notice = Some(reason);
                 return;
             }
         };
-        let Some(document) = self.documents.get(self.active) else {
-            return;
-        };
-        let command = match document.replica.document().parts().values().next() {
-            Some(part) => Command::AddFeature {
-                part: part.id,
-                at: part.history.len(),
-                record,
-            },
-            None => {
-                let part = PartId(self.ids.next_id());
-                Command::Group {
-                    label: format!("Create {}", form.spec.title.to_lowercase()),
-                    commands: vec![
-                        Command::AddPart {
-                            part: Part {
-                                id: part,
-                                name: "Part 1".into(),
-                                history: Vec::new(),
-                                features: BTreeMap::new(),
-                                rollback: None,
-                            },
-                        },
-                        Command::AddFeature {
-                            part,
-                            at: 0,
-                            record,
-                        },
-                    ],
-                }
-            }
-        };
-        let Some(document) = self.documents.get_mut(self.active) else {
-            return;
-        };
+        let feature = form.draft_feature();
         match document.submit(command) {
             Ok(_) => {
                 document.form = None;
-                document.view.feature_selection = Some(feature);
+                document.clear_preview();
+                document.view.feature_selection = feature;
             }
             Err(reason) => self.session.notice = Some(reason),
         }
@@ -622,6 +653,7 @@ impl ArrixApp {
     pub(crate) fn form_cancel(&mut self) {
         if let Some(document) = self.documents.get_mut(self.active) {
             document.form = None;
+            document.clear_preview();
         }
     }
 }

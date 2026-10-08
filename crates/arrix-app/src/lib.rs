@@ -13,6 +13,7 @@ mod form_pick;
 mod keys;
 mod palette;
 mod part_sketch;
+mod preview;
 mod sketch_constrain;
 mod sketch_dimension;
 mod sketch_drag;
@@ -398,6 +399,7 @@ impl ArrixApp {
         }
         self.follow_sketches();
         self.follow_forms();
+        self.follow_previews();
         for document in &mut self.documents {
             document.follow_part_sketches();
         }

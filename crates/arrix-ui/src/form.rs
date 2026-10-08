@@ -121,10 +121,14 @@ struct Buffer {
 /// Draws `form` into `ui` and says what the user did with it this frame.
 pub fn form(ui: &mut egui::Ui, form: &FormView) -> Vec<UiIntent> {
     let mut intents = Vec::new();
-    ui.heading(&form.title);
-    if let Some(state) = form.state.and_then(FeatureState::tag) {
-        ui.weak(state);
-    }
+    // The state shares the title's row: a preview's state comes and goes
+    // as it evaluates, and must not move the fields under the pointer.
+    ui.horizontal(|ui| {
+        ui.heading(&form.title);
+        if let Some(state) = form.state.and_then(FeatureState::tag) {
+            ui.weak(state);
+        }
+    });
     if let Some(d) = &form.diagnostic {
         ui.colored_label(ERROR, &d.code);
         ui.colored_label(ERROR, &d.message);

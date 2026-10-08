@@ -8,6 +8,7 @@ use crate::ArrixApp;
 use arrix_config::{Binding, ConfigDiagnostic};
 use arrix_core::PersistentName;
 use arrix_ui::ShellView;
+use arrix_viewport::{BodyEntry, GpuMesh};
 
 /// What the last frame drew. `None` fields mean no frame has run yet.
 #[derive(Debug, Serialize)]
@@ -25,6 +26,10 @@ pub struct DebugState {
     /// The active document's bodies as the scene holds them.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub bodies: Vec<BodyDebug>,
+    /// The create form's preview in the active document, while one is
+    /// asked for (ADR-0019).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preview: Option<PreviewDebug>,
     /// The camera the active view looks through.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub camera: Option<CameraDebug>,
@@ -68,6 +73,19 @@ pub struct PartSketchDebug {
     pub hover_region: Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub selected_regions: Vec<String>,
+}
+
+/// A create form's preview.
+#[derive(Debug, Serialize)]
+pub struct PreviewDebug {
+    /// Its outcome has been heard; until then the form says evaluating.
+    pub heard: bool,
+    /// Every body it changed is drawn refined.
+    pub settled: bool,
+    /// The bodies it draws, tinted, in place of the document's.
+    pub bodies: Vec<BodyDebug>,
+    /// The document's bodies it hides, by `part/feature/slot`.
+    pub replaced: Vec<String>,
 }
 
 /// The sketch the active tab is editing.
@@ -142,6 +160,19 @@ pub struct LayoutDebug {
     pub properties: Option<[f64; 4]>,
 }
 
+fn body_debug(e: &BodyEntry<GpuMesh>) -> BodyDebug {
+    BodyDebug {
+        part: e.key.part.0.to_string(),
+        feature: e.key.feature.0.to_string(),
+        slot: e.key.slot.to_string(),
+        chord_um: round6((e.chord * 1e6) as f32),
+        triangles: e.mesh.index_count / 3,
+        bounds: e
+            .world_bounds()
+            .map(|b| [b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z].map(round6)),
+    }
+}
+
 fn round6(x: f32) -> f64 {
     (f64::from(x) * 1e6).round() / 1e6
 }
@@ -170,6 +201,7 @@ impl ArrixApp {
                 shell: None,
                 evaluation: None,
                 bodies: Vec::new(),
+                preview: None,
                 camera: None,
                 selection: None,
                 hover: None,
@@ -203,21 +235,24 @@ impl ArrixApp {
                 problems: d.problems.clone(),
             }),
             bodies: self.active_document().map_or_else(Vec::new, |d| {
-                d.view
-                    .scene
-                    .entries()
-                    .map(|e| BodyDebug {
-                        part: e.key.part.0.to_string(),
-                        feature: e.key.feature.0.to_string(),
-                        slot: e.key.slot.to_string(),
-                        chord_um: round6((e.chord * 1e6) as f32),
-                        triangles: e.mesh.index_count / 3,
-                        bounds: e.world_bounds().map(|b| {
-                            [b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z].map(round6)
-                        }),
-                    })
-                    .collect()
+                d.view.scene.entries().map(body_debug).collect()
             }),
+            preview: self
+                .active_document()
+                .filter(|d| d.preview.active())
+                .map(|d| {
+                    let scene = &d.view.scene;
+                    PreviewDebug {
+                        heard: d.preview.heard().is_some(),
+                        settled: d.preview.heard().is_some_and(|h| h.settled()),
+                        bodies: scene.preview().map(body_debug).collect(),
+                        replaced: scene
+                            .keys()
+                            .filter(|k| scene.replaced(k))
+                            .map(|k| format!("{}/{}/{}", k.part.0, k.feature.0, k.slot))
+                            .collect(),
+                    }
+                }),
             camera: self.active_document().map(|d| {
                 let c = &d.view.camera;
                 CameraDebug {

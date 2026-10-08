@@ -24,7 +24,7 @@ const NO_BODIES_AFTER: Duration = Duration::from_secs(1);
 
 /// The local user, as the authority knows them: undo is per author
 /// (SEED.md §6.1), and in local mode there is one.
-const LOCAL_AUTHOR: AuthorId = AuthorId(Id(1));
+pub(crate) const LOCAL_AUTHOR: AuthorId = AuthorId(Id(1));
 
 /// What is drawn and from where: the bodies, and the camera on them; what
 /// is selected among them, and the pick on its way.
@@ -156,6 +156,8 @@ pub struct OpenDocument {
     pub form: Option<crate::form::Form>,
     /// The finished sketches, solved, for part mode to draw.
     pub part_sketches: std::collections::BTreeMap<FeatureId, crate::part_sketch::PartSketch>,
+    /// The create form's preview, while one is asked for (ADR-0019).
+    pub preview: crate::preview::FormPreview,
     /// Whether the camera has been fitted to the bodies: it is once, on
     /// the first mesh, and never again, so a later edit does not take the
     /// view away from the user.
@@ -221,6 +223,7 @@ impl OpenDocument {
             sketch: None,
             form: None,
             part_sketches: std::collections::BTreeMap::new(),
+            preview: crate::preview::FormPreview::default(),
             framed: false,
             mesh: MeshProgress::default(),
             finished_at: None,
@@ -229,6 +232,11 @@ impl OpenDocument {
             problems: Vec::new(),
             applied: 0,
         })
+    }
+
+    /// The session the tab's requests go to.
+    pub(crate) fn session(&self) -> &LocalSession {
+        &self._session
     }
 
     /// How many commands the authority has applied for this tab's author,
@@ -364,6 +372,9 @@ impl OpenDocument {
                     }
                     Err(diagnostic) => self.problems.push(diagnostic.message.clone()),
                 }
+            }
+            SessionEvent::Previewed { .. } | SessionEvent::PreviewMeshed { .. } => {
+                self.receive_preview(event, renderer);
             }
             _ => {}
         }

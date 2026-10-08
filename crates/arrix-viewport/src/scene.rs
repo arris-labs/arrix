@@ -6,6 +6,7 @@
 //! upload costs none: the evaluator sends every final body's mesh again on
 //! each generation, and an edit that left a body alone must not re-upload it.
 
+use std::collections::BTreeSet;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
 use arrix_core::{DVec3, FeatureId, PartId, PersistentName, RenderMesh, SlotName, TopoKind};
@@ -179,13 +180,26 @@ pub enum Upload {
 
 /// Every body on screen, in insertion order, which is also draw order and
 /// the order [`Scene::visible`] hands them to the render pass.
+///
+/// A preview (ADR-0019) is a second list beside the document's bodies: its
+/// bodies are drawn tinted, in place of the document's bodies it replaces,
+/// and never picked, located or framed. Those stay the document's: a pick
+/// while a preview shows lands on what the document holds.
 pub struct Scene<M> {
     bodies: Vec<BodyEntry<M>>,
+    preview: Vec<BodyEntry<M>>,
+    /// The document's bodies the preview replaces: not drawn while it
+    /// shows, still picked.
+    replaced: BTreeSet<BodyKey>,
 }
 
 impl<M> Default for Scene<M> {
     fn default() -> Self {
-        Self { bodies: Vec::new() }
+        Self {
+            bodies: Vec::new(),
+            preview: Vec::new(),
+            replaced: BTreeSet::new(),
+        }
     }
 }
 
@@ -212,39 +226,61 @@ fn fingerprint(mesh: &RenderMesh) -> u64 {
     h.finish()
 }
 
+/// Uploads `mesh` as `key`'s entry of `bodies`, unless the entry already
+/// holds this very mesh.
+fn upload<M: BodyPayload>(
+    bodies: &mut Vec<BodyEntry<M>>,
+    ctx: &M::Context,
+    key: &BodyKey,
+    mesh: &RenderMesh,
+) -> Upload {
+    let print = fingerprint(mesh);
+    let existing = bodies.iter_mut().find(|b| &b.key == key);
+    if let Some(entry) = existing {
+        entry.chord = mesh.chord;
+        if entry.fingerprint == print {
+            return Upload::Unchanged;
+        }
+        entry.mesh = M::upload(ctx, key, mesh);
+        entry.origin = mesh.origin;
+        entry.model = model(mesh.origin);
+        entry.bounds = Aabb::of_mesh(mesh);
+        entry.names = EntityNames::of_mesh(mesh);
+        entry.fingerprint = print;
+        return Upload::Uploaded;
+    }
+    bodies.push(BodyEntry {
+        key: key.clone(),
+        mesh: M::upload(ctx, key, mesh),
+        origin: mesh.origin,
+        model: model(mesh.origin),
+        visible: true,
+        bounds: Aabb::of_mesh(mesh),
+        chord: mesh.chord,
+        names: EntityNames::of_mesh(mesh),
+        fingerprint: print,
+    });
+    Upload::Uploaded
+}
+
 impl<M: BodyPayload> Scene<M> {
     /// Uploads `mesh` as `key`'s geometry, replacing what the body held and
     /// leaving every other body's buffers alone, unless the body already
     /// holds this very mesh. A body that exists keeps its visibility, so a
     /// refined mesh does not un-hide a hidden body.
     pub fn set_body(&mut self, ctx: &M::Context, key: &BodyKey, mesh: &RenderMesh) -> Upload {
-        let print = fingerprint(mesh);
-        let existing = self.bodies.iter_mut().find(|b| &b.key == key);
-        if let Some(entry) = existing {
-            entry.chord = mesh.chord;
-            if entry.fingerprint == print {
-                return Upload::Unchanged;
-            }
-            entry.mesh = M::upload(ctx, key, mesh);
-            entry.origin = mesh.origin;
-            entry.model = model(mesh.origin);
-            entry.bounds = Aabb::of_mesh(mesh);
-            entry.names = EntityNames::of_mesh(mesh);
-            entry.fingerprint = print;
-            return Upload::Uploaded;
-        }
-        self.bodies.push(BodyEntry {
-            key: key.clone(),
-            mesh: M::upload(ctx, key, mesh),
-            origin: mesh.origin,
-            model: model(mesh.origin),
-            visible: true,
-            bounds: Aabb::of_mesh(mesh),
-            chord: mesh.chord,
-            names: EntityNames::of_mesh(mesh),
-            fingerprint: print,
-        });
-        Upload::Uploaded
+        upload(&mut self.bodies, ctx, key, mesh)
+    }
+
+    /// Uploads `mesh` as the preview's body `key`, as [`Scene::set_body`]
+    /// does the document's.
+    pub fn set_preview_body(
+        &mut self,
+        ctx: &M::Context,
+        key: &BodyKey,
+        mesh: &RenderMesh,
+    ) -> Upload {
+        upload(&mut self.preview, ctx, key, mesh)
     }
 }
 
@@ -281,6 +317,35 @@ impl<M> Scene<M> {
 
     pub fn clear(&mut self) {
         self.bodies.clear();
+        self.clear_preview();
+    }
+
+    /// Starts a new preview: its bodies are the ones `keep` names of those
+    /// already uploaded (a body it shares with the last keeps its buffers),
+    /// and it replaces the document's bodies `replaced` names.
+    pub fn start_preview(
+        &mut self,
+        mut keep: impl FnMut(&BodyKey) -> bool,
+        replaced: BTreeSet<BodyKey>,
+    ) {
+        self.preview.retain(|b| keep(&b.key));
+        self.replaced = replaced;
+    }
+
+    /// Drops the preview: the document's bodies are drawn again.
+    pub fn clear_preview(&mut self) {
+        self.preview.clear();
+        self.replaced.clear();
+    }
+
+    /// The preview's bodies, in the order they were uploaded.
+    pub fn preview(&self) -> impl Iterator<Item = &BodyEntry<M>> + '_ {
+        self.preview.iter()
+    }
+
+    /// Whether the preview replaces the document's body `key`.
+    pub fn replaced(&self, key: &BodyKey) -> bool {
+        self.replaced.contains(key)
     }
 
     pub fn contains(&self, key: &BodyKey) -> bool {
@@ -606,6 +671,39 @@ mod tests {
         assert_eq!(scene.resolve(&drawn, face_hit(0, 0)), None);
         scene.remove_body(&key(0));
         assert_eq!(scene.resolve(&drawn, face_hit(0, 0)), None);
+    }
+
+    #[test]
+    fn a_preview_beside_the_document_is_never_picked_or_located() {
+        let ctx = Uploads::default();
+        let mut scene = scene_of(&ctx, 2);
+        scene.set_preview_body(&ctx, &key(0), &mesh(3));
+        scene.set_preview_body(&ctx, &key(5), &mesh(1));
+        scene.start_preview(|_| true, [key(0)].into());
+        assert_eq!(scene.len(), 2, "the document's bodies are its own");
+        assert_eq!(scene.preview().count(), 2);
+        assert!(scene.replaced(&key(0)) && !scene.replaced(&key(1)));
+        // A pick and a name are the document's, replaced bodies included.
+        let drawn = scene.pick_bodies();
+        assert_eq!(scene.resolve(&drawn, face_hit(0, 0)), Some(&face(0).name));
+        assert_eq!(
+            scene.locate(&face(2).name),
+            None,
+            "the preview's third face"
+        );
+
+        // The next preview keeps what it shares; a clear drops the rest.
+        let uploads = ctx.0.get();
+        scene.start_preview(|k| k == &key(5), BTreeSet::new());
+        assert_eq!(scene.preview().count(), 1);
+        assert_eq!(
+            scene.set_preview_body(&ctx, &key(5), &mesh(1)),
+            Upload::Unchanged
+        );
+        assert_eq!(ctx.0.get(), uploads);
+        scene.clear_preview();
+        assert_eq!(scene.preview().count(), 0);
+        assert!(!scene.replaced(&key(0)));
     }
 
     #[test]

@@ -7,6 +7,7 @@ mod fixture;
 mod form_pick;
 mod harness;
 mod highlight;
+mod preview;
 mod sketch;
 mod sketch_accept;
 mod snapshot;

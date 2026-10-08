@@ -266,7 +266,9 @@ impl Renderer {
     /// Draws `scene` from `camera` into `rect` of `painter`'s layer: the
     /// work is done when egui renders the frame, through the callback this
     /// adds. `highlights` are the entities restyled over it, hover under
-    /// selection; a name no visible body holds draws nothing. With `pick`, a point in `rect`, the frame also draws the pick
+    /// selection; a name no visible body holds draws nothing. The scene's
+    /// preview, if any, is drawn tinted in place of the bodies it replaces,
+    /// which are still what a pick lands on. With `pick`, a point in `rect`, the frame also draws the pick
     /// pass and reads back the region about it: the pick returned is
     /// answered frames later ([`Renderer::poll`]). An empty scene picks
     /// nothing and returns none.
@@ -289,16 +291,23 @@ impl Renderer {
         let aspect = rect.width().max(1.0) / rect.height().max(1.0);
         let dark = painter.ctx().global_style().visuals.dark_mode;
 
+        // The document's visible bodies, then the preview's: the pick ids
+        // and highlight indices count the document's alone.
         let count = scene.visible().count();
-        self.models.reserve(&self.device, count);
+        let total = count + scene.preview().count();
+        self.models.reserve(&self.device, total);
         let stride = self.models.stride as usize;
-        let mut model_data = vec![0u8; stride * count];
-        let mut bodies = Vec::with_capacity(count);
-        for (i, entry) in scene.visible().enumerate() {
+        let mut model_data = vec![0u8; stride * total];
+        let mut bodies = Vec::with_capacity(total);
+        let entries = scene
+            .visible()
+            .map(|e| (e, false))
+            .chain(scene.preview().map(|e| (e, true)));
+        for (i, (entry, preview)) in entries.enumerate() {
             let at = i * stride;
             let uniforms = BodyUniforms {
                 model: entry.model.to_cols_array_2d(),
-                pick: [body_bits(i), 0, 0, 0],
+                pick: [if preview { 0 } else { body_bits(i) }, 0, 0, 0],
             };
             model_data[at..at + MODEL_SIZE as usize].copy_from_slice(bytemuck::bytes_of(&uniforms));
             let mesh = &entry.mesh;
@@ -314,7 +323,8 @@ impl Renderer {
                 point_buffer: mesh.point_buffer.clone(),
                 point_ids: mesh.point_ids.clone(),
                 point_count: mesh.point_count,
-                pickable: body_pickable(i),
+                pickable: !preview && body_pickable(i),
+                drawn: preview || !scene.replaced(&entry.key),
             });
         }
 
@@ -347,6 +357,9 @@ impl Renderer {
             let model_offset = (at.body * stride) as u32;
             HighlightDraw::new(&entry.mesh, at, model_offset, style)
         })
+        .chain(scene.preview().enumerate().map(|(i, entry)| {
+            HighlightDraw::body(&entry.mesh, ((count + i) * stride) as u32, Style::Preview)
+        }))
         .collect();
 
         let mut camera_uniforms = CameraUniforms::new(camera, aspect, dark);

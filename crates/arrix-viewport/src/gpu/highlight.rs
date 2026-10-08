@@ -22,6 +22,8 @@ use crate::scene::Located;
 pub enum Style {
     Hover = 0,
     Selection = 1,
+    /// A preview's body, tinted whole (ADR-0019).
+    Preview = 2,
 }
 
 /// The names the viewport highlights this frame.
@@ -141,6 +143,19 @@ pub struct HighlightDraw {
 }
 
 impl HighlightDraw {
+    /// Every face of `mesh` tinted, as a preview's body is drawn.
+    pub fn body(mesh: &GpuMesh, model_offset: u32, style: Style) -> Self {
+        HighlightDraw {
+            model_offset,
+            style,
+            pieces: vec![Piece::Fill {
+                vertices: mesh.vertex_buffer.clone(),
+                indices: mesh.index_buffer.clone(),
+                range: 0..mesh.index_count,
+            }],
+        }
+    }
+
     /// The draw for the entity `at` locates in `mesh`, whose uniforms sit at
     /// `model_offset`; none for an entity the mesh holds no range for.
     pub fn new(mesh: &GpuMesh, at: Located, model_offset: u32, style: Style) -> Option<Self> {
