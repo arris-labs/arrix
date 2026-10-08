@@ -46,6 +46,7 @@
       ],
       "yaw": -0.785398
     },
+    "commands_applied": 0,
     "config_diagnostics": [],
     "evaluation": {
       "document": "slice",
@@ -55,6 +56,18 @@
       "settled": true
     },
     "gesture_commands": 0,
+    "gestures": [
+      {
+        "commands": 0,
+        "document": "slice",
+        "what": "TreeFeatureSelected"
+      },
+      {
+        "commands": 0,
+        "document": "slice",
+        "what": "command core.sketch.edit"
+      }
+    ],
     "keymap": [
       {
         "command": "core.palette.open",

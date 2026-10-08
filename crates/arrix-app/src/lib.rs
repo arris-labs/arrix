@@ -10,6 +10,7 @@ mod document_files;
 mod documents;
 mod form;
 mod form_pick;
+mod gestures;
 mod keys;
 mod palette;
 mod part_sketch;
@@ -25,6 +26,7 @@ mod theme;
 mod viewport;
 
 pub use debug::DebugState;
+pub use gestures::Gesture;
 
 use arrix_config::{
     CONFIG_RELOAD, CommandRegistry, Config, ConfigDiagnostic, ConfigSource, DOCUMENT_CLOSE,
@@ -62,7 +64,7 @@ struct Session {
     /// Why the last gesture did nothing, for the status line until the next
     /// one: nothing fails silently.
     notice: Option<String>,
-    gestures: Gestures,
+    gestures: gestures::Gestures,
     /// How many forms this session has opened: names each one's text
     /// buffers.
     forms_opened: u64,
@@ -72,18 +74,6 @@ struct Session {
     /// When, on egui's clock, a dwell under way completes: a frame is
     /// asked for then, since a pointer at rest sends nothing.
     wake_at: Option<f64>,
-}
-
-/// Counts the commands each gesture submits (SEED.md §8.2: one gesture, one
-/// command, or none when nothing changed). A pointer or key gesture is
-/// opened when the app starts handling it and closed when it is done; the
-/// last one's count is in `debug_state()`.
-#[derive(Default)]
-struct Gestures {
-    /// The applied total of the active document when the open gesture began.
-    open: Option<usize>,
-    /// The last closed gesture's count; `None` before any.
-    last: Option<usize>,
 }
 
 /// A seed for the id minter: the clock, which a session's ids need only to
@@ -192,7 +182,7 @@ impl ArrixApp {
                 cards: CardToggles::default(),
                 hovered_command: None,
                 notice: None,
-                gestures: Gestures::default(),
+                gestures: gestures::Gestures::default(),
                 forms_opened: 0,
                 shift: false,
                 wake_at: None,
@@ -290,39 +280,6 @@ impl ArrixApp {
                 self.active = self.documents.len() - 1;
             }
             Err(reason) => self.session.notice = Some(reason),
-        }
-    }
-
-    /// Submits `command` to the active document as one gesture, as the
-    /// pointer's tools will: how a scenario edits the document before the
-    /// UI has the tool for it. Returns whether it changed anything.
-    pub fn submit(&mut self, command: arrix_doc::Command) -> Result<bool, String> {
-        self.open_gesture();
-        let result = match self.documents.get_mut(self.active) {
-            Some(document) => document.submit(command),
-            None => Err("no document is open".to_owned()),
-        };
-        self.session.notice = result.as_ref().err().cloned();
-        self.close_gesture();
-        result
-    }
-
-    /// The commands the active document has applied so far, for the gesture
-    /// count's baseline.
-    fn applied(&self) -> usize {
-        self.active_document().map_or(0, OpenDocument::applied)
-    }
-
-    fn open_gesture(&mut self) {
-        self.session.gestures.open = Some(self.applied());
-        self.session.notice = None;
-    }
-
-    /// Closes the open gesture: its count is the commands applied since it
-    /// opened. Why it did nothing, if it was refused, is the notice.
-    fn close_gesture(&mut self) {
-        if let Some(before) = self.session.gestures.open.take() {
-            self.session.gestures.last = Some(self.applied().saturating_sub(before));
         }
     }
 
@@ -631,12 +588,9 @@ impl ArrixApp {
                 | UiIntent::DimensionEdited { .. }
                 | UiIntent::FieldEdited { .. }
         );
-        if gesture {
-            self.open_gesture();
-        }
-        self.apply_intent(intent);
-        if gesture {
-            self.close_gesture();
+        match gesture {
+            true => self.gesture(&gestures::what(&intent), |app| app.apply_intent(intent)),
+            false => self.apply_intent(intent),
         }
     }
 
@@ -899,9 +853,7 @@ impl ArrixApp {
                 // A key that ran a command is spent: a focused field must
                 // not also act on it.
                 keys::consume(ctx, &chord);
-                self.open_gesture();
-                self.run(&command);
-                self.close_gesture();
+                self.gesture(&format!("key {command}"), |app| app.run(&command));
             }
         }
     }
@@ -964,7 +916,9 @@ impl eframe::App for ArrixApp {
                 ui.ctx().request_repaint();
             }
             if let Some((feature, item, extend)) = pointer.click {
-                self.form_pick_sketch(feature, item, extend);
+                self.gesture("part sketch pick", |app| {
+                    app.form_pick_sketch(feature, item, extend);
+                });
             }
         }
         if let Some(pointer) = sketch_pointer {

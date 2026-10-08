@@ -60,6 +60,14 @@ pub struct DebugState {
     /// or none where nothing changed); absent before any gesture.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gesture_commands: Option<usize>,
+    /// The closed gestures, the latest last and at most the last 256: what
+    /// opened each, its document and the commands it applied.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub gestures: Vec<crate::Gesture>,
+    /// The commands the active document has applied, undo and redo
+    /// included: what its gestures' counts add up to.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub commands_applied: Option<usize>,
     /// The keymap in force: each key, its command and its context.
     pub keymap: Vec<Binding>,
     /// What the config files got wrong, each with its file and line.
@@ -215,7 +223,9 @@ impl ArrixApp {
                 sketch: None,
                 sketch_view: None,
                 part_sketches: Vec::new(),
-                gesture_commands: self.session.gestures.last,
+                gesture_commands: self.session.gestures.last(),
+                gestures: self.session.gestures.log().cloned().collect(),
+                commands_applied: self.active_document().map(|d| d.applied()),
                 keymap: self.keymap.bindings().to_vec(),
                 config_diagnostics: self.config_diagnostics.clone(),
             };
@@ -303,7 +313,9 @@ impl ArrixApp {
                     selected_regions: o.view.selected_regions,
                 })
                 .collect(),
-            gesture_commands: self.session.gestures.last,
+            gesture_commands: self.session.gestures.last(),
+            gestures: self.session.gestures.log().cloned().collect(),
+            commands_applied: self.active_document().map(|d| d.applied()),
             keymap: self.keymap.bindings().to_vec(),
             config_diagnostics: self.config_diagnostics.clone(),
         }

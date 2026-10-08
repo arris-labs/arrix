@@ -101,10 +101,19 @@ else what to do next.
   `core.document.new` (Ctrl+N) opens an empty document in a new tab, with
   no part until something needs one. Each key or intent the app handles
   (a hover is none) is a **gesture**, opened and closed around its
-  handling; the commands it got applied are counted, and `debug_state()`
-  reports the last gesture's count (`gesture_commands`), which is how a
-  scenario checks that every gesture was one command, or none where
-  nothing changed.
+  handling (a drag is one, closed by its release; a click on a finished
+  sketch's item while a field asks for one is one too); the commands it
+  got applied to the document it began on are counted. The app keeps a
+  **gesture log**, session state: each closed gesture, what opened it
+  (`key <command>`, `command <command>` for a button or palette row, an
+  intent's kind, `submit`) and its count. `debug_state()` reports the last
+  gesture's count (`gesture_commands`), the log (`gestures`, the last 256)
+  and the active document's applied total (`commands_applied`), which is
+  how a scenario checks over a whole flow that every gesture was one
+  command, or none where nothing changed, and that the log's sum is the
+  total, so no command was applied outside a gesture. Such a command is a
+  bug, not a case the log records: a debug assertion at each gesture's
+  close catches it.
 - **Themes** are `ThemeView` data (below), made from a theme file: `base`
   (`dark` or `light`, the toolkit's look for what the roles don't cover),
   `[vars]` and `[colors]` over 16 roles (`THEME_ROLES`). A colour is `#rgb`,

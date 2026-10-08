@@ -2,6 +2,16 @@
   "debug_state": {
     "config_diagnostics": [],
     "gesture_commands": 0,
+    "gestures": [
+      {
+        "commands": 0,
+        "what": "key core.palette.open"
+      },
+      {
+        "commands": 0,
+        "what": "PaletteQuery"
+      }
+    ],
     "keymap": [
       {
         "command": "core.palette.open",

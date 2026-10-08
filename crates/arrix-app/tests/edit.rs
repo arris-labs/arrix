@@ -1,13 +1,16 @@
 //! The UI's first document commands: undo, redo and a new document, and
-//! the count of commands each gesture submitted (SEED.md §8.2).
-//! Logic only.
+//! the count of commands each gesture submitted, and the log of them
+//! (SEED.md §8.2). Logic only.
+
+mod common;
 
 use arrix_app::ArrixApp;
 use arrix_core::{Id, ParamId, QuantityKind};
 use arrix_doc::expr::Expr;
 use arrix_doc::{Command, MemorySource, Param};
+use egui::accesskit::Role;
 use egui::{Key, Modifiers};
-use egui_kittest::Harness;
+use egui_kittest::{Harness, kittest::Queryable as _};
 
 fn app() -> Harness<'static, ArrixApp> {
     let mut harness = Harness::builder()
@@ -117,4 +120,68 @@ fn a_new_document_is_an_empty_tab() {
     let tabs = h.state().debug_state().shell.unwrap().documents.tabs;
     assert_eq!(tabs.len(), 2);
     assert!(tabs[1].active);
+}
+
+/// Types `text` into the `n`th text box and commits it with Enter.
+fn type_into(h: &mut Harness<'_, ArrixApp>, n: usize, text: &str) {
+    h.get_all_by_role(Role::TextInput).nth(n).unwrap().focus();
+    h.run_steps(2);
+    h.key_press_modifiers(Modifiers::CTRL | Modifiers::COMMAND, Key::A);
+    h.run_steps(2);
+    h.get_all_by_role(Role::TextInput)
+        .nth(n)
+        .unwrap()
+        .type_text(text);
+    h.run_steps(2);
+    h.key_press(Key::Enter);
+    h.run_steps(3);
+}
+
+#[test]
+fn the_gesture_log_accounts_for_every_command_applied() {
+    let mut h = common::sketching();
+    // A sketch edit: a rectangle, then back to the part.
+    h.key_press(Key::R);
+    h.run_steps(2);
+    common::click(&mut h, [20.0, 15.0]);
+    common::click(&mut h, [50.0, 35.0]);
+    common::drawn(&mut h, 4);
+    h.get_by_label("Finish sketch").click();
+    h.run_steps(3);
+    // A create form: a text its field refuses, then OK.
+    h.get_all_by_label("Part").next().unwrap().click();
+    h.run_steps(2);
+    h.get_by_label("New extrude").click();
+    h.run_steps(3);
+    type_into(&mut h, 1, "12 deg");
+    assert_eq!(gesture(&h), Some(0), "a refused text applies none");
+    type_into(&mut h, 1, "12 mm");
+    h.get_by_label("OK").click();
+    h.run_steps(3);
+    assert_eq!(gesture(&h), Some(1), "OK applies one");
+    // An undo, and a hover over the viewport, which is no gesture.
+    press(&mut h, Modifiers::CTRL, Key::Z);
+    assert_eq!(gesture(&h), Some(1));
+    let logged = h.state().debug_state().gestures.len();
+    h.event(egui::Event::PointerMoved(egui::pos2(700.0, 450.0)));
+    h.run_steps(5);
+
+    let state = h.state().debug_state();
+    assert_eq!(state.gestures.len(), logged, "a hover is not logged");
+    let applied = state.commands_applied.expect("a document is open");
+    // The new sketch, the rectangle, the extrude and its undo.
+    assert_eq!(applied, 4);
+    let title = state.evaluation.unwrap().document;
+    let logged: usize = state
+        .gestures
+        .iter()
+        .filter(|g| g.document.as_deref() == Some(title.as_str()))
+        .map(|g| g.commands)
+        .sum();
+    assert_eq!(logged, applied, "{:#?}", state.gestures);
+    assert!(
+        state.gestures.iter().all(|g| g.commands <= 1),
+        "{:#?}",
+        state.gestures
+    );
 }

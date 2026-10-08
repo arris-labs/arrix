@@ -203,7 +203,16 @@ pub struct OpenDocument {
     /// mesh, a stream the replica could not follow.
     pub problems: Vec<String>,
     applied: usize,
+    /// Which open document this is, for the gesture log: unique in the
+    /// process, unlike a title or a tab's index.
+    pub(crate) serial: u64,
+    /// The commands closed gestures have counted on this document; every
+    /// command runs inside one, so it equals `applied` between gestures.
+    pub(crate) gestured: usize,
 }
+
+/// The next document's serial.
+static SERIALS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
 /// The meshes heard of one generation: every body coarse, then every body
 /// refined, so the refined ones start once the coarse ones are all in.
@@ -262,6 +271,8 @@ impl OpenDocument {
             broken: false,
             problems: Vec::new(),
             applied: 0,
+            serial: SERIALS.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+            gestured: 0,
         })
     }
 

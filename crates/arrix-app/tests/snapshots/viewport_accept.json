@@ -46,6 +46,7 @@
       ],
       "yaw": 1.570796
     },
+    "commands_applied": 0,
     "config_diagnostics": [],
     "evaluation": {
       "document": "slice",
@@ -55,6 +56,23 @@
       "settled": true
     },
     "gesture_commands": 0,
+    "gestures": [
+      {
+        "commands": 0,
+        "document": "gear-on-plane",
+        "what": "DocumentTabSelected"
+      },
+      {
+        "commands": 0,
+        "document": "slice",
+        "what": "Picked"
+      },
+      {
+        "commands": 0,
+        "document": "slice",
+        "what": "key core.selection.clear"
+      }
+    ],
     "keymap": [
       {
         "command": "core.palette.open",

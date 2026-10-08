@@ -29,6 +29,7 @@
       ],
       "yaw": -0.785398
     },
+    "commands_applied": 1,
     "config_diagnostics": [],
     "evaluation": {
       "document": "Untitled 1",
@@ -38,6 +39,17 @@
       "settled": true
     },
     "gesture_commands": 1,
+    "gestures": [
+      {
+        "commands": 0,
+        "what": "key core.document.new"
+      },
+      {
+        "commands": 1,
+        "document": "Untitled 1",
+        "what": "command core.sketch.create"
+      }
+    ],
     "keymap": [
       {
         "command": "core.palette.open",

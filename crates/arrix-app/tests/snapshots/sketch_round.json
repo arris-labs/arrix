@@ -29,6 +29,7 @@
       ],
       "yaw": -0.785398
     },
+    "commands_applied": 2,
     "config_diagnostics": [],
     "evaluation": {
       "document": "Untitled 1",
@@ -38,6 +39,47 @@
       "settled": true
     },
     "gesture_commands": 0,
+    "gestures": [
+      {
+        "commands": 0,
+        "what": "key core.document.new"
+      },
+      {
+        "commands": 1,
+        "document": "Untitled 1",
+        "what": "command core.sketch.create"
+      },
+      {
+        "commands": 0,
+        "document": "Untitled 1",
+        "what": "key core.sketch.circle"
+      },
+      {
+        "commands": 0,
+        "document": "Untitled 1",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 1,
+        "document": "Untitled 1",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 0,
+        "document": "Untitled 1",
+        "what": "key core.sketch.arc"
+      },
+      {
+        "commands": 0,
+        "document": "Untitled 1",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 0,
+        "document": "Untitled 1",
+        "what": "SketchClicked"
+      }
+    ],
     "keymap": [
       {
         "command": "core.palette.open",

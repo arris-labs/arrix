@@ -46,6 +46,7 @@
       ],
       "yaw": -0.785398
     },
+    "commands_applied": 14,
     "config_diagnostics": [],
     "evaluation": {
       "document": "sketch-mode",
@@ -55,6 +56,298 @@
       "settled": true
     },
     "gesture_commands": 0,
+    "gestures": [
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "command core.sketch.create"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "key core.sketch.rectangle"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "key core.sketch.tool.cancel"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "key core.sketch.finish"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "key core.selection.clear"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "RibbonTabSelected"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "command core.extrude.create"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "part sketch pick"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "FieldCommitted"
+      },
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "FormOk"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "TreeFeatureSelected"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "TreeFeatureActivated"
+      },
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "FieldCommitted"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "FieldCommitted"
+      },
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "ChoiceSelected"
+      },
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "ChoiceSelected"
+      },
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "FieldCommitted"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "key core.form.cancel"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "RibbonTabSelected"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "command core.datum-plane.create"
+      },
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "FormOk"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "RibbonTabSelected"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "command gears.spur.create"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "TreeFeatureSelected"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "FieldCommitted"
+      },
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "FormOk"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "TreeFeatureSelected"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "TreeFeatureActivated"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "key core.form.cancel"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "RibbonTabSelected"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "command core.fillet.create"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "Picked"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "ReferenceFieldActivated"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "Picked"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "FieldCommitted"
+      },
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "FormOk"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "TreeFeatureSelected"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "TreeFeatureActivated"
+      },
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "FieldCommitted"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "key core.form.cancel"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "TreeFeatureSelected"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "TreeFeatureActivated"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "key core.sketch.delete"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "key core.sketch.line"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "key core.sketch.tool.cancel"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "key core.sketch.tool.cancel"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "key core.sketch.finish"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "TreeFeatureSelected"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "TreeFeatureActivated"
+      },
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "CandidatePicked"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "key core.form.cancel"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "TreeFeatureSelected"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "TreeFeatureActivated"
+      }
+    ],
     "keymap": [
       {
         "command": "core.palette.open",

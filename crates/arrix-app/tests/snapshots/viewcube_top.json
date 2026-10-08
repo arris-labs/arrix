@@ -46,6 +46,7 @@
       ],
       "yaw": 1.570796
     },
+    "commands_applied": 0,
     "config_diagnostics": [],
     "evaluation": {
       "document": "slice",

@@ -46,6 +46,7 @@
       ],
       "yaw": -0.785398
     },
+    "commands_applied": 0,
     "config_diagnostics": [],
     "evaluation": {
       "document": "slice",
@@ -55,6 +56,28 @@
       "settled": true
     },
     "gesture_commands": 0,
+    "gestures": [
+      {
+        "commands": 0,
+        "document": "slice",
+        "what": "key core.panel.tree.toggle"
+      },
+      {
+        "commands": 0,
+        "document": "gear-on-plane",
+        "what": "DocumentTabSelected"
+      },
+      {
+        "commands": 0,
+        "document": "slice",
+        "what": "key core.document.next"
+      },
+      {
+        "commands": 0,
+        "document": "gear-on-plane",
+        "what": "key core.document.previous"
+      }
+    ],
     "keymap": [
       {
         "command": "core.panel.tree.toggle",

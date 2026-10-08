@@ -29,6 +29,7 @@
       ],
       "yaw": -0.785398
     },
+    "commands_applied": 15,
     "config_diagnostics": [],
     "evaluation": {
       "document": "sketch-mode",
@@ -38,6 +39,248 @@
       "settled": true
     },
     "gesture_commands": 1,
+    "gestures": [
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "command core.sketch.create"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "key core.sketch.rectangle"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "key core.sketch.tool.cancel"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "key core.sketch.dimension"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "key core.sketch.tool.cancel"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "SketchDoubleClicked"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "DimensionCommitted"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "key core.sketch.dimension"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "key core.sketch.tool.cancel"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "SketchDoubleClicked"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "DimensionCommitted"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "key core.sketch.circle"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "key core.sketch.tool.cancel"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "SketchDragEnded"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "key core.sketch.dimension"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "key core.sketch.tool.cancel"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "SketchDoubleClicked"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "DimensionCommitted"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "key core.sketch.line"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "key core.sketch.tool.cancel"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "key core.sketch.tool.cancel"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "key core.sketch.trim"
+      },
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "key core.sketch.tool.cancel"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "SketchClicked"
+      },
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "key core.sketch.construction"
+      },
+      {
+        "commands": 0,
+        "document": "sketch-mode",
+        "what": "key core.sketch.mirror"
+      },
+      {
+        "commands": 1,
+        "document": "sketch-mode",
+        "what": "SketchClicked"
+      }
+    ],
     "keymap": [
       {
         "command": "core.palette.open",

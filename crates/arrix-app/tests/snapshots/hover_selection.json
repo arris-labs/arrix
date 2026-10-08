@@ -46,6 +46,7 @@
       ],
       "yaw": -0.785398
     },
+    "commands_applied": 0,
     "config_diagnostics": [],
     "evaluation": {
       "document": "slice",
@@ -55,6 +56,13 @@
       "settled": true
     },
     "gesture_commands": 0,
+    "gestures": [
+      {
+        "commands": 0,
+        "document": "slice",
+        "what": "Picked"
+      }
+    ],
     "hover": "edge:sweep.5BE3HE4D204QM.rise.77MSVCSN1W8ET",
     "keymap": [
       {

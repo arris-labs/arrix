@@ -2,6 +2,16 @@
   "debug_state": {
     "config_diagnostics": [],
     "gesture_commands": 0,
+    "gestures": [
+      {
+        "commands": 0,
+        "what": "key core.panel.tree.toggle"
+      },
+      {
+        "commands": 0,
+        "what": "key core.panel.properties.toggle"
+      }
+    ],
     "keymap": [
       {
         "command": "core.panel.tree.toggle",

@@ -46,6 +46,7 @@
       ],
       "yaw": -0.785398
     },
+    "commands_applied": 0,
     "config_diagnostics": [],
     "evaluation": {
       "document": "slice (without gears)",
