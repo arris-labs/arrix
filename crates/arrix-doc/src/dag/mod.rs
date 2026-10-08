@@ -10,9 +10,7 @@ mod tests;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
-use arrix_core::{
-    Diagnostic, FeatureId, NameRoot, NameStep, ParamId, PartId, PersistentName, Ref, Severity,
-};
+use arrix_core::{Diagnostic, FeatureId, NameStep, ParamId, PartId, PersistentName, Ref, Severity};
 use serde::{Deserialize, Serialize};
 
 use crate::bodies;
@@ -95,12 +93,7 @@ pub struct Dag {
 
 /// The features a persistent name was made or changed by.
 fn name_features(name: &PersistentName, out: &mut BTreeSet<FeatureId>) {
-    out.insert(match name.root {
-        NameRoot::Sweep { feature, .. }
-        | NameRoot::Revolve { feature, .. }
-        | NameRoot::Plugin { feature, .. }
-        | NameRoot::Frozen { feature, .. } => feature,
-    });
+    out.insert(name.root.feature());
     for step in &name.chain {
         match step {
             NameStep::Modified { feature, .. } | NameStep::Instance { feature, .. } => {

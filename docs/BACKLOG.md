@@ -34,6 +34,7 @@ idea is not brainstormed twice.
 - The GPU side of the frame budget, measured on a reference GPU in CI; lavapipe says nothing about one (plans/viewport-port step 13)
 - Candidates of a lost reference told apart in the form: they read alike ("Edge of Extrude 1" five times), so a hover that marks one in the scene, or a hint of where it is, is wanted (plans/forms step 10)
 - A failed modifier showing the body its reader last saw, greyed, so a lost edge's candidates can be picked in the viewport and not only from the form's rows; reopens ADR-0007's "unavailable, never an earlier version" for display only (plans/forms step 10)
+- A name a join leaves unchanged can't be read downstream: a tool body's edge that `core.boolean` did not touch keeps `chain: []`, so `locate` looks only in the tool's slot, which the join consumed, and a fillet on a joined gear's edge fails `slot.consumed`, live or frozen; the join could add a step to its tool's names, or `locate` follow a consumed slot into its consumer's version (ADR-0007; plans/m3-accept step 2)
 
 ## Rejected
 

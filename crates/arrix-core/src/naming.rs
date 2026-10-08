@@ -71,6 +71,19 @@ pub enum NameRoot {
     Frozen { feature: FeatureId, index: u32 },
 }
 
+impl NameRoot {
+    /// The feature that made the entity: where its name starts, whatever
+    /// later features did to it.
+    pub fn feature(&self) -> FeatureId {
+        match *self {
+            NameRoot::Sweep { feature, .. }
+            | NameRoot::Revolve { feature, .. }
+            | NameRoot::Plugin { feature, .. }
+            | NameRoot::Frozen { feature, .. } => feature,
+        }
+    }
+}
+
 /// A part of a sweep, in ArriX's words: the caps, and the rest by the key
 /// of the profile curve it came from. A vertex-derived part (`rise`,
 /// `start-vertex`, `end-vertex`) is named by the curve that starts there.

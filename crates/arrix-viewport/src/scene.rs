@@ -6,7 +6,7 @@
 //! upload costs none: the evaluator sends every final body's mesh again on
 //! each generation, and an edit that left a body alone must not re-upload it.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::hash::{DefaultHasher, Hash, Hasher};
 
 use arrix_core::{DVec3, FeatureId, PartId, PersistentName, RenderMesh, SlotName, TopoKind};
@@ -53,17 +53,44 @@ impl Aabb {
             .iter()
             .chain(&mesh.edge_points)
             .copied()
-            .chain(mesh.vertices.iter().map(|v| v.position))
-            .map(Vec3::from_array);
-        points.fold(None, |b: Option<Aabb>, p| {
-            Some(match b {
-                None => Aabb { min: p, max: p },
-                Some(b) => Aabb {
-                    min: b.min.min(p),
-                    max: b.max.max(p),
-                },
+            .chain(mesh.vertices.iter().map(|v| v.position));
+        Aabb::of_points(points)
+    }
+
+    /// The box of `points`; `None` for none.
+    fn of_points(points: impl IntoIterator<Item = [f32; 3]>) -> Option<Aabb> {
+        points
+            .into_iter()
+            .map(Vec3::from_array)
+            .fold(None, |b: Option<Aabb>, p| {
+                Some(match b {
+                    None => Aabb { min: p, max: p },
+                    Some(b) => Aabb {
+                        min: b.min.min(p),
+                        max: b.max.max(p),
+                    },
+                })
             })
-        })
+    }
+
+    /// The box of a mesh's faces, one per feature their names start at,
+    /// whatever later features did to them: where a feature's own faces
+    /// are on a body it was joined into (a frozen feature's badge).
+    pub fn of_features(mesh: &RenderMesh) -> BTreeMap<FeatureId, Aabb> {
+        let mut out: BTreeMap<FeatureId, Aabb> = BTreeMap::new();
+        for face in &mesh.faces {
+            let points = mesh.triangles[face.range()]
+                .iter()
+                .flatten()
+                .filter_map(|&i| mesh.positions.get(i as usize).copied());
+            let Some(b) = Aabb::of_points(points) else {
+                continue;
+            };
+            out.entry(face.name.root.feature())
+                .and_modify(|a| *a = a.union(b))
+                .or_insert(b);
+        }
+        out
     }
 
     fn union(self, other: Aabb) -> Aabb {
@@ -154,18 +181,30 @@ pub struct BodyEntry<M> {
     pub chord: f64,
     /// Its entities by name, for picking.
     pub names: EntityNames,
+    /// The box of its faces by the feature their names start at, in the
+    /// mesh's own coordinates.
+    pub features: BTreeMap<FeatureId, Aabb>,
     fingerprint: u64,
 }
 
 impl<M> BodyEntry<M> {
     /// The body's box in the world.
     pub fn world_bounds(&self) -> Option<Aabb> {
-        let b = self.bounds?;
+        self.bounds.map(|b| self.world(b))
+    }
+
+    /// The box in the world of the faces whose names start at `feature`;
+    /// `None` when the body has none.
+    pub fn feature_bounds(&self, feature: FeatureId) -> Option<Aabb> {
+        self.features.get(&feature).map(|&b| self.world(b))
+    }
+
+    fn world(&self, b: Aabb) -> Aabb {
         let shift = self.model.transform_point3(Vec3::ZERO);
-        Some(Aabb {
+        Aabb {
             min: b.min + shift,
             max: b.max + shift,
-        })
+        }
     }
 }
 
@@ -246,6 +285,7 @@ fn upload<M: BodyPayload>(
         entry.model = model(mesh.origin);
         entry.bounds = Aabb::of_mesh(mesh);
         entry.names = EntityNames::of_mesh(mesh);
+        entry.features = Aabb::of_features(mesh);
         entry.fingerprint = print;
         return Upload::Uploaded;
     }
@@ -258,6 +298,7 @@ fn upload<M: BodyPayload>(
         bounds: Aabb::of_mesh(mesh),
         chord: mesh.chord,
         names: EntityNames::of_mesh(mesh),
+        features: Aabb::of_features(mesh),
         fingerprint: print,
     });
     Upload::Uploaded
@@ -421,6 +462,16 @@ impl<M> Scene<M> {
         self.visible()
             .find(|entry| entry.names.find(name).is_some())
             .map(|entry| &entry.key)
+    }
+
+    /// Each visible body that has faces whose names start at `feature`,
+    /// with their box in the world.
+    pub fn feature_bounds(
+        &self,
+        feature: FeatureId,
+    ) -> impl Iterator<Item = (&BodyKey, Aabb)> + '_ {
+        self.visible()
+            .filter_map(move |entry| Some((&entry.key, entry.feature_bounds(feature)?)))
     }
 
     /// The box of every visible body in the world.
@@ -732,5 +783,53 @@ mod tests {
         let mut edge = face(0).name;
         edge.kind = TopoKind::Edge;
         assert_eq!(scene.locate(&edge), None, "a face's name is not an edge's");
+    }
+
+    /// A face of `feature` that is one triangle over `points`.
+    fn triangle_face(feature: u64, at: u32) -> MeshRange {
+        MeshRange {
+            start: at,
+            end: at + 1,
+            ..face(feature)
+        }
+    }
+
+    #[test]
+    fn a_bodys_faces_are_boxed_by_the_feature_their_names_start_at() {
+        let mut two = mesh(0);
+        two.origin = DVec3::new(10.0, 0.0, 0.0);
+        two.positions = vec![
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [5.0, 5.0, 5.0],
+            [6.0, 5.0, 5.0],
+            [5.0, 6.0, 7.0],
+        ];
+        two.normals = vec![[0.0, 0.0, 1.0]; 6];
+        two.triangles = vec![[0, 1, 2], [3, 4, 5]];
+        two.faces = vec![triangle_face(1, 0), triangle_face(2, 1)];
+        let ctx = Uploads::default();
+        let mut scene = Scene::<TestBody>::default();
+        scene.set_body(&ctx, &key(9), &two);
+
+        let of = |scene: &Scene<TestBody>, f: u64| {
+            scene
+                .feature_bounds(FeatureId(Id(f)))
+                .map(|(k, b)| (k.clone(), b.min, b.max))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            of(&scene, 1),
+            [(key(9), Vec3::new(10.0, 0.0, 0.0), Vec3::new(11.0, 1.0, 0.0))]
+        );
+        assert_eq!(
+            of(&scene, 2),
+            [(key(9), Vec3::new(15.0, 5.0, 5.0), Vec3::new(16.0, 6.0, 7.0))]
+        );
+        assert!(of(&scene, 3).is_empty(), "no face of feature 3");
+        // A hidden body has none to show.
+        scene.set_body_visible(&key(9), false);
+        assert!(of(&scene, 1).is_empty());
     }
 }

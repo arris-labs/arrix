@@ -48,9 +48,11 @@ is issued outside a gesture.
   log's sum is the total. A command applied with no gesture open is a
   bug the check catches, not a case the log records.
 - `docs/UI-RENDERING.md` §The viewport, overlays: a **frozen badge** is
-  anchored on the faces of a body whose name root is `Frozen { feature }`:
-  the scene, GPU-free, gives each body's per-feature bounds of those faces
-  (`arrix-viewport`), the app projects their centre and gives `arrix-ui` a
+  anchored on the faces of a body whose name root's feature is the frozen
+  feature (`NameRoot::feature`; a frozen body is named by its stored table,
+  so its faces keep their live roots, `Sweep { feature }` for the gear, and
+  no code mints `NameRoot::Frozen`, found at step 2): the scene, GPU-free,
+  gives each body's per-feature bounds of its faces (`arrix-viewport`), the app projects their centre and gives `arrix-ui` a
   `BadgeView` (feature title, `frozen` or `frozen, stale`, screen
   position) to paint over the viewport; a joined body carries the badge
   at the frozen feature's faces, not at the body's centre. Hovering the
@@ -80,11 +82,12 @@ probed at step 2, in this repository.
   the applied total after a mixed sequence (a sketch edit, a form OK, an
   undo, a refused field, a hover). Goldens gain the two keys only (read
   in the diff).
-- [ ] **[3]** Step 2 — Where a frozen feature's faces are. A probe test in
-  `arrix-doc` on `tests/docs/slice` (the gear joined by `core.boolean`)
-  opened without `gears`, with a fillet on a gear edge added by command:
-  the frozen gear's faces carry `NameRoot::Frozen { feature }` on the
-  final body after the join and the downstream fillet. Then the
+- [x] **[3]** Step 2 — Where a frozen feature's faces are. A probe test in
+  `arrix-cli` (`tests/frozen_faces.rs`; `arrix-doc` can't evaluate the
+  gear to store its result) on `tests/docs/slice` (the gear joined by
+  `core.boolean`) opened without `gears`, with a fillet on a plate edge
+  added by command: the frozen gear's faces keep their gear-rooted names
+  on the final body after the join and the downstream fillet. Then the
   scene's per-body bounds of the faces of each frozen root
   (`arrix-viewport`, GPU-free, unit tested on a mesh with two roots).
   If the probe finds the names gone, the step stops and the badge's
@@ -138,6 +141,9 @@ goldens, with `frozen_badge` and the earlier scenarios unchanged
 - ⚠ OPEN: the badge's look: a chip ("Spur gear 1 · frozen") at the frozen
   faces' centre, as proposed, or the frozen faces tinted (hatched) as
   well. Human, before step 3.
-- ⚠ OPEN: if the step 2 probe finds a frozen result's names do not
-  survive the join and fillet, where the badge goes (the body's centre,
-  or nowhere and the tree only). Human, at step 2 if it happens.
+- Settled at step 2: a frozen result's names survive the join and a
+  downstream fillet, so the badge goes on the frozen feature's faces. The
+  probe also found that an edge of the gear the join left alone can't be
+  read by a downstream feature (`slot.consumed`, live or frozen: its name
+  roots at the consumed tool slot); a backlog line, not this plan's. Step
+  4's fillet "too big for its edge" goes on a plate edge.

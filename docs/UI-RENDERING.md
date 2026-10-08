@@ -617,7 +617,12 @@ draws). Ported, reviewed on the way in (`SEED.md` §8.1).
 - **Scene per body.** A `SceneView` is a list of bodies, each keyed by its
   slot, with its mesh, transform, visibility and bounds. Updating one body
   re-uploads only it. The upload is behind a payload trait so the
-  bookkeeping is tested without a GPU.
+  bookkeeping is tested without a GPU. Each body also keeps the box of its
+  faces per feature their names start at (`NameRoot::feature`, whatever
+  later features did to them), so `Scene::feature_bounds` says where a
+  feature's own faces are on a body it was joined into. A frozen feature's
+  faces keep their live names (a frozen body is named by its stored
+  table), so this is where its badge goes.
 - **Meshes** arrive in `EvalEvent`s as `RenderMesh`: f32 positions
   relative to the body's local origin (the kernel works in f64; the cast
   happens where the buffer layout is known), normals, face ranges and edge
