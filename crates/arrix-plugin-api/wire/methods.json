@@ -1,0 +1,696 @@
+{
+  "api": "0.5.0",
+  "description": "Generated from wit/arrix-plugin.wit (ADR-0022). Do not edit. Each method's params and result are schemas over schema.json's $defs.",
+  "methods": [
+    {
+      "description": "`p` swept `distance` along its plane's normal, against it when negative.",
+      "direction": "plugin-to-host",
+      "method": "kernel.extrude",
+      "params": {
+        "additionalProperties": false,
+        "properties": {
+          "distance": {
+            "type": "number"
+          },
+          "p": {
+            "$ref": "schema.json#/$defs/profile"
+          }
+        },
+        "required": [
+          "p",
+          "distance"
+        ],
+        "type": "object"
+      },
+      "result": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "ok": {
+                "$ref": "schema.json#/$defs/body"
+              }
+            },
+            "required": [
+              "ok"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "err": {
+                "$ref": "schema.json#/$defs/diagnostic"
+              }
+            },
+            "required": [
+              "err"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    {
+      "description": "`p` turned `angle` radians (at most a full turn) about `a`. Counted with the extrudes in the feature's sweep numbering (ADR-0011).",
+      "direction": "plugin-to-host",
+      "method": "kernel.revolve",
+      "params": {
+        "additionalProperties": false,
+        "properties": {
+          "a": {
+            "$ref": "schema.json#/$defs/axis"
+          },
+          "angle": {
+            "type": "number"
+          },
+          "p": {
+            "$ref": "schema.json#/$defs/profile"
+          }
+        },
+        "required": [
+          "p",
+          "a",
+          "angle"
+        ],
+        "type": "object"
+      },
+      "result": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "ok": {
+                "$ref": "schema.json#/$defs/body"
+              }
+            },
+            "required": [
+              "ok"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "err": {
+                "$ref": "schema.json#/$defs/diagnostic"
+              }
+            },
+            "required": [
+              "err"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    {
+      "description": "Every face, edge and vertex of `b`, by name.",
+      "direction": "plugin-to-host",
+      "method": "kernel.names",
+      "params": {
+        "additionalProperties": false,
+        "properties": {
+          "b": {
+            "$ref": "schema.json#/$defs/body"
+          }
+        },
+        "required": [
+          "b"
+        ],
+        "type": "object"
+      },
+      "result": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "ok": {
+                "items": {
+                  "$ref": "schema.json#/$defs/persistent-ref"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "ok"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "err": {
+                "$ref": "schema.json#/$defs/diagnostic"
+              }
+            },
+            "required": [
+              "err"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    {
+      "description": "The outward frame of a planar face of `b`.",
+      "direction": "plugin-to-host",
+      "method": "kernel.face-frame",
+      "params": {
+        "additionalProperties": false,
+        "properties": {
+          "b": {
+            "$ref": "schema.json#/$defs/body"
+          },
+          "face": {
+            "$ref": "schema.json#/$defs/persistent-ref"
+          }
+        },
+        "required": [
+          "b",
+          "face"
+        ],
+        "type": "object"
+      },
+      "result": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "ok": {
+                "$ref": "schema.json#/$defs/frame"
+              }
+            },
+            "required": [
+              "ok"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "err": {
+                "$ref": "schema.json#/$defs/diagnostic"
+              }
+            },
+            "required": [
+              "err"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    {
+      "description": "Volume, area and centroid of `b`.",
+      "direction": "plugin-to-host",
+      "method": "kernel.measure",
+      "params": {
+        "additionalProperties": false,
+        "properties": {
+          "b": {
+            "$ref": "schema.json#/$defs/body"
+          }
+        },
+        "required": [
+          "b"
+        ],
+        "type": "object"
+      },
+      "result": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "ok": {
+                "$ref": "schema.json#/$defs/mass-properties"
+              }
+            },
+            "required": [
+              "ok"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "err": {
+                "$ref": "schema.json#/$defs/diagnostic"
+              }
+            },
+            "required": [
+              "err"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    {
+      "description": "`target` joined with `tool`, and `target` less `tool`: new bodies, the operands left as they were.",
+      "direction": "plugin-to-host",
+      "method": "kernel.fuse",
+      "params": {
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "$ref": "schema.json#/$defs/body"
+          },
+          "tool": {
+            "$ref": "schema.json#/$defs/body"
+          }
+        },
+        "required": [
+          "target",
+          "tool"
+        ],
+        "type": "object"
+      },
+      "result": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "ok": {
+                "$ref": "schema.json#/$defs/body"
+              }
+            },
+            "required": [
+              "ok"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "err": {
+                "$ref": "schema.json#/$defs/diagnostic"
+              }
+            },
+            "required": [
+              "err"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    {
+      "direction": "plugin-to-host",
+      "method": "kernel.cut",
+      "params": {
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "$ref": "schema.json#/$defs/body"
+          },
+          "tool": {
+            "$ref": "schema.json#/$defs/body"
+          }
+        },
+        "required": [
+          "target",
+          "tool"
+        ],
+        "type": "object"
+      },
+      "result": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "ok": {
+                "$ref": "schema.json#/$defs/body"
+              }
+            },
+            "required": [
+              "ok"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "err": {
+                "$ref": "schema.json#/$defs/diagnostic"
+              }
+            },
+            "required": [
+              "err"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    {
+      "description": "What `target` and `tool` have in common.",
+      "direction": "plugin-to-host",
+      "method": "kernel.common",
+      "params": {
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "$ref": "schema.json#/$defs/body"
+          },
+          "tool": {
+            "$ref": "schema.json#/$defs/body"
+          }
+        },
+        "required": [
+          "target",
+          "tool"
+        ],
+        "type": "object"
+      },
+      "result": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "ok": {
+                "$ref": "schema.json#/$defs/body"
+              }
+            },
+            "required": [
+              "ok"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "err": {
+                "$ref": "schema.json#/$defs/diagnostic"
+              }
+            },
+            "required": [
+              "err"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    {
+      "description": "`b` with `edges` rounded at `radius` metres, or cut flat at `distance`. A feature's booleans and blends are numbered in call order (ADR-0014).",
+      "direction": "plugin-to-host",
+      "method": "kernel.fillet",
+      "params": {
+        "additionalProperties": false,
+        "properties": {
+          "b": {
+            "$ref": "schema.json#/$defs/body"
+          },
+          "edges": {
+            "items": {
+              "$ref": "schema.json#/$defs/persistent-ref"
+            },
+            "type": "array"
+          },
+          "radius": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "b",
+          "edges",
+          "radius"
+        ],
+        "type": "object"
+      },
+      "result": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "ok": {
+                "$ref": "schema.json#/$defs/body"
+              }
+            },
+            "required": [
+              "ok"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "err": {
+                "$ref": "schema.json#/$defs/diagnostic"
+              }
+            },
+            "required": [
+              "err"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    {
+      "direction": "plugin-to-host",
+      "method": "kernel.chamfer",
+      "params": {
+        "additionalProperties": false,
+        "properties": {
+          "b": {
+            "$ref": "schema.json#/$defs/body"
+          },
+          "distance": {
+            "type": "number"
+          },
+          "edges": {
+            "items": {
+              "$ref": "schema.json#/$defs/persistent-ref"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "b",
+          "edges",
+          "distance"
+        ],
+        "type": "object"
+      },
+      "result": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "ok": {
+                "$ref": "schema.json#/$defs/body"
+              }
+            },
+            "required": [
+              "ok"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "err": {
+                "$ref": "schema.json#/$defs/diagnostic"
+              }
+            },
+            "required": [
+              "err"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    {
+      "description": "`b` moved by `m`, every entity named as copy `index` of the calling feature (index from 1: raising a pattern's count renames no copy that stays, ADR-0010), and `b` reflected in the plane through `origin` with `normal`, named as copy 1. The operand is left as it was.",
+      "direction": "plugin-to-host",
+      "method": "kernel.copy",
+      "params": {
+        "additionalProperties": false,
+        "properties": {
+          "b": {
+            "$ref": "schema.json#/$defs/body"
+          },
+          "index": {
+            "maximum": 4294967295,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "m": {
+            "$ref": "schema.json#/$defs/motion"
+          }
+        },
+        "required": [
+          "index",
+          "b",
+          "m"
+        ],
+        "type": "object"
+      },
+      "result": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "ok": {
+                "$ref": "schema.json#/$defs/body"
+              }
+            },
+            "required": [
+              "ok"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "err": {
+                "$ref": "schema.json#/$defs/diagnostic"
+              }
+            },
+            "required": [
+              "err"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    {
+      "direction": "plugin-to-host",
+      "method": "kernel.mirror",
+      "params": {
+        "additionalProperties": false,
+        "properties": {
+          "b": {
+            "$ref": "schema.json#/$defs/body"
+          },
+          "normal": {
+            "$ref": "schema.json#/$defs/vec3"
+          },
+          "origin": {
+            "$ref": "schema.json#/$defs/vec3"
+          }
+        },
+        "required": [
+          "b",
+          "origin",
+          "normal"
+        ],
+        "type": "object"
+      },
+      "result": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "ok": {
+                "$ref": "schema.json#/$defs/body"
+              }
+            },
+            "required": [
+              "ok"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "err": {
+                "$ref": "schema.json#/$defs/diagnostic"
+              }
+            },
+            "required": [
+              "err"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    {
+      "direction": "host-to-plugin",
+      "method": "feature.describe",
+      "params": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "result": {
+        "items": {
+          "$ref": "schema.json#/$defs/feature-type-spec"
+        },
+        "type": "array"
+      }
+    },
+    {
+      "description": "Deterministic: a pure function of its arguments, the kernel's results and the plugin's version.",
+      "direction": "host-to-plugin",
+      "method": "feature.evaluate",
+      "params": {
+        "additionalProperties": false,
+        "properties": {
+          "choices": {
+            "items": {
+              "$ref": "schema.json#/$defs/choice-value"
+            },
+            "type": "array"
+          },
+          "inputs": {
+            "items": {
+              "$ref": "schema.json#/$defs/resolved-input"
+            },
+            "type": "array"
+          },
+          "params": {
+            "items": {
+              "$ref": "schema.json#/$defs/param-value"
+            },
+            "type": "array"
+          },
+          "type-id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type-id",
+          "params",
+          "choices",
+          "inputs"
+        ],
+        "type": "object"
+      },
+      "result": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "ok": {
+                "$ref": "schema.json#/$defs/feature-output"
+              }
+            },
+            "required": [
+              "ok"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "err": {
+                "$ref": "schema.json#/$defs/diagnostic"
+              }
+            },
+            "required": [
+              "err"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    }
+  ]
+}

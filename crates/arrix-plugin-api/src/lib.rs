@@ -7,6 +7,10 @@
 //! one of `arrix-core`'s, it is re-exported rather than mirrored, so a plugin
 //! names it through this crate and the host passes it without conversion.
 //!
+//! `wire/` holds the JSON Schema of every type and function of the world and
+//! the method table, generated from the WIT (ADR-0022) and held fresh by
+//! `tests/wire.rs`.
+//!
 //! Built so far (0.5.0): the `types`, `kernel` (extrude, revolve, fuse,
 //! cut, common, fillet, chamfer, copy, mirror, names, face frames, mass
 //! properties) and `feature` interfaces; 0.2 added region references and

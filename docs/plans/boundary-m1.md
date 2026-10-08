@@ -95,7 +95,7 @@ fuse, cut, common, fillet, chamfer, copy, mirror). Arris's Python binding
   callbacks each over a real pipe to a child process; ADR-0022 written
   from its numbers, the ⚠ OPEN closed. CBOR stays a dev-dependency of
   the test, or goes with it.
-- [ ] **[2]** Step 3 — The generator: from the parsed WIT world, the
+- [x] **[2]** Step 3 — The generator: from the parsed WIT world, the
   JSON Schemas and the method table under `crates/arrix-plugin-api/wire/`,
   held fresh by a test under `UPDATE_SNAPSHOTS=1`; `wit_equality`'s
   inventory fails on a WIT item the generator does not cover.

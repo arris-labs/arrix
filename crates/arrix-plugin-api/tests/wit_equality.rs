@@ -14,7 +14,9 @@
 //!    or function added on either side fails to compile.
 //! 3. **Inventory.** The world as parsed is exactly the types and functions
 //!    this file covers, so a WIT addition the bindings would silently
-//!    absorb (an unused record, a new import) fails here.
+//!    absorb (an unused record, a new import) fails here. The generated
+//!    wire (`wire/`, ADR-0022) must hold the same inventory, so a generator
+//!    that skips an item fails here too.
 
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -1444,5 +1446,38 @@ fn the_world_is_exactly_what_is_covered() {
     assert!(
         uncovered.is_empty() && gone.is_empty(),
         "in the world but not covered here: {uncovered:?}; covered here but not in the world: {gone:?}"
+    );
+
+    // The wire carries every item the world has, and nothing else.
+    let wire = Path::new(env!("CARGO_MANIFEST_DIR")).join("wire");
+    let read = |file: &str| -> serde_json::Value {
+        serde_json::from_str(&std::fs::read_to_string(wire.join(file)).unwrap()).unwrap()
+    };
+    let schema_types: BTreeSet<String> = read("schema.json")["$defs"]
+        .as_object()
+        .unwrap()
+        .keys()
+        .cloned()
+        .collect();
+    let world_types: BTreeSet<String> = found
+        .iter()
+        .filter(|(_, kind, _)| *kind == "type")
+        .map(|(_, _, name)| name.clone())
+        .collect();
+    assert_eq!(schema_types, world_types, "wire/schema.json and the world");
+    let wire_methods: BTreeSet<String> = read("methods.json")["methods"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|m| m["method"].as_str().unwrap().to_owned())
+        .collect();
+    let world_methods: BTreeSet<String> = found
+        .iter()
+        .filter(|(_, kind, _)| *kind == "func")
+        .map(|(iface, _, name)| format!("{iface}.{name}"))
+        .collect();
+    assert_eq!(
+        wire_methods, world_methods,
+        "wire/methods.json and the world"
     );
 }

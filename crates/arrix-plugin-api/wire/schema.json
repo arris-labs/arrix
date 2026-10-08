@@ -1,0 +1,1042 @@
+{
+  "$defs": {
+    "arc-segment": {
+      "additionalProperties": false,
+      "description": "A circular arc through `via` to `to`.",
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/id"
+        },
+        "to": {
+          "$ref": "#/$defs/vec2"
+        },
+        "via": {
+          "$ref": "#/$defs/vec2"
+        }
+      },
+      "required": [
+        "key",
+        "to",
+        "via"
+      ],
+      "type": "object"
+    },
+    "axis": {
+      "additionalProperties": false,
+      "description": "A line in the world: a point on it and a direction (a revolve's axis, an `axis` input). A resolved input's direction is unit.",
+      "properties": {
+        "direction": {
+          "$ref": "#/$defs/vec3"
+        },
+        "origin": {
+          "$ref": "#/$defs/vec3"
+        }
+      },
+      "required": [
+        "origin",
+        "direction"
+      ],
+      "type": "object"
+    },
+    "body": {
+      "description": "A body made in this evaluation; valid within it only.",
+      "maximum": 4294967295,
+      "minimum": 0,
+      "type": "integer",
+      "x-handle": "body"
+    },
+    "choice-option": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "title"
+      ],
+      "type": "object"
+    },
+    "choice-spec": {
+      "additionalProperties": false,
+      "description": "One of a few words, kept in the record's choices. `default` is the option a record that gives none holds; none means the choice left unset is meaningful of itself (ADR-0018).",
+      "properties": {
+        "default": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "options": {
+          "items": {
+            "$ref": "#/$defs/choice-option"
+          },
+          "type": "array"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "title",
+        "options"
+      ],
+      "type": "object"
+    },
+    "choice-value": {
+      "additionalProperties": false,
+      "description": "A choice's word, the record's or the spec's default; a choice unset with no default is not given.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "type": "object"
+    },
+    "circle-loop": {
+      "additionalProperties": false,
+      "properties": {
+        "center": {
+          "$ref": "#/$defs/vec2"
+        },
+        "key": {
+          "$ref": "#/$defs/id"
+        },
+        "radius": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "key",
+        "center",
+        "radius"
+      ],
+      "type": "object"
+    },
+    "diagnostic": {
+      "additionalProperties": false,
+      "description": "`code` is `segment(.segment)*`; `candidates` are ranked best first.",
+      "properties": {
+        "candidates": {
+          "items": {
+            "$ref": "#/$defs/reference"
+          },
+          "type": "array"
+        },
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "refs": {
+          "items": {
+            "$ref": "#/$defs/reference"
+          },
+          "type": "array"
+        },
+        "severity": {
+          "$ref": "#/$defs/severity"
+        }
+      },
+      "required": [
+        "severity",
+        "code",
+        "message",
+        "refs",
+        "candidates"
+      ],
+      "type": "object"
+    },
+    "feature-output": {
+      "additionalProperties": false,
+      "description": "`tool` is a joining or cutting feature's kept tool (ADR-0013).",
+      "properties": {
+        "slots": {
+          "items": {
+            "$ref": "#/$defs/slot-output"
+          },
+          "type": "array"
+        },
+        "tool": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/tool"
+            }
+          ]
+        }
+      },
+      "required": [
+        "slots"
+      ],
+      "type": "object"
+    },
+    "feature-type-spec": {
+      "additionalProperties": false,
+      "description": "`id` is `<plugin-id>.<name>`; `version` the type's own schema version.",
+      "properties": {
+        "choices": {
+          "items": {
+            "$ref": "#/$defs/choice-spec"
+          },
+          "type": "array"
+        },
+        "id": {
+          "type": "string"
+        },
+        "inputs": {
+          "items": {
+            "$ref": "#/$defs/input-spec"
+          },
+          "type": "array"
+        },
+        "outputs": {
+          "items": {
+            "$ref": "#/$defs/slot-spec"
+          },
+          "type": "array"
+        },
+        "params": {
+          "items": {
+            "$ref": "#/$defs/param-spec"
+          },
+          "type": "array"
+        },
+        "title": {
+          "type": "string"
+        },
+        "version": {
+          "maximum": 4294967295,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "title",
+        "params",
+        "choices",
+        "inputs",
+        "outputs"
+      ],
+      "type": "object"
+    },
+    "frame": {
+      "additionalProperties": false,
+      "description": "A right-handed frame, Y = Z x X. A plane is its XY plane, its normal Z.",
+      "properties": {
+        "origin": {
+          "$ref": "#/$defs/vec3"
+        },
+        "x-axis": {
+          "$ref": "#/$defs/vec3"
+        },
+        "z-axis": {
+          "$ref": "#/$defs/vec3"
+        }
+      },
+      "required": [
+        "origin",
+        "x-axis",
+        "z-axis"
+      ],
+      "type": "object"
+    },
+    "id": {
+      "description": "An id: 64 bits, as `arrix-core`'s typed ids carry it.",
+      "pattern": "^[0-9A-F][0-9A-HJKMNP-TV-Z]{12}$",
+      "type": "string"
+    },
+    "input-kind": {
+      "description": "What an input resolves to: a plane (a datum, a planar face, a world plane), a sketch region as a profile keyed by its entities, a body slot's version current at the feature (ADR-0007), an edge by name, a point (a sketch point or a vertex), an axis (a sketch line, a straight edge) or the tool a joining or cutting feature kept (ADR-0012, ADR-0013).",
+      "enum": [
+        "plane",
+        "region",
+        "body",
+        "edge",
+        "point",
+        "axis",
+        "tool"
+      ],
+      "type": "string"
+    },
+    "input-spec": {
+      "additionalProperties": false,
+      "description": "A `list` input takes several references: it arrives as one `resolved-input` per element, in the record's order, each with the input's name.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/input-kind"
+        },
+        "list": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "shown-when": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/shown-when"
+            }
+          ]
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "title",
+        "kind",
+        "list"
+      ],
+      "type": "object"
+    },
+    "input-value": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "plane": {
+              "$ref": "#/$defs/frame"
+            }
+          },
+          "required": [
+            "plane"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "region": {
+              "$ref": "#/$defs/profile"
+            }
+          },
+          "required": [
+            "region"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "body": {
+              "$ref": "#/$defs/body"
+            }
+          },
+          "required": [
+            "body"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "edge": {
+              "$ref": "#/$defs/persistent-ref"
+            }
+          },
+          "required": [
+            "edge"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "point": {
+              "$ref": "#/$defs/point"
+            }
+          },
+          "required": [
+            "point"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "axis": {
+              "$ref": "#/$defs/axis"
+            }
+          },
+          "required": [
+            "axis"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "tool": {
+              "$ref": "#/$defs/tool"
+            }
+          },
+          "required": [
+            "tool"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "line-segment": {
+      "additionalProperties": false,
+      "description": "A planar region in (u, v) coordinates of `plane`, every curve keyed: side faces are rooted at a curve's key, so a key must be stable across evaluations for the same logical curve.",
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/id"
+        },
+        "to": {
+          "$ref": "#/$defs/vec2"
+        }
+      },
+      "required": [
+        "key",
+        "to"
+      ],
+      "type": "object"
+    },
+    "mass-properties": {
+      "additionalProperties": false,
+      "description": "At unit density: cubic metres, square metres, a point.",
+      "properties": {
+        "area": {
+          "type": "number"
+        },
+        "centroid": {
+          "$ref": "#/$defs/vec3"
+        },
+        "volume": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "volume",
+        "area",
+        "centroid"
+      ],
+      "type": "object"
+    },
+    "motion": {
+      "additionalProperties": false,
+      "description": "A proper rigid motion: the body turns by `angle` about the axis through the world origin along `axis`, then moves by `translation`.",
+      "properties": {
+        "angle": {
+          "type": "number"
+        },
+        "axis": {
+          "$ref": "#/$defs/vec3"
+        },
+        "translation": {
+          "$ref": "#/$defs/vec3"
+        }
+      },
+      "required": [
+        "translation",
+        "axis",
+        "angle"
+      ],
+      "type": "object"
+    },
+    "output-value": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "body": {
+              "$ref": "#/$defs/body"
+            }
+          },
+          "required": [
+            "body"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "plane": {
+              "$ref": "#/$defs/frame"
+            }
+          },
+          "required": [
+            "plane"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "param-spec": {
+      "additionalProperties": false,
+      "description": "A numeric field; `default` is an expression (`20`, `1 mm`).",
+      "properties": {
+        "default": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/quantity-kind"
+        },
+        "name": {
+          "type": "string"
+        },
+        "shown-when": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/shown-when"
+            }
+          ]
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "title",
+        "kind",
+        "default"
+      ],
+      "type": "object"
+    },
+    "param-value": {
+      "additionalProperties": false,
+      "description": "A parameter's expression, evaluated by the host to SI.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/quantity"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "type": "object"
+    },
+    "path-loop": {
+      "additionalProperties": false,
+      "properties": {
+        "segments": {
+          "items": {
+            "$ref": "#/$defs/profile-segment"
+          },
+          "type": "array"
+        },
+        "start": {
+          "$ref": "#/$defs/vec2"
+        }
+      },
+      "required": [
+        "start",
+        "segments"
+      ],
+      "type": "object"
+    },
+    "persistent-ref": {
+      "additionalProperties": false,
+      "description": "A face, edge or vertex by persistent name, in its canonical text form (docs/DATA-MODEL.md §Persistent naming). Opaque to a plugin.",
+      "properties": {
+        "encoded": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "encoded"
+      ],
+      "type": "object"
+    },
+    "plugin-ref": {
+      "additionalProperties": false,
+      "properties": {
+        "plugin": {
+          "type": "string"
+        },
+        "record": {
+          "$ref": "#/$defs/id"
+        }
+      },
+      "required": [
+        "plugin",
+        "record"
+      ],
+      "type": "object"
+    },
+    "point": {
+      "additionalProperties": false,
+      "description": "A point input: where it is in the world, and, for a sketch point, the normal of the sketch's plane.",
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/vec3"
+        },
+        "normal": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/vec3"
+            }
+          ]
+        }
+      },
+      "required": [
+        "at"
+      ],
+      "type": "object"
+    },
+    "profile": {
+      "additionalProperties": false,
+      "properties": {
+        "holes": {
+          "items": {
+            "$ref": "#/$defs/profile-loop"
+          },
+          "type": "array"
+        },
+        "outer": {
+          "$ref": "#/$defs/profile-loop"
+        },
+        "plane": {
+          "$ref": "#/$defs/frame"
+        }
+      },
+      "required": [
+        "plane",
+        "outer",
+        "holes"
+      ],
+      "type": "object"
+    },
+    "profile-loop": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "circle": {
+              "$ref": "#/$defs/circle-loop"
+            }
+          },
+          "required": [
+            "circle"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "$ref": "#/$defs/path-loop"
+            }
+          },
+          "required": [
+            "path"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "profile-segment": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "line": {
+              "$ref": "#/$defs/line-segment"
+            }
+          },
+          "required": [
+            "line"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "arc": {
+              "$ref": "#/$defs/arc-segment"
+            }
+          },
+          "required": [
+            "arc"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "quantity": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/quantity-kind"
+        },
+        "si": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "kind",
+        "si"
+      ],
+      "type": "object"
+    },
+    "quantity-kind": {
+      "enum": [
+        "length",
+        "angle",
+        "count",
+        "ratio",
+        "mass"
+      ],
+      "type": "string"
+    },
+    "reference": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "param": {
+              "$ref": "#/$defs/id"
+            }
+          },
+          "required": [
+            "param"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "feature": {
+              "$ref": "#/$defs/id"
+            }
+          },
+          "required": [
+            "feature"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "slot": {
+              "$ref": "#/$defs/slot-ref"
+            }
+          },
+          "required": [
+            "slot"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "topo": {
+              "$ref": "#/$defs/persistent-ref"
+            }
+          },
+          "required": [
+            "topo"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "sketch": {
+              "$ref": "#/$defs/sketch-ref"
+            }
+          },
+          "required": [
+            "sketch"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "region": {
+              "$ref": "#/$defs/region-ref"
+            }
+          },
+          "required": [
+            "region"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "plugin": {
+              "$ref": "#/$defs/plugin-ref"
+            }
+          },
+          "required": [
+            "plugin"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "region-ref": {
+      "additionalProperties": false,
+      "description": "A sketch region: the entities bounding it, sorted, and a point inside it in whole nanometres of the sketch's (u, v).",
+      "properties": {
+        "entities": {
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "type": "array"
+        },
+        "feature": {
+          "$ref": "#/$defs/id"
+        },
+        "sample": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "maximum": 9007199254740992,
+              "minimum": -9007199254740992,
+              "type": "integer"
+            },
+            {
+              "maximum": 9007199254740992,
+              "minimum": -9007199254740992,
+              "type": "integer"
+            }
+          ],
+          "type": "array"
+        }
+      },
+      "required": [
+        "feature",
+        "entities",
+        "sample"
+      ],
+      "type": "object"
+    },
+    "resolved-input": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/input-value"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "type": "object"
+    },
+    "severity": {
+      "enum": [
+        "info",
+        "warning",
+        "error"
+      ],
+      "type": "string"
+    },
+    "shown-when": {
+      "additionalProperties": false,
+      "description": "A field shown only while the type's choice `choice` holds one of `values` (ADR-0018). A hidden field is neither shown nor required; its value, if the record has one, is kept.",
+      "properties": {
+        "choice": {
+          "type": "string"
+        },
+        "values": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "choice",
+        "values"
+      ],
+      "type": "object"
+    },
+    "sketch-ref": {
+      "additionalProperties": false,
+      "properties": {
+        "entity": {
+          "$ref": "#/$defs/id"
+        },
+        "feature": {
+          "$ref": "#/$defs/id"
+        }
+      },
+      "required": [
+        "feature",
+        "entity"
+      ],
+      "type": "object"
+    },
+    "slot-kind": {
+      "enum": [
+        "body",
+        "plane"
+      ],
+      "type": "string"
+    },
+    "slot-output": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/output-value"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "type": "object"
+    },
+    "slot-ref": {
+      "additionalProperties": false,
+      "description": "A reference to a document record (docs/DATA-MODEL.md §References).",
+      "properties": {
+        "feature": {
+          "$ref": "#/$defs/id"
+        },
+        "slot": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "feature",
+        "slot"
+      ],
+      "type": "object"
+    },
+    "slot-spec": {
+      "additionalProperties": false,
+      "description": "An output slot; `name` is one lower-kebab word. A body slot that `modifies` a body input is that input's slot's next version, not a slot of its own; a body input no slot modifies is a tool, and its slot ends (ADR-0007).",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/slot-kind"
+        },
+        "modifies": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "kind"
+      ],
+      "type": "object"
+    },
+    "tool": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "$ref": "#/$defs/body"
+        },
+        "op": {
+          "$ref": "#/$defs/tool-op"
+        }
+      },
+      "required": [
+        "body",
+        "op"
+      ],
+      "type": "object"
+    },
+    "tool-op": {
+      "description": "A body input is a handle of the plugin's own to the slot's version, dropped when it is done: an owned handle rather than a borrow, which wit-bindgen's Rust guests cannot take inside a list (ADR-0008). The tool a feature that joins or cuts applied, kept so a pattern or a mirror can copy it, and the operation it was applied with. As an input it is the source feature's, an owned handle; as an output it is the body the feature built, given up.",
+      "enum": [
+        "fuse",
+        "cut"
+      ],
+      "type": "string"
+    },
+    "vec2": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "type": "object"
+    },
+    "vec3": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "z": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "z"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "arrix:plugin@0.5.0/schema",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Generated from wit/arrix-plugin.wit (ADR-0022). Do not edit.",
+  "title": "The wire's types, arrix:plugin@0.5.0"
+}
