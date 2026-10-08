@@ -59,3 +59,4 @@ Each rejected option and the one-line reason it lost.
 - [ADR-0018](0018-forms-are-the-feature-types-spec.md): a feature type's form is its spec; choices declared with `shown_when`, plugin API 0.5; a create form is a draft committed by OK as one command
 - [ADR-0019](0019-a-preview-is-a-speculative-evaluation.md): a preview is a speculative evaluation: a request, not a command; one per session, after the newest commit and giving way to anything newer
 - [ADR-0020](0020-a-name-into-a-consumed-slot-follows-its-consumer.md): a persistent name into a consumed slot follows its consumer into the slot it modified; a body input there stays `slot.consumed`
+- [ADR-0021](0021-tier-2-builds-by-callback-and-is-trusted.md): a Tier 2 feature builds through the host's kernel by callback, bodies as handles; Tier 2 is trusted, `files` and `network` unenforced; `SEED.md` §8.4 amended

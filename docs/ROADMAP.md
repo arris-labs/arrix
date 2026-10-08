@@ -73,9 +73,20 @@ a document over a stdio protocol, renders it headless and checks the result.
 The risk to retire: **the `Session` protocol and the plugin world hold across
 a process boundary** (ADR-0016), before Tier 1 and the browser build on them.*
 
-**Status: proposed 2026-10-08, awaiting the human's commitment.** The
-section is numbered by the human (ADR-0016 leaves it to this close; C2 to C4
-keep their names until then).
+**Status: open 2026-10-09; M1 planned (`docs/plans/boundary-m1.md`).**
+Unnumbered until it closes, as ADR-0016 says; C2 to C4 keep their names.
+Three milestones, a plan each, the riskiest first:
+
+- M1, the plugin crosses: the wire encoding's ADR from a measured spike,
+  the WIT-generated wire, the Tier 2 host, the Python SDK and a sample
+  Python feature in a real history, frozen without it.
+- M2, the session crosses: `arrix serve --stdio`, the wire `Rejected`, a
+  plugin loaded into a running session (an ADR for the registry's
+  ownership), and `arrix-app render`, the headless render as a product
+  command (an ADR: the render stack ships in the native app).
+- M3, the kit and the accept: `arrix test`, the harness versioned, the
+  accept below.
+
 
 - `arrix serve --stdio`: the `Session` protocol framed on stdio (commands
   in, events out, `save`, preview, export), the same `LocalSession` behind
@@ -85,9 +96,8 @@ keep their names until then).
   same encoding, capabilities from the manifest, a crash or timeout as that
   feature's diagnostic with its result frozen.
 - The Python SDK `python/arrix`: stubs generated from the WIT world, a thin
-  runtime on the Tier 2 protocol, geometry through Arris's Python binding
-  (A10: body bytes and handles that carry their model), so `arris` 0.6 is
-  taken here if the SDK needs it.
+  runtime on the Tier 2 protocol, pure stdlib, geometry through the host's
+  kernel by callback (ADR-0021; no `arris` in the plugin's process).
 - The test kit packaged (`arrix test`): determinism, round trip, frozen
   open, migration (`docs/PLUGINS.md` §The test kit), for a plugin outside
   the repository.

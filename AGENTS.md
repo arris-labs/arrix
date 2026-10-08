@@ -32,8 +32,8 @@ batch; `arris` 0.5, 0.6 after; ADR-0004 to ADR-0020): `cargo test -p arrix-cli -
 c1_accept` is its accept, `--test c1_benchmark -- --nocapture` its budgets
 (the first coarse mesh misses, an Arris finding), `cargo test -p arrix-app
 --test visual m3_accept` the app's.
-**Next:** the boundary opened (ADR-0016), proposed in `docs/ROADMAP.md`
-and waiting on the human's commitment, then `/idea` and `/plan`.
+**Open 2026-10-09: the boundary opened** (ADR-0016, ADR-0021), M1 to M3
+in `docs/ROADMAP.md`; M1 is `docs/plans/boundary-m1.md`.
 
 ## Rules that are not derivable from the code
 

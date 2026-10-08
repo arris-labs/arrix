@@ -162,8 +162,8 @@ silently absorb fails too.
 
 **No Arris types in the plugin API** (`SEED.md` §6.3). Geometry crosses as
 opaque handles (`body`), ArriX's plain types (points, frames,
-profiles, meshes, persistent references) and, across a process boundary,
-Arris's body bytes (ask A2). Kernel operations are a host service with
+profiles, meshes, persistent references), and as handles across a
+process boundary too (ADR-0021). Kernel operations are a host service with
 ArriX's signatures, implemented in `arrix-kernel`, recorded like every
 other kernel call (`docs/ARCHITECTURE.md` §The kernel choke point). Arris
 breaks its enums every cycle by design; the plugin API absorbs that in one
@@ -213,9 +213,11 @@ change, reviewed like any other, never a private hook.
   features frozen until an ADR decides otherwise (`SEED.md` §9).
 - **Tier 2** is one child process per plugin, started on first use, kept
   alive for the session, restarted after a crash. A crash or a timeout is
-  a failed feature with a diagnostic, never a hung app. Bodies cross as
-  body bytes plus persistent names. Out-of-process Python gets numpy,
-  torch and CUDA, and in remote mode the server's GPU.
+  a failed feature with a diagnostic, never a hung app. A feature builds
+  through the host's kernel, called back over the wire while `evaluate`
+  runs, and bodies cross as handles valid for that evaluation, never as
+  bytes (ADR-0021). Out-of-process Python gets numpy, torch and CUDA for
+  its own computation, and in remote mode the server's GPU.
 
 ⚠ OPEN: the Tier 2 wire encoding, JSON-RPC or a binary encoding of the
 WIT types (the boundary-opened cycle). Agent proposes; ADR. The constraint
@@ -368,7 +370,10 @@ At Tier 1 the grants are enforced by the sandbox: the component's imports
 are the only doors it has. At Tiers 0 and 2 the plugin is trusted code and
 the capabilities are declarative: the host still refuses a call outside
 them, so a plugin tested under its manifest behaves the same once
-sandboxed. A feature's `evaluate` gets `kernel` and its resolved inputs
+sandboxed. A Tier 2 host enforces `kernel`, `document-read` and
+`document-write` at the wire, a refused call being a `plugin.capability`
+diagnostic; `files` and `network` are declared and shown, not enforced,
+since the process is the user's own Python (ADR-0021). A feature's `evaluate` gets `kernel` and its resolved inputs
 only, whatever the manifest says, because determinism demands it.
 
 ## Versioning
