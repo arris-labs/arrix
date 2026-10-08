@@ -62,6 +62,11 @@ enum Command {
         /// are no longer deterministic.
         #[arg(long)]
         timings: bool,
+        /// Evaluate this many documents at once, each on its own evaluator
+        /// and model (never in parallel inside one). The output and the
+        /// exit status are `--jobs 1`'s.
+        #[arg(long, value_name = "N", default_value_t = 1)]
+        jobs: usize,
     },
     /// Write a document's final bodies (or the `--body` ones) as a STEP,
     /// STL or OBJ file, in metres. Exit status: 0 when written from a clean
@@ -142,6 +147,7 @@ fn main() -> ExitCode {
             sweep,
             summary,
             timings,
+            jobs,
         } => eval::run(&eval::Args {
             paths: &paths,
             without: &without,
@@ -149,6 +155,7 @@ fn main() -> ExitCode {
             sweep: sweep.as_deref(),
             summary,
             timings,
+            jobs,
         }),
         Command::Export {
             doc,

@@ -6,6 +6,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use web_time::Instant;
 
 use arrix_doc::{EvalStatus, Registry, Run, Sweep};
@@ -20,6 +21,8 @@ pub struct Args<'a> {
     pub sweep: Option<&'a str>,
     /// `--summary`: a last line with the failure histogram.
     pub summary: bool,
+    /// `--jobs`: documents evaluated at once.
+    pub jobs: usize,
     /// `--timings`: each line carries the wall time of its document.
     pub timings: bool,
 }
@@ -125,8 +128,16 @@ pub fn run(args: &Args) -> ExitCode {
             }
         }
     }
-    for doc in &documents {
-        worst = worst.max(one(doc, &registry, args, sweep.as_ref(), &mut summary));
+    let jobs = args.jobs.clamp(1, documents.len().max(1));
+    let mut emit = |index: usize, done: Done| {
+        worst = worst.max(report(&documents[index], done, args, &mut summary));
+    };
+    if jobs == 1 {
+        for (index, doc) in documents.iter().enumerate() {
+            emit(index, evaluate(doc, &registry, sweep.as_ref()));
+        }
+    } else {
+        in_order(&documents, jobs, &registry, sweep.as_ref(), &mut emit);
     }
     if args.summary && summary.print().is_err() {
         worst = Status::Unreadable;
@@ -134,15 +145,16 @@ pub fn run(args: &Args) -> ExitCode {
     worst.code()
 }
 
-/// Evaluates one document, or each point of the sweep, and prints a line
-/// for each; the worst of them is its status.
-fn one(
-    doc: &Path,
-    registry: &Registry,
-    args: &Args,
-    sweep: Option<&Sweep>,
-    summary: &mut Summary,
-) -> Status {
+/// One document evaluated: its runs (the sweep's points, or the one), or
+/// why it could not be read, and the wall time it took.
+struct Done {
+    runs: Result<Vec<Run>, String>,
+    wall_ms: f64,
+}
+
+/// Evaluates one document, or each point of the sweep, on its own
+/// evaluator and model.
+fn evaluate(doc: &Path, registry: &Registry, sweep: Option<&Sweep>) -> Done {
     let name = doc.to_string_lossy();
     let started = Instant::now();
     let runs = Loaded::open(doc).and_then(|source| match sweep {
@@ -151,15 +163,63 @@ fn one(
             .map(|run| vec![run])
             .map_err(|e| e.to_string()),
     });
-    let runs = match runs {
+    Done {
+        runs,
+        wall_ms: started.elapsed().as_secs_f64() * 1e3,
+    }
+}
+
+/// Evaluates the documents on `jobs` threads, one at a time each, and hands
+/// the results to `emit` in the documents' order whichever finishes first:
+/// the output is `--jobs 1`'s, byte for byte (bar `--timings`).
+fn in_order(
+    documents: &[PathBuf],
+    jobs: usize,
+    registry: &Registry,
+    sweep: Option<&Sweep>,
+    emit: &mut dyn FnMut(usize, Done),
+) {
+    let next = AtomicUsize::new(0);
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::scope(|scope| {
+        for _ in 0..jobs {
+            let (tx, next) = (tx.clone(), &next);
+            scope.spawn(move || {
+                loop {
+                    let index = next.fetch_add(1, Ordering::Relaxed);
+                    let Some(doc) = documents.get(index) else {
+                        break;
+                    };
+                    if tx.send((index, evaluate(doc, registry, sweep))).is_err() {
+                        break;
+                    }
+                }
+            });
+        }
+        drop(tx);
+        let mut waiting = BTreeMap::new();
+        let mut want = 0;
+        for (index, done) in rx {
+            waiting.insert(index, done);
+            while let Some(done) = waiting.remove(&want) {
+                emit(want, done);
+                want += 1;
+            }
+        }
+    });
+}
+
+/// Prints a document's lines, or says why it has none; the worst of them is
+/// its status.
+fn report(doc: &Path, done: Done, args: &Args, summary: &mut Summary) -> Status {
+    let runs = match done.runs {
         Ok(runs) => runs,
         Err(err) => {
-            eprintln!("arrix eval: {name}: {err}");
+            eprintln!("arrix eval: {}: {err}", doc.to_string_lossy());
             return Status::Unreadable;
         }
     };
-    let wall_ms = started.elapsed().as_secs_f64() * 1e3;
-    let timings = args.timings.then_some((wall_ms, runs.len()));
+    let timings = args.timings.then_some((done.wall_ms, runs.len()));
     let mut worst = Status::Clean;
     for run in &runs {
         summary.add(&run.line);
