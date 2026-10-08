@@ -125,7 +125,7 @@ day 0:
 
 The boundary is the `Session` trait in `arrix-doc`: `request(Request) ->
 Result<Outcome, Rejected>` (a `Request` is a submitted `CommandEnvelope`,
-an author's undo or redo, or a preview or its clearing, ADR-0019) and `subscribe() -> EventStream`, whose
+an author's undo or redo, a preview or its clearing, ADR-0019, or an export) and `subscribe() -> EventStream`, whose
 `SessionEvent`s are `opened` (the document at subscription, as its
 directory form's files: the JSON ones as text, the frozen results' blobs as
 bytes), each `applied` change (from which each client
@@ -136,8 +136,8 @@ and refined (`docs/CONCURRENCY-WASM.md` §Tessellation), these three with
 their generation, then, while a preview is the session's, its `previewed`
 evaluation (every feature's outcome, the parameters and the final bodies,
 each saying whether the preview changed it) and a `preview_meshed` mesh
-of each body it changed, both with its `PreviewTag`, and
-`save() -> MemorySource`, the directory form with each plugin feature's
+of each body it changed, both with its `PreviewTag`, an `exported` file,
+and `save() -> MemorySource`, the directory form with each plugin feature's
 latest frozen result merged in when it is current (ADR-0009): the
 evaluator hands those out beside its events, never inside them, and the
 session keeps them with the input hash each feature last evaluated
@@ -155,6 +155,17 @@ as its submit would be and answered `Previewing`, makes no generation and
 no undo entry, and its events carry the client's `PreviewId`. One preview
 per session: a newer one, `ClearPreview` or an applied change ends it, and
 its events stop there.
+
+An **export** is a request and no command: `Request::Export { bodies, format
+}` (no bodies: every final body) is answered `Exporting`, makes no
+generation, no undo entry and no gesture, and `SessionEvent::Exported {
+generation, format, bytes }` follows with the file, or the diagnostic that
+says why there is none (`export.no-bodies`, `export.unknown-body`, a
+`kernel.export.*`). The worker writes it from the newest commit's
+evaluation, after that commit is evaluated and before any preview, however
+many previews or edits came before it; the bodies go in the document's
+order. Headless, `arrix_doc::export` opens, evaluates and writes the same
+file, with the evaluation's line beside it.
 
 ## Threads
 

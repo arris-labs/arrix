@@ -54,6 +54,9 @@ pub enum Outcome {
     /// A preview was taken (ADR-0019): nothing applied, and its events
     /// follow on the subscription.
     Previewing,
+    /// An export was queued (`Request::Export`): nothing applied, and the
+    /// file follows on the subscription.
+    Exporting,
 }
 
 /// Why nothing was applied.

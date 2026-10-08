@@ -43,8 +43,9 @@ pub use document::{
 };
 pub use eval::{
     BodyLine, BodyMeasures, BodySlot, EvalEvent, EvalLine, EvalStatus, Evaluation, Evaluator,
-    FailedCall, FeatureLine, FeatureOutcome, FinalBody, FrozenInfo, FrozenReason, InputHash,
-    ParamLine, RegionView, Run, SavedRecipe, SketchView, SlotView, SweepPoint, eval, run,
+    ExportError, ExportedFile, FailedCall, FeatureLine, FeatureOutcome, FinalBody, FrozenInfo,
+    FrozenReason, InputHash, ParamLine, RegionView, Run, SavedRecipe, SketchView, SlotView,
+    SweepPoint, eval, export, run,
 };
 pub use frozen::{BlobRef, Frozen, FrozenResult, InvalidBlobRef};
 pub use open::{DOCUMENT_JSON, DocumentSource, MemorySource, OpenError, PARAMS_JSON, SCHEMA, open};

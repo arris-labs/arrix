@@ -9,6 +9,8 @@
 //! caller; nothing here mints, so nothing here needs entropy.
 
 #[cfg(test)]
+mod export_tests;
+#[cfg(test)]
 mod interrupt_tests;
 mod local;
 mod preview;
@@ -21,7 +23,9 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::sync::mpsc::Receiver;
 
-use arrix_core::{Diagnostic, FeatureId, MeshDetail, ParamId, PartId, Quantity, RenderMesh};
+use arrix_core::{
+    Diagnostic, ExportFormat, FeatureId, MeshDetail, ParamId, PartId, Quantity, RenderMesh,
+};
 use serde::{Deserialize, Serialize};
 
 pub use local::LocalSession;
@@ -56,6 +60,14 @@ pub enum Request {
     /// Drops `author`'s preview, if it is the session's: its events stop.
     ClearPreview {
         author: AuthorId,
+    },
+    /// Writes the final bodies `bodies` names (every one when empty) as
+    /// `format`, once the newest commit is evaluated; answered `Exporting`,
+    /// the file following as `Exported`. Not a command: the document does
+    /// not change, no generation is made and nothing is undone.
+    Export {
+        bodies: Vec<BodySlot>,
+        format: ExportFormat,
     },
 }
 
@@ -142,6 +154,14 @@ pub enum SessionEvent {
         params: ParamValues,
         bodies: Vec<PreviewBody>,
     },
+    /// The file a `Request::Export` asked for, written from the bodies of
+    /// `generation`'s evaluation, or why it could not be. Not part of the
+    /// document: a replica ignores it.
+    Exported {
+        generation: Generation,
+        format: ExportFormat,
+        bytes: Result<Vec<u8>, Diagnostic>,
+    },
     /// A body a preview changed, meshed: every one coarse first, then every
     /// one refined, as `Meshed` does for a generation.
     PreviewMeshed {
@@ -183,6 +203,10 @@ pub trait Session {
 
     fn preview(&self, preview: PreviewId, envelope: CommandEnvelope) -> Result<Outcome, Rejected> {
         self.request(Request::Preview { preview, envelope })
+    }
+
+    fn export(&self, bodies: Vec<BodySlot>, format: ExportFormat) -> Result<Outcome, Rejected> {
+        self.request(Request::Export { bodies, format })
     }
 
     fn clear_preview(&self, author: AuthorId) -> Result<Outcome, Rejected> {
@@ -298,7 +322,8 @@ impl Replica {
             }
             SessionEvent::Meshed { .. }
             | SessionEvent::Previewed { .. }
-            | SessionEvent::PreviewMeshed { .. } => {}
+            | SessionEvent::PreviewMeshed { .. }
+            | SessionEvent::Exported { .. } => {}
         }
         Ok(())
     }

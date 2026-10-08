@@ -6,10 +6,11 @@
 //! newest commit and never in its way (docs/CONCURRENCY-WASM.md §The
 //! evaluator).
 
+use std::collections::VecDeque;
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, TryRecvError};
 
-use arrix_core::{MeshDetail, PartId};
+use arrix_core::{ExportFormat, MeshDetail, PartId};
 use serde::{Deserialize, Serialize};
 
 use super::SessionEvent;
@@ -49,11 +50,18 @@ pub(super) struct PreviewJob {
     pub doc: Arc<Document>,
 }
 
+/// An export as the worker takes it.
+pub(super) struct ExportJob {
+    pub bodies: Vec<BodySlot>,
+    pub format: ExportFormat,
+}
+
 /// What the session thread hands its worker.
 pub(super) enum Job {
     Commit(Snapshot),
     Preview(PreviewJob),
     ClearPreview,
+    Export(ExportJob),
 }
 
 /// The worker's queue: the newest commit and the newest preview not yet
@@ -65,6 +73,9 @@ pub(super) struct Queue<'a> {
     pub preview: Option<PreviewJob>,
     /// A preview or a clear arrived since the flag was last reset.
     pub preview_moved: bool,
+    /// The exports asked for, oldest first: every one is answered, so a
+    /// commit drops none.
+    pub exports: VecDeque<ExportJob>,
     pub gone: bool,
 }
 
@@ -75,6 +86,7 @@ impl<'a> Queue<'a> {
             commit: None,
             preview: None,
             preview_moved: false,
+            exports: VecDeque::new(),
             gone: false,
         }
     }
@@ -93,6 +105,7 @@ impl<'a> Queue<'a> {
                 self.preview = None;
                 self.preview_moved = true;
             }
+            Job::Export(job) => self.exports.push_back(job),
         }
     }
 
@@ -111,9 +124,11 @@ impl<'a> Queue<'a> {
     }
 
     /// Waits until there is work, then takes everything queued; `false`
-    /// once the session thread has gone.
-    pub fn wait(&mut self) -> bool {
-        if self.commit.is_none() && self.preview.is_none() {
+    /// once the session thread has gone. Exports are work only when
+    /// `exports_ready`: a commit has been evaluated for them to write.
+    pub fn wait(&mut self, exports_ready: bool) -> bool {
+        let exports = exports_ready && !self.exports.is_empty();
+        if self.commit.is_none() && self.preview.is_none() && !exports {
             match self.rx.recv() {
                 Ok(job) => self.take(job),
                 Err(_) => self.gone = true,

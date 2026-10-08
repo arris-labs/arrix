@@ -326,7 +326,7 @@ impl OpenDocument {
                 Ok(true)
             }
             // A preview is not counted: it applies nothing (ADR-0019).
-            Ok(Outcome::NoOp | Outcome::Previewing) => Ok(false),
+            Ok(Outcome::NoOp | Outcome::Previewing | Outcome::Exporting) => Ok(false),
             Err(rejected) => Err(rejected.to_string()),
         }
     }

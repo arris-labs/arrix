@@ -16,10 +16,10 @@ use crate::eval::SlotView;
 use crate::expr::Expr;
 use crate::registry::Registry;
 
-const ME: AuthorId = AuthorId(Id(1));
-const PART: PartId = PartId(Id(10));
-const SKETCH: FeatureId = FeatureId(Id(11));
-const PLATE: FeatureId = FeatureId(Id(12));
+pub(super) const ME: AuthorId = AuthorId(Id(1));
+pub(super) const PART: PartId = PartId(Id(10));
+pub(super) const SKETCH: FeatureId = FeatureId(Id(11));
+pub(super) const PLATE: FeatureId = FeatureId(Id(12));
 const MM: f64 = 1e-3;
 
 fn record(id: FeatureId, type_id: &str) -> FeatureRecord {
@@ -61,7 +61,7 @@ fn sketched() -> Command {
     }
 }
 
-fn extrude(key: RegionKey, distance: &str) -> Command {
+pub(super) fn extrude(key: RegionKey, distance: &str) -> Command {
     let mut r = record(PLATE, "core.extrude");
     r.params
         .insert("distance".into(), Expr::parse(distance).unwrap());
@@ -77,7 +77,7 @@ fn extrude(key: RegionKey, distance: &str) -> Command {
     }
 }
 
-fn envelope(base: u64, command: Command) -> CommandEnvelope {
+pub(super) fn envelope(base: u64, command: Command) -> CommandEnvelope {
     CommandEnvelope {
         author: ME,
         base: Generation(base),
@@ -92,14 +92,17 @@ fn preview(s: &LocalSession, n: u64, base: u64, command: Command) -> Result<Outc
     })
 }
 
-fn next(events: &EventStream) -> SessionEvent {
+pub(super) fn next(events: &EventStream) -> SessionEvent {
     events
         .recv_timeout(Duration::from_secs(30))
         .expect("the session publishes within the timeout")
 }
 
 /// Events until `done` holds of one, which is the last returned.
-fn until(events: &EventStream, mut done: impl FnMut(&SessionEvent) -> bool) -> Vec<SessionEvent> {
+pub(super) fn until(
+    events: &EventStream,
+    mut done: impl FnMut(&SessionEvent) -> bool,
+) -> Vec<SessionEvent> {
     let mut seen = Vec::new();
     loop {
         let e = next(events);
@@ -138,7 +141,7 @@ fn tag_of(e: &SessionEvent) -> Option<PreviewId> {
 
 /// A session at generation 1 holding the sketch, evaluated, and the key
 /// of its region.
-fn open() -> (LocalSession, EventStream, RegionKey) {
+pub(super) fn open() -> (LocalSession, EventStream, RegionKey) {
     let s = LocalSession::open(Document::default(), Registry::with_core_types()).unwrap();
     let events = s.subscribe();
     s.submit(envelope(0, sketched())).unwrap();

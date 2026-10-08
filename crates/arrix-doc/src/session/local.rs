@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender, channel};
 
-use super::preview::{self, Job, PreviewJob, Queue};
+use super::preview::{self, ExportJob, Job, PreviewJob, Queue};
 use super::{DocHash, EventStream, PreviewTag, Request, Session, SessionEvent, files};
 use crate::authority::{Authority, Generation, Outcome, Rejected};
 use crate::eval::{EvalEvent, interrupted};
@@ -160,6 +160,10 @@ fn serve(
                             Outcome::Previewing
                         })
                     }
+                    Request::Export { bodies, format } => {
+                        let _ = jobs.send(Job::Export(ExportJob { bodies, format }));
+                        Ok(Outcome::Exporting)
+                    }
                     Request::ClearPreview { author } => {
                         if previewing.is_some_and(|t| t.author == author) {
                             previewing = None;
@@ -246,7 +250,12 @@ fn evaluate(mut evaluator: Evaluator, jobs: &Receiver<Job>, publish: &Sender<Msg
     // preview's bodies are told changed or not against.
     let mut committed = Vec::new();
     let interrupt = evaluator.interrupt();
-    while queue.wait() {
+    // The newest commit evaluated to its end, which an export writes, and
+    // whether the evaluator still holds that evaluation (a preview ran
+    // since if not).
+    let mut finished: Option<(Generation, Arc<Document>)> = None;
+    let mut held = false;
+    while queue.wait(finished.is_some()) {
         // Whatever raised the flag is the job taken now, or an older one.
         interrupt.lower();
         if let Some((generation, doc)) = queue.commit.take() {
@@ -263,7 +272,9 @@ fn evaluate(mut evaluator: Evaluator, jobs: &Receiver<Job>, publish: &Sender<Msg
                 return;
             }
             let _ = publish.send(Msg::Freeze(evaluator.frozen().clone()));
+            held = done.is_some();
             if let Some(evaluation) = done {
+                finished = Some((generation, doc));
                 committed = evaluator.final_bodies().to_vec();
                 let finished = SessionEvent::Finished {
                     generation,
@@ -272,12 +283,53 @@ fn evaluate(mut evaluator: Evaluator, jobs: &Receiver<Job>, publish: &Sender<Msg
                 let _ = publish.send(Msg::Publish(finished));
                 mesh_finals(&mut evaluator, generation, &mut queue, publish);
             }
+        } else if let (false, Some((generation, doc))) = (queue.exports.is_empty(), &finished) {
+            export_queued(
+                &mut evaluator,
+                (*generation, doc),
+                &mut held,
+                &mut queue,
+                publish,
+            );
         } else if let Some(job) = queue.preview.take() {
+            held = false;
             let mut send = |event| {
                 let _ = publish.send(Msg::Publish(event));
             };
             preview::run(&mut evaluator, job, &committed, &mut queue, &mut send);
         }
+    }
+}
+
+/// Answers the exports queued, oldest first, from the newest finished
+/// commit `(generation, doc)`: evaluated again first (the cache makes it
+/// cheap) when a preview has run since and `held` is false. An export
+/// stopped by a newer commit stays queued, for that commit's evaluation.
+fn export_queued(
+    evaluator: &mut Evaluator,
+    (generation, doc): (Generation, &Arc<Document>),
+    held: &mut bool,
+    queue: &mut Queue,
+    publish: &Sender<Msg>,
+) {
+    while let Some(job) = queue.exports.front() {
+        if !*held {
+            if evaluator.evaluate_while(doc, |_| true).is_none() {
+                return;
+            }
+            *held = true;
+        }
+        let bytes = evaluator.export(&job.bodies, job.format);
+        if matches!(&bytes, Err(d) if interrupted(d)) {
+            return;
+        }
+        let event = SessionEvent::Exported {
+            generation,
+            format: job.format,
+            bytes,
+        };
+        let _ = publish.send(Msg::Publish(event));
+        queue.exports.pop_front();
     }
 }
 

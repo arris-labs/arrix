@@ -3,6 +3,7 @@
 //! failing soft. `LocalSession` runs it on its worker, stopping between
 //! features for a newer snapshot (docs/CONCURRENCY-WASM.md §The evaluator).
 
+mod export;
 mod fixtures;
 mod frozen;
 #[cfg(test)]
@@ -36,6 +37,7 @@ use arrix_plugin_api::{
 use arrix_sketch::{ConstraintId, Sketch};
 use serde::{Deserialize, Serialize};
 
+pub use export::{ExportError, ExportedFile, export};
 pub use fixtures::{FailedCall, Run, SavedRecipe, run};
 pub use hash::InputHash;
 pub use line::{BodyLine, EvalLine, EvalStatus, FeatureLine, ParamLine, SweepPoint, eval};
