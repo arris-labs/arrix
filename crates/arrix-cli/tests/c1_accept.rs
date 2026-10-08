@@ -19,8 +19,9 @@ use arrix_core::{
     QuantityKind, Ref, RegionKey, RenderMesh, SlotName, SweepPartName, TopoKind,
 };
 use arrix_doc::{
-    AuthorId, Command, Document, Evaluator, FeatureOutcome, FeatureRecord, FeatureTypeId, Param,
-    Part, Session, SketchView, SlotView, expr::Expr, open,
+    AuthorId, Command, Document, Evaluator, FeatureEdit, FeatureOutcome, FeatureRecord,
+    FeatureTypeId, MemorySource, Param, Part, Registry, Request, Session, SketchView, SlotView,
+    apply, expr::Expr, open, save,
 };
 use arrix_sketch::{Constraint, Draft, Entity, EntityId, Point, Sketch};
 use common::{Client, scenario_directory};
@@ -606,4 +607,252 @@ fn eval_golden(file: &str) {
         stdout, want,
         "{file}: rerun with UPDATE_SNAPSHOTS=1 and read the diff"
     );
+}
+
+/// Criterion 3: saved twice to identical bytes; loaded and evaluated to
+/// identical JSON; undo and redo of every command reproduce each earlier
+/// file byte for byte.
+#[test]
+fn the_bracket_saves_deterministically_and_undoes_to_each_save() {
+    let i = Ids::new();
+    let mut c = Client::new(i.author);
+    build(&mut c, &i);
+    c.set(i.w, "70 mm");
+    c.set(i.w, "60 mm");
+
+    let last = c.replica.generation();
+    let saved = c.session.save();
+    assert_eq!(saved.0, c.session.save().0);
+    assert_eq!(save(c.replica.document()).0, c.saves[last.0 as usize].0);
+    let reopened: Document = open(&c.saves[last.0 as usize]).unwrap();
+    assert_eq!(save(&reopened).0, c.saves[last.0 as usize].0);
+
+    let line = |name: &str| {
+        let line = arrix_doc::eval(name, &saved, &common::registry()).unwrap();
+        serde_json::to_string(&line).unwrap()
+    };
+    assert_eq!(line("bracket"), line("bracket"), "evaluated twice");
+    let blobs = saved.0.keys().filter(|p| p.starts_with("blobs/")).count();
+    assert_eq!(blobs, 2, "the gear's result is frozen into the save");
+
+    for back in (0..last.0).rev() {
+        c.request(Request::Undo { author: i.author });
+        assert!(
+            save(c.replica.document()).0 == c.saves[back as usize].0,
+            "undone to generation {back}"
+        );
+    }
+    for forward in 1..=last.0 {
+        c.request(Request::Redo { author: i.author });
+        assert!(
+            save(c.replica.document()).0 == c.saves[forward as usize].0,
+            "redone to generation {forward}"
+        );
+    }
+}
+
+/// A body line's measures of `feature`'s body slot.
+fn body_line(line: &arrix_doc::EvalLine, feature: FeatureId) -> (f64, usize) {
+    let b = line
+        .bodies
+        .iter()
+        .find(|b| b.feature == feature)
+        .unwrap_or_else(|| panic!("no body line for {feature}"));
+    (b.volume, b.faces)
+}
+
+fn feature_line(line: &arrix_doc::EvalLine, feature: FeatureId) -> &arrix_doc::FeatureLine {
+    line.features.iter().find(|f| f.id == feature).unwrap()
+}
+
+/// Criterion 4: opened without `gears`, every body is there at the live
+/// run's volume, the gear frozen with its reason and the fillet on its
+/// edge evaluated; the plate's width edited, the gear is not stale (its
+/// plane does not move) and the rest re-evaluates; a tooth added, the gear
+/// is frozen-stale; with the plugin back, it is live and frozen anew.
+#[test]
+fn the_bracket_opened_without_the_plugin_keeps_every_body() {
+    let i = Ids::new();
+    let mut c = Client::new(i.author);
+    build(&mut c, &i);
+    let saved = c.session.save();
+    let live = arrix_doc::eval("live", &saved, &common::registry()).unwrap();
+    let core = Registry::with_core_types();
+    let without = arrix_doc::eval("without", &saved, &core).unwrap();
+
+    assert_eq!(feature_line(&live, i.gear).status, "ok");
+    let gear = feature_line(&without, i.gear);
+    assert_eq!(gear.status, "frozen");
+    assert_eq!(gear.category.as_deref(), Some("plugin.frozen.missing"));
+    assert_eq!(without.status, arrix_doc::EvalStatus::Ok);
+    for f in i.features() {
+        assert_eq!(feature_line(&without, f).id, f);
+        if f != i.gear {
+            assert_eq!(feature_line(&without, f).status, "ok", "{f}");
+        }
+    }
+    for body in &live.bodies {
+        assert_eq!(
+            body_line(&without, body.feature),
+            body_line(&live, body.feature),
+            "{}",
+            body.feature
+        );
+    }
+    assert_eq!(body_line(&without, i.gear_edge).1, 267);
+
+    // The width edited without the plugin.
+    let doc: Document = open(&saved).unwrap();
+    let wider = |doc: &Document, param, expr: &str| {
+        let command = Command::SetParam {
+            param,
+            expr: Expr::parse(expr).unwrap(),
+        };
+        apply(doc, &command).unwrap().document
+    };
+    let edited = wider(&doc, i.w, "70 mm");
+    let edit = Evaluator::new(core.clone())
+        .evaluate(&edited)
+        .line("edited", &edited);
+    assert_eq!(edit.status, arrix_doc::EvalStatus::Ok);
+    assert_eq!(feature_line(&edit, i.gear).status, "frozen");
+    assert!(body_line(&edit, i.gear_edge).0 > body_line(&without, i.gear_edge).0);
+
+    // The gear's own input edited: its stored result is used, so the join
+    // and the fillet on its edge still evaluate, and the gear is stale.
+    let more = wider(&doc, i.teeth, "21");
+    let stale = Evaluator::new(core).evaluate(&more).line("more", &more);
+    assert_eq!(stale.status, arrix_doc::EvalStatus::Ok);
+    assert_eq!(feature_line(&stale, i.gear).status, "frozen-stale");
+    for f in [i.join, i.gear_edge] {
+        assert_eq!(feature_line(&stale, f).status, "ok", "{f}");
+    }
+    assert_eq!(
+        body_line(&stale, i.gear_edge),
+        body_line(&without, i.gear_edge)
+    );
+
+    // With the plugin back: live at the new tooth count, frozen anew,
+    // nothing stale.
+    let mut evaluator = Evaluator::new(common::registry());
+    let back = evaluator.evaluate(&more).line("back", &more);
+    assert_eq!(feature_line(&back, i.gear).status, "ok");
+    assert!(evaluator.frozen().contains_key(&i.gear));
+    assert!(body_line(&back, i.gear).1 > body_line(&live, i.gear).1);
+    assert!(back.features.iter().all(|f| {
+        f.diagnostics
+            .iter()
+            .all(|d| d.code.as_str() != "plugin.frozen.stale")
+    }));
+}
+
+const CODE: &str = "kernel.degenerate.blend-too-large";
+
+/// A fillet made 30 mm, which no 5 mm plate holds.
+fn too_large(c: &mut Client, feature: FeatureId) {
+    c.submit(Command::EditFeature {
+        feature,
+        edit: FeatureEdit {
+            params: [("radius".into(), Some(Expr::parse("30 mm").unwrap()))].into(),
+            ..FeatureEdit::default()
+        },
+    });
+}
+
+/// `arrix eval --save-fixtures` of `files`, run on a scratch copy; returns
+/// the exit code, the line and the recipes' directory.
+fn eval_with_fixtures(
+    files: &MemorySource,
+) -> (Option<i32>, serde_json::Value, std::path::PathBuf) {
+    let scratch = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join("c1-accept");
+    let _ = std::fs::remove_dir_all(&scratch);
+    for (path, bytes) in &files.0 {
+        let to = scratch.join("bracket").join(path);
+        std::fs::create_dir_all(to.parent().unwrap()).unwrap();
+        std::fs::write(to, bytes).unwrap();
+    }
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_arrix"))
+        .current_dir(&scratch)
+        .args(["eval", "bracket", "--save-fixtures", "recipes"])
+        .output()
+        .expect("run arrix");
+    // stderr says where the recipe went and nothing else.
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr
+            .lines()
+            .all(|l| l.starts_with("arrix eval: saved recipes/")),
+        "{stderr}"
+    );
+    let line = serde_json::from_slice(&out.stdout).unwrap();
+    (out.status.code(), line, scratch.join("recipes"))
+}
+
+/// Criterion 5: a fillet made too large fails with its category, the rest
+/// of the part evaluates, and the recipe written for it reads through
+/// Arris's grammar and states the failing fillet.
+#[test]
+fn an_oversize_fillet_fails_with_its_category_and_a_recipe() {
+    let i = Ids::new();
+    let mut c = Client::new(i.author);
+    build(&mut c, &i);
+    too_large(&mut c, i.gear_edge);
+
+    let failed = match c.outcome(i.gear_edge) {
+        FeatureOutcome::Failed { diagnostic, .. } => diagnostic.clone(),
+        other => panic!("{other:?}"),
+    };
+    assert_eq!(failed.code.as_str(), CODE, "{failed:?}");
+    for f in i.features().into_iter().filter(|f| *f != i.gear_edge) {
+        let ok = matches!(c.outcome(f), FeatureOutcome::Ok { .. });
+        assert!(ok, "{f} evaluates: {:?}", c.outcome(f));
+    }
+
+    // The same through the binary, and the recipe it saves.
+    let (code, line, dir) = eval_with_fixtures(&c.session.save());
+    assert_eq!(code, Some(1));
+    assert_eq!(line["status"], "failed");
+    let categories: Vec<_> = line["features"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|f| f["category"].as_str())
+        .collect();
+    assert_eq!(categories, [CODE]);
+    let mut recipes: Vec<_> = std::fs::read_dir(&dir)
+        .expect("a recipe was written")
+        .map(|e| e.unwrap().path())
+        .collect();
+    recipes.sort();
+    let [recipe] = recipes.as_slice() else {
+        panic!("{recipes:?}")
+    };
+    assert!(
+        recipe
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .starts_with(CODE)
+    );
+    let json = std::fs::read_to_string(recipe.join("fixture.json")).unwrap();
+    let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+    // What Arris's interpreter holds a recipe to: step names unique, every
+    // step reading only earlier ones, the result a step. The grammar's
+    // types themselves are the kernel's test (`fixture_export.rs`), where
+    // `arris` may be named.
+    let mut made = std::collections::BTreeSet::new();
+    let steps = value["steps"].as_array().unwrap();
+    for step in steps {
+        for key in ["profile", "of", "a", "b", "target", "tool"] {
+            if let Some(read) = step[key].as_str() {
+                assert!(made.contains(read), "{step} reads {read} before it is made");
+            }
+        }
+        let name = step["name"].as_str().unwrap();
+        assert!(made.insert(name), "{name} is made twice");
+    }
+    let last = steps.last().unwrap();
+    assert_eq!(last["op"], "fillet", "{json}");
+    assert_eq!(value["result"], last["name"]);
+    assert_eq!(last["radius"], 0.03);
 }
