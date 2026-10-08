@@ -125,3 +125,23 @@ fn an_unraised_flag_changes_nothing() {
     b.interrupt().lower();
     assert_eq!(a.to_bytes(x).unwrap(), b.to_bytes(y).unwrap());
 }
+
+/// A budget is per call: the fillet it cannot finish fails as
+/// `kernel.interrupted.budget` with the model as it was, the same on every
+/// run, and lifted the call succeeds.
+#[test]
+fn a_budget_stops_a_call_by_its_own_category_and_is_lifted() {
+    let mut k = Kernel::new();
+    let body = plate(&mut k);
+    k.set_budget(Some(100));
+    let stopped = round(&mut k, body).unwrap_err();
+    assert_eq!(stopped.code().as_str(), "kernel.interrupted.budget");
+    let again = round(&mut k, body).unwrap_err();
+    assert_eq!(again.code(), stopped.code());
+    // Spent at the same step: only the call's place in the records differs.
+    assert!(again.to_string().contains("budget of 100 steps is spent"));
+    assert_eq!(k.retain(&BTreeSet::from([body])), 0, "nothing to free");
+
+    k.set_budget(None);
+    assert!(round(&mut k, body).is_ok());
+}

@@ -23,6 +23,8 @@ pub struct Args<'a> {
     pub summary: bool,
     /// `--jobs`: documents evaluated at once.
     pub jobs: usize,
+    /// `--budget`: the steps each kernel call may take.
+    pub budget: Option<u64>,
     /// `--timings`: each line carries the wall time of its document.
     pub timings: bool,
 }
@@ -134,10 +136,17 @@ pub fn run(args: &Args) -> ExitCode {
     };
     if jobs == 1 {
         for (index, doc) in documents.iter().enumerate() {
-            emit(index, evaluate(doc, &registry, sweep.as_ref()));
+            emit(index, evaluate(doc, &registry, sweep.as_ref(), args.budget));
         }
     } else {
-        in_order(&documents, jobs, &registry, sweep.as_ref(), &mut emit);
+        in_order(
+            &documents,
+            jobs,
+            &registry,
+            sweep.as_ref(),
+            args.budget,
+            &mut emit,
+        );
     }
     if args.summary && summary.print().is_err() {
         worst = Status::Unreadable;
@@ -154,12 +163,14 @@ struct Done {
 
 /// Evaluates one document, or each point of the sweep, on its own
 /// evaluator and model.
-fn evaluate(doc: &Path, registry: &Registry, sweep: Option<&Sweep>) -> Done {
+fn evaluate(doc: &Path, registry: &Registry, sweep: Option<&Sweep>, budget: Option<u64>) -> Done {
     let name = doc.to_string_lossy();
     let started = Instant::now();
     let runs = Loaded::open(doc).and_then(|source| match sweep {
-        Some(sweep) => arrix_doc::sweep(&name, &source, registry, sweep).map_err(|e| e.to_string()),
-        None => arrix_doc::run(&name, &source, registry)
+        Some(sweep) => {
+            arrix_doc::sweep(&name, &source, registry, sweep, budget).map_err(|e| e.to_string())
+        }
+        None => arrix_doc::run(&name, &source, registry, budget)
             .map(|run| vec![run])
             .map_err(|e| e.to_string()),
     });
@@ -177,6 +188,7 @@ fn in_order(
     jobs: usize,
     registry: &Registry,
     sweep: Option<&Sweep>,
+    budget: Option<u64>,
     emit: &mut dyn FnMut(usize, Done),
 ) {
     let next = AtomicUsize::new(0);
@@ -190,7 +202,10 @@ fn in_order(
                     let Some(doc) = documents.get(index) else {
                         break;
                     };
-                    if tx.send((index, evaluate(doc, registry, sweep))).is_err() {
+                    if tx
+                        .send((index, evaluate(doc, registry, sweep, budget)))
+                        .is_err()
+                    {
                         break;
                     }
                 }

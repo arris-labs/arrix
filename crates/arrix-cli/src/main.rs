@@ -67,6 +67,11 @@ enum Command {
         /// exit status are `--jobs 1`'s.
         #[arg(long, value_name = "N", default_value_t = 1)]
         jobs: usize,
+        /// Stop any kernel call at this many steps (Arris's step budget): a
+        /// feature it stops fails as `kernel.interrupted.budget`. The same
+        /// on every machine and run, unlike a timeout.
+        #[arg(long, value_name = "STEPS")]
+        budget: Option<u64>,
     },
     /// Write a document's final bodies (or the `--body` ones) as a STEP,
     /// STL or OBJ file, in metres. Exit status: 0 when written from a clean
@@ -148,6 +153,7 @@ fn main() -> ExitCode {
             summary,
             timings,
             jobs,
+            budget,
         } => eval::run(&eval::Args {
             paths: &paths,
             without: &without,
@@ -156,6 +162,7 @@ fn main() -> ExitCode {
             summary,
             timings,
             jobs,
+            budget,
         }),
         Command::Export {
             doc,

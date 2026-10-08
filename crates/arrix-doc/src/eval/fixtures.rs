@@ -38,10 +38,17 @@ pub struct Run {
 }
 
 /// Opens and evaluates like [`eval`](super::eval), keeping each failed
-/// kernel call as a recipe.
-pub fn run(doc: &str, source: &impl DocumentSource, registry: &Registry) -> Result<Run, OpenError> {
+/// kernel call as a recipe. `budget` caps the steps of each kernel call
+/// (`Kernel::set_budget`).
+pub fn run(
+    doc: &str,
+    source: &impl DocumentSource,
+    registry: &Registry,
+    budget: Option<u64>,
+) -> Result<Run, OpenError> {
     let document = open(source)?;
     let mut evaluator = Evaluator::new(registry.clone());
+    evaluator.set_budget(budget);
     let evaluation = evaluator.evaluate(&document);
     let failures = failures(&evaluation, evaluator.kernel_calls());
     Ok(Run {
@@ -66,6 +73,11 @@ pub(crate) fn failures(evaluation: &Evaluation, records: &[KernelCall]) -> Vec<F
             else {
                 return None;
             };
+            // A spent budget is the caller's cap, not a kernel failure: its
+            // record replays to success, so there is nothing to file.
+            if diagnostic.code.as_str() == "kernel.interrupted.budget" {
+                return None;
+            }
             let recipe = FixtureRecipe::of(records, *call, &diagnostic.code).map(|r| {
                 let json = r.to_json();
                 let hash = blake3::hash(json.as_bytes()).to_hex();

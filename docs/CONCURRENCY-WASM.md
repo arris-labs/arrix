@@ -155,19 +155,39 @@ arrix eval <docs or dirs>… [--sweep <feature>.<param>=<from>..<to>:<n>]
 - Exit status: 0 when every document evaluated without a failed
   parameter or feature (suppressed and rolled-back ones are not
   failures), 1 otherwise, 2 on usage or I/O errors.
-- **Built so far:** `arrix eval <dir>` on one document directory, no
-  flags. It opens the document through `arrix-doc`, which reads no files:
-  the CLI hands it a directory as a `DocumentSource`, and the line type,
-  `EvalLine`, and `arrix_doc::eval` live in `arrix-doc`, so tests and the
-  CLI share one code path. The document is evaluated with the core
-  feature types and the CLI's compiled-in plugins registered
-  (`crates/arrix-cli/src/plugins.rs`). An empty
-  document prints
-  `{"doc":"<dir>","sweep":null,"status":"ok","params":[],"features":[],"bodies":[]}`
-  (`doc` as the caller named it) and exits 0. A missing directory, a
-  `document.json` that is absent or not JSON, a schema other than 1, or a
-  malformed document exits 2 with the reason on stderr and nothing on
-  stdout. The rest of the flags are M4's.
+- **As built.** `arrix eval <paths>…`: a path is a document directory, an
+  `.arrx`, or a directory searched for those (sorted by path); one line per
+  document in the order given, whatever `--jobs` is. The line type,
+  `EvalLine`, and `arrix_doc::run` and `sweep` live in `arrix-doc`, so
+  tests and the CLI share one code path; the core feature types and the
+  CLI's compiled-in plugins are registered (`crates/arrix-cli/src/plugins.rs`).
+  An empty document prints
+  `{"doc":"<dir>","sweep":null,"status":"ok","params":[],"features":[],"bodies":[]}`.
+  A path that cannot be read is said on stderr and the rest still print.
+  - `--sweep <target>=<from>..<to>:<n>`: `target` is a document parameter
+    or `<feature>.<field>`; the points are edits on one evaluator, so the
+    cache carries over; the line's `sweep` is `{"target","index","value"}`.
+  - `--summary` ends stdout with `{"summary":[{"category","count","docs",
+    "plugins"}]}`, rows in category order: a failed feature counts under its
+    category and its type's plugin (`core` for the core types), a failed
+    parameter under its diagnostic's code and no plugin. A sweep counts each
+    point's failure.
+  - `--timings` appends `"timings":{"wall_ms","lines"}` to each line: the
+    wall time of the whole document (every sweep point), the one field that
+    is not deterministic.
+  - `--jobs <n>` evaluates documents on `n` threads of the CLI's own, each
+    on its own evaluator and model; results are emitted in the documents'
+    order, so stdout, stderr and the exit status are `--jobs 1`'s.
+  - `--budget <steps>` is `Kernel::set_budget`: a cap on each kernel call,
+    not on the document, so a result depends on the document and the number
+    alone. A call it stops fails its feature as
+    `kernel.interrupted.budget`; features reading it have no input, as for
+    any failure. Its record replays to success, so `--save-fixtures` files
+    nothing for it.
+  - An unreadable document exits 2 with the reason on stderr (a missing
+    directory, a `document.json` that is absent or not JSON, a schema newer
+    than the build's, a malformed document); over several documents the exit
+    status is the worst of them.
 
 ## The browser build
 

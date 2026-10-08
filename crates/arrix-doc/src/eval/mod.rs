@@ -336,6 +336,13 @@ impl Evaluator {
         &self.registry
     }
 
+    /// Caps the steps of each kernel call (`Kernel::set_budget`): one a
+    /// call outruns fails as `kernel.interrupted.budget`, a failure like
+    /// any other.
+    pub fn set_budget(&mut self, budget: Option<u64>) {
+        self.kernel.set_budget(budget);
+    }
+
     /// The handle that stops the running kernel call from another thread
     /// (docs/CONCURRENCY-WASM.md §The evaluator). Raised, every call fails
     /// as `kernel.interrupted` until it is lowered; an evaluation that

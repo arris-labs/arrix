@@ -82,6 +82,8 @@ pub struct Kernel {
     bodies: Vec<Option<BodyEntry>>,
     /// Polled by every Arris call.
     interrupt: Interrupt,
+    /// Steps each Arris call may take, `None` for as many as it needs.
+    budget: Option<u64>,
 }
 
 impl Default for Kernel {
@@ -106,6 +108,7 @@ impl Kernel {
             records: Vec::new(),
             bodies: Vec::new(),
             interrupt: Interrupt::default(),
+            budget: None,
         }
     }
 
@@ -116,11 +119,25 @@ impl Kernel {
         self.interrupt.clone()
     }
 
+    /// Caps the steps of each Arris call this kernel makes from now on
+    /// (`None`: no cap). A call it stops fails as
+    /// `kernel.interrupted.budget` with the model as it was. The budget is
+    /// per call, so a result depends on the document and the number alone,
+    /// never on the machine (docs/CONCURRENCY-WASM.md §Batch evaluation).
+    pub fn set_budget(&mut self, budget: Option<u64>) {
+        self.budget = budget;
+    }
+
     /// `run` on the model under the control every call gets.
     fn controlled<R>(&mut self, run: impl FnOnce(&mut Model, &Control<'_>) -> R) -> R {
         let flag = &self.interrupt;
         let poll = || flag.is_raised();
-        run(&mut self.model, &Control::poll(&poll))
+        let control = Control::poll(&poll);
+        let control = match self.budget {
+            Some(steps) => control.with_budget(steps),
+            None => control,
+        };
+        run(&mut self.model, &control)
     }
 
     /// Every call made so far, failed ones included, in call order.

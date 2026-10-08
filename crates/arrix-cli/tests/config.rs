@@ -75,7 +75,7 @@ fn no_feature_evaluates_differently_under_a_config() {
             &mut files,
         );
         let source = arrix_doc::MemorySource(files);
-        let run = arrix_doc::run("gear-on-plane", &source, &registry()).unwrap();
+        let run = arrix_doc::run("gear-on-plane", &source, &registry(), None).unwrap();
         serde_json::to_string(&run.line).unwrap()
     };
     let before = eval();

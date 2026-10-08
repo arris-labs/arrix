@@ -200,10 +200,12 @@ pub fn sweep(
     source: &impl DocumentSource,
     registry: &Registry,
     sweep: &Sweep,
+    budget: Option<u64>,
 ) -> Result<Vec<Run>, SweepError> {
     let base = open(source)?;
     let feature = sweep.resolve(&base).map_err(SweepError::Target)?;
     let mut evaluator = Evaluator::new(registry.clone());
+    evaluator.set_budget(budget);
     let mut runs = Vec::with_capacity(sweep.n);
     for i in 0..sweep.n {
         let document = sweep.edit(&base, feature, i);
