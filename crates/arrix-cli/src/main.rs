@@ -53,6 +53,15 @@ enum Command {
         /// expressions (`10 mm`).
         #[arg(long, value_name = "TARGET=FROM..TO:N")]
         sweep: Option<String>,
+        /// End with one JSON line, `{"summary":[{"category","count","docs",
+        /// "plugins"}]}`: the failures by category, in category order.
+        #[arg(long)]
+        summary: bool,
+        /// Add `"timings":{"wall_ms","lines"}` to each line: the wall time
+        /// of the line's whole document (all its sweep points). The lines
+        /// are no longer deterministic.
+        #[arg(long)]
+        timings: bool,
     },
     /// Write a document's final bodies (or the `--body` ones) as a STEP,
     /// STL or OBJ file, in metres. Exit status: 0 when written from a clean
@@ -131,11 +140,15 @@ fn main() -> ExitCode {
             without,
             save_fixtures,
             sweep,
+            summary,
+            timings,
         } => eval::run(&eval::Args {
             paths: &paths,
             without: &without,
             save_fixtures: save_fixtures.as_deref(),
             sweep: sweep.as_deref(),
+            summary,
+            timings,
         }),
         Command::Export {
             doc,

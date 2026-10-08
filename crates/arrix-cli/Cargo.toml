@@ -19,6 +19,7 @@ arrix-gears.workspace = true
 arrix-config.workspace = true
 clap.workspace = true
 serde_json.workspace = true
+web-time.workspace = true
 
 [dev-dependencies]
 # The scenario tests draw sketches (tests/slice.rs, tests/gears.rs).

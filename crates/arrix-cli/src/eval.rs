@@ -2,9 +2,11 @@
 //! paths were given and a directory's documents sorted by path
 //! (docs/CONCURRENCY-WASM.md §Batch evaluation).
 
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use web_time::Instant;
 
 use arrix_doc::{EvalStatus, Registry, Run, Sweep};
 
@@ -16,6 +18,65 @@ pub struct Args<'a> {
     pub save_fixtures: Option<&'a Path>,
     /// The `--sweep` flag as typed.
     pub sweep: Option<&'a str>,
+    /// `--summary`: a last line with the failure histogram.
+    pub summary: bool,
+    /// `--timings`: each line carries the wall time of its document.
+    pub timings: bool,
+}
+
+/// One row of the failure histogram: a category, how often it was hit, the
+/// documents that hit it and the plugins whose feature types did.
+#[derive(Default)]
+struct Row {
+    category: String,
+    count: usize,
+    docs: BTreeSet<String>,
+    plugins: BTreeSet<String>,
+}
+
+/// The histogram, by category. A failed feature counts under its category;
+/// a failed parameter under its diagnostic's code, with no plugin.
+#[derive(Default)]
+struct Summary(BTreeMap<String, Row>);
+
+impl Summary {
+    fn add(&mut self, line: &arrix_doc::EvalLine) {
+        let mut hit = |category: &str, plugin: Option<&str>| {
+            let row = self.0.entry(category.to_string()).or_default();
+            row.category = category.to_string();
+            row.count += 1;
+            row.docs.insert(line.doc.clone());
+            row.plugins.extend(plugin.map(str::to_string));
+        };
+        for param in &line.params {
+            if let Some(diagnostic) = &param.diagnostic {
+                hit(&diagnostic.code.to_string(), None);
+            }
+        }
+        for feature in &line.features {
+            if let Some(category) = &feature.category {
+                let plugin = feature.feature_type.split('.').next();
+                hit(category, plugin);
+            }
+        }
+    }
+
+    fn print(&self) -> std::io::Result<()> {
+        let rows: Vec<_> = self
+            .0
+            .values()
+            .map(|r| {
+                serde_json::json!({
+                    "category": r.category,
+                    "count": r.count,
+                    "docs": r.docs,
+                    "plugins": r.plugins,
+                })
+            })
+            .collect();
+        let json = serde_json::json!({ "summary": rows });
+        writeln!(std::io::stdout(), "{json}")
+    }
 }
 
 /// What became of one document: its line was printed (clean or with a
@@ -53,6 +114,7 @@ pub fn run(args: &Args) -> ExitCode {
         }
     };
     let mut worst = Status::Clean;
+    let mut summary = Summary::default();
     let mut documents = Vec::new();
     for path in args.paths {
         match discover(path) {
@@ -64,7 +126,10 @@ pub fn run(args: &Args) -> ExitCode {
         }
     }
     for doc in &documents {
-        worst = worst.max(one(doc, &registry, args.save_fixtures, sweep.as_ref()));
+        worst = worst.max(one(doc, &registry, args, sweep.as_ref(), &mut summary));
+    }
+    if args.summary && summary.print().is_err() {
+        worst = Status::Unreadable;
     }
     worst.code()
 }
@@ -74,10 +139,12 @@ pub fn run(args: &Args) -> ExitCode {
 fn one(
     doc: &Path,
     registry: &Registry,
-    save_fixtures: Option<&Path>,
+    args: &Args,
     sweep: Option<&Sweep>,
+    summary: &mut Summary,
 ) -> Status {
     let name = doc.to_string_lossy();
+    let started = Instant::now();
     let runs = Loaded::open(doc).and_then(|source| match sweep {
         Some(sweep) => arrix_doc::sweep(&name, &source, registry, sweep).map_err(|e| e.to_string()),
         None => arrix_doc::run(&name, &source, registry)
@@ -91,21 +158,34 @@ fn one(
             return Status::Unreadable;
         }
     };
+    let wall_ms = started.elapsed().as_secs_f64() * 1e3;
+    let timings = args.timings.then_some((wall_ms, runs.len()));
     let mut worst = Status::Clean;
     for run in &runs {
-        worst = worst.max(print(run, save_fixtures));
+        summary.add(&run.line);
+        worst = worst.max(print(run, args.save_fixtures, timings));
     }
     worst
 }
 
-fn print(run: &Run, save_fixtures: Option<&Path>) -> Status {
+/// Prints the run's line; with `timings` (the wall time of the whole
+/// document, sweep points included, and its line count) as a `timings`
+/// field, the one thing in a line that is not deterministic.
+fn print(run: &Run, save_fixtures: Option<&Path>, timings: Option<(f64, usize)>) -> Status {
     if let Some(dir) = save_fixtures
         && let Err(err) = save_recipes(dir, &run.failures)
     {
         eprintln!("arrix eval: --save-fixtures {}: {err}", dir.display());
         return Status::Unreadable;
     }
-    let json = serde_json::to_string(&run.line).expect("an eval line is plain data");
+    let mut json = serde_json::to_string(&run.line).expect("an eval line is plain data");
+    if let Some((wall_ms, lines)) = timings {
+        // Appended to the text, so the fields keep the line's own order.
+        json.pop();
+        json.push_str(&format!(
+            ",\"timings\":{{\"wall_ms\":{wall_ms},\"lines\":{lines}}}}}"
+        ));
+    }
     if writeln!(std::io::stdout(), "{json}").is_err() {
         return Status::Unreadable;
     }
