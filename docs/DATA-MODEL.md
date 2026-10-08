@@ -349,11 +349,18 @@ extrude in cut mode, the body it cut is a new version of the same slot.
   target's slot, and `Ref::Slot` on the modifier's own slot names
   nothing.
 - **A consumed slot**: a body input that no output slot modifies is a
-  tool, and ends its slot. A later feature reading it, by body input or
-  by a persistent name into it, fails as `slot.consumed`, naming the
-  consumer.
+  tool, and ends its slot. A later feature reading it by body input
+  fails as `slot.consumed`, naming the consumer; a persistent name into it
+  follows the consumer (below).
 - A `Topo` name resolves against the version of its slot current at the
   reader, so a face kept through a join is found after it.
+- **A name into a consumed slot follows its consumer** (ADR-0020): it is
+  looked for in the slot the consumer modifies, as of the reader, so an
+  edge of a joined gear the join left alone is filleted downstream, live
+  or frozen. A name not found there, or a consumer that modifies no slot,
+  is `slot.consumed`; a body input on a consumed slot always is. The DAG
+  gives the reader the consumer and the features touching the slot it
+  follows into.
 - **A modifying slot is a version only while its input is set.** A
   type whose output `modifies` a body input, with that input unset in the
   record, has the slot as its own: `core.extrude` in mode `new` makes a

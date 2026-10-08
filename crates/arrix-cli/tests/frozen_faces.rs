@@ -5,9 +5,9 @@
 //! downstream, which is what the frozen badge is anchored on. Here
 //! because the stored result is made by evaluating the plugin.
 //!
-//! The fillet is on an edge of the plate: an edge of the gear the join
-//! left alone is named in the gear's consumed slot alone, and no
-//! downstream feature reads it yet (docs/BACKLOG.md).
+//! An edge of the gear the join left alone is named in the gear's consumed
+//! slot, and a fillet downstream finds it in the plate's version the join
+//! made (ADR-0020).
 
 mod common;
 
@@ -149,4 +149,40 @@ fn a_frozen_gears_faces_keep_its_root_through_the_join_and_a_fillet() {
     // them on the filleted body.
     assert_eq!(kept, faces);
     assert_eq!(kept_edges, edges);
+}
+
+/// A fillet on an edge of the gear the join left alone, named in the
+/// gear's consumed slot: found in the plate's version the join made
+/// (ADR-0020), with the plugin and without it. The edge is one of the
+/// gear's start face that fillets at 0.3 mm; most of the gear's edges end
+/// on a tangent neighbour and are `blend-too-large` at any radius, the
+/// kernel's answer and not a reference's.
+#[test]
+fn a_fillet_on_a_joined_gears_edge_reads_it_live_and_frozen() {
+    let doc = frozen_slice();
+    let edge: PersistentName = serde_json::from_value(serde_json::json!(
+        "edge:sweep.5BJX8TTST7RVD.start-edge.0000000000KH3"
+    ))
+    .unwrap();
+    assert_eq!(edge.root.feature(), fid(GEAR));
+    let (part, record) = doc.parts().iter().next().unwrap();
+    let command = Command::AddFeature {
+        part: *part,
+        at: record.features.len(),
+        record: fillet(edge, "0.3 mm"),
+    };
+    let filleted = apply(&doc, &command).unwrap().document;
+    let mut volumes = Vec::new();
+    for registry in [registry(), Registry::with_core_types()] {
+        let evaluation = Evaluator::new(registry).evaluate(&filleted);
+        let outcome = evaluation.outcome(fid("7FILLETPR0BE0"));
+        let Some(FeatureOutcome::Ok { slots, .. }) = outcome else {
+            panic!("{outcome:?}");
+        };
+        match slots.get(&SlotName::new("body").unwrap()) {
+            Some(arrix_doc::SlotView::Body(m)) => volumes.push(m.volume),
+            other => panic!("{other:?}"),
+        }
+    }
+    assert_eq!(volumes[0], volumes[1], "frozen, the same body: {volumes:?}");
 }

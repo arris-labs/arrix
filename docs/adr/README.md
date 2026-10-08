@@ -58,3 +58,4 @@ Each rejected option and the one-line reason it lost.
 - [ADR-0017](0017-the-minimal-shell.md): the minimal shell: two docked bars, tree and property cards over the viewport, document tabs, panel modes `auto`/`shown`/`hidden`
 - [ADR-0018](0018-forms-are-the-feature-types-spec.md): a feature type's form is its spec; choices declared with `shown_when`, plugin API 0.5; a create form is a draft committed by OK as one command
 - [ADR-0019](0019-a-preview-is-a-speculative-evaluation.md): a preview is a speculative evaluation: a request, not a command; one per session, after the newest commit and giving way to anything newer
+- [ADR-0020](0020-a-name-into-a-consumed-slot-follows-its-consumer.md): a persistent name into a consumed slot follows its consumer into the slot it modified; a body input there stays `slot.consumed`

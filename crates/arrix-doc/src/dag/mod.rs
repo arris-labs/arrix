@@ -166,7 +166,7 @@ fn feature_reads(doc: &Document, record: &FeatureRecord) -> Vec<(String, Node)> 
 }
 
 /// The features before `record` in `part` whose version of a body slot it
-/// reads. A slot of another part is no edge: the evaluator refuses it.
+/// reads, a name's slot followed through its consumers (ADR-0020). A slot of another part is no edge: the evaluator refuses it.
 fn version_reads(
     doc: &Document,
     registry: &Registry,
@@ -174,8 +174,14 @@ fn version_reads(
     at: usize,
     record: &FeatureRecord,
 ) -> BTreeSet<Node> {
+    let mut keys = bodies::input_reads(registry, record);
+    for key in bodies::named_reads(registry, doc, record) {
+        if part.features.contains_key(&key.feature) {
+            keys.extend(bodies::followed(registry, part, at, &key));
+        }
+    }
     let mut out = BTreeSet::new();
-    for key in bodies::reads(registry, doc, record) {
+    for key in keys {
         if part.features.contains_key(&key.feature) {
             let touching = bodies::touching(registry, part, at, &key);
             out.extend(touching.iter().map(|(r, _)| Node::Feature(r.id)));

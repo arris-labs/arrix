@@ -403,6 +403,86 @@ fn a_name_into_a_body_follows_its_version() {
     assert_eq!(failure(&e, 4).code.as_str(), "slot.consumed");
 }
 
+/// The block (1), a 10 mm block (3) standing in it from 3 mm up on a datum
+/// plane (2), the second joined to the first or cut from it by
+/// `core.boolean` (4), and a datum plane (5) on the second block's top face.
+fn joined(op: &str) -> Document {
+    let top = |f: u64| face(f, SweepPartName::EndCap);
+    let mut join = record(
+        4,
+        "core.boolean",
+        &[],
+        &[("target", body_ref(1)), ("tools", body_ref(3))],
+    );
+    join.type_version = 2;
+    join.inputs
+        .insert("tools".into(), arrix_core::Input::Many(vec![body_ref(3)]));
+    join.choices.insert("op".into(), op.into());
+    part(vec![
+        record(
+            2,
+            "core.datum-plane",
+            &[("offset", "-2 mm")],
+            &[("plane", Ref::Topo(top(1)))],
+        ),
+        record(
+            3,
+            "test.block",
+            &[],
+            &[(
+                "plane",
+                Ref::Slot {
+                    feature: fid(2),
+                    slot: slot("plane"),
+                },
+            )],
+        ),
+        join,
+        record(5, "core.datum-plane", &[], &[("plane", Ref::Topo(top(3)))]),
+    ])
+}
+
+#[test]
+fn a_name_into_a_joined_tool_is_found_in_the_body_it_joined() {
+    let e = eval(&joined("fuse"));
+    for f in 2..=4 {
+        assert!(
+            matches!(e.outcome(fid(f)), Some(FeatureOutcome::Ok { .. })),
+            "feature {f}: {:?}",
+            e.outcome(fid(f))
+        );
+    }
+    match e.slot(fid(5), "plane") {
+        Some(SlotView::Plane(f)) => {
+            assert!((f.origin().z - 8.0 * MM).abs() < 1e-9, "{f:?}");
+            assert_eq!(f.z_axis(), DVec3::Z);
+        }
+        other => panic!("{other:?}: {:?}", e.outcome(fid(5))),
+    }
+    // Its version is the join's: the reader reads the join and the tool.
+    let dag = Dag::build_with(&joined("fuse"), &registry()).unwrap();
+    let reads: Vec<Node> = dag.reads(Node::Feature(fid(5))).collect();
+    for f in [3, 4] {
+        assert!(reads.contains(&Node::Feature(fid(f))), "{reads:?}");
+    }
+
+    // A cut keeps no face of the tool's above the target: still consumed.
+    let e = eval(&joined("cut"));
+    let d = failure(&e, 5);
+    assert_eq!(d.code.as_str(), "slot.consumed", "{d:?}");
+    assert!(d.refs.contains(&Ref::Feature(fid(4))), "{d:?}");
+    // A body input on the joined tool is still consumed.
+    let mut d = joined("fuse");
+    let again = record(6, "test.read", &[], &[("body", body_ref(3))]);
+    d.parts.get_mut(&PART).unwrap().history.push(fid(6));
+    d.parts
+        .get_mut(&PART)
+        .unwrap()
+        .features
+        .insert(fid(6), again);
+    assert_eq!(failure(&eval(&d), 6).code.as_str(), "slot.consumed");
+}
+
 #[test]
 fn a_modifiers_own_slot_names_nothing_and_another_part_is_out_of_reach() {
     let own = record(3, "test.read", &[], &[("body", body_ref(2))]);

@@ -107,21 +107,65 @@ pub(crate) fn named_slots(
     out
 }
 
-/// Every body slot `record` reads: by a body input, or by a persistent
-/// name into a feature whose body is a version of it.
-pub(crate) fn reads(
+/// Every body slot `record` reads by a body input.
+pub(crate) fn input_reads(registry: &Registry, record: &FeatureRecord) -> BTreeSet<SlotKey> {
+    effects(registry, record)
+        .into_iter()
+        .map(|(key, _)| key)
+        .collect()
+}
+
+/// Every body slot `record` reads by a persistent name into a feature whose
+/// body is a version of it. A consumer may hand such a slot on (ADR-0020,
+/// [`followed`]).
+pub(crate) fn named_reads(
     registry: &Registry,
     doc: &Document,
     record: &FeatureRecord,
 ) -> BTreeSet<SlotKey> {
-    let mut out: BTreeSet<SlotKey> = effects(registry, record)
-        .into_iter()
-        .map(|(key, _)| key)
-        .collect();
+    let mut out = BTreeSet::new();
     for r in record.inputs.values().flat_map(Input::refs) {
         if matches!(r, Ref::Topo(_)) {
             for f in ref_features(r) {
                 out.extend(named_slots(registry, doc, f));
+            }
+        }
+    }
+    out
+}
+
+/// The slot a feature that consumes a body hands it on to (ADR-0020): the
+/// one slot `record` modifies, when it modifies exactly one.
+pub(crate) fn consumed_into(registry: &Registry, record: &FeatureRecord) -> Option<SlotKey> {
+    let mut modified = effects(registry, record)
+        .into_iter()
+        .filter(|(_, effect)| matches!(effect, Effect::Modifies(_)))
+        .map(|(key, _)| key);
+    match (modified.next(), modified.next()) {
+        (Some(key), None) => Some(key),
+        _ => None,
+    }
+}
+
+/// `key` and every slot a name into it may be found in before `before`:
+/// each feature consuming one hands it on to the slot it modifies
+/// (ADR-0020). Suppressed consumers are followed too, so the DAG's edges
+/// are a superset of what an evaluation reads.
+pub(crate) fn followed(
+    registry: &Registry,
+    part: &Part,
+    before: usize,
+    key: &SlotKey,
+) -> BTreeSet<SlotKey> {
+    let mut out = BTreeSet::from([key.clone()]);
+    let mut stack = vec![key.clone()];
+    while let Some(k) = stack.pop() {
+        for (record, effect) in touching(registry, part, before, &k) {
+            if effect == Effect::Consumes
+                && let Some(next) = consumed_into(registry, record)
+                && out.insert(next.clone())
+            {
+                stack.push(next);
             }
         }
     }

@@ -17,7 +17,7 @@ use super::host::kernel_diagnostic;
 use super::{BodyRead, Failure, InputHash, RegionView, SketchView, SlotOut, State};
 use crate::bodies::{self, Effect, SlotKey};
 use crate::dag::{Dag, Node, ref_features};
-use crate::document::{Document, Part};
+use crate::document::{Document, FeatureRecord, Part};
 use crate::expr::Expr;
 use crate::registry::Registry;
 
@@ -269,6 +269,40 @@ fn version(scope: &Scope, key: &SlotKey, r: &Ref) -> Result<BodyRead, Failure> {
         .with_refs([r.clone()])
         .into()),
     }
+}
+
+/// The version of `key` current at the reader, a consumed slot followed
+/// into the one its consumer modified (ADR-0020), as often as it is
+/// consumed again, with the `slot.consumed` it went past, if it did. A
+/// consumer that modifies no slot leaves that failure.
+fn followed_version(
+    scope: &Scope,
+    key: &SlotKey,
+    r: &Ref,
+) -> Result<(BodyRead, Option<Failure>), Failure> {
+    let first = match version(scope, key, r) {
+        Err(failure) if failure.diagnostic.code.as_str() == "slot.consumed" => failure,
+        other => return other.map(|read| (read, None)),
+    };
+    let mut key = key.clone();
+    while let Some(next) =
+        consumer_of(scope, &key).and_then(|c| bodies::consumed_into(scope.registry, c))
+    {
+        match version(scope, &next, r) {
+            Err(failure) if failure.diagnostic.code.as_str() == "slot.consumed" => key = next,
+            Err(failure) => return Err(failure),
+            Ok(read) => return Ok((read, Some(first))),
+        }
+    }
+    Err(first)
+}
+
+/// The feature before the reader that consumes `key`, when one does.
+fn consumer_of<'d>(scope: &Scope<'d>, key: &SlotKey) -> Option<&'d FeatureRecord> {
+    bodies::touching(scope.registry, scope.part, scope.at, key)
+        .into_iter()
+        .find(|(record, effect)| !record.suppressed && *effect == Effect::Consumes)
+        .map(|(record, _)| record)
 }
 
 /// An input by the shape of its reference alone, for a feature whose form
@@ -637,6 +671,9 @@ fn face_frame(
 /// The one body, among those of the features `r` names, that has an entity
 /// called `name`. None is a lost reference with the nearest names as
 /// candidates, and so is more than one: a name never picks between bodies.
+/// A slot a feature consumed is looked for in the slot that feature
+/// modified (ADR-0020); a name not found there is the consumption's
+/// `slot.consumed`.
 pub(super) fn locate(
     kernel: &mut Kernel,
     scope: &Scope,
@@ -644,13 +681,26 @@ pub(super) fn locate(
     name: &PersistentName,
 ) -> Result<KernelBody, Failure> {
     let mut pool: Vec<KernelBody> = Vec::new();
+    let mut consumed: Option<Failure> = None;
     let mut keys = std::collections::BTreeSet::new();
     for f in ref_features(r) {
         outputs(scope.doc, scope.states, f, r)?;
         keys.extend(bodies::named_slots(scope.registry, scope.doc, f));
     }
     for key in keys {
-        let body = version(scope, &key, r)?.body;
+        let body = match followed_version(scope, &key, r) {
+            Ok((read, past)) => {
+                if let Some(failure) = past {
+                    consumed.get_or_insert(failure);
+                }
+                read.body
+            }
+            Err(failure) if failure.diagnostic.code.as_str() == "slot.consumed" => {
+                consumed.get_or_insert(failure);
+                continue;
+            }
+            Err(failure) => return Err(failure),
+        };
         if !pool.contains(&body) {
             pool.push(body);
         }
@@ -664,6 +714,9 @@ pub(super) fn locate(
     }
     if let [body] = matches[..] {
         return Ok(body);
+    }
+    if let (true, Some(failure)) = (matches.is_empty(), consumed) {
+        return Err(failure);
     }
     let mut all = Vec::new();
     for b in &pool {
