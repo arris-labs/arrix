@@ -4,6 +4,8 @@
 mod catalog;
 mod config;
 mod describe;
+mod export;
+mod load;
 mod plugins;
 mod schema;
 mod source;
@@ -13,8 +15,6 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
-
-use source::DirSource;
 
 #[derive(Parser)]
 #[command(name = "arrix", version, about = "ArriX, headless")]
@@ -43,6 +43,27 @@ enum Command {
         #[arg(long = "save-fixtures", value_name = "DIR")]
         save_fixtures: Option<PathBuf>,
     },
+    /// Write a document's final bodies (or the `--body` ones) as a STEP,
+    /// STL or OBJ file, in metres. Exit status: 0 when written from a clean
+    /// document, 1 when written but some feature failed, 2 when the
+    /// document could not be read or exported.
+    Export {
+        /// A document directory, or an `.arrx` file.
+        doc: PathBuf,
+        /// The file format.
+        #[arg(long, value_enum)]
+        format: Format,
+        /// Only this body, `<feature>.<slot>` with the feature by id or
+        /// name (repeatable); by default every final body.
+        #[arg(long = "body", value_name = "FEATURE.SLOT")]
+        bodies: Vec<String>,
+        /// The file to write.
+        #[arg(short, long, value_name = "FILE")]
+        out: PathBuf,
+        /// Evaluate as a build without this plugin would (repeatable).
+        #[arg(long = "without-plugin", value_name = "ID")]
+        without: Vec<String>,
+    },
     /// Print everything there is to configure and its effective value: the
     /// commands and their keys, the settings, the theme roles, the feature
     /// types' parameters, the compiled-in plugins. Exit status: 0, or 2 when
@@ -61,6 +82,13 @@ enum Command {
         #[command(subcommand)]
         command: ConfigCommand,
     },
+}
+
+#[derive(Clone, Copy, clap::ValueEnum)]
+enum Format {
+    Step,
+    Stl,
+    Obj,
 }
 
 #[derive(Subcommand)]
@@ -92,6 +120,23 @@ fn main() -> ExitCode {
             without,
             save_fixtures,
         } => eval(&doc, &without, save_fixtures.as_deref()),
+        Command::Export {
+            doc,
+            format,
+            bodies,
+            out,
+            without,
+        } => export::run(&export::Args {
+            doc: &doc,
+            format: match format {
+                Format::Step => arrix_core::ExportFormat::Step,
+                Format::Stl => arrix_core::ExportFormat::Stl,
+                Format::Obj => arrix_core::ExportFormat::Obj,
+            },
+            bodies: &bodies,
+            out: &out,
+            without: &without,
+        }),
         Command::Describe { json, dir } => describe::run(dir.as_deref(), json),
         Command::Config {
             command: ConfigCommand::Check { dir },
@@ -111,27 +156,15 @@ fn eval(
     save_fixtures: Option<&std::path::Path>,
 ) -> ExitCode {
     let name = doc.to_string_lossy();
-    let mut registry = plugins::registry();
-    for id in without {
-        let removed = arrix_core::PluginId::new(id.as_str())
-            .map(|plugin| registry.remove_plugin(&plugin))
-            .unwrap_or(false);
-        if !removed {
-            eprintln!("arrix eval: --without-plugin {id}: no such plugin in this build");
+    let registry = match load::registry_without(without) {
+        Ok(registry) => registry,
+        Err(err) => {
+            eprintln!("arrix eval: {err}");
             return ExitCode::from(2);
         }
-    }
-    let line = if doc.is_file() {
-        std::fs::read(doc)
-            .map_err(|e| e.to_string())
-            .and_then(|bytes| arrix_doc::from_zip(&bytes).map_err(|e| e.to_string()))
-            .and_then(|files| arrix_doc::run(&name, &files, &registry).map_err(|e| e.to_string()))
-    } else if doc.is_dir() {
-        arrix_doc::run(&name, &DirSource::new(doc), &registry).map_err(|e| e.to_string())
-    } else {
-        eprintln!("arrix eval: {name}: no such directory or file");
-        return ExitCode::from(2);
     };
+    let line = load::Loaded::open(doc)
+        .and_then(|source| arrix_doc::run(&name, &source, &registry).map_err(|e| e.to_string()));
     let run = match line {
         Ok(run) => run,
         Err(err) => {

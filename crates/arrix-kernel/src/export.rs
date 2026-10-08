@@ -15,6 +15,48 @@ use crate::{CallIndex, Kernel, KernelBody, KernelError, KernelOp};
 /// The name an STL file gives its solid.
 const SOLID: &str = "arrix";
 
+/// What reading a STEP file back found in one solid: the topology counts
+/// and the volume, in the file's own numbers (metres, as written).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct StepSolid {
+    pub faces: usize,
+    pub edges: usize,
+    pub vertices: usize,
+    pub volume: f64,
+}
+
+/// Reads `text` with Arris's STEP reader into a scratch model and measures
+/// each solid, to check an export from outside the kernel crate (the
+/// layer rule keeps Arris here). Not a document import: that is C2.
+pub fn read_step(text: &str) -> Result<Vec<StepSolid>, String> {
+    let mut model = arris::topo::Model::new(arris::math::Precision {
+        default_tolerance: Kernel::DEFAULT_TOLERANCE,
+        ..arris::math::Precision::DEFAULT
+    })
+    .map_err(|e| e.to_string())?;
+    let read = step::read(
+        &mut model,
+        text,
+        &step::ReadOptions::default(),
+        &arris::Control::NONE,
+    )
+    .map_err(|e| e.to_string())?;
+    let mut solids = Vec::new();
+    for solid in &read.solids {
+        let solid = solid.result.as_ref().map_err(|e| format!("{e:?}"))?;
+        let measured =
+            arris::ops::measure::mass_properties(&model, solid.body, &arris::Control::NONE)
+                .map_err(|e| e.to_string())?;
+        solids.push(StepSolid {
+            faces: model.faces(solid.body).map_err(|e| e.to_string())?.len(),
+            edges: model.edges(solid.body).map_err(|e| e.to_string())?.len(),
+            vertices: model.vertices(solid.body).map_err(|e| e.to_string())?.len(),
+            volume: measured.volume,
+        });
+    }
+    Ok(solids)
+}
+
 impl Kernel {
     /// `bodies` as STEP AP214 Part 21 text, one product holding a solid
     /// per body. Fails as `kernel.export.no-bodies` for none.
