@@ -856,3 +856,122 @@ fn an_oversize_fillet_fails_with_its_category_and_a_recipe() {
     assert_eq!(value["result"], last["name"]);
     assert_eq!(last["radius"], 0.03);
 }
+
+/// `arrix <args>` from the workspace root.
+fn arrix(args: &[&str]) -> std::process::Output {
+    std::process::Command::new(env!("CARGO_BIN_EXE_arrix"))
+        .current_dir(common::workspace())
+        .args(args)
+        .output()
+        .expect("run arrix")
+}
+
+/// Criterion 6: the bracket exported in each format through `arrix export`
+/// and read back: STEP to the same counts and the volume of the evaluated
+/// body, STL and OBJ closed with that volume within the mesh's tolerance.
+#[test]
+fn the_bracket_exports_and_reads_back() {
+    let line = arrix(&["eval", "tests/docs/bracket"]);
+    let line: serde_json::Value = serde_json::from_slice(&line.stdout).unwrap();
+    let last = line["bodies"].as_array().unwrap().last().unwrap().clone();
+    let count = |k: &str| last[k].as_u64().unwrap() as usize;
+    let (counts, want) = (
+        [count("faces"), count("edges"), count("vertices")],
+        last["volume"].as_f64().unwrap(),
+    );
+    let dir = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join("c1-accept-export");
+    std::fs::create_dir_all(&dir).unwrap();
+    let export = |format: &str| {
+        let to = dir.join(format!("bracket.{format}"));
+        let out = arrix(&[
+            "export",
+            "tests/docs/bracket",
+            "--format",
+            format,
+            "-o",
+            to.to_str().unwrap(),
+        ]);
+        assert_eq!(out.status.code(), Some(0), "{format}");
+        to
+    };
+
+    let step = std::fs::read_to_string(export("step")).unwrap();
+    let solids = arrix_kernel::read_step(&step).expect("Arris reads the file");
+    assert_eq!(solids.len(), 1);
+    let solid = solids[0];
+    assert_eq!([solid.faces, solid.edges, solid.vertices], counts);
+    assert!(
+        (solid.volume - want).abs() <= 1e-9 * want,
+        "{} against {want}",
+        solid.volume
+    );
+    let stl = std::fs::read(export("stl")).unwrap();
+    common::assert_closed_mesh(&common::stl_triangles(&stl), want);
+    let obj = std::fs::read_to_string(export("obj")).unwrap();
+    common::assert_closed_mesh(&common::obj_triangles(&obj), want);
+}
+
+/// Criterion 7: `arrix eval --sweep` of the width over 50 values is 50 JSON
+/// lines on one evaluator and the failure histogram after them. Below
+/// about 55 mm the plate no longer holds the holes' counterbores clear of
+/// its right edge, so the sweep crosses from failures to a clean part.
+#[test]
+fn the_width_swept_over_50_values_prints_50_lines_and_a_histogram() {
+    let out = arrix(&[
+        "eval",
+        "tests/docs/bracket",
+        "--sweep",
+        "w=30 mm..100 mm:50",
+        "--summary",
+    ]);
+    assert_eq!(out.status.code(), Some(1), "some points fail");
+    assert!(out.stderr.is_empty());
+    let text = String::from_utf8(out.stdout).unwrap();
+    let mut lines: Vec<serde_json::Value> = text
+        .lines()
+        .map(|l| serde_json::from_str(l).unwrap())
+        .collect();
+    let summary = lines.pop().unwrap();
+    assert_eq!(lines.len(), 50);
+
+    // Every line is a point, in order, at its value.
+    let mut histogram: BTreeMap<String, u64> = BTreeMap::new();
+    for (index, line) in lines.iter().enumerate() {
+        assert_eq!(line["sweep"]["index"], index);
+        assert_eq!(line["sweep"]["target"], "w");
+        let w = line["sweep"]["value"].as_f64().unwrap();
+        assert!(
+            (w - (0.03 + 0.07 * index as f64 / 49.0)).abs() < 1e-12,
+            "{w}"
+        );
+        for f in line["features"].as_array().unwrap() {
+            if let Some(category) = f["category"].as_str() {
+                *histogram.entry(category.to_owned()).or_default() += 1;
+            }
+        }
+    }
+    let status = |i: usize| lines[i]["status"].as_str().unwrap();
+    assert_eq!(status(0), "failed", "30 mm: the holes miss the plate");
+    assert_eq!(status(49), "ok", "100 mm");
+
+    // The histogram is the lines' categories, counted.
+    let rows = summary["summary"].as_array().unwrap();
+    let from_rows: BTreeMap<String, u64> = rows
+        .iter()
+        .map(|r| {
+            (
+                r["category"].as_str().unwrap().to_owned(),
+                r["count"].as_u64().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(from_rows, histogram);
+    assert!(histogram.contains_key("hole.misses"), "{histogram:?}");
+
+    // The point at 60 mm is the bracket as saved: its bodies are the golden's.
+    let saved = arrix(&["eval", "tests/docs/bracket"]);
+    let saved: serde_json::Value = serde_json::from_slice(&saved.stdout).unwrap();
+    let at_60 = &lines[21];
+    assert!((at_60["sweep"]["value"].as_f64().unwrap() - 0.06).abs() < 1e-12);
+    assert_eq!(at_60["bodies"], saved["bodies"]);
+}

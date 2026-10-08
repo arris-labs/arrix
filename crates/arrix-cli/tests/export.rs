@@ -94,73 +94,6 @@ fn step_reads_back_to_the_evaluated_body() {
     );
 }
 
-type Triangle = [[f64; 3]; 3];
-
-/// Whether every edge of `triangles` is in two of them, and their volume.
-fn closed_and_volume(triangles: &[Triangle]) -> (bool, f64) {
-    let bits = |p: [f64; 3]| p.map(f64::to_bits);
-    let mut uses: BTreeMap<([u64; 3], [u64; 3]), u32> = BTreeMap::new();
-    let mut volume = 0.0;
-    for t in triangles {
-        for i in 0..3 {
-            let (a, b) = (bits(t[i]), bits(t[(i + 1) % 3]));
-            *uses.entry((a.min(b), a.max(b))).or_default() += 1;
-        }
-        let [a, b, c] = *t;
-        let cross = [
-            b[1] * c[2] - b[2] * c[1],
-            b[2] * c[0] - b[0] * c[2],
-            b[0] * c[1] - b[1] * c[0],
-        ];
-        volume += (a[0] * cross[0] + a[1] * cross[1] + a[2] * cross[2]) / 6.0;
-    }
-    (uses.values().all(|&n| n == 2), volume)
-}
-
-fn stl_triangles(bytes: &[u8]) -> Vec<Triangle> {
-    let count = u32::from_le_bytes(bytes[80..84].try_into().unwrap()) as usize;
-    assert_eq!(bytes.len(), 84 + 50 * count);
-    let f = |at: usize| f64::from(f32::from_le_bytes(bytes[at..at + 4].try_into().unwrap()));
-    (0..count)
-        .map(|i| {
-            let base = 84 + 50 * i + 12;
-            std::array::from_fn(|v| std::array::from_fn(|c| f(base + 12 * v + 4 * c)))
-        })
-        .collect()
-}
-
-fn obj_triangles(text: &str) -> Vec<Triangle> {
-    let mut points = Vec::new();
-    let mut triangles = Vec::new();
-    for line in text.lines() {
-        let mut words = line.split_whitespace();
-        match words.next() {
-            Some("v") => points.push(words.map(|w| w.parse().unwrap()).collect::<Vec<f64>>()),
-            Some("f") => {
-                let at = |w: &str| {
-                    let i: usize = w.split('/').next().unwrap().parse().unwrap();
-                    [points[i - 1][0], points[i - 1][1], points[i - 1][2]]
-                };
-                let corners: Vec<_> = words.map(at).collect();
-                triangles.push([corners[0], corners[1], corners[2]]);
-            }
-            _ => {}
-        }
-    }
-    triangles
-}
-
-/// The mesh is closed and encloses the body's volume to within 1 %: the
-/// refined chord of a gear's teeth is far finer than that.
-fn assert_closed_mesh(triangles: &[Triangle], want: f64) {
-    let (closed, volume) = closed_and_volume(triangles);
-    assert!(closed, "every edge is in two triangles");
-    assert!(
-        (volume - want).abs() <= 0.01 * want,
-        "{volume} against {want}"
-    );
-}
-
 #[test]
 fn stl_and_obj_are_closed_with_the_bodys_volume() {
     let want = slice_final().volume;
@@ -169,14 +102,14 @@ fn stl_and_obj_are_closed_with_the_bodys_volume() {
         &arrix_export("tests/docs/slice", &["--format", "stl"], &stl),
         0,
     );
-    assert_closed_mesh(&stl_triangles(&std::fs::read(&stl).unwrap()), want);
+    common::assert_closed_mesh(&common::stl_triangles(&std::fs::read(&stl).unwrap()), want);
     let obj = scratch("slice.obj");
     assert_exit(
         &arrix_export("tests/docs/slice", &["--format", "obj"], &obj),
         0,
     );
-    assert_closed_mesh(
-        &obj_triangles(&std::fs::read_to_string(&obj).unwrap()),
+    common::assert_closed_mesh(
+        &common::obj_triangles(&std::fs::read_to_string(&obj).unwrap()),
         want,
     );
 }
