@@ -99,7 +99,14 @@ else what to do next.
   the tab's session to undo or redo the local author's last change; a
   stack that is empty is a notice in the status line, never silence.
   `core.document.new` (Ctrl+N) opens an empty document in a new tab, with
-  no part until something needs one. Each key or intent the app handles
+  no part until something needs one. `core.file.export` (palette only) asks
+  a save dialog (`crates/arrix-app/src/file_dialog`, behind a trait so a
+  scenario answers it) for a path, takes the format from its extension
+  (`.step`, `.stl`, `.obj`; any other is a notice), and sends the session
+  `Request::Export` for the bodies the selection is in, every body with
+  none selected; the file is written when the `Exported` event arrives, and
+  the status line says so. It is a request, not a command: its gesture
+  counts zero. Each key or intent the app handles
   (a hover is none) is a **gesture**, opened and closed around its
   handling (a drag is one, closed by its release; a click on a finished
   sketch's item while a field asks for one is one too); the commands it

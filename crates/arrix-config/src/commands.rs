@@ -92,6 +92,9 @@ pub const FORM_OK: &str = "core.form.ok";
 pub const FORM_CANCEL: &str = "core.form.cancel";
 /// A new, empty document in a new tab.
 pub const DOCUMENT_NEW: &str = "core.document.new";
+/// Writing the shown document's bodies, or the selected ones, as a STEP, STL
+/// or OBJ file: a request to the session, not a document command.
+pub const FILE_EXPORT: &str = "core.file.export";
 /// Undoing and redoing the author's last change to the shown document.
 pub const EDIT_UNDO: &str = "core.edit.undo";
 pub const EDIT_REDO: &str = "core.edit.redo";
@@ -180,6 +183,7 @@ impl CommandRegistry {
             document_command(DOCUMENT_PREVIOUS, "Previous document", &["ctrl+shift+tab"]),
             document_command(DOCUMENT_CLOSE, "Close document", &["ctrl+w"]),
             command(DOCUMENT_NEW, "New document", &["ctrl+n"]),
+            document_command(FILE_EXPORT, "Export…", &[]),
             document_command(EDIT_UNDO, "Undo", &["ctrl+z"]),
             document_command(EDIT_REDO, "Redo", &["ctrl+shift+z", "ctrl+y"]),
             palette_key(PALETTE_CLOSE, "Close the palette", &["escape", "ctrl+k"]),

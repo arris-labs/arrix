@@ -31,6 +31,9 @@ eframe.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+rfd.workspace = true
+
 # The visual scenarios and the scratch render (tests/visual/): native and
 # dev-only, never in the shipped binary or the wasm build.
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]

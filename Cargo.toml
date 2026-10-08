@@ -64,6 +64,9 @@ bytemuck = { version = "1", features = ["derive"] }
 # The clock the camera's animations read, which std's does not give wasm32
 # (docs/CONCURRENCY-WASM.md §The browser build).
 web-time = "1"
+# The native save dialog (crates/arrix-app/src/file_dialog); the XDG portal
+# backend, so no GTK is linked.
+rfd = { version = "0.15", default-features = false, features = ["xdg-portal", "async-std"] }
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 # Exact float parsing: the file format's floats round-trip (docs/DATA-MODEL.md

@@ -9,6 +9,8 @@ mod debug;
 #[cfg(not(target_arch = "wasm32"))]
 mod document_files;
 mod documents;
+mod file_dialog;
+mod file_export;
 mod form;
 mod form_pick;
 mod gestures;
@@ -27,14 +29,15 @@ mod theme;
 mod viewport;
 
 pub use debug::DebugState;
+pub use file_dialog::{NativeDialog, SaveDialog};
 pub use gestures::Gesture;
 
 use arrix_config::{
     CONFIG_RELOAD, CommandRegistry, Config, ConfigDiagnostic, ConfigSource, DOCUMENT_CLOSE,
-    DOCUMENT_NEW, DOCUMENT_NEXT, DOCUMENT_PREVIOUS, EDIT_REDO, EDIT_UNDO, FORM_CANCEL, FORM_OK,
-    Keymap, MemorySource, PALETTE_CLOSE, PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN,
-    PANEL_PROPERTIES_TOGGLE, PANEL_TREE_TOGGLE, ParamDefaults, SELECTION_CLEAR, SKETCH_ARC,
-    SKETCH_CIRCLE, SKETCH_CONSTRUCTION, SKETCH_CREATE, SKETCH_DELETE, SKETCH_DIMENSION,
+    DOCUMENT_NEW, DOCUMENT_NEXT, DOCUMENT_PREVIOUS, EDIT_REDO, EDIT_UNDO, FILE_EXPORT, FORM_CANCEL,
+    FORM_OK, Keymap, MemorySource, PALETTE_CLOSE, PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS,
+    PALETTE_RUN, PANEL_PROPERTIES_TOGGLE, PANEL_TREE_TOGGLE, ParamDefaults, SELECTION_CLEAR,
+    SKETCH_ARC, SKETCH_CIRCLE, SKETCH_CONSTRUCTION, SKETCH_CREATE, SKETCH_DELETE, SKETCH_DIMENSION,
     SKETCH_EDIT, SKETCH_EXTEND, SKETCH_FINISH, SKETCH_LINE, SKETCH_MIRROR, SKETCH_OFFSET,
     SKETCH_RECTANGLE, SKETCH_SELECT, SKETCH_TOOL_CANCEL, SKETCH_TRIM, Settings, Theme, VIEW_FRONT,
     VIEW_HOME, VIEW_ISO, VIEW_PROJECTION_TOGGLE, VIEW_RIGHT, VIEW_TOP,
@@ -120,6 +123,8 @@ pub struct ArrixApp {
     active: usize,
     /// Mints the ids of what this client's commands create (SEED.md §6.1).
     ids: IdMinter,
+    /// Asked where an export goes.
+    dialog: Box<dyn SaveDialog>,
 }
 
 struct Drawn {
@@ -203,6 +208,7 @@ impl ArrixApp {
             documents: Vec::new(),
             active: 0,
             ids: IdMinter::new(entropy()),
+            dialog: Box::new(NativeDialog),
         }
     }
 
@@ -361,6 +367,7 @@ impl ArrixApp {
             document.drain(self.renderer.as_ref());
             waiting |= !document.settled();
         }
+        self.write_exports();
         self.follow_sketches();
         self.follow_forms();
         self.follow_previews();
@@ -702,6 +709,7 @@ impl ArrixApp {
             DOCUMENT_PREVIOUS => self.step_document(-1),
             DOCUMENT_CLOSE => self.close_document(self.active),
             DOCUMENT_NEW => self.new_document(),
+            FILE_EXPORT => self.export_file(),
             SKETCH_CREATE => self.create_sketch(),
             SKETCH_EDIT => self.edit_sketch(),
             SKETCH_FINISH => self.finish_sketch(),

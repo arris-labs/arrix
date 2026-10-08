@@ -211,6 +211,8 @@ pub struct OpenDocument {
     settled: bool,
     /// The stream could not be followed: nothing more will be heard.
     broken: bool,
+    /// The exports asked for and the files that came back.
+    pub(crate) exports: crate::file_export::Exports,
     /// What went wrong that is not the document's own: a body that did not
     /// mesh, a stream the replica could not follow.
     pub problems: Vec<String>,
@@ -281,6 +283,7 @@ impl OpenDocument {
             finished_at: None,
             settled: false,
             broken: false,
+            exports: Default::default(),
             problems: Vec::new(),
             applied: 0,
             serial: SERIALS.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
@@ -427,6 +430,7 @@ impl OpenDocument {
                     Err(diagnostic) => self.problems.push(diagnostic.message.clone()),
                 }
             }
+            SessionEvent::Exported { bytes, .. } => self.exports.heard(bytes),
             SessionEvent::Previewed { .. } | SessionEvent::PreviewMeshed { .. } => {
                 self.receive_preview(event, renderer);
             }

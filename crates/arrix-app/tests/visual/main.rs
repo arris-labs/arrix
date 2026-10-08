@@ -3,6 +3,7 @@
 mod accept;
 mod camera;
 mod coarse;
+mod export;
 mod fixture;
 mod form_diagnostics;
 mod form_pick;
