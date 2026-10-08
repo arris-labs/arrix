@@ -768,10 +768,15 @@ the way in.
   `frozen_badge_stale` goldens; `debug_state().badges`).
   `m3_accept` is M3's: a plate sketched with its origin inference shown,
   extruded through its preview, a face picked, a datum plane made from it,
-  a spur gear from the Gears tab on that plane, the two joined, and a
-  fillet too big for its edge failing in the tree while the rest
-  evaluates, every gesture one command or none (goldens `m3_accept_preview`,
-  `m3_accept_gear`, `m3_accept_failed`).
+  a spur gear from the Gears tab on that plane, the two joined, a fillet
+  too big for its edge failing in the tree while the rest evaluates, and
+  the radius made to fit; then the document reopened as a build without
+  `gears` would: the gear frozen in the tree, its form read only with the
+  reason, the badge on its faces, the final body the live run's; the plate
+  made thicker through its form, the gear frozen-stale in the tree and the
+  badge. Every gesture is one command or none, and the gesture log adds up
+  to the commands each document applied (goldens `m3_accept_preview`,
+  `m3_accept_gear`, `m3_accept_failed`, `m3_accept_frozen`).
 - **The reference adapter is a CPU one**, Mesa's lavapipe. The harness
   requires it: a hardware GPU rasterises differently, so a scenario is
   never run on one. Without a CPU adapter a scenario skips, written

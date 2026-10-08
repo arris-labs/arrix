@@ -8,12 +8,33 @@ use egui::Key;
 use egui_kittest::kittest::Queryable as _;
 
 use crate::forms_accept::{
-    bodies, form, gesture, key, open_form, refs, sketch_at, sketch_click, type_into, wait,
-    wait_state, world_click,
+    bodies, form, gesture, key, open_form, open_tree_row, refs, sketch_at, sketch_click, type_into,
+    wait, wait_state, world_click,
 };
 use crate::{harness, snapshot};
 
 type Harness<'a> = egui_kittest::Harness<'a, arrix_app::ArrixApp>;
+
+/// What each gesture of a document was expected to apply, in order.
+type Notes = Vec<(&'static str, usize)>;
+
+/// Checks the last gesture applied `expect` commands, and keeps it.
+fn note(counts: &mut Notes, h: &Harness<'_>, what: &'static str, expect: usize) {
+    let got = gesture(h).expect("a gesture was counted");
+    assert_eq!(got, expect, "{what}: commands in the gesture");
+    counts.push((what, got));
+}
+
+/// The scene's bodies as the debug state reports them, without the
+/// evaluation's own numbers.
+fn body_values(h: &Harness<'_>) -> Vec<serde_json::Value> {
+    h.state()
+        .debug_state()
+        .bodies
+        .iter()
+        .map(|b| serde_json::to_value(b).expect("a body serialises"))
+        .collect()
+}
 
 /// The tree's feature states by name, in history order.
 fn tree(h: &Harness<'_>) -> Vec<(String, FeatureState)> {
@@ -47,18 +68,13 @@ fn m3_accept() {
         harness::open_settled(h, "tests/docs/sketch-mode");
         h.state_mut().seed_ids(1);
         h.set_render_every_step(true);
-        let mut counts: Vec<(&str, usize)> = Vec::new();
-        let mut note = |h: &Harness<'_>, what: &'static str, expect: usize| {
-            let got = gesture(h).expect("a gesture was counted");
-            assert_eq!(got, expect, "{what}: commands in the gesture");
-            counts.push((what, got));
-        };
+        let mut live: Notes = Vec::new();
 
         // 1. The plate's sketch: a rectangle whose first corner snaps to
         //    the origin, the glyph shown before the click commits it.
         h.get_by_label("New sketch").click();
         h.run_steps(3);
-        note(h, "the sketch", 1);
+        note(&mut live, h, "the sketch", 1);
         wait(h, "the camera turned", |h| {
             h.state().debug_state().sketch.is_some_and(|m| m.turned)
         });
@@ -83,9 +99,9 @@ fn m3_accept() {
             "the snap shows the origin: {shown:?}"
         );
         sketch_click(h, [0.0, 0.0]);
-        note(h, "the first corner", 0);
+        note(&mut live, h, "the first corner", 0);
         sketch_click(h, [50.0, 30.0]);
-        note(h, "the rectangle", 1);
+        note(&mut live, h, "the rectangle", 1);
         wait(h, "the rectangle", |h| {
             h.state()
                 .debug_state()
@@ -107,11 +123,11 @@ fn m3_accept() {
         // 2. The extrude: its region picked, its distance typed, the preview
         //    shown before OK, then the plate.
         open_form(h, "Part", "New extrude");
-        note(h, "opening the extrude form", 0);
+        note(&mut live, h, "opening the extrude form", 0);
         world_click(h, [0.025, 0.015, 0.0]);
-        note(h, "the region pick", 0);
+        note(&mut live, h, "the region pick", 0);
         type_into(h, 1, "12 mm");
-        note(h, "the distance", 0);
+        note(&mut live, h, "the distance", 0);
         wait(h, "the preview", |h| {
             h.state()
                 .debug_state()
@@ -131,7 +147,7 @@ fn m3_accept() {
         snapshot::check(h, "m3_accept_preview");
         h.get_by_label("OK").click();
         h.run_steps(3);
-        note(h, "the extrude's OK", 1);
+        note(&mut live, h, "the extrude's OK", 1);
         harness::wait_settled(h);
         key(h, Key::Home);
         h.state_mut().skip_animations();
@@ -141,27 +157,27 @@ fn m3_accept() {
         // 3. A face of the plate picked: it selects, and seeds the datum
         //    plane's form, whose OK is the plane.
         world_click(h, [0.025, 0.015, 0.012]);
-        note(h, "the face pick", 0);
+        note(&mut live, h, "the face pick", 0);
         assert!(
             h.state().debug_state().selection.is_some(),
             "the face is selected"
         );
         open_form(h, "Sketch", "New datum plane");
-        note(h, "opening the datum plane's form", 0);
+        note(&mut live, h, "opening the datum plane's form", 0);
         h.get_by_label("OK").click();
         h.run_steps(3);
-        note(h, "the datum plane", 1);
+        note(&mut live, h, "the datum plane", 1);
         harness::wait_settled(h);
 
         // 4. The spur gear, from the Gears tab, on the plane picked in the
         //    tree.
         open_form(h, "Gears", "New spur gear");
-        note(h, "opening the gear's form", 0);
+        note(&mut live, h, "opening the gear's form", 0);
         h.get_by_label("Datum plane 1").click();
         h.run_steps(3);
-        note(h, "the plane picked in the tree", 0);
+        note(&mut live, h, "the plane picked in the tree", 0);
         type_into(h, 1, "16");
-        note(h, "the teeth", 0);
+        note(&mut live, h, "the teeth", 0);
         wait(h, "the gear's preview", |h| {
             h.state()
                 .debug_state()
@@ -174,27 +190,27 @@ fn m3_accept() {
         snapshot::check(h, "m3_accept_gear");
         h.get_by_label("OK").click();
         h.run_steps(3);
-        note(h, "the gear", 1);
+        note(&mut live, h, "the gear", 1);
         harness::wait_settled(h);
         assert_eq!(bodies(h).len(), 2, "the plate and the gear");
 
         // 5. The gear joined to the plate: the plate picked as the target
         //    by a face, the gear as the tool by the tree.
         open_form(h, "Part", "New boolean");
-        note(h, "opening the boolean's form", 0);
+        note(&mut live, h, "opening the boolean's form", 0);
         world_click(h, [0.025, 0.015, 0.012]);
-        note(h, "the target", 0);
+        note(&mut live, h, "the target", 0);
         h.get_by_label("Bodies to fuse in, cut away or intersect with")
             .click();
         h.run_steps(3);
         h.get_by_label("Spur gear 1").click();
         h.run_steps(3);
-        note(h, "the tool", 0);
+        note(&mut live, h, "the tool", 0);
         let f = form(h).expect("the boolean's form");
         assert_eq!(refs(&f, "tools").len(), 1);
         h.get_by_label("OK").click();
         h.run_steps(3);
-        note(h, "the join", 1);
+        note(&mut live, h, "the join", 1);
         harness::wait_settled(h);
         assert_eq!(bodies(h).len(), 1, "the joined body");
 
@@ -205,7 +221,7 @@ fn m3_accept() {
         h.get_by_label("Edges").click();
         h.run_steps(3);
         world_click(h, [0.05, 0.015, 0.012]);
-        note(h, "the edge", 0);
+        note(&mut live, h, "the edge", 0);
         type_into(h, 1, "50 mm");
         let f = wait_state(h, FeatureState::Failed);
         assert_eq!(
@@ -214,7 +230,7 @@ fn m3_accept() {
         );
         h.get_by_label("OK").click();
         h.run_steps(3);
-        note(h, "the fillet", 1);
+        note(&mut live, h, "the fillet", 1);
         harness::wait_settled(h);
         h.event(egui::Event::PointerMoved(egui::pos2(700.0, 800.0)));
         h.run_steps(3);
@@ -233,8 +249,142 @@ fn m3_accept() {
         assert_eq!(bodies(h).len(), 1, "the joined body is still drawn");
         snapshot::check(h, "m3_accept_failed");
 
-        for (what, n) in &counts {
+        // The radius made fit: the document's final bodies are then the ones
+        // the reopened build must give too.
+        open_tree_row(h, "Fillet 1");
+        note(&mut live, h, "opening the fillet's form", 0);
+        type_into(h, 1, "1 mm");
+        note(&mut live, h, "the radius edited", 1);
+        wait_state(h, FeatureState::Ok);
+        key(h, Key::Escape);
+        harness::wait_settled(h);
+        assert_eq!(bodies(h).len(), 1, "the filleted, joined body");
+        let live_applied = h
+            .state()
+            .debug_state()
+            .commands_applied
+            .expect("a document is open");
+        assert_eq!(
+            live.iter().map(|(_, n)| n).sum::<usize>(),
+            live_applied,
+            "every command of the live document came from a gesture noted above"
+        );
+        let live_bodies = body_values(h);
+
+        // 7. The document reopened as a build without `gears` would: the
+        //    gear is frozen, its form read only with the reason, the badge
+        //    on its faces, and the body the live run's.
+        let saved = h.state().saved().expect("a document is open");
+        h.state_mut()
+            .open_without("m3 (without gears)", &saved, &["gears"])
+            .expect("the saved document opens");
+        harness::wait_settled(h);
+        h.event(egui::Event::PointerMoved(egui::pos2(700.0, 800.0)));
+        h.run_steps(3);
+        let states = tree(h);
+        let gear = states
+            .iter()
+            .find(|(name, _)| name == "Spur gear 1")
+            .expect("the gear in the tree");
+        assert_eq!(gear.1, FeatureState::Frozen, "{states:?}");
+        assert!(
+            states
+                .iter()
+                .all(|(name, s)| name == "Spur gear 1" || *s == FeatureState::Ok),
+            "the rest evaluates: {states:?}"
+        );
+        assert_eq!(
+            body_values(h),
+            live_bodies,
+            "the frozen gear gives the live run's body"
+        );
+        let chips = h.state().debug_state().badges;
+        assert_eq!(chips.len(), 1, "{chips:?}");
+        assert_eq!(chips[0].label(), "Spur gear 1 · frozen");
+        let mut reopened: Notes = Vec::new();
+        open_tree_row(h, "Spur gear 1");
+        note(&mut reopened, h, "opening the frozen gear's form", 0);
+        let f = form(h).expect("the gear's form");
+        let why = f.read_only.expect("read only, with the reason");
+        assert!(
+            why.starts_with("Feature type gears.spur is not available"),
+            "{why}"
+        );
+        key(h, Key::Escape);
+
+        // 8. The plate made thicker through its form: the gear's plane
+        //    moves, so the badge and the tree say frozen-stale, and the
+        //    rest is evaluated again. A text of the wrong unit is refused
+        //    with no command.
+        open_tree_row(h, "Extrude 1");
+        note(&mut reopened, h, "opening the plate's form", 0);
+        type_into(h, 1, "12 deg");
+        note(&mut reopened, h, "a text of the wrong unit", 0);
+        type_into(h, 1, "14 mm");
+        note(&mut reopened, h, "the plate's distance", 1);
+        wait(h, "the gear is stale", |h| {
+            h.state()
+                .debug_state()
+                .badges
+                .first()
+                .is_some_and(|b| b.state == FeatureState::FrozenStale)
+        });
+        key(h, Key::Escape);
+        harness::wait_settled(h);
+        h.event(egui::Event::PointerMoved(egui::pos2(700.0, 800.0)));
+        h.run_steps(3);
+        let states = tree(h);
+        assert!(
+            states.contains(&("Spur gear 1".to_owned(), FeatureState::FrozenStale)),
+            "{states:?}"
+        );
+        assert_eq!(
+            h.state().debug_state().badges[0].label(),
+            "Spur gear 1 · frozen, stale"
+        );
+        snapshot::check(h, "m3_accept_frozen");
+
+        // 9. The log over the whole flow: every gesture one command or
+        //    none, the ones that change nothing at none, and each
+        //    document's gestures adding up to the commands it applied.
+        for (what, n) in live.iter().chain(&reopened) {
             assert!(*n <= 1, "{what}: {n} commands");
         }
+        let log = h.state().debug_state().gestures;
+        assert!(log.len() < 256, "the log kept the whole flow");
+        for g in &log {
+            assert!(g.commands <= 1, "{}: {} commands", g.what, g.commands);
+            let silent = [
+                "Hovered",
+                "Picked",
+                "TreeFeatureSelected",
+                "TreeFeatureActivated",
+                "FormCancelled",
+                "FieldEdited",
+                "ReferenceFieldActivated",
+                "SketchHovered",
+                "SketchPointerMoved",
+            ];
+            if silent.contains(&g.what.as_str()) {
+                assert_eq!(g.commands, 0, "{} changes nothing", g.what);
+            }
+        }
+        let total = |title: &str| {
+            log.iter()
+                .filter(|g| g.document.as_deref() == Some(title))
+                .map(|g| g.commands)
+                .sum::<usize>()
+        };
+        assert_eq!(total("sketch-mode"), live_applied);
+        let reopened_applied = h
+            .state()
+            .debug_state()
+            .commands_applied
+            .expect("a document is open");
+        assert_eq!(total("m3 (without gears)"), reopened_applied);
+        assert_eq!(
+            reopened.iter().map(|(_, n)| n).sum::<usize>(),
+            reopened_applied
+        );
     });
 }

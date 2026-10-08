@@ -106,7 +106,7 @@ probed at step 2, in this repository.
   at the preview (`m3_accept_preview`), the gear's form with its tab
   (`m3_accept_gear`) and the tree after the failed fillet
   (`m3_accept_failed`); each frame read.
-- [ ] **[2]** Step 5 — `m3_accept`, reopened without the plugin, and the
+- [x] **[2]** Step 5 — `m3_accept`, reopened without the plugin, and the
   gesture-count test: `saved()` opened with `open_without(&["gears"])`;
   the tree shows the gear frozen, its form read only with the reason, the
   badge on the gear's faces, the bodies' volume as the live run's;
@@ -137,6 +137,13 @@ goldens, with `frozen_badge` and the earlier scenarios unchanged
   planned.
 
 ## Open questions
+
+- Found at step 5: a failed modifier leaves its target's last body drawn
+  (the scene drops stale bodies only when a refined mesh arrives), so
+  `m3_accept_failed` shows the joined body under the failed fillet, which
+  ADR-0007 says is unavailable. A backlog line, not this plan's: the
+  scenario fits the radius before the reopen, so the bodies compared are
+  final ones; `m3_accept_failed` and `forms_accept` change when it is fixed.
 
 - Settled at step 3 (human): the badge is a chip at the frozen faces'
   centre, no tint.
