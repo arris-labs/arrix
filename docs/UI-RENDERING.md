@@ -160,6 +160,10 @@ rule).
   does not depend on `arrix-config`. The property card holds the shell's
   `FormView` while a form is open (below), and says "Nothing is being
   edited" otherwise.
+- **`BadgeView`** (`arrix_ui::badge`) is a frozen badge as the app placed
+  it: the feature's id and name, `Frozen` or `FrozenStale`, the reason it
+  is frozen, and the chip's centre in points. `arrix-ui` paints the chips
+  and says which one the pointer is over.
 - **`FormView`** (`arrix_ui::form`, ADR-0018) is a feature type's form as
   data: an id naming the form being edited (a different id starts every
   text buffer afresh), the type's title, whether it is a create form (OK
@@ -729,6 +733,17 @@ draws). Ported, reviewed on the way in (`SEED.md` §8.1).
 - **Overlays**: the sketch (points, curves, constraint glyphs,
   dimensions), plugin drawables, diagnostics highlights, frozen badges on
   bodies from frozen features.
+- **The frozen badge** is a chip ("Spur gear · frozen", or "frozen,
+  stale") painted over the viewport at the centre of a frozen feature's
+  faces on each body they are on (`Scene::feature_bounds`, projected by the
+  app), so a joined body carries it at the gear and not at its own centre.
+  It is not drawn in sketch mode, where the pointer is the sketch's. A chip
+  takes the clicks on it (a click on a badge picks nothing behind it), and
+  hovering it puts the reason, in the form's words ("Feature type
+  gears.spur is not available."), in the status line.
+  `debug_state().badges` lists the badges drawn, in points. Only a frozen
+  feature has one: failed, suppressed and rolled-back features show in the
+  tree alone, and the preview's bodies have none.
 
 ## Visual debugging
 
@@ -745,6 +760,10 @@ the way in.
   `forms_accept` is the property card's: a plate made, edited, filleted
   and re-bound through the forms alone, its golden taken on the lost
   fillet's form (`debug_state().shell.form`, `marked`, `preview`).
+  `frozen_badge` is the badge's: the slice opened without `gears` shows the
+  chip at the gear, hovering it gives the reason, and the plate made
+  thicker through its form makes it stale (`frozen_badge`,
+  `frozen_badge_stale` goldens; `debug_state().badges`).
 - **The reference adapter is a CPU one**, Mesa's lavapipe. The harness
   requires it: a hardware GPU rasterises differently, so a scenario is
   never run on one. Without a CPU adapter a scenario skips, written

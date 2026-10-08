@@ -11,9 +11,17 @@ use arrix_ui::{
 use arrix_viewport::{Highlights, OrbitCamera, Renderer, StandardView};
 use web_time::Instant;
 
+use crate::badges::{self, BadgeAnchor};
 use crate::documents::{PickFor, ViewState};
 use crate::part_sketch::{PartPointer, PartSketches};
 use crate::sketch_view::{SketchOverlay, plane_transform};
+
+/// What is drawn over the scene besides the open sketch: the finished
+/// sketches a field asks about, and the frozen badges.
+pub struct Overlays<'a> {
+    pub part: &'a PartSketches,
+    pub anchors: &'a [BadgeAnchor],
+}
 
 /// What a frame of the viewport left for the app to do.
 pub struct Frame {
@@ -24,6 +32,10 @@ pub struct Frame {
     pub sketch: Option<SketchPointer>,
     /// What the pointer did among the finished sketches a field asks about.
     pub part: PartPointer,
+    /// The frozen badges drawn, and why the feature of the one the pointer
+    /// is over is frozen.
+    pub badges: Vec<arrix_ui::BadgeView>,
+    pub badge_hover: Option<String>,
 }
 
 /// The pointer in the open sketch's plane, for what changed this frame.
@@ -79,8 +91,9 @@ pub fn show(
     cards: &CardsView,
     cube: bool,
     sketch: Option<&SketchOverlay>,
-    part: &PartSketches,
+    over: Overlays<'_>,
 ) -> Frame {
+    let Overlays { part, anchors } = over;
     let rect = ui.max_rect();
     // The viewport's own response: a card over it is a layer above and
     // takes its clicks, so a click on a card picks nothing; the cube,
@@ -216,6 +229,15 @@ pub fn show(
             pointer.field = field;
         }
     }
+    // The badges sit over the scene and the finished sketches; in sketch
+    // mode the pointer is the sketch's, so they are not drawn.
+    let mut badges = Vec::new();
+    let mut badge_hover = None;
+    if sketch.is_none() {
+        badges = badges::place(anchors, &view.scene, &view.camera, rect);
+        let over = arrix_ui::paint_badges(ui, &badges);
+        badge_hover = over.map(|i| badges[i].reason.clone());
+    }
     if cube {
         let camera = &view.camera;
         let cube = viewcube::viewcube(
@@ -239,6 +261,8 @@ pub fn show(
         hover_left,
         sketch: sketch_pointer,
         part: part_pointer,
+        badges,
+        badge_hover,
     }
 }
 

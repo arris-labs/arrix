@@ -92,7 +92,7 @@ probed at step 2, in this repository.
   (`arrix-viewport`, GPU-free, unit tested on a mesh with two roots).
   If the probe finds the names gone, the step stops and the badge's
   anchor goes back to the human.
-- [ ] **[2]** Step 3 — The frozen badge drawn. `BadgeView` in `arrix-ui`
+- [x] **[2]** Step 3 — The frozen badge drawn. `BadgeView` in `arrix-ui`
   and its painter, the app's projection and its hover reason in the
   status line, the badges in `debug_state()`. A visual scenario
   `frozen_badge`: `tests/docs/slice` opened without `gears` shows the
@@ -138,9 +138,8 @@ goldens, with `frozen_badge` and the earlier scenarios unchanged
 
 ## Open questions
 
-- ⚠ OPEN: the badge's look: a chip ("Spur gear 1 · frozen") at the frozen
-  faces' centre, as proposed, or the frozen faces tinted (hatched) as
-  well. Human, before step 3.
+- Settled at step 3 (human): the badge is a chip at the frozen faces'
+  centre, no tint.
 - Settled at step 2: a frozen result's names survive the join and a
   downstream fillet, so the badge goes on the frozen feature's faces. The
   probe also found that an edge of the gear the join left alone can't be

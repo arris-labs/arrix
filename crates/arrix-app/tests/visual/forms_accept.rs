@@ -14,7 +14,7 @@ type Harness<'a> = egui_kittest::Harness<'a, arrix_app::ArrixApp>;
 
 const MM: f64 = 1e-3;
 
-fn wait(h: &mut Harness<'_>, what: &str, done: impl Fn(&Harness<'_>) -> bool) {
+pub(crate) fn wait(h: &mut Harness<'_>, what: &str, done: impl Fn(&Harness<'_>) -> bool) {
     let started = web_time::Instant::now();
     while !done(h) {
         h.step();
@@ -73,7 +73,7 @@ fn sketch_at(h: &Harness<'_>, uv: [f64; 2]) -> egui::Pos2 {
         .expect("the sketch is drawn")
 }
 
-fn button(h: &mut Harness<'_>, pos: egui::Pos2, pressed: bool) {
+pub(crate) fn button(h: &mut Harness<'_>, pos: egui::Pos2, pressed: bool) {
     h.event(egui::Event::PointerButton {
         pos,
         button: egui::PointerButton::Primary,
@@ -99,7 +99,7 @@ fn key(h: &mut Harness<'_>, key: Key) {
 
 /// A double-click on `pos`; this harness steps a quarter second a frame,
 /// so the delay egui allows between the clicks is widened.
-fn double_click(h: &mut Harness<'_>, pos: egui::Pos2) {
+pub(crate) fn double_click(h: &mut Harness<'_>, pos: egui::Pos2) {
     h.ctx
         .options_mut(|o| o.input_options.max_double_click_delay = 0.6);
     h.run_steps(8);
@@ -111,13 +111,13 @@ fn double_click(h: &mut Harness<'_>, pos: egui::Pos2) {
     h.run_steps(3);
 }
 
-fn open_tree_row(h: &mut Harness<'_>, name: &str) {
+pub(crate) fn open_tree_row(h: &mut Harness<'_>, name: &str) {
     let at = h.get_by_label(name).rect().center();
     double_click(h, at);
 }
 
 /// Types `text` into the form's `n`th text box and commits it.
-fn type_into(h: &mut Harness<'_>, n: usize, text: &str) {
+pub(crate) fn type_into(h: &mut Harness<'_>, n: usize, text: &str) {
     h.get_all_by_role(Role::TextInput).nth(n).unwrap().focus();
     h.run_steps(2);
     h.key_press_modifiers(Modifiers::CTRL | Modifiers::COMMAND, Key::A);

@@ -7,6 +7,7 @@ mod fixture;
 mod form_diagnostics;
 mod form_pick;
 mod forms_accept;
+mod frozen_badge;
 mod harness;
 mod highlight;
 mod preview;

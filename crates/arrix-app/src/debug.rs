@@ -68,6 +68,9 @@ pub struct DebugState {
     /// included: what its gestures' counts add up to.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub commands_applied: Option<usize>,
+    /// The frozen badges the viewport drew, in points.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub badges: Vec<arrix_ui::BadgeView>,
     /// The keymap in force: each key, its command and its context.
     pub keymap: Vec<Binding>,
     /// What the config files got wrong, each with its file and line.
@@ -223,6 +226,7 @@ impl ArrixApp {
                 sketch: None,
                 sketch_view: None,
                 part_sketches: Vec::new(),
+                badges: Vec::new(),
                 gesture_commands: self.session.gestures.last(),
                 gestures: self.session.gestures.log().cloned().collect(),
                 commands_applied: self.active_document().map(|d| d.applied()),
@@ -313,6 +317,7 @@ impl ArrixApp {
                     selected_regions: o.view.selected_regions,
                 })
                 .collect(),
+            badges: drawn.badges.clone(),
             gesture_commands: self.session.gestures.last(),
             gestures: self.session.gestures.log().cloned().collect(),
             commands_applied: self.active_document().map(|d| d.applied()),

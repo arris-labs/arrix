@@ -1,6 +1,7 @@
 //! The application: the shell, the command registry, and the translation
 //! between document and view types (docs/UI-RENDERING.md §The shell).
 
+mod badges;
 mod commands;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod config_files;
@@ -74,6 +75,9 @@ struct Session {
     /// When, on egui's clock, a dwell under way completes: a frame is
     /// asked for then, since a pointer at rest sends nothing.
     wake_at: Option<f64>,
+    /// Why the feature whose badge the pointer is over is frozen, as of the
+    /// last frame: the status line's hint.
+    badge_hover: Option<String>,
 }
 
 /// A seed for the id minter: the clock, which a session's ids need only to
@@ -122,6 +126,8 @@ struct Drawn {
     window: egui::Rect,
     view: ShellView,
     layout: ShellLayout,
+    /// The frozen badges the viewport drew.
+    badges: Vec<arrix_ui::BadgeView>,
 }
 
 impl ArrixApp {
@@ -186,6 +192,7 @@ impl ArrixApp {
                 forms_opened: 0,
                 shift: false,
                 wake_at: None,
+                badge_hover: None,
             },
             drawn: None,
             renderer: cc
@@ -409,17 +416,7 @@ impl ArrixApp {
     pub fn screen_point(&self, p: [f64; 3]) -> Option<egui::Pos2> {
         let rect = self.drawn.as_ref()?.layout.viewport;
         let view = self.active_document().map_or(&self.idle_view, |d| &d.view);
-        let aspect = rect.width().max(1.0) / rect.height().max(1.0);
-        let clip =
-            view.camera.view_proj(aspect) * arrix_core::DVec3::from_array(p).as_vec3().extend(1.0);
-        if clip.w <= 0.0 {
-            return None;
-        }
-        let ndc = clip.truncate() / clip.w;
-        Some(egui::pos2(
-            rect.min.x + (ndc.x + 1.0) * 0.5 * rect.width(),
-            rect.min.y + (1.0 - ndc.y) * 0.5 * rect.height(),
-        ))
+        badges::project(&view.camera, rect, p)
     }
 
     /// Finishes every running camera animation at once, so a scenario sees
@@ -542,6 +539,9 @@ impl ArrixApp {
         let Some(spec) = hovered else {
             if let Some(notice) = &self.session.notice {
                 return notice.clone();
+            }
+            if let Some(reason) = &self.session.badge_hover {
+                return format!("{reason}.");
             }
             if let Some(document) = self.active_document() {
                 if let Some(mode) = &document.sketch {
@@ -871,6 +871,9 @@ impl eframe::App for ArrixApp {
         let view = self.shell_view();
         let overlay = self.sketch_overlay();
         let part = self.part_sketches();
+        let anchors = self
+            .active_document()
+            .map_or_else(Vec::new, OpenDocument::badge_anchors);
         let view_state = match self.documents.get_mut(self.active) {
             Some(d) => &mut d.view,
             None => &mut self.idle_view,
@@ -886,18 +889,31 @@ impl eframe::App for ArrixApp {
                 &view.cards,
                 !view.documents.tabs.is_empty(),
                 overlay.as_ref(),
-                &part,
+                viewport::Overlays {
+                    part: &part,
+                    anchors: &anchors,
+                },
             ));
         });
         let hover_left = frame.as_ref().is_some_and(|f| f.hover_left);
         let now = ui.input(|i| i.time);
         let part_pointer = frame.as_mut().map(|f| std::mem::take(&mut f.part));
+        let (badges, badge_hover) = frame
+            .as_mut()
+            .map(|f| (std::mem::take(&mut f.badges), f.badge_hover.take()))
+            .unwrap_or_default();
         let sketch_pointer = frame.and_then(|f| f.sketch);
         self.drawn = Some(Drawn {
             window,
             view,
             layout: response.layout,
+            badges,
         });
+        if badge_hover != self.session.badge_hover {
+            self.session.badge_hover = badge_hover;
+            // The hint is drawn from it next frame.
+            ui.ctx().request_repaint();
+        }
         if response.hovered_command != self.session.hovered_command {
             self.session.hovered_command = response.hovered_command;
             // The hint is drawn from it next frame.

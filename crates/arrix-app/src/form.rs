@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 
 use arrix_core::{Diagnostic, FeatureId, Id, IdMinter, Input, PartId, QuantityKind, Ref};
 use arrix_doc::expr::Expr;
-use arrix_doc::{Command, Document, FeatureEdit, FeatureRecord, FeatureTypeId, FrozenReason, Part};
+use arrix_doc::{Command, Document, FeatureEdit, FeatureRecord, FeatureTypeId, Part};
 use arrix_plugin_api::{
     ChoiceOption, ChoiceSpec, FeatureTypeSpec, InputKind, InputSpec, ParamSpec, ShownWhen,
 };
@@ -352,12 +352,7 @@ impl Form {
         let id = &self.spec.id;
         let frozen = standing.and_then(|s| s.frozen);
         let mut why = match frozen {
-            Some(info) => match info.reason {
-                FrozenReason::Missing => format!("Feature type {id} is not available"),
-                FrozenReason::Version => {
-                    format!("Feature type {id} is not at the version the result was made under")
-                }
-            },
+            Some(info) => crate::documents::frozen_reason(id, &info),
             None if self.absent => format!("Feature type {id} is not available"),
             None => return None,
         };

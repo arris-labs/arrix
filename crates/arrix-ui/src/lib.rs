@@ -1,6 +1,7 @@
 //! egui widgets over plain view types, and the declarative-UI renderer. Never
 //! names a document or sketch type (docs/UI-RENDERING.md §View types).
 
+mod badge;
 mod form;
 mod palette;
 mod shell;
@@ -13,6 +14,7 @@ mod theme;
 pub mod view;
 pub mod viewcube;
 
+pub use badge::{BadgeView, paint_badges};
 pub use form::{
     ChoiceOptionView, FieldValue, FormDiagnostic, FormField, FormView, ReferenceValueView, form,
 };

@@ -10,7 +10,8 @@ use crate::sketch_mode::SketchMode;
 use arrix_core::{Diagnostic, FeatureId, Id, MeshDetail, PersistentName};
 use arrix_doc::{
     AuthorId, Command, CommandEnvelope, Document, DocumentSource, EventStream, FeatureOutcome,
-    FrozenInfo, Generation, LocalSession, Outcome, Registry, Replica, Session, SessionEvent,
+    FrozenInfo, FrozenReason, Generation, LocalSession, Outcome, Registry, Replica, Session,
+    SessionEvent,
 };
 use arrix_ui::{FeatureState, TreeFeature, TreePart, TreeView};
 use arrix_viewport::{BodyKey, GpuMesh, OrbitCamera, PendingPick, Renderer, Scene};
@@ -84,6 +85,17 @@ pub(crate) struct Standing {
     pub diagnostic: Option<Diagnostic>,
     /// Set when the feature shows a stored result.
     pub frozen: Option<FrozenInfo>,
+}
+
+/// Why a feature of `type_id` shows a stored result, in the words the form
+/// and the badge share.
+pub(crate) fn frozen_reason(type_id: impl std::fmt::Display, info: &FrozenInfo) -> String {
+    match info.reason {
+        FrozenReason::Missing => format!("Feature type {type_id} is not available"),
+        FrozenReason::Version => {
+            format!("Feature type {type_id} is not at the version the result was made under")
+        }
+    }
 }
 
 /// `record`, at `index` of `part`, as the replica's heard outcomes have it.
