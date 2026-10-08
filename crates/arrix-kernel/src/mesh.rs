@@ -5,7 +5,6 @@
 
 use std::collections::BTreeMap;
 
-use arris::Control;
 use arris::mesh::{MeshRequest, TriMesh};
 use arris::topo::{Body, EntityId, Model, NotFound};
 use arrix_core::{DVec3, MeshDetail, MeshPoint, MeshRange, PersistentName, RenderMesh};
@@ -31,7 +30,8 @@ impl crate::Kernel {
         let chord = detail.chord_fraction() * diagonal;
         let call = self.begin(KernelOp::Tessellate { detail, chord }, &[body])?;
         let request = MeshRequest::new(chord).with_corners();
-        let mesh = arris::mesh::tessellate_with(&self.model, target, &request, &Control::NONE)
+        let mesh = self
+            .controlled(|m, control| arris::mesh::tessellate_with(m, target, &request, control))
             .map_err(|e| KernelError::mesh(call, &e))?;
         render_mesh(&self.model, target, &self.entry(body)?.names, &mesh, chord)
             .map_err(|message| KernelError::Naming { call, message })

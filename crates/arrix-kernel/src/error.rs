@@ -5,6 +5,7 @@
 use arris::io::body::BodyError;
 use arris::mesh::MeshError;
 use arris::ops::{Fault, OpError, Reason};
+use arris::{Interrupted, Stop};
 use arrix_core::{DiagnosticCode, PersistentName, TopoKind};
 
 use crate::{CallIndex, KernelBody};
@@ -105,6 +106,16 @@ impl KernelError {
     }
 }
 
+/// `kernel.interrupted` for the poll, `kernel.interrupted.budget` for a
+/// spent budget: one category whatever the call was, since the stop is
+/// the caller's and not the input's.
+fn interrupted(stop: &Interrupted) -> &'static str {
+    match stop.by {
+        Stop::Poll => "kernel.interrupted",
+        Stop::Budget => "kernel.interrupted.budget",
+    }
+}
+
 /// `kernel.mesh.<error>`: why a body could not be tessellated.
 fn mesh_category(e: &MeshError) -> &'static str {
     match e {
@@ -118,7 +129,7 @@ fn mesh_category(e: &MeshError) -> &'static str {
         MeshError::GridTooLarge { .. } => "kernel.mesh.grid-too-large",
         MeshError::Corners(_) => "kernel.mesh.corners",
         MeshError::Internal(_) => "kernel.mesh.internal",
-        MeshError::Interrupted(_) => "kernel.mesh.interrupted",
+        MeshError::Interrupted(stop) => interrupted(stop),
     }
 }
 
@@ -132,7 +143,7 @@ fn body_category(e: &BodyError) -> String {
         BodyError::Topo(_) => "topo",
         BodyError::Precision { .. } => "precision",
         BodyError::Rejected(_) => "rejected",
-        BodyError::Interrupted(_) => "interrupted",
+        BodyError::Interrupted(stop) => return interrupted(stop).into(),
     };
     format!("kernel.body.{word}")
 }
@@ -150,7 +161,7 @@ fn category(e: &OpError) -> String {
         OpError::Internal(fault) => format!("kernel.internal.{}", fault_word(fault)),
         OpError::Unkeyed { .. } => "kernel.unkeyed".into(),
         OpError::Rejected(_) => "kernel.rejected".into(),
-        OpError::Interrupted(_) => "kernel.interrupted".into(),
+        OpError::Interrupted(stop) => interrupted(stop).into(),
     }
 }
 

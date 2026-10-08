@@ -7,13 +7,15 @@
 //! `project`, `face_frame`, `mass_properties`, `tessellate`, `to_bytes`,
 //! `from_bytes`),
 //! names from the sweeps' and the booleans' provenance, a
-//! `KernelCall` record made before every call, and a record's export as
-//! an Arris fixture recipe (`FixtureRecipe`).
+//! `KernelCall` record made before every call, a record's export as
+//! an Arris fixture recipe (`FixtureRecipe`), and an [`Interrupt`] every
+//! Arris call polls.
 
 mod bytes;
 mod convert;
 mod error;
 mod fixture;
+mod interrupt;
 mod mesh;
 mod naming;
 mod project;
@@ -29,6 +31,7 @@ pub use arrix_core::Motion;
 pub use bytes::{BodyBytes, NameEntry, NameTable};
 pub use error::KernelError;
 pub use fixture::{FixtureError, FixtureRecipe};
+pub use interrupt::Interrupt;
 pub use naming::BodyNames;
 pub use project::Projected;
 pub use record::{ARRIS_VERSION, BodyHash, CallIndex, CallPrecision, KernelCall, KernelOp};
@@ -75,6 +78,8 @@ pub struct Kernel {
     records: Vec<KernelCall>,
     /// By handle; `None` once released.
     bodies: Vec<Option<BodyEntry>>,
+    /// Polled by every Arris call.
+    interrupt: Interrupt,
 }
 
 impl Default for Kernel {
@@ -98,7 +103,22 @@ impl Kernel {
             model: Model::new(precision).expect("the metre precision is consistent"),
             records: Vec::new(),
             bodies: Vec::new(),
+            interrupt: Interrupt::default(),
         }
+    }
+
+    /// The flag every Arris call this kernel makes polls: raised, the
+    /// running call stops as `kernel.interrupted` with the model as it
+    /// was, and so does every later one until it is lowered.
+    pub fn interrupt(&self) -> Interrupt {
+        self.interrupt.clone()
+    }
+
+    /// `run` on the model under the control every call gets.
+    fn controlled<R>(&mut self, run: impl FnOnce(&mut Model, &Control<'_>) -> R) -> R {
+        let flag = &self.interrupt;
+        let poll = || flag.is_raised();
+        run(&mut self.model, &Control::poll(&poll))
     }
 
     /// Every call made so far, failed ones included, in call order.
@@ -180,14 +200,17 @@ impl Kernel {
             &[],
         )?;
         let direction = convert::vec3(profile.plane().z_axis() * distance.signum());
-        let (body, provenance) = arris::ops::extrude(
-            &mut self.model,
-            &convert::profile(profile),
-            direction,
-            distance.abs(),
-            &Control::NONE,
-        )
-        .map_err(|e| KernelError::op(call, &e))?;
+        let (body, provenance) = self
+            .controlled(|m, control| {
+                arris::ops::extrude(
+                    m,
+                    &convert::profile(profile),
+                    direction,
+                    distance.abs(),
+                    control,
+                )
+            })
+            .map_err(|e| KernelError::op(call, &e))?;
         let names = naming::sweep_names(
             &self.model,
             body,
@@ -229,14 +252,11 @@ impl Kernel {
             convert::vec3(axis_direction),
         )
         .map_err(|e| KernelError::invalid_input(call, e.to_string()))?;
-        let (body, provenance) = arris::ops::revolve(
-            &mut self.model,
-            &convert::profile(profile),
-            axis,
-            angle,
-            &Control::NONE,
-        )
-        .map_err(|e| KernelError::op(call, &e))?;
+        let (body, provenance) = self
+            .controlled(|m, control| {
+                arris::ops::revolve(m, &convert::profile(profile), axis, angle, control)
+            })
+            .map_err(|e| KernelError::op(call, &e))?;
         let names = naming::sweep_names(
             &self.model,
             body,
@@ -317,8 +337,9 @@ impl Kernel {
             _ => unreachable!("fuse, cut and common alone come here"),
         };
         let call = self.begin(op, &[target, tool])?;
-        let (body, provenance) =
-            run(&mut self.model, a, b, &Control::NONE).map_err(|e| KernelError::op(call, &e))?;
+        let (body, provenance) = self
+            .controlled(|m, control| run(m, a, b, control))
+            .map_err(|e| KernelError::op(call, &e))?;
         let operands = [&self.entry(target)?.names, &self.entry(tool)?.names];
         let names = naming::boolean_names(&self.model, body, feature, &operands, &provenance)
             .map_err(|message| KernelError::Naming { call, message })?;
@@ -407,9 +428,9 @@ impl Kernel {
             })?;
         let rotation = arris::math::nalgebra::UnitQuaternion::from_axis_angle(&axis, motion.angle);
         let isometry = arris::math::Isometry::new(rotation, convert::vec3(motion.translation));
-        let (copy, provenance) =
-            arris::ops::transform(&mut self.model, source, &isometry, &Control::NONE)
-                .map_err(|e| KernelError::op(call, &e))?;
+        let (copy, provenance) = self
+            .controlled(|m, control| arris::ops::transform(m, source, &isometry, control))
+            .map_err(|e| KernelError::op(call, &e))?;
         self.instance(call, copy, (feature, index), body, &provenance)
     }
 
@@ -436,9 +457,9 @@ impl Kernel {
             convert::vec3(normal),
         )
         .map_err(|e| KernelError::invalid_input(call, e.to_string()))?;
-        let (image, provenance) =
-            arris::ops::mirror(&mut self.model, source, &plane, &Control::NONE)
-                .map_err(|e| KernelError::op(call, &e))?;
+        let (image, provenance) = self
+            .controlled(|m, control| arris::ops::mirror(m, source, &plane, control))
+            .map_err(|e| KernelError::op(call, &e))?;
         self.instance(call, image, (feature, 1), body, &provenance)
     }
 
@@ -498,7 +519,8 @@ impl Kernel {
             .iter()
             .filter_map(|id| handles.iter().find(|e| e.id == *id).cloned())
             .collect();
-        let (blended, provenance) = run(&mut self.model, target, &handles, size, &Control::NONE)
+        let (blended, provenance) = self
+            .controlled(|m, control| run(m, target, &handles, size, control))
             .map_err(|e| KernelError::op(call, &e))?;
         let names = naming::boolean_names(
             &self.model,
@@ -533,7 +555,8 @@ impl Kernel {
     /// Releases every body but `keep`, and the model's entities only they
     /// used. A released handle is unknown from then on; handles are never
     /// reused. Records are kept: a later failure's operands name them.
-    pub fn retain(&mut self, keep: &std::collections::BTreeSet<KernelBody>) {
+    /// Returns how many of the model's entities it freed.
+    pub fn retain(&mut self, keep: &std::collections::BTreeSet<KernelBody>) -> usize {
         let mut live = Vec::new();
         for (i, slot) in self.bodies.iter_mut().enumerate() {
             let handle = KernelBody(u32::try_from(i).expect("under 2³² bodies"));
@@ -544,7 +567,7 @@ impl Kernel {
         }
         self.model
             .retain(&live)
-            .expect("every live body is in the model");
+            .expect("every live body is in the model")
     }
 
     /// Every face, edge and vertex of `body`, by name.
@@ -726,7 +749,8 @@ impl Kernel {
     pub fn mass_properties(&mut self, body: KernelBody) -> Result<MassProperties, KernelError> {
         let target = self.entry(body)?.body;
         let call = self.begin(KernelOp::MassProperties, &[body])?;
-        let p = arris::ops::measure::mass_properties(&self.model, target, &Control::NONE)
+        let p = self
+            .controlled(|m, control| arris::ops::measure::mass_properties(m, target, control))
             .map_err(|e| KernelError::op(call, &e))?;
         Ok(MassProperties {
             volume: p.volume,
@@ -759,7 +783,8 @@ impl Kernel {
             },
             &[],
         )?;
-        let (body, names) = bytes::decode(&mut self.model, bytes, table)
+        let (body, names) = self
+            .controlled(|m, control| bytes::decode(m, bytes, table, control))
             .map_err(|e| KernelError::bytes(call, &e))?;
         let names = names.map_err(|message| KernelError::Naming { call, message })?;
         Ok(self.push(call, body, names))

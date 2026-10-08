@@ -75,8 +75,9 @@ pub(crate) fn decode(
     model: &mut Model,
     bytes: &[u8],
     table: &NameTable,
+    control: &Control<'_>,
 ) -> Result<(Body, Result<BodyNames, String>), BodyError> {
-    let imported = body::read(model, bytes, &Control::NONE)?;
+    let imported = body::read(model, bytes, control)?;
     let names = place(model, imported.body, &imported.map, table);
     Ok((imported.body, names))
 }

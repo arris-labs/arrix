@@ -197,11 +197,11 @@ plugin. A gesture-count test over the flow.
   (`arris_io`).
 - `arrix eval` complete (`--save-fixtures` landed in M2): directories,
   `--sweep`, `--summary` histogram, `--without-plugin`, `--jobs`,
-  `--budget` once A3 lands (`docs/CONCURRENCY-WASM.md` §Batch evaluation).
+  `--budget` (`docs/CONCURRENCY-WASM.md` §Batch evaluation).
 - The C1 benchmark: the budgets of `docs/CONCURRENCY-WASM.md` §Budgets
   measured on the acceptance part and written there.
-- Cancellation through A3's token, if released; otherwise between kernel
-  calls, with the gap named.
+- Cancellation inside a kernel call through A3's `Control` (released in
+  `arris` 0.4.0).
 
 **Accept:** the cycle's.
 
@@ -253,7 +253,7 @@ and names it; nothing is worked around.
 |---|---|---|
 | A2 body bytes | M1 frozen results (M2's fixture recipes replay the calls instead: Arris's recipe has no body-bytes operand) | landed: `arris` 0.4.0, taken in M1 |
 | A11 `ops::mirror` | M2 `core.mirror` | landed: `arris` 0.4.0, taken in M2 (`core.mirror` in `plans/c1-m2-features`) |
-| A3 cancellation | M4 cancellation latency, `--budget` | cancellation between kernel calls only; the gap named in the status line |
+| A3 cancellation | M4 cancellation latency, `--budget` | landed: `arris` 0.4.0 (`Control`), taken in M4 (`plans/c1-m4` step 2) |
 | A1 consumer roles | a plugin building topology directly | the gear extrudes and does not need it; the builder service waits |
 | A5 `region2` | sketch regions shared with the kernel | the ported arrangement is used |
 | (to file) a split's piece order by a consumer-given key, not input ids | a reference to one piece of a split face surviving a redraw of the curves that bound it (`plans/c1-m2-naming`, step 2's finding) | a split piece's name follows Arris's id order, as `docs/DATA-MODEL.md` §Persistent naming states |

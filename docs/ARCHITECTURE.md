@@ -223,6 +223,15 @@ geometry from provenance, and to make every kernel call a record.
   model's ids and the same body gives the same bytes in any evaluation.
   `from_bytes` refuses a table that does not cover the body one name to
   one entity (`kernel.naming`) and never names by position.
+- **Interrupt.** The `Kernel` owns a flag (`Interrupt`, an
+  `Arc<AtomicBool>`: no clock, the same on wasm) and passes a poll of it
+  as Arris's `Control` to every call it makes (A3, ADR-0030 there).
+  Raised from any thread, it stops the running call at its next loop
+  boundary, typically well under a millisecond, with the model rolled
+  back, as `kernel.interrupted` with the record kept; every later call
+  stops at once until it is lowered. `Kernel::interrupt` hands out the
+  handle; who raises it is the evaluator's business
+  (`docs/CONCURRENCY-WASM.md` §The evaluator).
 - **Units.** The model's `Precision` is set for metres at the micrometre
   scale, matching SI inside: `default_tolerance` 1e-6, Arris's defaults
   otherwise, as Arris's own `probe-*-m` fixtures carry.
@@ -281,12 +290,14 @@ geometry from provenance, and to make every kernel call a record.
   called it. The kernel's part is a `DiagnosticCode`,
   `kernel.<error>[.<reason>]` in lower-kebab words
   (`kernel.degenerate.not-positive`, `kernel.internal.checker`,
-  `kernel.profile`), and `kernel.unkeyed`, `kernel.rejected`, `kernel.interrupted` for Arris's
-  consumer-topology and cancellation errors, `kernel.body.<error>`
+  `kernel.profile`), and `kernel.unkeyed`, `kernel.rejected` for Arris's
+  consumer-topology errors, `kernel.body.<error>`
   (`magic`, `version`, `encode`, `decode`, `topo`, `precision`,
-  `rejected`, `interrupted`) for body bytes, `kernel.mesh.<error>`
+  `rejected`) for body bytes, `kernel.mesh.<error>`
   (`chord`, `face`, `grid-too-large`, `corners`, `non-finite-position`,
-  `invalid-input`, `interrupted`, …) for tessellation, and `kernel.naming`,
+  `invalid-input`, …) for tessellation, `kernel.interrupted` for any
+  call the interrupt stopped (`kernel.interrupted.budget` for a spent
+  step budget), whatever the call was, since the stop is the caller's, and `kernel.naming`,
   `kernel.unknown-body`, `kernel.unknown-name`, `kernel.wrong-kind` for
   ArriX's own refusals. The same failure across a thousand documents is one row with
   a count in `arrix eval`'s summary.
@@ -423,7 +434,7 @@ A step blocked on an ask names it and waits.
 |---|---|---|---|
 | A1 | consumer roles: `Role::Consumer { namespace, key }` | C1: plugin topology built directly | asked |
 | A2 | body bytes with a compatibility policy | C1: frozen results (fixture recipes replay the calls: Arris's recipe has no body-bytes operand); C3: the Tier 2 boundary | released in 0.4.0, taken in C1 M1 |
-| A3 | cancellation: an interrupt token, optionally a step budget | C1: superseded evaluations; C4: the browser | asked |
+| A3 | cancellation: an interrupt token, optionally a step budget | C1: superseded evaluations; C4: the browser | released in 0.4.0 (`Control`), taken in C1 M4 |
 | A11 | `ops::mirror` | C1: the mirror feature | released in 0.4.0, taken in C1 M2 |
 | A5 | `region2` as public API | C1–C2: sketch regions | asked |
 | A4 | STEP product structure | C2 | asked |
