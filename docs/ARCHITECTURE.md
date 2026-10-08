@@ -288,7 +288,10 @@ geometry from provenance, and to make every kernel call a record.
   is the recipe's `analytic.expect_error`; any other is left for the
   runner to meet, as a regression fixture. A body read from bytes (a
   frozen result) has no recipe step, and its closure fails to export as
-  `FixtureError::NoStep`. The recipe is held to a copy of Arris's
+  `FixtureError::NoStep`. A call that succeeded but is kept for its
+  time (a slow one Arris is asked about) is `FixtureRecipe::measured`,
+  the same recipe with the reason in its description and no
+  `expect_error`. The recipe is held to a copy of Arris's
   grammar vendored in `arrix-kernel`'s tests (`tests/arris_fixture/`),
   which refuses a field Arris would ignore; the goldens under
   `tests/recipes/` are Arris fixture directories. "Save as kernel
@@ -365,6 +368,7 @@ Everything is checkable without a human looking at a screen (`SEED.md`
 | Protocol | every command and event serialised through JSON and back |
 | UI | headless `egui_kittest` snapshots on wgpu, each a text golden: the `debug_state()` JSON and a coarse frame; images rendered on demand, never committed (`docs/UI-RENDERING.md` §Visual debugging, ADR-0001) |
 | Slice | M1's accept, `crates/arrix-cli/tests/slice.rs`: a plate, a gear and a pocket built by commands through `LocalSession`; every acceptance criterion (edit, saves in both forms, frozen without the plugin, stale, re-frozen, undo byte for byte); the frozen goldens are the lines `arrix eval` prints for the session's save, the blobs never committed (ADR-0001) |
+| C1 accept | `crates/arrix-cli/tests/c1_accept.rs`: the bracket (plate, pocket, patterned counterbored holes, filleted edges, a spur gear joined and an edge of it filleted) built by commands through `LocalSession`, saved as `tests/docs/bracket` with its `arrix eval` golden; the width edit, deterministic saves and undo, frozen without the plugin, an oversize fillet's recipe, export in three formats read back, a 50-point width sweep |
 | Benchmark | C1's, `crates/arrix-cli/tests/c1_benchmark.rs` on the bracket: medians printed with `--nocapture`, the met budgets of `docs/CONCURRENCY-WASM.md` §Budgets asserted, a missed one reported |
 | CLI | golden JSON of `arrix eval` over the scenario documents: the binary run from the workspace root by `crates/arrix-cli/tests/eval.rs`, compared byte for byte with `crates/arrix-cli/tests/golden/<name>.jsonl` |
 

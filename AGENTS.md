@@ -33,19 +33,13 @@ feature → M2 part features and naming → M3 the app → M4 exchange and batch
 ported sketcher, bodies, frozen results, `gears.spur` as a Tier 0 plugin
 (`arris` 0.4). **M2 landed 2026-10-07:** naming at the kernel and every core
 feature type (`arris` 0.5; `cargo test -p arrix-cli --test naming_scenarios`).
-**M3 plans 1 to 3 landed 2026-10-08:** the shell as TOML data
-(`configurable-shell`, ADR-0015, ADR-0016); the minimal shell and the wgpu
-viewport with picking, hover, selection, camera and ViewCube
-(`viewport-port`, ADR-0017; `cargo test -p arrix-app --test visual
-viewport_accept`); sketch mode (`sketch-mode`; `cargo test -p arrix-app
---test visual sketch_accept`).
-**M3 plan 4 landed 2026-10-08:** forms from the feature type's spec, plugin
-API 0.5 choices, previews (`forms`, ADR-0018, ADR-0019; `cargo test -p
-arrix-app --test visual forms_accept`).
-**M3 plan 5 landed 2026-10-08:** the gesture log, the frozen badge and the
-closing scenario; **M3 has landed** (`cargo test -p arrix-app --test visual
-m3_accept`).
-**Now:** M4 (exchange and batch), to be planned; `/close-cycle` at its end.
+**M3 landed 2026-10-08:** the shell as TOML data, the wgpu viewport,
+sketch mode, forms and previews, the gesture log (ADR-0015 to ADR-0019;
+`cargo test -p arrix-app --test visual m3_accept`).
+**M4 landed 2026-10-08:** export, `arrix eval` complete, cancellation and
+budgets, a name following its consumer (ADR-0020); C1's accept green (`cargo test -p arrix-cli --test
+c1_accept`), its benchmark measured (`--test c1_benchmark`).
+**Now:** `/close-cycle` for C1.
 
 ## Rules that are not derivable from the code
 
@@ -110,6 +104,14 @@ it before ticking a step:
   included. `cargo test -p arrix-cli --test naming_scenarios` is M2's
   (`tests/docs/naming`, written with `UPDATE_SNAPSHOTS=1`), with
   `--test save_fixtures` for the oversize fillet's recipe.
+  `cargo test -p arrix-cli --test c1_accept` is C1's (the bracket,
+  `tests/docs/bracket`), and `--test c1_benchmark -- --nocapture` prints
+  the budgets of `docs/CONCURRENCY-WASM.md` §Budgets.
+- `arrix eval` also takes several paths and directories, `--sweep
+  <target>=<from>..<to>:<n>`, `--summary`, `--timings`, `--jobs <n>` and
+  `--budget <steps>` (`docs/CONCURRENCY-WASM.md` §Batch evaluation).
+  `cargo run -p arrix-cli -- export <doc> --format step|stl|obj [--body
+  <feature>.<slot>]… -o <file>` writes the final bodies, in metres.
 - `cargo run -p arrix-cli -- describe [--json]` lists everything there is to
   configure; `config check [--dir]` validates the files (exit 1 on any
   diagnostic); `config schema [kind]` prints their JSON Schemas; `config

@@ -68,7 +68,15 @@ picked in the scene and the tree, finished sketches in part mode, lost-reference
 and failure diagnostics on the form, and the `forms_accept` scenario. M3
 plan 5 (`m3-accept`) landed 2026-10-08: the gesture log, the frozen badge
 on a frozen feature's faces, and the `m3_accept` scenario (sketch to failed
-fillet, reopened without `gears`, width edited), so M3 has landed; M4 next.
+fillet, reopened without `gears`, width edited), so M3 has landed. M4
+(`c1-m4`) landed 2026-10-08: a name into a consumed slot follows its
+consumer (ADR-0020), cancellation inside a kernel call and a step budget
+(A3), STEP, STL and OBJ export in the kernel, the protocol, `arrix export`
+and the app, `arrix eval` complete (paths, `--sweep`, `--summary`,
+`--timings`, `--jobs`, `--budget`), the bracket accept
+(`crates/arrix-cli/tests/c1_accept.rs`) and the C1 benchmark (command apply,
+save and load, cancellation gated; the first coarse mesh missed at 324 ms,
+an Arris finding). C1's accept is green; `/close-cycle` next.
 Seeded 2026-09-26.**
 
 Milestones are ordered by risk after the harness: the document and the
