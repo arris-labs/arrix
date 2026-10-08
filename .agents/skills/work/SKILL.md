@@ -1,57 +1,45 @@
 ---
 name: work
-description: Execute the next unchecked step(s) of an active plan in docs/plans/ — implement, test, run the checks, commit with the plan-step suffix, tick the box. Use when the human says "work on <plan>", "next step", "continue the plan", or "do steps 3-5". Stops at the step boundary or when a step's open question or a missing Arris capability blocks it.
+description: Executes the next unchecked step(s) of an active plan in docs/plans/ (implement, test, run the gate, commit with the plan-step suffix, tick the box). Use when the human says "work on <plan>", "next step", "continue the plan", or "do steps 3-5". Stops at the step boundary, or earlier when an open question or a missing Arris capability blocks the step.
 argument-hint: <plan slug> [step number or range]
 ---
 
 # /work — one step, one commit
 
-## Do
-
 1. Open `docs/plans/<slug>.md`. The target is the first unchecked step, or
-   the range given. Re-read the step's *Design deltas*, its *Arris
-   dependencies* and any `⚠ OPEN:` that names it. If the open question is
-   the human's and unanswered, or the kernel capability is missing, stop and
-   say so. Don't guess around it.
-2. Implement the step and its test or snapshot. Docs that the step changes
-   are edited in the same step (`.agents/rules/git.md`). The layer rules are
-   binding (`SEED.md` §6.7, `docs/ARCHITECTURE.md`): Arris only in
-   `arrix-kernel`, egui only in viewport/ui/app, plugins on
-   `arrix-plugin-api` alone, mutation only through commands, the kernel
-   never on the UI thread, every kernel call through the choke point as a
-   record.
-3. Run the full gate as `docs/ARCHITECTURE.md` §Gates lists it (fmt, clippy
-   with `-D warnings`, the size, wasm and layer lints, the tests, the wasm
-   build). The hooks only cover part of it, and a box is ticked on a green
-   suite only. For a visible UI change, look at it headless; a golden is
-   refreshed only after its diff image was read.
-4. Commit: `type(scope): summary (plans/<slug> step N)`; the body says why
-   and cites docs and ADRs, and a plugin-API change states its semver
-   effect. Tick the box in the plan and include the plan file in the same
-   commit.
-5. If the step showed the plan is wrong, edit the plan (add or split steps,
-   record the finding under *Open questions*) in that commit and say so in
-   the reply. A plan is a living todo, not a contract.
-6. A kernel failure met on the way becomes an Arris fixture recipe (saved
-   from the call record) and an Arris backlog line or idea, named in the
-   reply; never an `#[ignore]` or workaround here.
-7. Reply: what landed, the commit, anything surprising. Then **list every
-   remaining unchecked step** of the plan, one line each: its number, its
-   `[weight]` marker from the plan, a short title, and a one-clause note on
-   what it depends on or may rewrite (for example a probe step). Mark the
-   next one. End with the invocation shape (`/work <slug> step N` or
-   `step N-M`) so the human can pick a range, and a model, without opening
-   the plan file. Then stop unless a range was requested.
+   the range given. Re-read its *Design deltas*, *Arris dependencies* and
+   any `⚠ OPEN:` naming it. An unanswered question that is the human's, or
+   a missing kernel capability, stops the step: say so.
+2. Implement the step with its test or snapshot, and edit the docs it
+   changes in the same step. The layer rules (`AGENTS.md`, `SEED.md` §6.7)
+   are binding.
+3. Run the whole gate (`docs/ARCHITECTURE.md` §Gates); the hooks cover only
+   part of it. A visible UI change is looked at headless (`visual-debug`).
+   A failure is fixed or reported, never bypassed. The size lint is met by
+   splitting the file or function; an allowlist entry needs a written
+   reason and the human's OK.
+4. Tick the box and commit the plan file with the step:
+   `type(scope): summary (plans/<slug> step N)` (`.agents/rules/git.md`).
+   One step per commit, even small ones.
+5. If the step showed the plan is wrong, fix the plan in that commit (add or
+   split steps, record the finding under *Open questions*) and say so.
+6. A kernel failure becomes an Arris fixture recipe (saved from the call
+   record) plus an Arris backlog line or idea, named in the reply; never an
+   `#[ignore]` or a workaround here.
+7. Reply with what landed, the commit, and anything surprising. Then list
+   every remaining unchecked step, one line each:
 
-## Don't
+   ```
+   → 4  [2] the edit form: needs step 3's FormView
+     5  [3] probe: fillet on a seam edge; may rewrite 6
+   /work <slug> step 4  (or step 4-5)
+   ```
 
-- Don't skip ahead or fold two steps into one commit "because they're
-  small".
-- Don't tick a box whose test didn't run.
-- Don't bypass a hook. If checks fail, fix them or stop and report.
-- Don't allowlist past the size lint: split the file or function. An entry
-  needs a written justification and the human's OK.
-- Don't retire the plan when the last box is ticked: that is `/retire-plan`,
-  which the human triggers after seeing the acceptance run.
+   Mark the next one with `→`, and end with the invocation so the human can
+   pick a range and a model without opening the plan. Stop unless a range
+   was requested.
+
+The last ticked box doesn't retire the plan: `/retire-plan` does, once the
+human has seen the acceptance run.
 
 `$ARGUMENTS`
