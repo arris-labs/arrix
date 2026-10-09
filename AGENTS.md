@@ -32,8 +32,9 @@ batch; `arris` 0.5, 0.6 after; ADR-0004 to ADR-0020): `cargo test -p arrix-cli -
 c1_accept` is its accept, `--test c1_benchmark -- --nocapture` its budgets
 (the first coarse mesh misses, an Arris finding), `cargo test -p arrix-app
 --test visual m3_accept` the app's.
-**Open 2026-10-09: the boundary opened** (ADR-0016, ADR-0021), M1 to M3
-in `docs/ROADMAP.md`; M1 is `docs/plans/boundary-m1.md`.
+**Open 2026-10-09: the boundary opened** (ADR-0016, ADR-0021, ADR-0022), M1 to
+M3 in `docs/ROADMAP.md`; **M1 done 2026-10-09**: a Python feature plugin runs
+as Tier 2 over a JSON-RPC wire, frozen without it (`--test boundary_m1`).
 
 ## Rules that are not derivable from the code
 
@@ -101,6 +102,11 @@ it before ticking a step:
   `cargo test -p arrix-cli --test c1_accept` is C1's (the bracket,
   `tests/docs/bracket`), and `--test c1_benchmark -- --nocapture` prints
   the budgets of `docs/CONCURRENCY-WASM.md` §Budgets.
+- `arrix eval` and `describe` take `--plugin <dir>` (repeatable), a plugin
+  directory with an `arrix-plugin.toml`; the Python SDK is `python/arrix`
+  (`python/examples/standoff`, `tests/docs/standoff`), its `python -m
+  unittest` run by `cargo test -p arrix-plugin-host --test python_sdk`, and
+  `cargo test -p arrix-cli --test boundary_m1` is M1's accept.
 - `arrix eval` also takes several paths and directories, `--sweep
   <target>=<from>..<to>:<n>`, `--summary`, `--timings`, `--jobs <n>` and
   `--budget <steps>` (`docs/CONCURRENCY-WASM.md` §Batch evaluation).

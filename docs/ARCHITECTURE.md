@@ -4,8 +4,8 @@ The crates, the rules between them, the one data flow, where threads run,
 the kernel's choke point, errors, testing and the gate. The charter is
 `SEED.md` §6; the document model is `docs/DATA-MODEL.md`, the plugin model
 `docs/PLUGINS.md`, the UI `docs/UI-RENDERING.md`, threads and the browser
-`docs/CONCURRENCY-WASM.md`. Built, as of C1: every crate of §Crates
-but the Tier 1 and Tier 2 halves of `arrix-plugin-host` and `python/arrix`
+`docs/CONCURRENCY-WASM.md`. Built, as of C1 and the boundary's M1: every crate of §Crates
+but the Tier 1 half of `arrix-plugin-host`
 (`arrix-plugin-api` is at 0.5.0), the protocol boundary, errors and
 diagnostics, the kernel choke point, the testing layers and the gates. Where
 a section says "not built", it is later than C1.
@@ -23,14 +23,14 @@ unless an ADR says otherwise.
 | `arrix-sketch` | the sketch model and `SketchEdit`, the constraint solver and diagnostics, regions and their keyed profiles, trim/extend/offset/mirror, inference (ported) | core | `serde`, `thiserror` |
 | `arrix-plugin-api` | the WIT world, its Rust traits and plain types; semver of its own | core | `wit-bindgen`, `wit-parser` (the equality test only, dev) |
 | `arrix-doc` | document, parameters and expressions, DAG, feature registry, commands, undo, evaluator, `.arrx`, the `arrix eval` line; reads no files (a `DocumentSource` hands it bytes) | core, kernel, sketch, plugin-api | `serde_json`, `blake3`, `miniz_oxide`, `crc32fast` |
-| `arrix-plugin-host` | tier 0/1/2 hosting, manifests, capabilities, the frozen fallback; the wire (ADR-0022): the JSON-RPC framing and a codec per plugin-API type, generated from the WIT by `arrix-plugin-api`'s `tests/wire.rs` | core, doc, plugin-api | `toml`, `semver`, `serde_json`, `wasmtime` (native, C3) |
+| `arrix-plugin-host` | tier 0/1/2 hosting, manifests, capabilities, the frozen fallback; the wire (ADR-0022): the JSON-RPC framing and a codec per plugin-API type, generated from the WIT by `arrix-plugin-api`'s `tests/wire.rs`; the Tier 2 host (`tier2`, native only: spawn, handshake, kernel callbacks, timeout, restart) | core, doc, plugin-api | `toml`, `semver`, `serde_json`, `wasmtime` (native, C3) |
 | `arrix-viewport` | wgpu scene, ID-buffer picking, overlays, camera (ported) | core | `wgpu`, `egui-wgpu`, `glam`, `bytemuck` |
 | `arrix-ui` | egui widgets over plain view types; the declarative-UI renderer | core, viewport, plugin-api (UI types only) | `egui` |
 | `arrix-config` | the user's configuration (ADR-0015): setting specs, the layered model (built-in defaults, then the user's directory), each file's diagnostics with its file and line; reads no files (a `ConfigSource` hands it bytes); never reaches the document or `evaluate`. Holds the settings, the command registry (`CommandSpec` as plain data), the keymap, the themes and the feature parameter defaults (their expression check is handed in by the caller, since this crate cannot depend on `arrix-doc`). Read by app and cli; not by `arrix-ui`, which gets plain view data | core, plugin-api | `toml`, `serde` |
 | `arrix-app` | the binary: the shell, the command registry, translation between document and view types | all of the above, and each compiled-in plugin (`arrix-gears`, its own Tier 0 list) | `eframe` |
 | `arrix-cli` | headless open / eval / export / run / test; its Tier 0 registration list | core, doc, plugin-host, kernel, plugin-api and sketch (its tests), and each compiled-in plugin (`arrix-gears`) | `clap` |
 | `plugins/*` | first-party plugins: `gears` (C1), `robotics` (by C3) | plugin-api **only** | — |
-| `python/arrix` | the Tier 2 SDK (the boundary-opened cycle), not a Cargo crate | — | — |
+| `python/arrix` | the Tier 2 SDK, pure stdlib, not a Cargo crate: `_wire.py` and `shapes.py` generated from the WIT, `@feature_type`, the `kernel` proxy, the stdio loop (`python -m arrix.plugin`); `python/examples/standoff` is the sample plugin | — | — |
 
 Crates live in `crates/<name>/`, plugins in `plugins/<name>/` (package
 `arrix-<name>`: `plugins/gears` is `arrix-gears`). External versions are
@@ -136,7 +136,8 @@ under. Local mode is
 one that exists. A round-trip test serialises every request and event
 through JSON and back on every run, so nothing unserialisable can creep
 across. A `Rejected` answer crosses in-process only; its wire form comes
-with remote mode. No network code exists until
+with `arrix serve --stdio`. The framing the Tier 2 host speaks to a plugin
+(JSON-RPC 2.0, one object per line, ADR-0022) is the one `serve` will share. No network code exists until
 remote mode is built.
 
 A **preview** (ADR-0019) is the document evaluated with a command applied
@@ -164,7 +165,7 @@ file, with the evaluation's line beside it.
 | UI (main) | client | egui, the viewport's frame, input, the sketch solver during sketch edits, the document replica, command submission | kernel calls, file I/O beyond a picked file's bytes |
 | Session | authority | the document: applies or rejects commands, publishes the applied stream, hands snapshots to the evaluator | kernel calls, anything egui |
 | Evaluator | authority | evaluates snapshots, calls the kernel, tessellates | anything egui |
-| Plugin processes | — | Tier 2 plugins, one process each (the boundary-opened cycle) | — |
+| Plugin processes | — | Tier 2 plugins, one process each, with a reader thread in the host (native only) | — |
 
 Each open document is its own session and evaluator pair, with the client's
 replica, scene, camera and selection beside it (ADR-0017); the UI thread is
@@ -379,7 +380,9 @@ to `main` and on pull requests; its steps named `gate: …` are exactly the
 hooks' commands, which `gate-selftest` checks. The test job installs
 `mesa-vulkan-drivers` and sets `ARRIX_REQUIRE_GPU=1`; when it fails, it
 runs `scripts/snapshot-baseline HEAD~1` and uploads `target/snapshots/`
-as an artifact.
+as an artifact. The Python SDK's `python -m unittest` runs inside
+`cargo test` (`crates/arrix-plugin-host/tests/python_sdk.rs`), so the
+tests of **pre-push** cover it with no step of their own.
 
 **pre-commit** (fast):
 
@@ -398,7 +401,7 @@ as an artifact.
    (`crates/arrix-doc/src/executor`); no `std::fs` outside `arrix-app`'s
    native file dialog (`crates/arrix-app/src/file_dialog`) and config files
    (`crates/arrix-app/src/config_files`), and `arrix-plugin-host`.
-   `arrix-cli` is native-only and exempt from the thread and fs rules, as
+   (`tier2` is also in the thread table, native only.) `arrix-cli` is native-only and exempt from the thread and fs rules, as
    is test code. The permitted places are one
    table at the top of the script.
 5. `scripts/layer-lint`: the layer rules above, two ways. **Edges**:
@@ -453,7 +456,7 @@ A step blocked on an ask names it and waits.
 | A4 | STEP product structure | C2 | released in 0.4.0 (`Read::products`, `step::write_products`), not taken |
 | A8 | multi-tool booleans (`cut_many`, `fuse_many`) | a pattern's holes in one boolean | released in 0.6.0, not used yet (`docs/BACKLOG.md`) |
 | A9 | per-face tessellation (`tessellate_faces`, `TriMesh::weld`) | per-face mesh caching | released in 0.6.0, not taken |
-| A10 | the Python binding | C3: the Tier 2 SDK | released by 2026-10-01, not taken |
+| A10 | the Python binding | the Tier 2 SDK, which does not need it (ADR-0021) | released by 2026-10-01, not taken |
 | A5 | `region2` as public API | C1–C2: sketch regions | open; the ported arrangement is used |
 | A6, A7 | the query cycle; the sweep and healing cycles (A7's shell and offset are in 0.6.0) | C2 and later | open |
 
@@ -465,5 +468,5 @@ This table is brought up to date at every cycle close (`/close-cycle`).
 ## Open questions
 
 None of its own. Of the two open at kickoff, undo granularity for plugin
-commands is settled (ADR-0004); the Tier 2 wire encoding is open in
-`docs/PLUGINS.md`.
+commands is settled (ADR-0004); the Tier 2 wire encoding is settled
+(ADR-0022).

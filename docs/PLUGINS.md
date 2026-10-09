@@ -7,8 +7,8 @@ that first-party domains need nothing else. This document is the design of
 its Rust traits at 0.5.0 (§One interface), manifests (§The manifest), Tier 0
 hosting (§Three tiers), the in-tree test kit's determinism and round-trip
 checks, and the first plugin, `plugins/gears` with `gears.spur` (its crate
-docs state its geometry and tolerance). Tier 2 and the packaged test kit
-come with the boundary-opened cycle, Tier 1 with C3 (ADR-0016).
+docs state its geometry and tolerance). Tier 2 is built (boundary-opened M1); the packaged test kit
+comes with that cycle's M3, Tier 1 with C3 (ADR-0016).
 
 ## One interface, defined once
 
@@ -22,8 +22,7 @@ API's version. From it come:
 - the **host side** in `arrix-plugin-host`: an adapter per tier that
   presents a plugin, however hosted, as the same trait objects;
 - the **Python SDK** (`python/arrix`): stubs generated from the world, and
-  a thin runtime speaking the Tier 2 wire protocol (the boundary-opened
-  cycle).
+  a thin runtime speaking the Tier 2 wire protocol.
 
 The world as it stands at 0.5.0 (the file is the authority; comments and
 field lists are elided here):
@@ -417,8 +416,12 @@ results.
 
 A plugin is tested headless, with no window and no human, the same way
 ArriX tests itself. C1 has the pieces in-tree for the first plugin; the
-boundary-opened cycle packages them for third parties (`arrix-plugin-test` for Rust, `arrix
-test` for any tier).
+boundary-opened cycle's M3 packages them for third parties
+(`arrix-plugin-test` for Rust, `arrix test` for any tier). A Python plugin
+has its first pieces now: `python -m unittest` over the SDK, run by
+`crates/arrix-plugin-host/tests/python_sdk.rs`, and the standoff's
+determinism, frozen-open, crash and kernel-failure checks in
+`crates/arrix-cli/tests/boundary_m1.rs`.
 
 - **Determinism**: every feature evaluated twice from fresh state gives
   byte-identical bodies and names. Built for `gears`, with the kernel-backed
