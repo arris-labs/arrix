@@ -128,7 +128,7 @@ fuse, cut, common, fillet, chamfer, copy, mirror). Arris's Python binding
   by extrude, cut and fillet) and `tests/docs/standoff` (a plate, the
   standoff on its top face, a fillet downstream naming one of its edges)
   with its eval golden; evaluated twice to identical bytes.
-- [ ] **[2]** Step 9 — The frozen path and the record: the plate's width
+- [x] **[2]** Step 9 — The frozen path and the record: the plate's width
   edited and followed with no reference lost; saved, opened without
   `--plugin`, the standoff frozen with its reason and the fillet still
   evaluating; stale after an edit, re-frozen on return; a kernel failure
