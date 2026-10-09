@@ -21,7 +21,7 @@ use crate::manifest::Manifest;
 use crate::tier0::{HostError, check, error, register_types};
 use crate::wire::rpc::{PROTOCOL_VERSION, Request, RpcError};
 use crate::wire::*;
-use process::{CallError, Process};
+use process::{CallError, Process, Served};
 
 /// How long the host waits for a plugin's next line before the call is
 /// the feature's `plugin.timeout`.
@@ -61,9 +61,10 @@ impl Plugin {
     ) -> Result<Value, CallError> {
         let timeout = self.timeout;
         let mut kernel = kernel;
+        let allowed = self.manifest.capabilities.kernel;
         let mut serve = |request: &Request| match kernel.as_deref_mut() {
-            Some(k) => serve::kernel_call(k, request),
-            None => Err(RpcError::method_not_found(&request.method)),
+            Some(k) => serve::kernel_call(k, allowed, request),
+            None => Served::Answer(Err(RpcError::method_not_found(&request.method))),
         };
         let result = self
             .process()
@@ -85,7 +86,7 @@ impl Plugin {
 fn initialize(p: &mut Process, m: &Manifest, timeout: Duration) -> Result<(), CallError> {
     let params = json!({"protocol": PROTOCOL_VERSION, "api": API_VERSION});
     let answer = p.call("initialize", params, timeout, &mut |r| {
-        Err(RpcError::method_not_found(&r.method))
+        Served::Answer(Err(RpcError::method_not_found(&r.method)))
     })?;
     let protocol = answer.get("protocol").and_then(Value::as_u64);
     if protocol != Some(PROTOCOL_VERSION.into()) {
@@ -107,6 +108,9 @@ fn initialize(p: &mut Process, m: &Manifest, timeout: Duration) -> Result<(), Ca
 impl CallError {
     fn diagnostic(&self, plugin: &str, during: &str) -> Diagnostic {
         let (code, what) = match self {
+            // The evaluator's own stop, as the kernel gave it.
+            CallError::Interrupted(d) => return d.clone(),
+            CallError::Capability(why) => ("plugin.capability", format!("was refused: {why}")),
             CallError::Crash(why) => ("plugin.crash", format!("crashed: {why}")),
             CallError::Timeout(t) => (
                 "plugin.timeout",
@@ -185,10 +189,11 @@ pub fn register_tier2(
     let manifest = Manifest::parse(&text)?;
     check(&manifest, 2)?;
     let version = manifest.version.to_string();
+    let timeout = manifest.timeout.unwrap_or(DEFAULT_TIMEOUT);
     let mut plugin = Plugin {
         manifest,
         dir: dir.to_owned(),
-        timeout: DEFAULT_TIMEOUT,
+        timeout,
         process: None,
     };
     let id = plugin.id();

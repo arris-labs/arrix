@@ -7,14 +7,32 @@
 use arrix_plugin_api::{Body, Diagnostic, Kernel};
 use serde_json::{Map, Value};
 
+use super::process::{CallError, Served};
 use crate::wire::rpc::{Request, RpcError};
 use crate::wire::*;
 
-/// Answers one request of the plugin's on `kernel`.
-pub(crate) fn kernel_call(kernel: &mut dyn Kernel, request: &Request) -> Result<Value, RpcError> {
-    let method = method(&request.method, Direction::PluginToHost)?;
-    let params = object(&request.params).map_err(|e| RpcError::invalid_params(&e))?;
-    call(kernel, method.name, params).map_err(|e| RpcError::invalid_params(&e))
+/// Answers one request of the plugin's on `kernel`. A plugin without the
+/// manifest's `kernel` capability is refused, and the call ends; so does
+/// one whose call the evaluator's interrupt stopped, which no plugin is to
+/// see answered and carry on from.
+pub(crate) fn kernel_call(kernel: &mut dyn Kernel, allowed: bool, request: &Request) -> Served {
+    if !allowed {
+        return Served::End(CallError::Capability(format!(
+            "it called `{}`, and its manifest does not grant `kernel`",
+            request.method
+        )));
+    }
+    let answered = method(&request.method, Direction::PluginToHost).and_then(|method| {
+        let params = object(&request.params).map_err(|e| RpcError::invalid_params(&e))?;
+        call(kernel, method.name, params).map_err(|e| RpcError::invalid_params(&e))
+    });
+    if let Ok(v) = &answered
+        && let Ok(Err(d)) = result_from(v, |_| Ok(()))
+        && d.code.as_str() == "kernel.interrupted"
+    {
+        return Served::End(CallError::Interrupted(d));
+    }
+    Served::Answer(answered)
 }
 
 fn call(kernel: &mut dyn Kernel, method: &str, p: &Map<String, Value>) -> Wire<Value> {

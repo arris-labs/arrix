@@ -222,3 +222,124 @@ fn the_process_serves_every_evaluation_of_the_session() {
     }
     assert_eq!(live.kernel_calls(), double.kernel_calls());
 }
+
+/// `block.py` run as `faulty.py <args>` in a directory of its own, its
+/// manifest's `[tier2]` and `[capabilities]` as given.
+fn faulty(name: &str, args: &[&str], tier2: &str, kernel: bool) -> Registry {
+    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("tier2-{name}"));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    for file in ["block.py", "faulty.py"] {
+        std::fs::copy(fixture().join(file), dir.join(file)).unwrap();
+    }
+    let command: Vec<_> = ["python3", "faulty.py"].iter().chain(args).collect();
+    let manifest = std::fs::read_to_string(fixture().join("arrix-plugin.toml"))
+        .unwrap()
+        .replace(
+            "command = [\"python3\", \"block.py\"]",
+            &format!(
+                "command = {}\n{tier2}",
+                serde_json::to_string(&command).unwrap()
+            ),
+        )
+        .replace("kernel = true", &format!("kernel = {kernel}"));
+    std::fs::write(dir.join("arrix-plugin.toml"), manifest).unwrap();
+    let mut r = Registry::with_core_types();
+    register_tier2(&mut r, &dir).unwrap();
+    r
+}
+
+fn failure(e: &arrix_doc::Evaluation) -> (String, String) {
+    match e.outcome(block()) {
+        Some(FeatureOutcome::Failed { diagnostic, .. }) => {
+            (diagnostic.code.to_string(), diagnostic.message.clone())
+        }
+        other => panic!("{other:?}"),
+    }
+}
+
+fn fails_as(registry: Registry, code: &str) -> String {
+    let mut ev = Evaluator::new(registry);
+    let e = ev.evaluate(&doc("10 mm"));
+    let (got, message) = failure(&e);
+    assert_eq!(got, code, "{message}");
+    // The evaluation went on: the plane before it is live.
+    assert!(matches!(
+        e.outcome(FeatureId(Id(1))),
+        Some(FeatureOutcome::Ok { .. })
+    ));
+    message
+}
+
+#[test]
+fn a_crash_is_the_features_diagnostic() {
+    let m = fails_as(faulty("crash", &["crash"], "", true), "plugin.crash");
+    assert!(
+        m.contains("block") && m.contains("evaluating block.block"),
+        "{m}"
+    );
+}
+
+#[test]
+fn a_silent_plugin_times_out_instead_of_hanging() {
+    let r = faulty("hang", &["hang"], "timeout-seconds = 0.5", true);
+    fails_as(r, "plugin.timeout");
+}
+
+#[test]
+fn a_line_that_is_no_message_is_a_protocol_error() {
+    fails_as(faulty("garbage", &["garbage"], "", true), "plugin.protocol");
+    fails_as(faulty("bad", &["bad-answer"], "", true), "plugin.protocol");
+}
+
+#[test]
+fn a_kernel_call_without_the_capability_is_refused() {
+    let m = fails_as(
+        faulty("nokernel", &["none"], "", false),
+        "plugin.capability",
+    );
+    assert!(m.contains("kernel.extrude"), "{m}");
+}
+
+#[test]
+fn a_handle_no_evaluation_gave_is_refused_by_the_kernel() {
+    let m = fails_as(faulty("stale", &["stale"], "", true), "kernel.unknown-body");
+    assert!(m.contains("77"), "{m}");
+}
+
+#[test]
+fn the_process_is_restarted_on_next_use() {
+    let marker = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("tier2-restart.marker");
+    let _ = std::fs::remove_file(&marker);
+    let r = faulty(
+        "restart",
+        &["crash-once", marker.to_str().unwrap()],
+        "",
+        true,
+    );
+    let mut ev = Evaluator::new(r);
+    let first = ev.evaluate(&doc("10 mm"));
+    assert_eq!(failure(&first).0, "plugin.crash");
+    let second = ev.evaluate(&doc("12 mm"));
+    assert!(
+        matches!(second.outcome(block()), Some(FeatureOutcome::Ok { .. })),
+        "{:?}",
+        second.events
+    );
+}
+
+#[test]
+fn the_interrupt_stops_the_plugin_at_its_next_kernel_call() {
+    let mut ev = Evaluator::new(tier2());
+    let interrupt = ev.interrupt();
+    interrupt.raise();
+    // Stopped inside the feature: no event, nothing cached, no failure.
+    assert!(ev.evaluate_while(&doc("10 mm"), |_| true).is_none());
+    interrupt.lower();
+    let e = ev.evaluate(&doc("10 mm"));
+    assert!(
+        matches!(e.outcome(block()), Some(FeatureOutcome::Ok { .. })),
+        "the restarted process builds: {:?}",
+        e.events
+    );
+}

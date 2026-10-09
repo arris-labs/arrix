@@ -9,6 +9,7 @@ use std::sync::mpsc::{Receiver, RecvTimeoutError, channel};
 use std::thread;
 use std::time::Duration;
 
+use arrix_core::Diagnostic;
 use serde_json::Value;
 
 use crate::wire::rpc::{LineError, LineReader, Message, Request, RequestId, Response, RpcError};
@@ -23,6 +24,20 @@ pub(crate) enum CallError {
     /// A line that is no message of the protocol, an answer to no call, or
     /// a protocol error in the answer.
     Protocol(String),
+    /// The plugin asked for something its manifest does not allow.
+    Capability(String),
+    /// The host's own kernel was stopped by the evaluator's interrupt while
+    /// serving the plugin: the call ends there, and is the evaluator's
+    /// stop, not the plugin's failure.
+    Interrupted(Diagnostic),
+}
+
+/// What the host does with a request the plugin made during a call.
+pub(crate) enum Served {
+    /// Answers it, with a result or the protocol's error.
+    Answer(Result<Value, RpcError>),
+    /// Ends the call, the plugin's process with it.
+    End(CallError),
 }
 
 pub(crate) struct Process {
@@ -110,7 +125,7 @@ impl Process {
         method: &str,
         params: Value,
         timeout: Duration,
-        serve: &mut dyn FnMut(&Request) -> Result<Value, RpcError>,
+        serve: &mut dyn FnMut(&Request) -> Served,
     ) -> Result<Value, CallError> {
         let id = self.next_id;
         self.next_id += 1;
@@ -130,7 +145,10 @@ impl Process {
             match Message::parse(&line) {
                 Err(m) => return Err(CallError::Protocol(m.error.message)),
                 Ok(Message::Request(request)) => {
-                    let outcome = serve(&request);
+                    let outcome = match serve(&request) {
+                        Served::Answer(outcome) => outcome,
+                        Served::End(e) => return Err(e),
+                    };
                     // A notification gets no answer.
                     if let Some(id) = request.id {
                         self.send(&Message::Response(Response {

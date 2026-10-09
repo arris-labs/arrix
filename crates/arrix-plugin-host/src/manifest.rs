@@ -17,6 +17,9 @@ pub struct Manifest {
     pub licence: String,
     /// Tier 2's command line.
     pub command: Vec<String>,
+    /// Tier 2's longest silence before a call is a `plugin.timeout`; the
+    /// host's default when the manifest sets none.
+    pub timeout: Option<std::time::Duration>,
     pub capabilities: Capabilities,
     pub contributes: Contributes,
 }
@@ -78,6 +81,8 @@ struct RawPlugin {
 #[serde(deny_unknown_fields)]
 struct RawTier2 {
     command: Vec<String>,
+    #[serde(rename = "timeout-seconds")]
+    timeout_seconds: Option<f64>,
 }
 
 #[derive(Clone, Debug, PartialEq, thiserror::Error)]
@@ -94,6 +99,8 @@ pub enum ManifestError {
     Tier(u8),
     #[error("a tier 2 plugin needs a [tier2] command, and only tier 2 has one")]
     Command,
+    #[error("`timeout-seconds` {0} is not a positive number of seconds")]
+    Timeout(f64),
 }
 
 impl Manifest {
@@ -106,9 +113,18 @@ impl Manifest {
         if p.tier > 2 {
             return Err(ManifestError::Tier(p.tier));
         }
-        let command = match (p.tier, raw.tier2) {
-            (2, Some(t)) if !t.command.is_empty() => t.command,
-            (0 | 1, None) => Vec::new(),
+        let (command, timeout) = match (p.tier, raw.tier2) {
+            (2, Some(t)) if !t.command.is_empty() => {
+                let timeout = match t.timeout_seconds {
+                    None => None,
+                    Some(s) if s.is_finite() && s > 0.0 && s < 86_400.0 => {
+                        Some(std::time::Duration::from_secs_f64(s))
+                    }
+                    Some(s) => return Err(ManifestError::Timeout(s)),
+                };
+                (t.command, timeout)
+            }
+            (0 | 1, None) => (Vec::new(), None),
             _ => return Err(ManifestError::Command),
         };
         Ok(Manifest {
@@ -119,6 +135,7 @@ impl Manifest {
             title: p.title,
             licence: p.licence,
             command,
+            timeout,
             capabilities: raw.capabilities,
             contributes: raw.contributes,
         })
@@ -163,6 +180,25 @@ features = ["gears.spur"]
         assert_eq!(m.capabilities.files, Files::None);
         assert_eq!(m.contributes.features, ["gears.spur"]);
         assert!(m.api_matches());
+    }
+
+    #[test]
+    fn reads_a_tier2_timeout() {
+        let t2 = |extra: &str| {
+            Manifest::parse(&GEARS.replace("tier = 0", "tier = 2").replace(
+                "[capabilities]",
+                &format!("[tier2]\ncommand = [\"p\"]\n{extra}\n[capabilities]"),
+            ))
+        };
+        assert_eq!(t2("").unwrap().timeout, None);
+        let m = t2("timeout-seconds = 0.5").unwrap();
+        assert_eq!(m.timeout, Some(std::time::Duration::from_millis(500)));
+        for bad in ["0", "-1", "1e9"] {
+            assert!(matches!(
+                t2(&format!("timeout-seconds = {bad}")),
+                Err(ManifestError::Timeout(_))
+            ));
+        }
     }
 
     #[test]

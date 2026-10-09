@@ -111,7 +111,7 @@ fuse, cut, common, fillet, chamfer, copy, mirror). Arris's Python binding
   crate's tests (no SDK yet): a feature extruded and filleted by callback,
   its call records and names equal to the same calls made by a Tier 0
   double. wasm-lint's thread table updated.
-- [ ] **[2]** Step 6 — The Tier 2 host, failing soft: a crash, a timeout,
+- [x] **[2]** Step 6 — The Tier 2 host, failing soft: a crash, a timeout,
   a protocol error and a refused capability each the feature's diagnostic
   (`plugin.crash`, `plugin.timeout`, `plugin.protocol`,
   `plugin.capability`) with the evaluation carrying on; the process
@@ -166,5 +166,9 @@ with its recipe; the whole gate green, the SDK's unittest included.
 - Settled by step 5: a Tier 2 evaluation needs no plugin-API change. The
   evaluating feature's kernel already scopes handles to its evaluation (an
   index into its own bodies), so they cross the wire as they are.
-- ⚠ OPEN: the Tier 2 timeout's default and where it is set (agent, by
-  step 6): a manifest field, a setting, or both, listed by `describe`.
+- Settled by step 6: the Tier 2 timeout is the manifest's optional
+  `[tier2] timeout-seconds` (default 30 s, `docs/PLUGINS.md` §The manifest);
+  a user setting is not added. Step 8's `describe --plugin` lists it. A
+  handle from an earlier evaluation is not told apart from a current one
+  (they are indexes, ADR-0021); only a handle past the evaluation's bodies
+  is refused (`kernel.unknown-body`).

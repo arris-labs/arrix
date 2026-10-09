@@ -106,6 +106,11 @@ def answer(request):
     raise KeyError(method)
 
 
-for line in sys.stdin:
-    request = json.loads(line)
-    send({"id": request["id"], "result": answer(request)})
+def serve():
+    for line in sys.stdin:
+        request = json.loads(line)
+        send({"id": request["id"], "result": answer(request)})
+
+
+if __name__ == "__main__":
+    serve()

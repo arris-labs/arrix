@@ -241,6 +241,7 @@ licence = "MIT OR Apache-2.0"
 
 [tier2]                      # Tier 2 only
 command = ["python", "-m", "arrix_fasteners"]
+timeout-seconds = 30         # optional: the longest silence in a call
 
 [capabilities]               # §Capabilities
 kernel = true
@@ -257,7 +258,10 @@ ribbon = ["gears"]
 Contributed ids are `<plugin-id>.<name>`. `core.` is reserved for built-ins.
 `arrix_plugin_host::Manifest::parse` refuses an unknown key, a `version`
 that is not semver, an `api` that is not a range, a tier past 2, and a
-`[tier2]` section on any tier but 2 (or its absence there).
+`[tier2]` section on any tier but 2 (or its absence there), and a
+`timeout-seconds` that is not a positive number (default 30). The timeout
+bounds each wait for the plugin's next line, not a call: the kernel's time
+while the plugin waits is the host's.
 Capabilities default to off.
 A plugin id is registered nowhere yet; a plugin index is a named, unordered
 cycle (`docs/ROADMAP.md`).
