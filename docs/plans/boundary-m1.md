@@ -117,7 +117,7 @@ fuse, cut, common, fillet, chamfer, copy, mirror). Arris's Python binding
   `plugin.capability`) with the evaluation carrying on; the process
   restarted on next use; the evaluator's interrupt honoured mid-evaluate;
   a stale handle refused. One test each, from the fixture script.
-- [ ] **[2]** Step 7 — The Python SDK `python/arrix`: the generated stubs
+- [x] **[2]** Step 7 — The Python SDK `python/arrix`: the generated stubs
   and types, `@feature_type` registration, the `kernel` proxy, the stdio
   loop; `python -m unittest` over a fake host, run by a cargo test in
   `arrix-plugin-host`; step 5's fixture rewritten on the SDK, its test

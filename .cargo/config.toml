@@ -1,0 +1,6 @@
+# The Python SDK (`python/arrix`) is not installed anywhere: a Tier 2 plugin
+# that cargo starts (the tests, `cargo run -p arrix-cli`) finds it on
+# PYTHONPATH. A PYTHONPATH already set is left alone, and then the plugin's
+# `import arrix` fails loudly in its stderr.
+[env]
+PYTHONPATH = { value = "python", relative = true }

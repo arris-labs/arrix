@@ -7,7 +7,7 @@ title = "Block"
 licence = "MIT OR Apache-2.0"
 
 [tier2]
-command = ["python3", "block.py"]
+command = ["python3", "-m", "arrix.plugin", "block"]
 
 [capabilities]
 kernel = true

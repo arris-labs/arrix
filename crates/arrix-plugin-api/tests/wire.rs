@@ -13,6 +13,8 @@ use std::path::PathBuf;
 
 #[path = "wire/model.rs"]
 mod model;
+#[path = "wire/python.rs"]
+mod python;
 #[path = "wire/rust.rs"]
 mod rust;
 #[path = "wire/schema.rs"]
@@ -33,6 +35,7 @@ fn outputs(world: &model::World) -> Vec<(PathBuf, String)> {
             "crates/arrix-plugin-api/wire/methods.json".into(),
             schema::methods_json(world),
         ),
+        ("python/arrix/_wire.py".into(), python::generate(world)),
         (
             "crates/arrix-plugin-host/src/wire/generated.rs".into(),
             rust::generate(world),

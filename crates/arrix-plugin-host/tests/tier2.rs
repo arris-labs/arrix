@@ -111,7 +111,10 @@ fn tier0() -> Registry {
     let manifest = std::fs::read_to_string(fixture().join("arrix-plugin.toml"))
         .unwrap()
         .replace("tier = 2", "tier = 0")
-        .replace("[tier2]\ncommand = [\"python3\", \"block.py\"]\n", "");
+        .replace(
+            "[tier2]\ncommand = [\"python3\", \"-m\", \"arrix.plugin\", \"block\"]\n",
+            "",
+        );
     let mut r = Registry::with_core_types();
     register_tier0(&mut r, &manifest, Arc::new(Double)).unwrap();
     r
@@ -223,7 +226,7 @@ fn the_process_serves_every_evaluation_of_the_session() {
     assert_eq!(live.kernel_calls(), double.kernel_calls());
 }
 
-/// `block.py` run as `faulty.py <args>` in a directory of its own, its
+/// `block.py` run as `faulty.py <args>` on the SDK in a directory of its own, its
 /// manifest's `[tier2]` and `[capabilities]` as given.
 fn faulty(name: &str, args: &[&str], tier2: &str, kernel: bool) -> Registry {
     let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("tier2-{name}"));
@@ -232,11 +235,14 @@ fn faulty(name: &str, args: &[&str], tier2: &str, kernel: bool) -> Registry {
     for file in ["block.py", "faulty.py"] {
         std::fs::copy(fixture().join(file), dir.join(file)).unwrap();
     }
-    let command: Vec<_> = ["python3", "faulty.py"].iter().chain(args).collect();
+    let command: Vec<_> = ["python3", "-m", "arrix.plugin", "faulty"]
+        .iter()
+        .chain(args)
+        .collect();
     let manifest = std::fs::read_to_string(fixture().join("arrix-plugin.toml"))
         .unwrap()
         .replace(
-            "command = [\"python3\", \"block.py\"]",
+            "command = [\"python3\", \"-m\", \"arrix.plugin\", \"block\"]",
             &format!(
                 "command = {}\n{tier2}",
                 serde_json::to_string(&command).unwrap()
