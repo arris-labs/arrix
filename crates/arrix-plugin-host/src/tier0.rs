@@ -17,8 +17,12 @@ use crate::manifest::{Manifest, ManifestError};
 pub enum HostError {
     #[error(transparent)]
     Manifest(#[from] ManifestError),
-    #[error("plugin {plugin} is tier {tier}, not a compiled-in tier 0 plugin")]
-    NotTier0 { plugin: String, tier: u8 },
+    #[error("plugin {plugin} is tier {tier}, not tier {expected}")]
+    Tier {
+        plugin: String,
+        tier: u8,
+        expected: u8,
+    },
     #[error(
         "plugin {plugin} was built against plugin API {api}, and this host has {}",
         arrix_plugin_api::API_VERSION
@@ -28,6 +32,10 @@ pub enum HostError {
     Namespace { plugin: String, type_id: String },
     #[error(transparent)]
     Registry(#[from] RegistryError),
+    /// A Tier 2 plugin that could not be started or read, or that broke
+    /// the protocol before its types were known.
+    #[error("plugin {plugin}: {message}")]
+    Process { plugin: String, message: String },
 }
 
 /// One feature type of a Tier 0 plugin.
@@ -76,7 +84,7 @@ impl FeatureType for Tier0Type {
     }
 }
 
-fn error(code: &str, message: String) -> Diagnostic {
+pub(crate) fn error(code: &str, message: String) -> Diagnostic {
     Diagnostic::new(Severity::Error, code, message).expect("a literal code is well-formed")
 }
 
@@ -96,11 +104,25 @@ pub fn register_tier0(
     feature: Arc<dyn Feature>,
 ) -> Result<Vec<FeatureTypeId>, HostError> {
     let m = Manifest::parse(manifest)?;
+    check(&m, 0)?;
+    let version = m.version.to_string();
+    register_types(registry, &m, feature.describe(), |spec| {
+        Arc::new(Tier0Type {
+            spec,
+            version: version.clone(),
+            feature: feature.clone(),
+        })
+    })
+}
+
+/// Refuses a manifest of another tier, or built against another plugin API.
+pub(crate) fn check(m: &Manifest, tier: u8) -> Result<(), HostError> {
     let plugin = m.id.to_string();
-    if m.tier != 0 {
-        return Err(HostError::NotTier0 {
+    if m.tier != tier {
+        return Err(HostError::Tier {
             plugin,
             tier: m.tier,
+            expected: tier,
         });
     }
     if !m.api_matches() {
@@ -109,21 +131,28 @@ pub fn register_tier0(
             api: m.api.to_string(),
         });
     }
+    Ok(())
+}
+
+/// Registers `specs`, each adapted by `adapt`, all under the plugin's
+/// namespace, or none of them.
+pub(crate) fn register_types(
+    registry: &mut Registry,
+    m: &Manifest,
+    specs: Vec<FeatureTypeSpec>,
+    adapt: impl Fn(FeatureTypeSpec) -> Arc<dyn FeatureType>,
+) -> Result<Vec<FeatureTypeId>, HostError> {
     let mut next = registry.clone();
     let mut ids = Vec::new();
-    for spec in feature.describe() {
+    for spec in specs {
         let id = FeatureTypeId::new(spec.id.clone()).map_err(RegistryError::from)?;
         if id.plugin().as_ref() != Some(&m.id) {
             return Err(HostError::Namespace {
-                plugin,
+                plugin: m.id.to_string(),
                 type_id: spec.id,
             });
         }
-        ids.push(next.register(Arc::new(Tier0Type {
-            spec,
-            version: m.version.to_string(),
-            feature: feature.clone(),
-        }))?);
+        ids.push(next.register(adapt(spec))?);
     }
     *registry = next;
     Ok(ids)

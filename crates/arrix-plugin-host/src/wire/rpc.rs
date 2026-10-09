@@ -6,6 +6,9 @@ use std::io::{self, BufRead};
 
 use serde_json::{Map, Value, json};
 
+/// The wire protocol's version, which `initialize` exchanges (ADR-0022 §7).
+pub const PROTOCOL_VERSION: u32 = 1;
+
 /// JSON that does not parse.
 pub const PARSE_ERROR: i64 = -32700;
 /// Parses, but is no request or response of this protocol.

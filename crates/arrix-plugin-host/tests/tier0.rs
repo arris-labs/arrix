@@ -233,7 +233,11 @@ fn a_plugin_that_does_not_fit_is_refused_whole() {
     let tier1 = manifest("demo", "0.1.0", "^0.5").replace("tier = 0", "tier = 1");
     assert!(matches!(
         register_tier0(&mut r, &tier1, demo()),
-        Err(HostError::NotTier0 { tier: 1, .. })
+        Err(HostError::Tier {
+            tier: 1,
+            expected: 0,
+            ..
+        })
     ));
     assert!(matches!(
         register_tier0(&mut r, "[plugin]", demo()),

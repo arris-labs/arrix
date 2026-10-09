@@ -32,8 +32,11 @@ preclude (`SEED.md` §6.1). Locally all three are in one process.
   of `Arc`ed parts and records, so a snapshot shares everything a command
   did not touch. As built: a snapshot is a whole clone of the document
   in an `Arc`, until a budget says sharing pays.
-- Tier 2 plugins are separate processes (the boundary-opened cycle); the
-  evaluator waits on them like on any other feature.
+- Tier 2 plugins are separate processes (ADR-0021); the evaluator waits
+  on them like on any other feature, serving their kernel calls on its own
+  thread while it does. As built: one reader thread per plugin process
+  turns its stdout into lines, so a wait has a timeout
+  (`crates/arrix-plugin-host/src/tier2`, native only).
 
 ## The evaluator
 

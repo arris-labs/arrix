@@ -104,7 +104,7 @@ fuse, cut, common, fillet, chamfer, copy, mirror). Arris's Python binding
   from JSON, every case round-tripped and checked against its schema; the
   JSON-RPC framing (request, response, error, newline reader with a line
   limit) with a malformed-input test per error.
-- [ ] **[3]** Step 5 — The Tier 2 host, happy path: spawn, `initialize`,
+- [x] **[3]** Step 5 — The Tier 2 host, happy path: spawn, `initialize`,
   `describe`, `evaluate` with kernel callbacks served on the host's
   kernel and handles scoped to the evaluation, `register_tier2`; tested
   against a fixture plugin written as a plain Python script in the
@@ -163,8 +163,8 @@ with its recipe; the whole gate green, the SDK's unittest included.
 
 ## Open questions
 
-- ⚠ OPEN: whether a Tier 2 evaluation needs any plugin-API change (agent,
-  by step 5). Expected none; a change is stated with its semver in that
-  commit.
+- Settled by step 5: a Tier 2 evaluation needs no plugin-API change. The
+  evaluating feature's kernel already scopes handles to its evaluation (an
+  index into its own bodies), so they cross the wire as they are.
 - ⚠ OPEN: the Tier 2 timeout's default and where it is set (agent, by
   step 6): a manifest field, a setting, or both, listed by `describe`.
