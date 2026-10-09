@@ -194,7 +194,7 @@ fn docs(out: &Output) -> Vec<String> {
 
 /// A directory with no `document.json` is searched: every document below
 /// it, sorted by path, one line each, and the exit status is the worst (1:
-/// the oversize fillet fails).
+/// the oversize fillet fails, and the standoff, whose plugin is not started).
 #[test]
 fn a_directory_of_documents_prints_a_golden_line_for_each() {
     let out = arrix_eval_args(&["tests/docs"]);

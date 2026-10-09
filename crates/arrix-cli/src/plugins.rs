@@ -2,11 +2,12 @@
 //! linker registration does not work on wasm (docs/PLUGINS.md §Three
 //! tiers). A build without a plugin leaves it off this list.
 
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use arrix_doc::Registry;
 use arrix_plugin_api::{Feature, FeatureTypeSpec};
-use arrix_plugin_host::{Manifest, register_tier0};
+use arrix_plugin_host::{MANIFEST, Manifest, register_tier0, register_tier2};
 
 /// Each compiled-in plugin: its manifest text and its feature.
 fn tier0() -> Vec<(&'static str, Arc<dyn Feature>)> {
@@ -21,6 +22,24 @@ pub fn registry() -> Registry {
             .expect("a first-party plugin fits the host it is built with");
     }
     r
+}
+
+/// Starts each Tier 2 plugin directory of `dirs` (`--plugin`) and
+/// registers its feature types; returns their manifests. The message names
+/// the directory that could not be.
+pub fn register_dirs(registry: &mut Registry, dirs: &[PathBuf]) -> Result<Vec<Manifest>, String> {
+    dirs.iter()
+        .map(|dir| {
+            let named = |e: &dyn std::fmt::Display| format!("--plugin {}: {e}", dir.display());
+            register_tier2(registry, dir).map_err(|e| named(&e))?;
+            manifest_in(dir).map_err(|e| named(&e))
+        })
+        .collect()
+}
+
+fn manifest_in(dir: &Path) -> Result<Manifest, String> {
+    let text = std::fs::read_to_string(dir.join(MANIFEST)).map_err(|e| e.to_string())?;
+    Manifest::parse(&text).map_err(|e| e.to_string())
 }
 
 /// The manifests of the compiled-in plugins.

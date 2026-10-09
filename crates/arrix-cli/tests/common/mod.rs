@@ -42,7 +42,12 @@ pub struct Client {
 
 impl Client {
     pub fn new(author: AuthorId) -> Self {
-        let session = LocalSession::open(Document::default(), registry()).unwrap();
+        Self::with_registry(author, registry())
+    }
+
+    /// A client of a session whose registry is `registry`.
+    pub fn with_registry(author: AuthorId, registry: Registry) -> Self {
+        let session = LocalSession::open(Document::default(), registry).unwrap();
         let events = session.subscribe();
         let mut c = Client {
             session,

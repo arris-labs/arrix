@@ -1,19 +1,20 @@
 //! `arrix export`: a document's final bodies as STEP, STL or OBJ, through
 //! `arrix_doc::export` (the path the app's export takes too).
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use arrix_core::{ExportFormat, FeatureId, SlotName};
 use arrix_doc::{BodySlot, Document};
 
-use crate::load::{Loaded, registry_without};
+use crate::load::{Loaded, registry_for};
 
 pub struct Args<'a> {
     pub doc: &'a Path,
     pub format: ExportFormat,
     pub bodies: &'a [String],
     pub out: &'a Path,
+    pub plugins: &'a [PathBuf],
     pub without: &'a [String],
 }
 
@@ -29,7 +30,7 @@ pub fn run(args: &Args) -> ExitCode {
 
 fn export(args: &Args) -> Result<ExitCode, String> {
     let name = args.doc.to_string_lossy();
-    let registry = registry_without(args.without)?;
+    let registry = registry_for(args.plugins, args.without)?;
     let source = Loaded::open(args.doc).map_err(|e| format!("{name}: {e}"))?;
     let document = arrix_doc::open(&source).map_err(|e| format!("{name}: {e}"))?;
     let bodies = args

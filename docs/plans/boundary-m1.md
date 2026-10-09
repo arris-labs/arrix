@@ -122,7 +122,7 @@ fuse, cut, common, fillet, chamfer, copy, mirror). Arris's Python binding
   loop; `python -m unittest` over a fake host, run by a cargo test in
   `arrix-plugin-host`; step 5's fixture rewritten on the SDK, its test
   unchanged.
-- [ ] **[2]** Step 8 — `arrix eval --plugin <dir>` and `arrix describe
+- [x] **[2]** Step 8 — `arrix eval --plugin <dir>` and `arrix describe
   --plugin <dir>`; a sample plugin `python/examples/standoff` (a
   hexagonal standoff on a plane input, height and hole parameters, built
   by extrude, cut and fillet) and `tests/docs/standoff` (a plate, the

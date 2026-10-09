@@ -11,10 +11,11 @@ use web_time::Instant;
 
 use arrix_doc::{EvalStatus, Registry, Run, Sweep};
 
-use crate::load::{Loaded, registry_without};
+use crate::load::{Loaded, registry_for};
 
 pub struct Args<'a> {
     pub paths: &'a [PathBuf],
+    pub plugins: &'a [PathBuf],
     pub without: &'a [String],
     pub save_fixtures: Option<&'a Path>,
     /// The `--sweep` flag as typed.
@@ -104,7 +105,7 @@ impl Status {
 }
 
 pub fn run(args: &Args) -> ExitCode {
-    let registry = match registry_without(args.without) {
+    let registry = match registry_for(args.plugins, args.without) {
         Ok(registry) => registry,
         Err(err) => {
             eprintln!("arrix eval: {err}");

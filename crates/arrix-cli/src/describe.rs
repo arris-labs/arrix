@@ -4,7 +4,7 @@
 //! people.
 
 use std::fmt::Write as _;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use arrix_config::{BUILTIN_THEMES, CONTEXTS, SETTINGS, THEME_ROLES};
@@ -12,12 +12,39 @@ use serde_json::{Value, json};
 
 use crate::config::{Loaded, load};
 use crate::plugins;
+use arrix_plugin_host::Manifest;
+
+/// A plugin as `describe` lists it; a Tier 2 one also says how it is run.
+fn plugin_json(m: &Manifest) -> Value {
+    let mut plugin = json!({
+        "id": m.id.as_str(),
+        "version": m.version.to_string(),
+        "title": m.title,
+        "tier": m.tier,
+    });
+    if m.tier == 2 {
+        plugin["command"] = json!(m.command);
+        plugin["timeout_seconds"] = json!(
+            m.timeout
+                .unwrap_or(arrix_plugin_host::DEFAULT_TIMEOUT)
+                .as_secs_f64()
+        );
+        plugin["capabilities"] = json!({
+            "kernel": m.capabilities.kernel,
+            "document_read": m.capabilities.document_read,
+            "document_write": m.capabilities.document_write,
+            "files": format!("{:?}", m.capabilities.files).to_lowercase(),
+            "network": m.capabilities.network,
+        });
+    }
+    plugin
+}
 
 /// The version of the JSON's shape; a breaking change to it raises this.
 const SCHEMA: u32 = 1;
 
-pub fn run(dir: Option<&Path>, as_json: bool) -> ExitCode {
-    let loaded = match load(dir) {
+pub fn run(dir: Option<&Path>, plugin_dirs: &[PathBuf], as_json: bool) -> ExitCode {
+    let loaded = match load(dir, plugin_dirs) {
         Ok(loaded) => loaded,
         Err(err) => {
             eprintln!("arrix describe: {err}");
@@ -43,18 +70,13 @@ pub fn describe(loaded: &Loaded) -> Value {
         dir,
         commands,
         types,
+        tier2,
         config,
     } = loaded;
     let plugins: Vec<_> = plugins::manifests()
         .iter()
-        .map(|m| {
-            json!({
-                "id": m.id.as_str(),
-                "version": m.version.to_string(),
-                "title": m.title,
-                "tier": m.tier,
-            })
-        })
+        .chain(tier2)
+        .map(plugin_json)
         .collect();
     let command_list: Vec<_> = commands
         .commands

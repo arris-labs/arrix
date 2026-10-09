@@ -1,0 +1,104 @@
+{
+  "description": "ArriX's kernel call 2 (fillet) on arris 0.6.0, which failed as kernel.degenerate.blend-too-large: the call and every call that made its operands, one step each named c<call>, exported from their records. Lengths in metres.",
+  "steps": [
+    {
+      "op": "profile",
+      "name": "c0.profile",
+      "plane": {
+        "origin": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "x": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "y": [
+          0.0,
+          1.0,
+          0.0
+        ]
+      },
+      "outer": {
+        "start": [
+          0.004618802153517007,
+          0.0
+        ],
+        "segments": [
+          {
+            "line_to": [
+              0.0023094010767585036,
+              0.004
+            ]
+          },
+          {
+            "line_to": [
+              -0.0023094010767585036,
+              0.004
+            ]
+          },
+          {
+            "line_to": [
+              -0.004618802153517007,
+              0.0
+            ]
+          },
+          {
+            "line_to": [
+              -0.0023094010767585036,
+              -0.004
+            ]
+          },
+          {
+            "line_to": [
+              0.0023094010767585036,
+              -0.004
+            ]
+          },
+          {
+            "line_to": [
+              0.004618802153517007,
+              0.0
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "op": "extrude",
+      "name": "c0",
+      "profile": "c0.profile",
+      "direction": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "length": 0.01
+    },
+    {
+      "op": "fillet",
+      "name": "c2",
+      "of": "c0",
+      "edges": [
+        [
+          0.0,
+          0.004,
+          0.01
+        ]
+      ],
+      "radius": 0.0001
+    }
+  ],
+  "result": "c2",
+  "precision": {
+    "default_tolerance": 1e-6
+  },
+  "tolerances": {
+    "mesh_chord": 0.00001
+  },
+  "analytic": {
+    "expect_error": "blend-too-large"
+  }
+}

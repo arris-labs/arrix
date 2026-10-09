@@ -161,6 +161,45 @@ fn a_small_fillet_of_a_stadium_rim_exports_with_no_refusal_stated() {
     assert_eq!(recipe.result, "c1");
 }
 
+/// Arris 0.6.0 gap (plans/boundary-m1 step 8): a 0.1 mm fillet of one top
+/// edge of a regular hexagonal prism (8 mm across flats, 10 mm tall) fails
+/// as `blend-too-large`; the six top edges together blend fine. The recipe
+/// states the refusal the export derives from the code, which is wrong
+/// here: the fillet is one Arris should make, so Arris reads the recipe as
+/// a regression fixture that should succeed.
+#[test]
+fn a_small_fillet_of_one_hexagon_edge_exports_the_blend_too_large_refusal() {
+    let mut k = Kernel::new();
+    let (flat, corner) = (4.0, 8.0 / 3f64.sqrt());
+    let points = [
+        (corner, 0.0),
+        (corner / 2.0, flat),
+        (-corner / 2.0, flat),
+        (-corner, 0.0),
+        (-corner / 2.0, -flat),
+        (corner / 2.0, -flat),
+    ];
+    let segments = (1..=6)
+        .map(|n| ProfileSegment::Line {
+            key: key(n),
+            to: p(points[n as usize % 6].0, points[n as usize % 6].1),
+        })
+        .collect();
+    let outer = ProfileLoop::Path {
+        start: p(points[0].0, points[0].1),
+        segments,
+    };
+    let profile = Profile::new(Frame::WORLD_XY, outer, vec![]).unwrap();
+    let body = k.extrude(PLATE, 0, &profile, 10.0 * MM).unwrap();
+    let all: Vec<_> = (1..=6).map(top).collect();
+    k.fillet(BLEND, 0, body, &all, 0.3 * MM)
+        .expect("the closed ring of top edges blends");
+    let err = k.fillet(BLEND, 0, body, &[top(2)], 0.1 * MM).unwrap_err();
+    assert_eq!(err.code().as_str(), "kernel.degenerate.blend-too-large");
+    let json = export(&k, &err).unwrap();
+    arris_fixture::check_golden("hexagon-single-edge-fillet", &json);
+}
+
 /// Arris 0.5.0 gap (plans/c1-m2-naming, *Arris dependencies*): a 2 mm
 /// hole at (39, 15) mm through a plate whose top edge at x = 40 mm is
 /// filleted at 3 mm fails in Arris's `cut`. The recipe is the fillet's

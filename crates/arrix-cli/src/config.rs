@@ -8,6 +8,7 @@ use std::process::ExitCode;
 
 use arrix_config::{CommandRegistry, Config, Os, config_dir};
 use arrix_plugin_api::FeatureTypeSpec;
+use arrix_plugin_host::Manifest;
 
 use crate::plugins;
 use crate::source::DirSource;
@@ -18,13 +19,15 @@ pub struct Loaded {
     pub dir: Option<PathBuf>,
     pub commands: CommandRegistry,
     pub types: Vec<FeatureTypeSpec>,
+    /// The manifests of the Tier 2 plugins started with `--plugin`.
+    pub tier2: Vec<Manifest>,
     pub config: Config,
 }
 
 /// `--dir`, else `$ARRIX_CONFIG_DIR`, else the platform's. An explicit
 /// directory that isn't one is an error; a default that isn't there is just
 /// the built-in configuration, since most users have no files.
-pub fn load(dir: Option<&Path>) -> Result<Loaded, String> {
+pub fn load(dir: Option<&Path>, plugin_dirs: &[PathBuf]) -> Result<Loaded, String> {
     let dir = match dir {
         Some(dir) if !dir.is_dir() => {
             return Err(format!("{}: no such directory", dir.display()));
@@ -32,7 +35,8 @@ pub fn load(dir: Option<&Path>) -> Result<Loaded, String> {
         Some(dir) => Some(dir.to_path_buf()),
         None => config_dir(Os::current(), |name| std::env::var(name).ok()).filter(|d| d.is_dir()),
     };
-    let registry = plugins::registry();
+    let mut registry = plugins::registry();
+    let tier2 = plugins::register_dirs(&mut registry, plugin_dirs)?;
     let types = plugins::feature_types(&registry);
     let commands = CommandRegistry::new(&types);
     let config = match &dir {
@@ -53,6 +57,7 @@ pub fn load(dir: Option<&Path>) -> Result<Loaded, String> {
         dir,
         commands,
         types,
+        tier2,
         config,
     })
 }
@@ -60,7 +65,7 @@ pub fn load(dir: Option<&Path>) -> Result<Loaded, String> {
 /// Prints one JSON line per diagnostic. Exit status: 0 when the files are
 /// clean, 1 when they are not, 2 when the directory can't be read.
 pub fn check(dir: Option<&Path>) -> ExitCode {
-    let loaded = match load(dir) {
+    let loaded = match load(dir, &[]) {
         Ok(loaded) => loaded,
         Err(err) => {
             eprintln!("arrix config check: {err}");

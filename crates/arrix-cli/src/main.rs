@@ -36,6 +36,10 @@ enum Command {
         /// by path.
         #[arg(required = true, value_name = "PATH")]
         paths: Vec<PathBuf>,
+        /// Start the Tier 2 plugin in this directory (repeatable): one
+        /// holding an `arrix-plugin.toml`, whose command is run there.
+        #[arg(long = "plugin", value_name = "DIR")]
+        plugins: Vec<PathBuf>,
         /// Evaluate as a build without this plugin would (repeatable): its
         /// features evaluate frozen.
         #[arg(long = "without-plugin", value_name = "ID")]
@@ -90,6 +94,10 @@ enum Command {
         /// The file to write.
         #[arg(short, long, value_name = "FILE")]
         out: PathBuf,
+        /// Start the Tier 2 plugin in this directory (repeatable): one
+        /// holding an `arrix-plugin.toml`, whose command is run there.
+        #[arg(long = "plugin", value_name = "DIR")]
+        plugins: Vec<PathBuf>,
         /// Evaluate as a build without this plugin would (repeatable).
         #[arg(long = "without-plugin", value_name = "ID")]
         without: Vec<String>,
@@ -106,6 +114,10 @@ enum Command {
         /// the platform's.
         #[arg(long, value_name = "DIR")]
         dir: Option<PathBuf>,
+        /// Start the Tier 2 plugin in this directory (repeatable) and list
+        /// it, and its feature types, with the compiled-in ones.
+        #[arg(long = "plugin", value_name = "DIR")]
+        plugins: Vec<PathBuf>,
     },
     /// Work with the config files.
     Config {
@@ -147,6 +159,7 @@ fn main() -> ExitCode {
     match Cli::parse().command {
         Command::Eval {
             paths,
+            plugins,
             without,
             save_fixtures,
             sweep,
@@ -156,6 +169,7 @@ fn main() -> ExitCode {
             budget,
         } => eval::run(&eval::Args {
             paths: &paths,
+            plugins: &plugins,
             without: &without,
             save_fixtures: save_fixtures.as_deref(),
             sweep: sweep.as_deref(),
@@ -169,6 +183,7 @@ fn main() -> ExitCode {
             format,
             bodies,
             out,
+            plugins,
             without,
         } => export::run(&export::Args {
             doc: &doc,
@@ -179,9 +194,10 @@ fn main() -> ExitCode {
             },
             bodies: &bodies,
             out: &out,
+            plugins: &plugins,
             without: &without,
         }),
-        Command::Describe { json, dir } => describe::run(dir.as_deref(), json),
+        Command::Describe { json, dir, plugins } => describe::run(dir.as_deref(), &plugins, json),
         Command::Config {
             command: ConfigCommand::Check { dir },
         } => config::check(dir.as_deref()),

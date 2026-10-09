@@ -1,25 +1,25 @@
 //! What `eval` and `export` share: the plugins a build without some would
 //! have, and a document path (a directory or an `.arrx`) as a source.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use arrix_doc::{DocumentSource, MemorySource, Registry};
 
 use crate::plugins;
 use crate::source::DirSource;
 
-/// The registry with each plugin of `without` left out; the message names
-/// the first that this build does not have.
-pub fn registry_without(without: &[String]) -> Result<Registry, String> {
+/// The registry with each Tier 2 plugin directory of `with` started and
+/// each plugin of `without` left out (a `--plugin` one too); the message
+/// names the first that could not be, or that this run does not have.
+pub fn registry_for(with: &[PathBuf], without: &[String]) -> Result<Registry, String> {
     let mut registry = plugins::registry();
+    plugins::register_dirs(&mut registry, with)?;
     for id in without {
         let removed = arrix_core::PluginId::new(id.as_str())
             .map(|plugin| registry.remove_plugin(&plugin))
             .unwrap_or(false);
         if !removed {
-            return Err(format!(
-                "--without-plugin {id}: no such plugin in this build"
-            ));
+            return Err(format!("--without-plugin {id}: no such plugin in this run"));
         }
     }
     Ok(registry)

@@ -1,0 +1,16 @@
+[plugin]
+id = "standoff"
+version = "0.1.0"
+api = "^0.5"
+tier = 2
+title = "Standoff"
+licence = "MIT OR Apache-2.0"
+
+[tier2]
+command = ["python3", "-m", "arrix.plugin", "standoff"]
+
+[capabilities]
+kernel = true
+
+[contributes]
+features = ["standoff.standoff"]
