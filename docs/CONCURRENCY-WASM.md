@@ -129,8 +129,8 @@ stand on it.
 ## Batch evaluation
 
 Batch evaluation is a first-class API, not a test helper (`SEED.md` §6.6):
-`arrix eval` in C1, the same through the Python API in the
-boundary-opened cycle. Dataset
+`arrix eval` in C1, the same through the Python API as `arrix.eval(paths,
+…)`, which returns the parsed lines and checks their `format`. Dataset
 replay, agent users and continuity sweeps are built on it.
 
 ```

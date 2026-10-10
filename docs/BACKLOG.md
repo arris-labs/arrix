@@ -44,6 +44,7 @@ idea is not brainstormed twice.
 - A plugin reading a body: 1C's read half, a body's bytes or mesh handed to a Tier 2 plugin for analysis, a WIT addition when an analysis scenario asks (plans/boundary-m1, non-goals)
 - Unloading a plugin from a running session: a third request that re-freezes that plugin's features (ADR-0024; plans/boundary-m2, non-goals)
 - A JSON Schema for `arrix-plugin.toml` in `config schema` (as `plugin`), for an editor with taplo, now that the manifest has a `[test]` table (plans/boundary-m3 step 5)
+- Typed Python command classes generated from the protocol schema; commands are plain dicts in `arrix.session` (plans/boundary-m3, non-goals)
 - Using `arris` 0.6's new operations: `cut_many` for a pattern's holes in one boolean, `tessellate_faces` for per-face mesh caching, `split`, `shell`; none is needed yet
 
 ## Rejected

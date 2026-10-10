@@ -73,7 +73,7 @@ a document over a stdio protocol, renders it headless and checks the result.
 The risk to retire: **the `Session` protocol and the plugin world hold across
 a process boundary** (ADR-0016), before Tier 1 and the browser build on them.*
 
-**Status: open 2026-10-09; M1 done 2026-10-09 (`cargo test -p arrix-cli --test boundary_m1`); M2 done 2026-10-10 (`--test boundary_m2`); M3 next.**
+**Status: open 2026-10-09; M1 done 2026-10-09 (`cargo test -p arrix-cli --test boundary_m1`); M2 done 2026-10-10 (`--test boundary_m2`); M3 done 2026-10-11 (`--test boundary_m3`, ADR-0026); the cycle's accept is met, ready for `/close-cycle`.**
 Unnumbered until it closes, as ADR-0016 says; C2 to C4 keep their names.
 Three milestones, a plan each, the riskiest first:
 
@@ -84,8 +84,8 @@ Three milestones, a plan each, the riskiest first:
   plugin loaded into a running session (an ADR for the registry's
   ownership), and `arrix-app render`, the headless render as a product
   command (an ADR: the render stack ships in the native app).
-- M3, the kit and the accept: `arrix test`, the harness versioned, the
-  accept below.
+- M3, the kit and the accept (done): `arrix test`, the harness versioned
+  (ADR-0026), `arrix.session` and `arrix.eval` in the SDK, the accept below.
 
 
 - `arrix serve --stdio`: the `Session` protocol framed on stdio (commands
@@ -127,7 +127,8 @@ assembly round-trips through STEP against another CAD's reading of it.
 
 ## C3 — the boundary crossed
 
-The Tier 1 (wasm component) host; robotics moved out as plugin #1; a
+The Tier 1 (wasm component) host; `arrix-plugin-test`, the Rust kit for
+Tier 0 authors, beside the Tier 1 SDK; robotics moved out as plugin #1; a
 second first-party plugin in Python through Tier 2 only; `arrix-plugin-api`
 reviewed for 0.x stability. Accept: the north-star demo (`SEED.md` §7).
 

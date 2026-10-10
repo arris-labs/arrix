@@ -872,6 +872,14 @@ the way in.
   harness: the slice drawn by both on one device gives identical pixels
   and the same `debug_state()`; `render_cli` tests each flag on the
   binary.
+- **The render JSON is a public interface** (ADR-0026). `arrix-app render
+  --schema` prints its schema, `render::schema()`, held by a golden that
+  `render_cli` validates every render against. The schema marks the
+  promised fields of `debug_state()` `x-arrix-promised`: `bodies`,
+  `camera`, `badges`, `evaluation` and `diagnostics`. Everything else in
+  it is informational and may change without a version bump, so a scenario
+  golden may pin it and an agent should not. Changes inside `format` 1 are
+  additive only.
 - **Refreshing a golden** (`UPDATE_SNAPSHOTS=1`) is done only for an
   intentional UI change, after reading the before, after and diff images
   rendered on demand and the golden's text diff, and the commit says why

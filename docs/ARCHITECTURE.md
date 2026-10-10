@@ -472,7 +472,11 @@ pixels and `debug_state()` (ADR-0025).
 The protocol's schemas are held fresh by a test, not a step: `cargo test -p
 arrix-cli --test serve_schema` compares `arrix serve --schema` with
 `crates/arrix-cli/tests/golden/protocol.schema.json`, rewritten under
-`UPDATE_SNAPSHOTS=1`, so a change to a protocol type is a reviewed diff.
+`UPDATE_SNAPSHOTS=1`, so a change to a protocol type is a reviewed diff. The other harness
+surfaces are held the same way (ADR-0026): `--test eval_schema`'s
+`eval.schema.json` for `arrix eval --schema`, `--test plugin_test`'s
+`test.schema.json` for `arrix test --schema`, and the render's schema, `arrix-app render
+--schema`, by `render_cli`. `--test boundary_m3` is the boundary's accept.
 
 The visual tests need a CPU wgpu adapter, Mesa's lavapipe (CI installs
 `mesa-vulkan-drivers`). With none a scenario skips loudly, never silently

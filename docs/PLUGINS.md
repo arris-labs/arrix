@@ -5,10 +5,10 @@ interface, versioned apart from the app, hosted three ways, and enough of it
 that first-party domains need nothing else. This document is the design of
 `arrix-plugin-api` and `arrix-plugin-host`. Built, as of C1: the world and
 its Rust traits at 0.5.0 (§One interface), manifests (§The manifest), Tier 0
-hosting (§Three tiers), the in-tree test kit's determinism and round-trip
-checks, and the first plugin, `plugins/gears` with `gears.spur` (its crate
-docs state its geometry and tolerance). Tier 2 is built (boundary-opened M1); the packaged test kit
-comes with that cycle's M3, Tier 1 with C3 (ADR-0016).
+hosting (§Three tiers), the test kit (§The test kit, `arrix test`), and the
+first plugin, `plugins/gears` with `gears.spur` (its crate docs state its
+geometry and tolerance). Tier 2 is built (boundary-opened M1), as is the
+kit (M3); Tier 1 and `arrix-plugin-test` come with C3 (ADR-0016).
 
 ## One interface, defined once
 
@@ -259,7 +259,15 @@ network = false
 [contributes]                # informative; the plugin's exports are the authority
 features = ["gears.spur"]
 ribbon = ["gears"]
+
+[test]                       # §The test kit; optional
+documents = ["fixtures/gear-on-plane"]   # fixture documents, relative to the plugin
+fail = ["fixtures/oversize"]             # fixtures expected to fail with a kernel category
 ```
+
+`[test]` is read by `arrix test` and by nothing else. A fixture that is not
+there, or a key the table does not know, is a diagnostic with the
+manifest's file and line, as for any other table.
 
 Contributed ids are `<plugin-id>.<name>`. `core.` is reserved for built-ins.
 `arrix_plugin_host::Manifest::parse` refuses an unknown key, a `version`
@@ -422,34 +430,50 @@ results.
 ## The test kit
 
 A plugin is tested headless, with no window and no human, the same way
-ArriX tests itself. C1 has the pieces in-tree for the first plugin; the
-boundary-opened cycle's M3 packages them for third parties
-(`arrix-plugin-test` for Rust, `arrix test` for any tier). A Python plugin
-has its first pieces now: `python -m unittest` over the SDK, run by
-`crates/arrix-plugin-host/tests/python_sdk.rs`, and the standoff's
-determinism, frozen-open, crash and kernel-failure checks in
-`crates/arrix-cli/tests/boundary_m1.rs`.
+ArriX tests itself. `arrix test <plugin-dir> [--plugin <dir>]… [--schema]`
+runs the checks below on any plugin directory, whatever its tier, and
+`plugins/gears` and `python/examples/standoff` pass it. The plugin's
+manifest names its fixture documents in `[test]` (§The manifest), kept
+inside the plugin's directory so a plugin outside the repository is as
+self-contained as these (`plugins/gears/fixtures/gear-on-plane`,
+`python/examples/standoff/fixtures/standoff`). `--plugin` adds the
+directories of plugins the fixtures depend on.
 
-- **Determinism**: every feature evaluated twice from fresh state gives
-  byte-identical bodies and names. Built for `gears`, with the kernel-backed
-  checks a plugin's own tests cannot make (it depends on the API alone),
-  in `crates/arrix-cli/tests/gears.rs` beside the registration list:
-  names, volume and call records equal across fresh kernels, the volume
-  against the outline's own area, and the names a teeth edit keeps;
-  `crates/arrix-cli/tests/gear_naming.rs` references the gear's faces
-  downstream by name through edits, and a lost one's candidates.
-- **Round trip**: a document using the plugin saves and loads to identical
-  bytes and identical evaluation. Built for `gears` by
-  `crates/arrix-cli/tests/gear_on_plane.rs` and the
-  `tests/docs/gear-on-plane` golden.
-- **Frozen**: the document opened without the plugin shows every body,
-  its features frozen with a reason, and downstream features evaluate.
-- **Migration**: every `type_version` the plugin ever shipped has a fixture
-  document that migrates and evaluates.
-- **Declarative UI**: each form and panel renders headless and appears in
-  `debug_state()` (`docs/UI-RENDERING.md` §Visual debugging).
-- **Kernel failures**: a feature's kernel failure leaves a replayable call
-  record, like a built-in's.
+- **Output**: one JSON line per check, `{format, plugin, check, doc,
+  status, detail}`, `status` being `pass` or `fail` and `detail` saying
+  what was compared or what differed. The report is versioned and
+  `--schema` prints its schema (ADR-0026). Exit status 0 when every check
+  passed, 1 when one failed, 2 when the plugin cannot be tested at all (an
+  invalid manifest, a fixture that is not there).
+- **Determinism**: each fixture evaluated twice, each on a fresh kernel and
+  a fresh Tier 2 process, saves to identical bytes.
+- **Round trip**: save, open, save gives identical bytes and an identical
+  eval line.
+- **Frozen**: the document opened without the plugin has each of its
+  features frozen with a reason, each one with a stored result keeping its
+  bodies, and downstream features evaluate.
+- **Migration**: every `type_version` the plugin's specs declare has a
+  fixture holding it, and that fixture evaluates. No feature type has a
+  second version yet, so this covers fixtures only; `migrate` is not in the
+  WIT.
+- **Spec**: every feature spec validates (ADR-0018). A valid spec is a
+  renderable form, which is why the kit does not render forms: `arrix`
+  never links wgpu (ADR-0025).
+- **Kernel failures**: each `fail` fixture fails with a `kernel.*`
+  category and leaves a call record that replays (`SEED.md` §6.6).
+
+The kernel-backed checks of a Tier 0 plugin's own behaviour (names, volume
+against the outline, the names a teeth edit keeps) stay in
+`crates/arrix-cli/tests/gears.rs` and `gear_naming.rs`, since a plugin
+depends on the API alone. The Python SDK has `python -m unittest`, run by
+`crates/arrix-plugin-host/tests/python_sdk.rs`, and the standoff's checks
+are in `crates/arrix-cli/tests/boundary_m1.rs`. `arrix-plugin-test`, the
+Rust kit for Tier 0 authors, comes with C3 beside the Tier 1 SDK.
+
+An agent reaches all of it with the installed binaries and the SDK:
+`arrix.session` drives `arrix serve --stdio` and `arrix.eval` runs the
+eval line (ADR-0026). `cargo test -p arrix-cli --test boundary_m3` is that
+scenario.
 
 ## Open questions
 
