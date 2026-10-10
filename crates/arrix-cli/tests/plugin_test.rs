@@ -1,7 +1,7 @@
 //! `arrix test` (plans/boundary-m3 step 5, ADR-0026), on the spawned
 //! binary: the report's schema held to `tests/golden/test.schema.json`
 //! (rewritten under `UPDATE_SNAPSHOTS=1`), `gears` and the standoff
-//! passing determinism and round trip, a planted non-deterministic Python
+//! passing every check, a planted non-deterministic Python
 //! plugin failing determinism with its detail, and a missing fixture and a
 //! bad `[test]` key each a diagnostic with the manifest's file and line.
 
@@ -84,7 +84,7 @@ fn the_report_schema_is_fresh_and_names_the_format() {
 }
 
 #[test]
-fn gears_and_the_standoff_pass_determinism_and_round_trip() {
+fn gears_and_the_standoff_pass_every_check() {
     for plugin in ["plugins/gears", "python/examples/standoff"] {
         let out = arrix_test(&[], &workspace().join(plugin));
         let report = lines(&out);
@@ -94,13 +94,14 @@ fn gears_and_the_standoff_pass_determinism_and_round_trip() {
             String::from_utf8_lossy(&out.stderr)
         );
         assert_valid(&report);
-        for name in ["determinism", "round_trip"] {
+        for name in ["spec", "determinism", "round_trip", "frozen", "migration"] {
             assert_eq!(
                 check(&report, name)["status"],
                 "pass",
                 "{plugin}: {report:?}"
             );
         }
+        assert!(report.iter().all(|l| l["status"] == "pass"), "{report:?}");
     }
 }
 
@@ -166,4 +167,83 @@ fn a_missing_fixture_and_a_bad_key_are_diagnostics_with_file_and_line() {
         "{err}"
     );
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The standoff's checks with its manifest's `[test]` table rewritten.
+fn standoff_with(name: &str, test_table: &str) -> Vec<Value> {
+    let dir = standoff_copy(name);
+    copy_tree(
+        &workspace().join("tests/docs/empty"),
+        &dir.join("fixtures/empty"),
+    );
+    let manifest = dir.join("arrix-plugin.toml");
+    let text = std::fs::read_to_string(&manifest).unwrap();
+    let head = text.split("[test]").next().unwrap();
+    std::fs::write(&manifest, format!("{head}[test]\n{test_table}\n")).unwrap();
+    let out = arrix_test(&[], &dir);
+    assert_eq!(
+        out.status.code(),
+        Some(1),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let report = lines(&out);
+    assert_valid(&report);
+    let _ = std::fs::remove_dir_all(&dir);
+    report
+}
+
+fn failed<'a>(report: &'a [Value], name: &str) -> Vec<&'a Value> {
+    report
+        .iter()
+        .filter(|l| l["check"] == name && l["status"] == "fail")
+        .collect()
+}
+
+#[test]
+fn a_fixture_without_the_type_fails_migration_and_frozen() {
+    let report = standoff_with("lacks", "documents = [\"fixtures/empty\"]");
+    let migration = failed(&report, "migration");
+    assert_eq!(migration.len(), 1, "{report:?}");
+    assert!(
+        migration[0]["detail"]
+            .as_str()
+            .unwrap()
+            .contains("no fixture holds `standoff.standoff` at type_version 1"),
+        "{migration:?}"
+    );
+    let frozen = failed(&report, "frozen");
+    assert_eq!(frozen.len(), 1, "{report:?}");
+    assert!(
+        frozen[0]["detail"]
+            .as_str()
+            .unwrap()
+            .contains("nothing freezes"),
+        "{frozen:?}"
+    );
+}
+
+#[test]
+fn a_fixture_that_does_not_evaluate_fails_migration() {
+    let report = standoff_with("broken", "documents = [\"fixtures/oversize-round\"]");
+    let migration = failed(&report, "migration");
+    assert_eq!(migration.len(), 1, "{report:?}");
+    assert!(
+        migration[0]["detail"]
+            .as_str()
+            .unwrap()
+            .contains("does not evaluate"),
+        "{migration:?}"
+    );
+}
+
+#[test]
+fn a_fail_fixture_that_succeeds_fails_kernel_failure() {
+    let report = standoff_with("succeeds", "fail = [\"fixtures/standoff\"]");
+    let kernel = failed(&report, "kernel_failure");
+    assert_eq!(kernel.len(), 1, "{report:?}");
+    assert!(
+        kernel[0]["detail"].as_str().unwrap().contains("must"),
+        "{kernel:?}"
+    );
 }

@@ -8,7 +8,9 @@ use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use arrix_doc::{DocumentSource, Evaluator, MemorySource, Registry, open, save};
+use arrix_doc::{
+    DocumentSource, EvalLine, Evaluator, FeatureLine, MemorySource, Registry, open, save,
+};
 use arrix_plugin_host::{MANIFEST, Manifest};
 use serde::Serialize;
 
@@ -76,27 +78,25 @@ pub fn run(args: &Args) -> ExitCode {
         }
     };
     let mut failed = false;
-    for fixture in &kit.manifest.test.documents {
-        for (check, result) in kit.document_checks(&fixture.path) {
-            let (status, detail) = match result {
-                Ok(detail) => ("pass", detail),
-                Err(detail) => {
-                    failed = true;
-                    ("fail", detail)
-                }
-            };
-            let line = Line {
-                format: FORMAT,
-                plugin: kit.manifest.id.as_str(),
-                check,
-                doc: &fixture.path,
-                status,
-                detail,
-            };
-            let json = serde_json::to_string(&line).expect("a report line is plain data");
-            if writeln!(std::io::stdout(), "{json}").is_err() {
-                return ExitCode::from(2);
+    for check in kit.checks() {
+        let (status, detail) = match check.result {
+            Ok(detail) => ("pass", detail),
+            Err(detail) => {
+                failed = true;
+                ("fail", detail)
             }
+        };
+        let line = Line {
+            format: FORMAT,
+            plugin: kit.manifest.id.as_str(),
+            check: check.check,
+            doc: &check.doc,
+            status,
+            detail,
+        };
+        let json = serde_json::to_string(&line).expect("a report line is plain data");
+        if writeln!(std::io::stdout(), "{json}").is_err() {
+            return ExitCode::from(2);
         }
     }
     if failed {
@@ -106,6 +106,13 @@ pub fn run(args: &Args) -> ExitCode {
     }
 }
 
+/// One check's outcome, on the fixture (or the manifest) it was made on.
+struct Check {
+    check: &'static str,
+    doc: String,
+    result: Result<String, String>,
+}
+
 /// A plugin under test, its manifest checked.
 struct Kit {
     dir: PathBuf,
@@ -113,6 +120,8 @@ struct Kit {
     /// The Tier 2 directories every fresh registry starts: the plugin's
     /// own, and `--plugin` ones it depends on.
     tier2: Vec<PathBuf>,
+    /// The `--plugin` directories alone: what a run without the plugin keeps.
+    extra: Vec<PathBuf>,
 }
 
 impl Kit {
@@ -156,6 +165,7 @@ impl Kit {
             dir: args.dir.to_path_buf(),
             manifest,
             tier2,
+            extra: args.plugins.to_vec(),
         })
     }
 
@@ -164,12 +174,248 @@ impl Kit {
         registry_for(&self.tier2, &[])
     }
 
-    /// Every check on one fixture document, in order, each its detail.
-    fn document_checks(&self, fixture: &str) -> Vec<(&'static str, Result<String, String>)> {
-        vec![
-            ("determinism", self.determinism(fixture)),
-            ("round_trip", self.round_trip(fixture)),
-        ]
+    /// Every check, in order: the plugin's specs, each fixture document's
+    /// checks, the migration coverage, then each `fail` fixture.
+    fn checks(&self) -> Vec<Check> {
+        let manifest_file = MANIFEST.to_string();
+        let mut out = vec![Check {
+            check: "spec",
+            doc: manifest_file.clone(),
+            result: self.spec(),
+        }];
+        for fixture in &self.manifest.test.documents {
+            let path = &fixture.path;
+            for (check, result) in [
+                ("determinism", self.determinism(path)),
+                ("round_trip", self.round_trip(path)),
+                ("frozen", self.frozen(path)),
+            ] {
+                out.push(Check {
+                    check,
+                    doc: path.clone(),
+                    result,
+                });
+            }
+        }
+        out.extend(self.migration(&manifest_file));
+        for fixture in &self.manifest.test.fail {
+            out.push(Check {
+                check: "kernel_failure",
+                doc: fixture.path.clone(),
+                result: self.kernel_failure(&fixture.path),
+            });
+        }
+        out
+    }
+
+    /// Whether `type_id` is one of this plugin's.
+    fn owns(&self, type_id: &str) -> bool {
+        type_id.split('.').next() == Some(self.manifest.id.as_str())
+    }
+
+    /// The registry of a run without the plugin.
+    fn without(&self) -> Result<Registry, String> {
+        if self.manifest.tier == 0 {
+            registry_for(&self.extra, &[self.manifest.id.to_string()])
+        } else {
+            registry_for(&self.extra, &[])
+        }
+    }
+
+    /// Every feature type the manifest contributes registers, which is
+    /// where its spec (choices, `modifies`) is validated (ADR-0018), and the
+    /// plugin registers no other.
+    fn spec(&self) -> Result<String, String> {
+        let registry = self.fresh()?;
+        let registered: Vec<String> = registry
+            .ids()
+            .map(|id| id.to_string())
+            .filter(|id| self.owns(id))
+            .collect();
+        let declared = &self.manifest.contributes.features;
+        if let Some(id) = declared.iter().find(|id| !registered.contains(id)) {
+            return Err(format!(
+                "the manifest contributes `{id}`, which the plugin does not register"
+            ));
+        }
+        if let Some(id) = registered.iter().find(|id| !declared.contains(id)) {
+            return Err(format!(
+                "the plugin registers `{id}`, which the manifest's `contributes.features` does not list"
+            ));
+        }
+        Ok(format!(
+            "{} feature type(s) register with a valid spec",
+            registered.len()
+        ))
+    }
+
+    /// Every `type_version` a spec declares, from 1 up, has a fixture
+    /// document that holds a feature at it and evaluates it. The WIT has no
+    /// `migrate` yet, so a fixture is the only proof an old record opens.
+    fn migration(&self, manifest_file: &str) -> Vec<Check> {
+        let Ok(registry) = self.fresh() else {
+            return Vec::new();
+        };
+        let mut held = Vec::new();
+        for fixture in &self.manifest.test.documents {
+            let Ok(source) = self.fixture_source(&fixture.path) else {
+                continue;
+            };
+            let (Ok(document), Ok(line)) = (
+                open(&source),
+                arrix_doc::eval(&fixture.path, &source, &registry),
+            ) else {
+                continue;
+            };
+            for part in document.parts().values() {
+                for record in part.features.values() {
+                    let evaluates = line
+                        .features
+                        .iter()
+                        .any(|f| f.id == record.id && f.status != "failed");
+                    held.push((
+                        &fixture.path,
+                        record.type_id.to_string(),
+                        record.type_version,
+                        evaluates,
+                    ));
+                }
+            }
+        }
+        let mut out = Vec::new();
+        for id in registry.ids().filter(|id| self.owns(&id.to_string())) {
+            let version = registry.get(id).map_or(1, |ty| ty.spec().version);
+            for v in 1..=version {
+                let holders: Vec<_> = held
+                    .iter()
+                    .filter(|(_, ty, at, _)| *ty == id.to_string() && *at == v)
+                    .collect();
+                let (doc, result) = match holders.iter().find(|h| h.3) {
+                    Some((path, ..)) => (
+                        (*path).clone(),
+                        Ok(format!("`{id}` at type_version {v} evaluates")),
+                    ),
+                    None => match holders.first() {
+                        Some((path, ..)) => (
+                            (*path).clone(),
+                            Err(format!("`{id}` at type_version {v} does not evaluate")),
+                        ),
+                        None => (
+                            manifest_file.to_string(),
+                            Err(format!("no fixture holds `{id}` at type_version {v}")),
+                        ),
+                    },
+                };
+                out.push(Check {
+                    check: "migration",
+                    doc,
+                    result,
+                });
+            }
+        }
+        out
+    }
+
+    /// Opened without the plugin, each of its features is frozen with a
+    /// reason and keeps its bodies, and what is downstream still evaluates.
+    fn frozen(&self, fixture: &str) -> Result<String, String> {
+        let source = self.fixture_source(fixture)?;
+        let live = self.evaluated(fixture, &source)?;
+        let mine: Vec<&FeatureLine> = live
+            .line
+            .features
+            .iter()
+            .filter(|f| self.owns(&f.feature_type))
+            .collect();
+        if mine.is_empty() {
+            return Err("the fixture holds no feature of the plugin, so nothing freezes".into());
+        }
+        if let Some(f) = mine.iter().find(|f| f.status != "ok") {
+            return Err(format!(
+                "`{}` is {} with the plugin, so it has no result to freeze",
+                f.feature_type, f.status
+            ));
+        }
+        let frozen =
+            arrix_doc::eval(fixture, &live.files, &self.without()?).map_err(|e| e.to_string())?;
+        for f in &mine {
+            let Some(after) = frozen.features.iter().find(|a| a.id == f.id) else {
+                return Err(format!("`{}` is gone without the plugin", f.feature_type));
+            };
+            if after.status != "frozen" {
+                return Err(format!(
+                    "`{}` is {} without the plugin, not frozen",
+                    f.feature_type, after.status
+                ));
+            }
+            if after.diagnostics.is_empty() {
+                return Err(format!("`{}` is frozen with no reason", f.feature_type));
+            }
+            let bodies = |line: &EvalLine| {
+                line.bodies
+                    .iter()
+                    .filter(|b| b.feature == f.id)
+                    .cloned()
+                    .collect::<Vec<_>>()
+            };
+            if bodies(&live.line) != bodies(&frozen) {
+                return Err(format!(
+                    "`{}` does not keep its bodies when frozen",
+                    f.feature_type
+                ));
+            }
+        }
+        if let Some(f) = frozen
+            .features
+            .iter()
+            .find(|f| !self.owns(&f.feature_type) && f.status == "failed")
+        {
+            return Err(format!(
+                "`{}` fails without the plugin ({})",
+                f.feature_type,
+                f.category.as_deref().unwrap_or("no category")
+            ));
+        }
+        Ok(format!(
+            "{} feature(s) frozen with a reason and their bodies; the rest evaluates",
+            mine.len()
+        ))
+    }
+
+    /// A `fail` fixture fails at a kernel call of the plugin's with a
+    /// `kernel.*` category, and the call's recipe is one Arris can replay
+    /// (`SEED.md` §6.6).
+    fn kernel_failure(&self, fixture: &str) -> Result<String, String> {
+        let source = self.fixture_source(fixture)?;
+        let run =
+            arrix_doc::run(fixture, &source, &self.fresh()?, None).map_err(|e| e.to_string())?;
+        let Some(failed) = run
+            .line
+            .features
+            .iter()
+            .find(|f| self.owns(&f.feature_type) && f.status == "failed")
+        else {
+            return Err("no feature of the plugin fails; a `fail` fixture must".into());
+        };
+        let category = failed.category.as_deref().unwrap_or("none");
+        if !category.starts_with("kernel.") {
+            return Err(format!(
+                "`{}` fails with `{category}`, not a `kernel.*` category",
+                failed.feature_type
+            ));
+        }
+        let Some(call) = run.failures.iter().find(|c| c.feature == failed.id) else {
+            return Err(format!("`{category}` left no kernel call to replay"));
+        };
+        let recipe = call
+            .recipe
+            .as_ref()
+            .map_err(|e| format!("`{category}` has no recipe: {e}"))?;
+        let steps = replayable(&recipe.json)?;
+        Ok(format!(
+            "`{category}` with a recipe of {steps} step(s), `{}`",
+            recipe.name
+        ))
     }
 
     fn evaluated(&self, fixture: &str, source: &impl DocumentSource) -> Result<Evaluated, String> {
@@ -206,9 +452,11 @@ impl Kit {
             ));
         }
         if first.line != second.line {
+            let json = |l: &EvalLine| serde_json::to_string(l).unwrap_or_default();
             return Err(format!(
                 "the eval line changes across a save:\n{}\n{}",
-                first.line, second.line
+                json(&first.line),
+                json(&second.line)
             ));
         }
         Ok("save, open and save again are identical, and so is the eval line".into())
@@ -224,7 +472,7 @@ fn one_line(e: &dyn std::fmt::Display) -> String {
 /// results merged in, and its eval line.
 struct Evaluated {
     files: MemorySource,
-    line: String,
+    line: EvalLine,
 }
 
 fn evaluate_and_save(
@@ -235,8 +483,7 @@ fn evaluate_and_save(
     let document = open(source).map_err(|e| e.to_string())?;
     let mut evaluator = Evaluator::new(registry);
     let evaluation = evaluator.evaluate(&document);
-    let line =
-        serde_json::to_string(&evaluation.line(name, &document)).map_err(|e| e.to_string())?;
+    let line = evaluation.line(name, &document);
     let mut saved = document;
     for (feature, frozen) in evaluator.frozen() {
         saved.freeze(*feature, frozen);
@@ -265,4 +512,35 @@ fn differ(a: &MemorySource, b: &MemorySource) -> Option<String> {
     b.0.keys()
         .find(|path| !a.0.contains_key(*path))
         .map(|path| format!("`{path}` is only in the second"))
+}
+
+/// What Arris's interpreter holds a recipe to: step names unique, every
+/// step reading only earlier ones, the result a step. Its step count.
+fn replayable(json: &str) -> Result<usize, String> {
+    let value: serde_json::Value =
+        serde_json::from_str(json).map_err(|e| format!("the recipe is not JSON: {e}"))?;
+    let steps = value["steps"]
+        .as_array()
+        .filter(|steps| !steps.is_empty())
+        .ok_or("the recipe has no steps")?;
+    let mut made = std::collections::BTreeSet::new();
+    for step in steps {
+        for key in ["profile", "of", "a", "b", "target", "tool"] {
+            if let Some(read) = step[key].as_str()
+                && !made.contains(read)
+            {
+                return Err(format!(
+                    "the recipe's step {step} reads {read} before it is made"
+                ));
+            }
+        }
+        let name = step["name"].as_str().ok_or("a recipe step has no name")?;
+        if !made.insert(name) {
+            return Err(format!("the recipe makes {name} twice"));
+        }
+    }
+    match value["result"].as_str() {
+        Some(result) if made.contains(result) => Ok(steps.len()),
+        _ => Err("the recipe's result is not one of its steps".into()),
+    }
 }

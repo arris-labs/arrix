@@ -135,7 +135,7 @@ failure check reuses `--save-fixtures` recipes (`SEED.md` §6.6).
     Python plugin (a random height) fails determinism with its detail.
     A missing fixture and a bad `[test]` key are each a diagnostic with
     the manifest's file and line.
-- [ ] **[2]** Step 6: the rest of the checks.
+- [x] **[2]** Step 6: the rest of the checks.
   - Frozen: open without the plugin. Every one of its features is frozen
     with a reason, each with a stored result keeps its bodies, and
     downstream features evaluate.
