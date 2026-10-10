@@ -102,7 +102,7 @@ failure check reuses `--save-fixtures` recipes (`SEED.md` §6.6).
 - [x] **[2]** Step 1: ADR-0026 is written and indexed, and the plan file
   is committed with it (the idea was absorbed and never committed). The backlog line on `Opened` is removed, now that step 4
   takes it. Docs only.
-- [ ] **[2]** Step 2: the eval format. Every eval line carries
+- [x] **[2]** Step 2: the eval format. Every eval line carries
   `"format": 1`, and the eval goldens in `crates/arrix-cli/tests/golden/`
   are refreshed for that field alone. `arrix eval --schema` prints the
   line's schema, held as `eval.schema.json` under `UPDATE_SNAPSHOTS=1`.

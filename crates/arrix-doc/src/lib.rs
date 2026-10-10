@@ -41,11 +41,13 @@ pub use document::{
     Document, FeatureRecord, FeatureTypeId, Invalid, InvalidFeatureTypeId, Param, Part,
     is_param_name,
 };
+#[cfg(feature = "schema")]
+pub use eval::eval_line_schema;
 pub use eval::{
-    BodyLine, BodyMeasures, BodySlot, EvalEvent, EvalLine, EvalStatus, Evaluation, Evaluator,
-    ExportError, ExportedFile, FailedCall, FeatureLine, FeatureOutcome, FinalBody, FrozenInfo,
-    FrozenReason, InputHash, ParamLine, RegionView, Run, SavedRecipe, SketchView, SlotView, Sweep,
-    SweepError, SweepPoint, eval, export, run, sweep,
+    BodyLine, BodyMeasures, BodySlot, EVAL_FORMAT, EvalEvent, EvalLine, EvalStatus, Evaluation,
+    Evaluator, ExportError, ExportedFile, FailedCall, FeatureLine, FeatureOutcome, FinalBody,
+    FrozenInfo, FrozenReason, InputHash, ParamLine, RegionView, Run, SavedRecipe, SketchView,
+    SlotView, Sweep, SweepError, SweepPoint, eval, export, run, sweep,
 };
 pub use frozen::{BlobRef, Frozen, FrozenResult, InvalidBlobRef};
 pub use open::{DOCUMENT_JSON, DocumentSource, MemorySource, OpenError, PARAMS_JSON, SCHEMA, open};

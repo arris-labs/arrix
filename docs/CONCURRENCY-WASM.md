@@ -145,7 +145,7 @@ arrix eval <docs or dirs>… [--sweep <feature>.<param>=<from>..<to>:<n>]
   `--timings` is given:
 
   ```json
-  {"doc":"bracket.arrx","sweep":null,"status":"failed",
+  {"format":1,"doc":"bracket.arrx","sweep":null,"status":"failed",
    "params":[{"id":"…","name":"w","value":0.012,"diagnostic":null}],
    "features":[{"id":"…","type":"core.fillet","status":"failed",
                 "category":"kernel.degenerate.blend-too-large",
@@ -181,6 +181,9 @@ arrix eval <docs or dirs>… [--sweep <feature>.<param>=<from>..<to>:<n>]
     category and its type's plugin (`core` for the core types), a failed
     parameter under its diagnostic's code and no plugin. A sweep counts each
     point's failure.
+  - Every line carries `"format"`, its version (ADR-0026), and `arrix eval
+    --schema` prints the schema of the line, the `--timings` field and the
+    `--summary` line, held by `tests/golden/eval.schema.json`.
   - `--timings` appends `"timings":{"wall_ms","lines"}` to each line: the
     wall time of the whole document (every sweep point), the one field that
     is not deterministic.

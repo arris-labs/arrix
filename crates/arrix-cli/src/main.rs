@@ -35,8 +35,12 @@ enum Command {
         /// `.arrx` files. A directory with no `document.json` is searched:
         /// its `.arrx` files and document directories are evaluated, sorted
         /// by path.
-        #[arg(required = true, value_name = "PATH")]
+        #[arg(required_unless_present = "schema", value_name = "PATH")]
         paths: Vec<PathBuf>,
+        /// Print the line's JSON Schema (draft 2020-12) and exit. A line
+        /// carries `"format"` (ADR-0026).
+        #[arg(long)]
+        schema: bool,
         /// Start the Tier 2 plugin in this directory (repeatable): one
         /// holding an `arrix-plugin.toml`, whose command is run there.
         #[arg(long = "plugin", value_name = "DIR")]
@@ -181,6 +185,7 @@ enum ConfigCommand {
 
 fn main() -> ExitCode {
     match Cli::parse().command {
+        Command::Eval { schema: true, .. } => eval::print_schema(),
         Command::Eval {
             paths,
             plugins,
@@ -191,6 +196,7 @@ fn main() -> ExitCode {
             timings,
             jobs,
             budget,
+            schema: _,
         } => eval::run(&eval::Args {
             paths: &paths,
             plugins: &plugins,

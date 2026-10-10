@@ -1,0 +1,550 @@
+{
+  "$defs": {
+    "BodyLine": {
+      "description": "One body's measures, in SI.",
+      "properties": {
+        "area": {
+          "format": "double",
+          "type": "number"
+        },
+        "edges": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "faces": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "feature": {
+          "$ref": "#/$defs/FeatureId"
+        },
+        "part": {
+          "$ref": "#/$defs/PartId"
+        },
+        "slot": {
+          "type": "string"
+        },
+        "vertices": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "volume": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "part",
+        "feature",
+        "slot",
+        "volume",
+        "area",
+        "faces",
+        "edges",
+        "vertices"
+      ],
+      "type": "object"
+    },
+    "Diagnostic": {
+      "description": "A failure, warning or note the user sees, on a feature, in the status\nbar and in `arrix eval`'s output.",
+      "properties": {
+        "candidates": {
+          "description": "For a lost reference, what the user might re-pick, best first\n(docs/DATA-MODEL.md §Persistent naming, \"Resolution\"). Never\napplied by the core: re-picking is the user's command.",
+          "items": {
+            "$ref": "#/$defs/Ref"
+          },
+          "type": "array"
+        },
+        "code": {
+          "$ref": "#/$defs/DiagnosticCode"
+        },
+        "message": {
+          "type": "string"
+        },
+        "refs": {
+          "description": "What to highlight: the entities the failure is about.",
+          "items": {
+            "$ref": "#/$defs/Ref"
+          },
+          "type": "array"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity"
+        }
+      },
+      "required": [
+        "severity",
+        "code",
+        "message"
+      ],
+      "type": "object"
+    },
+    "DiagnosticCode": {
+      "description": "A stable, countable key: `segment(.segment)*`, each segment lower-kebab\n(`ref.lost`, `kernel.degenerate.tangent-contact`). Checked when built,\nso one that crosses a boundary is always well-formed.",
+      "type": "string"
+    },
+    "EvalLine": {
+      "description": "One document's evaluation, as `arrix eval` prints it.",
+      "properties": {
+        "bodies": {
+          "items": {
+            "$ref": "#/$defs/BodyLine"
+          },
+          "type": "array"
+        },
+        "doc": {
+          "description": "The document as the caller named it.",
+          "type": "string"
+        },
+        "features": {
+          "items": {
+            "$ref": "#/$defs/FeatureLine"
+          },
+          "type": "array"
+        },
+        "format": {
+          "default": 1,
+          "description": "The line's version, [`EVAL_FORMAT`].",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "params": {
+          "items": {
+            "$ref": "#/$defs/ParamLine"
+          },
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/$defs/EvalStatus"
+        },
+        "sweep": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SweepPoint"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The sweep point, `null` outside a sweep."
+        },
+        "timings": {
+          "description": "Only with `--timings`: the wall time of the whole document, sweep points included, and its line count.",
+          "properties": {
+            "lines": {
+              "type": "integer"
+            },
+            "wall_ms": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "wall_ms",
+            "lines"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "format",
+        "doc",
+        "sweep",
+        "status",
+        "params",
+        "features",
+        "bodies"
+      ],
+      "title": "EvalLine",
+      "type": "object"
+    },
+    "EvalStatus": {
+      "oneOf": [
+        {
+          "const": "ok",
+          "description": "Every parameter and every feature not suppressed or rolled back\nevaluated.",
+          "type": "string"
+        },
+        {
+          "const": "failed",
+          "description": "At least one parameter or feature failed.",
+          "type": "string"
+        }
+      ]
+    },
+    "FeatureId": {
+      "$ref": "#/$defs/Id",
+      "description": "A feature record in a part's history."
+    },
+    "FeatureLine": {
+      "description": "One feature's outcome.",
+      "properties": {
+        "category": {
+          "description": "The failure category, a stable key (docs/ARCHITECTURE.md §The kernel\nchoke point).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "diagnostic": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Diagnostic"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "diagnostics": {
+          "description": "What an evaluated feature has to say that did not stop it: why it is\nfrozen, that it reads a stale result.",
+          "items": {
+            "$ref": "#/$defs/Diagnostic"
+          },
+          "type": "array"
+        },
+        "id": {
+          "$ref": "#/$defs/FeatureId"
+        },
+        "status": {
+          "description": "`ok`, `frozen`, `frozen-stale`, `failed`, `suppressed` or\n`rolled-back`.",
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "status",
+        "category",
+        "diagnostic"
+      ],
+      "type": "object"
+    },
+    "Id": {
+      "description": "64 bits as 13 Crockford base32 characters",
+      "pattern": "^[0-9A-F][0-9A-HJKMNP-TV-Z]{12}$",
+      "type": "string"
+    },
+    "ParamId": {
+      "$ref": "#/$defs/Id",
+      "description": "A parameter."
+    },
+    "ParamLine": {
+      "description": "One parameter's value in SI, or why it has none.",
+      "properties": {
+        "diagnostic": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Diagnostic"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/$defs/ParamId"
+        },
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "value",
+        "diagnostic"
+      ],
+      "type": "object"
+    },
+    "PartId": {
+      "$ref": "#/$defs/Id",
+      "description": "A part."
+    },
+    "PersistentName": {
+      "description": "A face, edge or vertex: a root and what happened to it since.",
+      "type": "string"
+    },
+    "PluginId": {
+      "description": "`[a-z][a-z0-9-]*`, and never `core`, which the built-ins own.",
+      "type": "string"
+    },
+    "RecordId": {
+      "$ref": "#/$defs/Id",
+      "description": "A plugin's record in its own section."
+    },
+    "Ref": {
+      "description": "A reference from one record to another. `Topo` is the one naming\nsolves; the rest are by id.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "param": {
+              "$ref": "#/$defs/ParamId"
+            }
+          },
+          "required": [
+            "param"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "feature": {
+              "$ref": "#/$defs/FeatureId"
+            }
+          },
+          "required": [
+            "feature"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A body, datum or sketch output of a feature.",
+          "properties": {
+            "slot": {
+              "properties": {
+                "feature": {
+                  "$ref": "#/$defs/FeatureId"
+                },
+                "slot": {
+                  "$ref": "#/$defs/SlotName"
+                }
+              },
+              "required": [
+                "feature",
+                "slot"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "slot"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A face, edge or vertex.",
+          "properties": {
+            "topo": {
+              "$ref": "#/$defs/PersistentName"
+            }
+          },
+          "required": [
+            "topo"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A point or curve of a sketch.",
+          "properties": {
+            "sketch": {
+              "properties": {
+                "entity": {
+                  "$ref": "#/$defs/SketchEntityId"
+                },
+                "feature": {
+                  "$ref": "#/$defs/FeatureId"
+                }
+              },
+              "required": [
+                "feature",
+                "entity"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "sketch"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A region of a sketch: a face of its planar arrangement, by its key.",
+          "properties": {
+            "region": {
+              "properties": {
+                "feature": {
+                  "$ref": "#/$defs/FeatureId"
+                },
+                "key": {
+                  "$ref": "#/$defs/RegionKey"
+                }
+              },
+              "required": [
+                "feature",
+                "key"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "region"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "A plugin's document record.",
+          "properties": {
+            "plugin": {
+              "properties": {
+                "plugin": {
+                  "$ref": "#/$defs/PluginId"
+                },
+                "record": {
+                  "$ref": "#/$defs/RecordId"
+                }
+              },
+              "required": [
+                "plugin",
+                "record"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "plugin"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "RegionKey": {
+      "description": "Which face of a sketch's planar arrangement a feature was given\n(docs/DATA-MODEL.md §Sketches): every entity bounding the face, its\nholes' included, sorted, plus a point inside it. The entity set alone\ndoes not name a face (a circle and its chord bound the cap and the D\nalike), so the sample tells two faces of the same curves apart.\n`arrix-sketch` resolves a key to exactly one region or to none.\n\nThe sample is in whole nanometres of the sketch's `(u, v)`, so a key\nis plain data that compares, orders and hashes exactly, as every `Ref`\ndoes. A nanometre is a thousandth of the length tolerance, and the\nsample sits as far inside its face as the face allows.",
+      "properties": {
+        "entities": {
+          "description": "Sorted and deduplicated, so two keys of one face compare equal\nwhichever order their loops were walked in.",
+          "items": {
+            "$ref": "#/$defs/SketchEntityId"
+          },
+          "type": "array"
+        },
+        "sample": {
+          "description": "A point inside the face, in nanometres.",
+          "items": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        }
+      },
+      "required": [
+        "entities",
+        "sample"
+      ],
+      "type": "object"
+    },
+    "Severity": {
+      "enum": [
+        "info",
+        "warning",
+        "error"
+      ],
+      "type": "string"
+    },
+    "SketchEntityId": {
+      "$ref": "#/$defs/Id",
+      "description": "A point, curve or constraint in a sketch."
+    },
+    "SlotName": {
+      "description": "A feature's named output: `body`, `plane`, `sketch`. One lower-kebab\nsegment, as a diagnostic code's segments are.",
+      "type": "string"
+    },
+    "Summary": {
+      "additionalProperties": false,
+      "description": "Only with `--summary`: the last line, the failure histogram.",
+      "properties": {
+        "summary": {
+          "items": {
+            "properties": {
+              "category": {
+                "type": "string"
+              },
+              "count": {
+                "type": "integer"
+              },
+              "docs": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "plugins": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "category",
+              "count",
+              "docs",
+              "plugins"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "summary"
+      ],
+      "type": "object"
+    },
+    "SweepPoint": {
+      "description": "A point of `--sweep`: what was swept as the flag named it, the point's\nplace and its value in SI.",
+      "properties": {
+        "index": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "target": {
+          "type": "string"
+        },
+        "value": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "target",
+        "index",
+        "value"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/EvalLine"
+    },
+    {
+      "$ref": "#/$defs/Summary"
+    }
+  ],
+  "title": "arrix eval line"
+}

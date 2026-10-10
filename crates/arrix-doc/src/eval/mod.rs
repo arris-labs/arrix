@@ -41,7 +41,11 @@ use serde::{Deserialize, Serialize};
 pub use export::{ExportError, ExportedFile, export};
 pub use fixtures::{FailedCall, Run, SavedRecipe, run};
 pub use hash::InputHash;
-pub use line::{BodyLine, EvalLine, EvalStatus, FeatureLine, ParamLine, SweepPoint, eval};
+#[cfg(feature = "schema")]
+pub use line::eval_line_schema;
+pub use line::{
+    BodyLine, EVAL_FORMAT, EvalLine, EvalStatus, FeatureLine, ParamLine, SweepPoint, eval,
+};
 pub use meshing::{BodySlot, FinalBody};
 pub use sweep::{Sweep, SweepError, sweep};
 

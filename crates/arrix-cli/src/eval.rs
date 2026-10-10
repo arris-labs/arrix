@@ -104,6 +104,54 @@ impl Status {
     }
 }
 
+/// `--schema`: the JSON Schema of what `eval` prints (ADR-0026): a
+/// document's line, with the optional `timings` of `--timings`, or the
+/// `--summary` line.
+pub fn print_schema() -> ExitCode {
+    let mut line = arrix_doc::eval_line_schema();
+    line["properties"]["timings"] = serde_json::json!({
+        "description": "Only with `--timings`: the wall time of the whole document, sweep points included, and its line count.",
+        "type": "object",
+        "properties": {"wall_ms": {"type": "number"}, "lines": {"type": "integer"}},
+        "required": ["wall_ms", "lines"]
+    });
+    let mut defs = line
+        .as_object_mut()
+        .and_then(|o| o.remove("$defs"))
+        .unwrap_or_default();
+    line.as_object_mut()
+        .expect("a schema object")
+        .remove("$schema");
+    defs["EvalLine"] = line;
+    defs["Summary"] = serde_json::json!({
+        "description": "Only with `--summary`: the last line, the failure histogram.",
+        "type": "object",
+        "properties": {"summary": {"type": "array", "items": {
+            "type": "object",
+            "properties": {
+                "category": {"type": "string"},
+                "count": {"type": "integer"},
+                "docs": {"type": "array", "items": {"type": "string"}},
+                "plugins": {"type": "array", "items": {"type": "string"}}
+            },
+            "required": ["category", "count", "docs", "plugins"]
+        }}},
+        "required": ["summary"],
+        "additionalProperties": false
+    });
+    let schema = serde_json::json!({
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "arrix eval line",
+        "oneOf": [{"$ref": "#/$defs/EvalLine"}, {"$ref": "#/$defs/Summary"}],
+        "$defs": defs,
+    });
+    let text = serde_json::to_string_pretty(&schema).expect("a schema is plain data");
+    if writeln!(std::io::stdout(), "{text}").is_err() {
+        return ExitCode::from(2);
+    }
+    ExitCode::SUCCESS
+}
+
 pub fn run(args: &Args) -> ExitCode {
     let registry = match registry_for(args.plugins, args.without) {
         Ok(registry) => registry,

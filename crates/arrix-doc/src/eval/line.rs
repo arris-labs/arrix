@@ -10,9 +10,21 @@ use crate::document::Document;
 use crate::open::{DocumentSource, OpenError, open};
 use crate::registry::Registry;
 
+/// The version of the eval line (ADR-0026): changes inside it are
+/// additive only.
+pub const EVAL_FORMAT: u32 = 1;
+
+fn eval_format() -> u32 {
+    EVAL_FORMAT
+}
+
 /// One document's evaluation, as `arrix eval` prints it.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct EvalLine {
+    /// The line's version, [`EVAL_FORMAT`].
+    #[serde(default = "eval_format")]
+    pub format: u32,
     /// The document as the caller named it.
     pub doc: String,
     /// The sweep point, `null` outside a sweep.
@@ -26,6 +38,7 @@ pub struct EvalLine {
 /// A point of `--sweep`: what was swept as the flag named it, the point's
 /// place and its value in SI.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct SweepPoint {
     pub target: String,
     pub index: usize,
@@ -33,6 +46,7 @@ pub struct SweepPoint {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum EvalStatus {
     /// Every parameter and every feature not suppressed or rolled back
@@ -44,6 +58,7 @@ pub enum EvalStatus {
 
 /// One parameter's value in SI, or why it has none.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ParamLine {
     pub id: ParamId,
     pub name: String,
@@ -53,6 +68,7 @@ pub struct ParamLine {
 
 /// One feature's outcome.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct FeatureLine {
     pub id: FeatureId,
     #[serde(rename = "type")]
@@ -72,6 +88,7 @@ pub struct FeatureLine {
 
 /// One body's measures, in SI.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct BodyLine {
     pub part: PartId,
     pub feature: FeatureId,
@@ -81,6 +98,16 @@ pub struct BodyLine {
     pub faces: usize,
     pub edges: usize,
     pub vertices: usize,
+}
+
+/// The eval line's JSON Schema, draft 2020-12 (ADR-0026).
+#[cfg(feature = "schema")]
+pub fn eval_line_schema() -> serde_json::Value {
+    schemars::generate::SchemaSettings::draft2020_12()
+        .for_serialize()
+        .into_generator()
+        .into_root_schema_for::<EvalLine>()
+        .to_value()
 }
 
 /// Opens the document `source` holds and evaluates it with `registry`'s
@@ -167,6 +194,7 @@ impl Evaluation {
         let failed = params.iter().any(|p| p.diagnostic.is_some())
             || features.iter().any(|f| f.status == "failed");
         EvalLine {
+            format: EVAL_FORMAT,
             doc: name.into(),
             sweep: None,
             status: if failed {
@@ -194,7 +222,7 @@ mod tests {
         let line = eval("empty", &src, &Registry::with_core_types()).unwrap();
         assert_eq!(
             serde_json::to_string(&line).unwrap(),
-            r#"{"doc":"empty","sweep":null,"status":"ok","params":[],"features":[],"bodies":[]}"#
+            r#"{"format":1,"doc":"empty","sweep":null,"status":"ok","params":[],"features":[],"bodies":[]}"#
         );
     }
 }
