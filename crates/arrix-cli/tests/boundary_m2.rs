@@ -19,7 +19,7 @@ use arrix_doc::{AuthorId, Command, expr::Expr};
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as B64;
 use common::serve_client::{Serve, standoff_commands};
-use common::{copy_tree, workspace};
+use common::{arrix_app, copy_tree, workspace};
 use serde_json::{Value, json};
 
 const ME: AuthorId = AuthorId(Id(1));
@@ -60,20 +60,6 @@ fn final_mesh(s: &mut Serve, generation: u64) -> (usize, usize) {
     let mesh = &meshed["mesh"]["Ok"];
     let run = |key: &str| B64.decode(mesh[key].as_str().unwrap()).unwrap().len();
     (run("positions") / 12, run("triangles") / 12)
-}
-
-/// The built `arrix-app`, which another package's tests cannot name.
-fn arrix_app() -> PathBuf {
-    let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
-    let built = Process::new(cargo)
-        .args(["build", "-q", "-p", "arrix-app"])
-        .current_dir(workspace())
-        .status()
-        .expect("cargo runs");
-    assert!(built.success(), "arrix-app builds");
-    let exe = std::env::current_exe().unwrap();
-    let debug = exe.parent().and_then(Path::parent).unwrap();
-    debug.join("arrix-app")
 }
 
 /// `arrix-app render` of `doc`; `None` where the machine has no adapter

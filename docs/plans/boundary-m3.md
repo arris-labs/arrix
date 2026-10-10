@@ -159,7 +159,7 @@ failure check reuses `--save-fixtures` recipes (`SEED.md` §6.6).
   - `serve` exiting is reported, never a hang (a timeout on every wait).
   - `arrix.eval` of `tests/docs/standoff` parses the line and checks its
     `format`.
-- [ ] **[3]** Step 8: the cycle's accept, `cargo test -p arrix-cli --test
+- [x] **[3]** Step 8: the cycle's accept, `cargo test -p arrix-cli --test
   boundary_m3`. The test copies the built `arrix`, `arrix-app` and
   `python/arrix` into a temp dir, then runs
   `crates/arrix-cli/tests/boundary/agent.py` with a cleared environment:
@@ -178,7 +178,10 @@ failure check reuses `--save-fixtures` recipes (`SEED.md` §6.6).
      the boss's bounds;
   4. runs `arrix test` on its plugin and reads every line as `pass`;
   5. runs `arrix eval --without-plugin boss` on the saved document and
-     sees the boss frozen with its reason and the plate whole.
+     sees the boss frozen with its reason and the plate whole. (As built:
+     `--plugin boss --without-plugin boss`, since `--without-plugin` names
+     a plugin of the run; the render's bounds are the drawn mesh's, so
+     the boss's across is checked to a chord.)
 
   The render step skips loudly without lavapipe, and fails under
   `ARRIX_REQUIRE_GPU=1`. The test also asserts that the script never

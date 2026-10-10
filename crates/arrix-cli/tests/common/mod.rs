@@ -136,6 +136,20 @@ pub fn workspace() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
+/// The built `arrix-app`, which another package's tests cannot name.
+pub fn arrix_app() -> PathBuf {
+    let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
+    let built = std::process::Command::new(cargo)
+        .args(["build", "-q", "-p", "arrix-app"])
+        .current_dir(workspace())
+        .status()
+        .expect("cargo runs");
+    assert!(built.success(), "arrix-app builds");
+    let exe = std::env::current_exe().unwrap();
+    let debug = exe.parent().and_then(Path::parent).unwrap();
+    debug.join("arrix-app")
+}
+
 /// Every file under `dir`, by `/`-separated path relative to it.
 pub fn read_tree(dir: &Path, prefix: &str, out: &mut BTreeMap<String, Vec<u8>>) {
     for entry in std::fs::read_dir(dir).unwrap() {
