@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 /// `[a-z][a-z0-9-]*`, and never `core`, which the built-ins own.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(try_from = "String", into = "String")]
 pub struct PluginId(String);
 

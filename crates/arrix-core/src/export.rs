@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 /// A file format a part is exported as.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum ExportFormat {
     /// STEP AP214 Part 21 text, the exact B-rep.

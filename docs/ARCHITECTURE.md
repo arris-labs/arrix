@@ -135,7 +135,17 @@ under. Local mode is
 `LocalSession`, an in-process transport over channels, and it is the only
 one that exists. A round-trip test serialises every request and event
 through JSON and back on every run, so nothing unserialisable can creep
-across. A `Rejected` answer crosses in-process only; its wire form comes
+across. The protocol describes itself (ADR-0023 §5): its types derive
+`schemars::JsonSchema` behind a `schema` feature of `arrix-core`,
+`arrix-sketch` and `arrix-doc`, `arrix_doc::protocol_schemas()` gives a
+draft 2020-12 schema each for a request (as read), an outcome and an event
+(as written) with `PROTOCOL_VERSION`, and every round-trip case, the
+random command sequences of the command tests included, is validated
+against them. A kernel call record in a failure is described as opaque
+JSON, and the sketch variants behind a feature (`conics`, `snells-law`,
+`unreached`) are left out, since a document never holds them, so every
+build prints the same schemas. `arrix serve --schema` prints the
+schemas. A `Rejected` answer crosses in-process only; its wire form comes
 with `arrix serve --stdio`. The framing the Tier 2 host speaks to a plugin
 (JSON-RPC 2.0, one object per line, ADR-0022) is the one `serve` will share. No network code exists until
 remote mode is built.
@@ -433,6 +443,11 @@ tests of **pre-push** cover it with no step of their own.
    (test code, the audit marker, a comment), which must pass. It also
    checks that CI's `gate: …` steps run exactly the hooks' commands, each
    as often, and that the check fails on a planted drift of either side.
+
+The protocol's schemas are held fresh by a test, not a step: `cargo test -p
+arrix-cli --test serve_schema` compares `arrix serve --schema` with
+`crates/arrix-cli/tests/golden/protocol.schema.json`, rewritten under
+`UPDATE_SNAPSHOTS=1`, so a change to a protocol type is a reviewed diff.
 
 The visual tests need a CPU wgpu adapter, Mesa's lavapipe (CI installs
 `mesa-vulkan-drivers`). With none a scenario skips loudly, never silently

@@ -9,7 +9,13 @@ publish.workspace = true
 [lints]
 workspace = true
 
+[features]
+# The session protocol's JSON Schemas (ADR-0023 §5): `JsonSchema` on
+# the types it carries.
+schema = ["dep:schemars"]
+
 [dependencies]
+schemars = { workspace = true, optional = true }
 glam.workspace = true
 serde.workspace = true
 thiserror.workspace = true

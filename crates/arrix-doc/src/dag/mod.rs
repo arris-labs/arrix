@@ -19,6 +19,7 @@ use crate::registry::Registry;
 
 /// A node of the DAG: what a command touches and the evaluator orders.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Node {
     Param(ParamId),

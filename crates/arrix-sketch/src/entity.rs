@@ -11,6 +11,7 @@ fn is_false(b: &bool) -> bool {
 
 /// A 2D point in plane-local coordinates, in metres.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Point {
     pub x: f64,
@@ -48,6 +49,7 @@ impl Point {
 /// so a shared vertex is coincident by identity, not only by constraint. A
 /// circle's radius is a solver variable of its own.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Entity {
     /// A lone point, drawn as geometry of its own.
@@ -72,6 +74,7 @@ pub enum Entity {
     /// An ellipse about `center`: its major radius is the distance to
     /// `major_axis_end`, its minor radius `minor_radius`.
     #[cfg(feature = "conics")]
+    #[cfg_attr(feature = "schema", schemars(skip))]
     Ellipse {
         center: PointId,
         major_axis_end: PointId,
@@ -80,6 +83,7 @@ pub enum Entity {
     /// An elliptic arc from `start` to `end` on the ellipse the first three
     /// fields define.
     #[cfg(feature = "conics")]
+    #[cfg_attr(feature = "schema", schemars(skip))]
     ArcOfEllipse {
         center: PointId,
         major_axis_end: PointId,
@@ -89,6 +93,7 @@ pub enum Entity {
     },
     /// A non-uniform B-spline on its control points.
     #[cfg(feature = "conics")]
+    #[cfg_attr(feature = "schema", schemars(skip))]
     BSpline {
         control_points: Vec<PointId>,
         knots: Vec<f64>,

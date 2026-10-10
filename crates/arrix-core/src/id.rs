@@ -86,12 +86,31 @@ impl<'de> Deserialize<'de> for Id {
     }
 }
 
+/// An id's schema is the text it is written as: 13 Crockford base32
+/// characters, the first at most `F`. A reader also takes lower case and
+/// Crockford's aliases; the schema says what a writer writes.
+#[cfg(feature = "schema")]
+impl schemars::JsonSchema for Id {
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        "Id".into()
+    }
+
+    fn json_schema(_: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        schemars::json_schema!({
+            "type": "string",
+            "pattern": "^[0-9A-F][0-9A-HJKMNP-TV-Z]{12}$",
+            "description": "64 bits as 13 Crockford base32 characters",
+        })
+    }
+}
+
 /// Typed ids: one kind of record each, so a part's id cannot be passed where
 /// a feature's is wanted. Same text and serde form as [`Id`].
 macro_rules! typed_ids {
     ($($(#[$doc:meta])* $name:ident),* $(,)?) => {$(
         $(#[$doc])*
         #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+        #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
         #[serde(transparent)]
         pub struct $name(pub Id);
 

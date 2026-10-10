@@ -12,6 +12,7 @@ use crate::eval::InputHash;
 /// What a plugin feature last evaluated to, kept so the document opens
 /// without the plugin.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct FrozenResult {
     /// The feature's input hash when the result was stored.
@@ -36,6 +37,7 @@ pub struct Frozen {
 /// BLAKE3 of its bytes, a dot, and an extension of lower-case letters
 /// and digits (`arrisbody`, `json`).
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(try_from = "String", into = "String")]
 pub struct BlobRef(String);
 

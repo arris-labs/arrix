@@ -51,8 +51,10 @@ pub use frozen::{BlobRef, Frozen, FrozenResult, InvalidBlobRef};
 pub use open::{DOCUMENT_JSON, DocumentSource, MemorySource, OpenError, PARAMS_JSON, SCHEMA, open};
 pub use registry::{FeatureArgs, FeatureType, Registry, RegistryError, SketchArgs, TypeOutput};
 pub use save::{save, to_json};
+#[cfg(feature = "schema")]
+pub use session::protocol_schemas;
 pub use session::{
-    DocHash, EventStream, LocalSession, ParamValues, PreviewBody, PreviewId, PreviewTag, Replica,
-    ReplicaError, Request, Session, SessionEvent,
+    DocHash, EventStream, LocalSession, PROTOCOL_VERSION, ParamValues, PreviewBody, PreviewId,
+    PreviewTag, Replica, ReplicaError, Request, Session, SessionEvent,
 };
 pub use zip::{ZipError, from_zip, open_zip, save_zip, to_zip};

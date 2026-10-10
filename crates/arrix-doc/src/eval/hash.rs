@@ -226,6 +226,18 @@ impl Serialize for InputHash {
     }
 }
 
+/// A hash's schema is the text it is written as: 64 lower-case hex digits.
+#[cfg(feature = "schema")]
+impl schemars::JsonSchema for InputHash {
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        "InputHash".into()
+    }
+
+    fn json_schema(_: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        schemars::json_schema!({ "type": "string", "pattern": "^[0-9a-f]{64}$" })
+    }
+}
+
 impl<'de> Deserialize<'de> for InputHash {
     fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         let text = String::deserialize(d)?;

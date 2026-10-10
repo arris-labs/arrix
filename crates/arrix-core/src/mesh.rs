@@ -12,6 +12,7 @@ use crate::{DVec3, PersistentName};
 /// How fine a mesh is asked for: a coarse one first so a body shows at
 /// once, then a refined one (docs/CONCURRENCY-WASM.md §Tessellation).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum MeshDetail {
     Coarse,
@@ -37,6 +38,7 @@ impl MeshDetail {
 /// A run of a mesh's triangles (a face), edge points (an edge) and the
 /// entity it draws, by name.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct MeshRange {
     pub name: PersistentName,
     pub start: u32,
@@ -51,6 +53,7 @@ impl MeshRange {
 
 /// A body's vertex, by name, at its place relative to the mesh's origin.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct MeshPoint {
     pub name: PersistentName,
     pub position: [f32; 3],
@@ -63,8 +66,10 @@ pub struct MeshPoint {
 /// positions, never shared vertices, so each carries its own face's
 /// outward normal and a sharp edge stays sharp.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct RenderMesh {
     /// In the world, metres.
+    #[cfg_attr(feature = "schema", schemars(with = "[f64; 3]"))]
     pub origin: DVec3,
     /// The chord it was made at, metres.
     pub chord: f64,

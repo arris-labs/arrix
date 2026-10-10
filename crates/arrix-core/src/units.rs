@@ -12,6 +12,7 @@ pub const LENGTH_TOLERANCE: f64 = 1.0e-6;
 
 /// What a number measures. Count and ratio are dimensionless.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum QuantityKind {
     Length,
@@ -79,6 +80,7 @@ pub struct UnitMismatch {
 
 /// A value of a kind, in SI.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Quantity {
     pub kind: QuantityKind,
     pub si: f64,

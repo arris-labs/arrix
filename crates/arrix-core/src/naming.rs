@@ -37,6 +37,7 @@ pub enum TopoKind {
 
 /// A face, edge or vertex: a root and what happened to it since.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(try_from = "String", into = "String")]
 pub struct PersistentName {
     pub kind: TopoKind,

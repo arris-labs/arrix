@@ -30,6 +30,7 @@ pub struct Document {
 
 /// A named, typed parameter.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Param {
     pub name: String,
@@ -39,6 +40,7 @@ pub struct Param {
 
 /// A part: a feature history.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Part {
     pub id: PartId,
@@ -52,6 +54,7 @@ pub struct Part {
 
 /// One history entry. Built-in and plugin features have this one shape.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct FeatureRecord {
     pub id: FeatureId,
@@ -85,6 +88,7 @@ pub struct FeatureRecord {
 /// `core.<name>` for a built-in, `<plugin>.<name>` for a plugin's; the
 /// name is lower-kebab words.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(try_from = "String", into = "String")]
 pub struct FeatureTypeId(String);
 

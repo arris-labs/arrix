@@ -25,6 +25,7 @@ pub use check::{Dim, FUNCTIONS};
 
 /// An expression: its text as typed, and the tree parsed from it.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(try_from = "String", into = "String")]
 pub struct Expr {
     text: String,

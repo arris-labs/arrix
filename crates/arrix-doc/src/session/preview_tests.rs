@@ -373,13 +373,9 @@ fn preview_requests_and_events_cross_as_json() {
     ];
     let mut seen = Vec::new();
     for r in &requests {
-        let json = serde_json::to_string(r).unwrap();
-        assert_eq!(
-            &serde_json::from_str::<Request>(&json).unwrap(),
-            r,
-            "{json}"
-        );
-        s.request(serde_json::from_str(&json).unwrap()).unwrap();
+        let json = crate::session::crosses(r, "request");
+        let outcome = s.request(serde_json::from_str(&json).unwrap()).unwrap();
+        crate::session::crosses(&outcome, "outcome");
         if seen.is_empty() {
             seen = until(&events, |e| {
                 matches!(
@@ -397,11 +393,6 @@ fn preview_requests_and_events_cross_as_json() {
             .any(|e| matches!(e, SessionEvent::Previewed { .. }))
     );
     for e in seen.iter().filter(|e| tag_of(e).is_some()) {
-        let json = serde_json::to_string(e).unwrap();
-        assert_eq!(
-            &serde_json::from_str::<SessionEvent>(&json).unwrap(),
-            e,
-            "{json}"
-        );
+        crate::session::crosses(e, "event");
     }
 }

@@ -21,6 +21,7 @@ use crate::sketch::{Sketch, SketchError, SketchRecord};
 /// `sources` it gives the entity its projection source, or with `null`
 /// takes it away.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct SketchEdit {
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]

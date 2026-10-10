@@ -17,16 +17,19 @@ use crate::document::Document;
 #[derive(
     Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
 )]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(transparent)]
 pub struct Generation(pub u64);
 
 /// Who issued a command: the local user in local mode.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(transparent)]
 pub struct AuthorId(pub Id);
 
 /// A command, its author and the generation the author saw.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct CommandEnvelope {
     pub author: AuthorId,
     pub base: Generation,
@@ -35,6 +38,7 @@ pub struct CommandEnvelope {
 
 /// A change the authority made: one item of the applied stream.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Change {
     pub generation: Generation,
     pub author: AuthorId,
@@ -45,6 +49,7 @@ pub struct Change {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Outcome {
     Applied(Box<Change>),

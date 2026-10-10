@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use crate::Ref;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum Severity {
     Info,
@@ -20,6 +21,7 @@ pub enum Severity {
 /// (`ref.lost`, `kernel.degenerate.tangent-contact`). Checked when built,
 /// so one that crosses a boundary is always well-formed.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(try_from = "String", into = "String")]
 pub struct DiagnosticCode(String);
 
@@ -78,6 +80,7 @@ impl fmt::Display for DiagnosticCode {
 /// A failure, warning or note the user sees, on a feature, in the status
 /// bar and in `arrix eval`'s output.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Diagnostic {
     pub severity: Severity,
     pub code: DiagnosticCode,

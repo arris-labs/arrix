@@ -547,6 +547,11 @@ fn events_cross_as_json() {
             event,
             "{json}"
         );
+        let evaluated = crate::SessionEvent::Evaluated {
+            generation: crate::Generation(1),
+            event: event.clone(),
+        };
+        crate::session::crosses(&evaluated, "event");
     }
     let json = serde_json::to_string(&e.events[3]).unwrap();
     assert_eq!(

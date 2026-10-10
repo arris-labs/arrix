@@ -48,17 +48,25 @@ const ORTHOGONAL_COSINE: f64 = 1e-9;
 /// A right-handed frame: an origin and unit X and Z axes, Y = Z × X. A
 /// plane is the frame's XY plane, its normal Z.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(try_from = "RawFrame", into = "RawFrame")]
 pub struct Frame {
+    #[cfg_attr(feature = "schema", schemars(with = "[f64; 3]"))]
     origin: DVec3,
+    #[cfg_attr(feature = "schema", schemars(with = "[f64; 3]"))]
     x_axis: DVec3,
+    #[cfg_attr(feature = "schema", schemars(with = "[f64; 3]"))]
     z_axis: DVec3,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 struct RawFrame {
+    #[cfg_attr(feature = "schema", schemars(with = "[f64; 3]"))]
     origin: DVec3,
+    #[cfg_attr(feature = "schema", schemars(with = "[f64; 3]"))]
     x_axis: DVec3,
+    #[cfg_attr(feature = "schema", schemars(with = "[f64; 3]"))]
     z_axis: DVec3,
 }
 
@@ -170,6 +178,7 @@ impl From<Frame> for RawFrame {
 /// nest and avoid each other is the kernel's to check; this type checks
 /// only what naming needs: numbers finite, radii positive, keys unique.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(try_from = "RawProfile", into = "RawProfile")]
 pub struct Profile {
     plane: Frame,
@@ -178,6 +187,7 @@ pub struct Profile {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 struct RawProfile {
     plane: Frame,
     outer: ProfileLoop,
@@ -187,14 +197,17 @@ struct RawProfile {
 /// One closed loop: a full circle, or a chain of segments from `start`
 /// that returns there.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum ProfileLoop {
     Circle {
         key: CurveKey,
+        #[cfg_attr(feature = "schema", schemars(with = "[f64; 2]"))]
         center: DVec2,
         radius: f64,
     },
     Path {
+        #[cfg_attr(feature = "schema", schemars(with = "[f64; 2]"))]
         start: DVec2,
         segments: Vec<ProfileSegment>,
     },
@@ -204,16 +217,20 @@ pub enum ProfileLoop {
 /// the side face it sweeps, and the vertex it starts at names the edges
 /// and vertices there.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum ProfileSegment {
     Line {
         key: CurveKey,
+        #[cfg_attr(feature = "schema", schemars(with = "[f64; 2]"))]
         to: DVec2,
     },
     /// A circular arc through `via` to `to`.
     Arc {
         key: CurveKey,
+        #[cfg_attr(feature = "schema", schemars(with = "[f64; 2]"))]
         to: DVec2,
+        #[cfg_attr(feature = "schema", schemars(with = "[f64; 2]"))]
         via: DVec2,
     },
 }

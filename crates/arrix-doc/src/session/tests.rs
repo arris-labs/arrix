@@ -204,13 +204,9 @@ fn every_request_and_event_crosses_as_json() {
     requests.push(Request::Undo { author: ME });
     requests.push(Request::Redo { author: ME });
     for r in &requests {
-        let json = serde_json::to_string(r).unwrap();
-        assert_eq!(
-            &serde_json::from_str::<Request>(&json).unwrap(),
-            r,
-            "{json}"
-        );
-        s.request(serde_json::from_str(&json).unwrap()).unwrap();
+        let json = crate::session::crosses(r, "request");
+        let outcome = s.request(serde_json::from_str(&json).unwrap()).unwrap();
+        crate::session::crosses(&outcome, "outcome");
     }
     let mut replica = Replica::default();
     let seen = until_finished(&events, &mut replica, 7);
@@ -233,12 +229,7 @@ fn every_request_and_event_crosses_as_json() {
         }
     )));
     for e in &seen {
-        let json = serde_json::to_string(e).unwrap();
-        assert_eq!(
-            &serde_json::from_str::<SessionEvent>(&json).unwrap(),
-            e,
-            "{json}"
-        );
+        crate::session::crosses(e, "event");
     }
 }
 

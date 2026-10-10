@@ -12,6 +12,7 @@ use crate::{FeatureId, ParamId, PersistentName, PluginId, RecordId, SketchEntity
 /// A feature's named output: `body`, `plane`, `sketch`. One lower-kebab
 /// segment, as a diagnostic code's segments are.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(try_from = "String", into = "String")]
 pub struct SlotName(String);
 
@@ -60,6 +61,7 @@ impl fmt::Display for SlotName {
 /// A reference from one record to another. `Topo` is the one naming
 /// solves; the rest are by id.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Ref {
     Param(ParamId),
@@ -93,6 +95,7 @@ pub enum Ref {
 /// untagged, a `Ref` object or an array of them, so a record written
 /// before lists existed reads unchanged. The order of a list is kept.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum Input {
     One(Ref),
@@ -150,6 +153,7 @@ impl From<Vec<Ref>> for Input {
 /// does. A nanometre is a thousandth of the length tolerance, and the
 /// sample sits as far inside its face as the face allows.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct RegionKey {
     /// Sorted and deduplicated, so two keys of one face compare equal
     /// whichever order their loops were walked in.

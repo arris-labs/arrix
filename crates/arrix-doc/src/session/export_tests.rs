@@ -151,8 +151,7 @@ fn a_request_and_its_answer_cross_as_json() {
         }],
         format: ExportFormat::Step,
     };
-    let json = serde_json::to_string(&request).unwrap();
-    assert_eq!(serde_json::from_str::<Request>(&json).unwrap(), request);
+    crate::session::crosses(&request, "request");
 
     let answers = [
         Ok(b"ISO-10303-21;".to_vec()),
@@ -164,7 +163,6 @@ fn a_request_and_its_answer_cross_as_json() {
             format: ExportFormat::Stl,
             bytes,
         };
-        let json = serde_json::to_string(&event).unwrap();
-        assert_eq!(serde_json::from_str::<SessionEvent>(&json).unwrap(), event);
+        crate::session::crosses(&event, "event");
     }
 }

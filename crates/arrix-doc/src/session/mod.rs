@@ -16,6 +16,8 @@ mod local;
 mod preview;
 #[cfg(test)]
 mod preview_tests;
+#[cfg(feature = "schema")]
+mod schema;
 #[cfg(test)]
 mod tests;
 
@@ -37,9 +39,39 @@ use crate::eval::{BodySlot, EvalEvent, FeatureOutcome};
 use crate::open::{MemorySource, open};
 use crate::save::save;
 pub use preview::{PreviewBody, PreviewId, PreviewTag};
+#[cfg(feature = "schema")]
+pub use schema::protocol_schemas;
+
+/// The session protocol's version (ADR-0023 §6), raised with any change to
+/// the shapes of its requests, outcomes and events; separate from the
+/// plugin API's.
+pub const PROTOCOL_VERSION: u32 = 1;
+
+/// The round-trip check every protocol test case goes through: `value`
+/// serialised, read back equal, and, with the `schema` feature (which the
+/// workspace's test run turns on), valid against the schema of `kind`
+/// (`request`, `outcome` or `event`). Returns the JSON.
+#[cfg(test)]
+pub(crate) fn crosses<T>(value: &T, kind: &str) -> String
+where
+    T: Serialize + serde::de::DeserializeOwned + PartialEq + fmt::Debug,
+{
+    let json = serde_json::to_string(value).expect("a protocol value serialises");
+    assert_eq!(
+        &serde_json::from_str::<T>(&json).expect("it reads back"),
+        value,
+        "{json}"
+    );
+    #[cfg(feature = "schema")]
+    schema::validate(kind, &json);
+    #[cfg(not(feature = "schema"))]
+    let _ = kind;
+    json
+}
 
 /// What a client asks of the authority.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Request {
     Submit(CommandEnvelope),
@@ -74,6 +106,7 @@ pub enum Request {
 /// BLAKE3 over a document's saved files, as 64 hex digits: equal
 /// documents, equal hashes.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(transparent)]
 pub struct DocHash(String);
 
@@ -101,6 +134,7 @@ pub type ParamValues = BTreeMap<ParamId, Result<Quantity, Diagnostic>>;
 
 /// What a subscriber hears, in the order the authority made it.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum SessionEvent {
     /// The first event of every subscription: the document at

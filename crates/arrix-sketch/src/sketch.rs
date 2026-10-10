@@ -44,6 +44,7 @@ pub enum SketchError {
 /// inserts and a deserialised sketch are checked; removal sweeps what
 /// referenced the removed record.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(try_from = "SketchRecord")]
 pub struct Sketch {
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
@@ -69,6 +70,7 @@ pub struct Sketch {
 /// The unchecked wire form a [`Sketch`] is read through, and what an edit
 /// is applied to before the result is checked.
 #[derive(Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub(crate) struct SketchRecord {
     #[serde(default)]

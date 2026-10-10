@@ -56,6 +56,7 @@ use resolve::{Params, Scope};
 
 /// A body's measures, in SI, and its topology counts.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct BodyMeasures {
     /// Cubic metres.
     pub volume: f64,
@@ -68,6 +69,7 @@ pub struct BodyMeasures {
 
 /// An output slot as a client sees it: plain data, no kernel handle.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum SlotView {
     Plane(Frame),
@@ -78,6 +80,7 @@ pub enum SlotView {
 /// A solved sketch, as its `core.sketch` feature outputs it: the plane it
 /// stands on, how free it still is, the solved sketch and its regions.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct SketchView {
     pub plane: Frame,
     /// Degrees of freedom left; 0 is fully constrained.
@@ -95,6 +98,7 @@ pub struct SketchView {
 /// region as a profile on the sketch's plane, its curves keyed by entity
 /// (docs/DATA-MODEL.md §Persistent naming).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct RegionView {
     pub key: RegionKey,
     pub profile: Profile,
@@ -102,6 +106,7 @@ pub struct RegionView {
 
 /// How one feature's evaluation ended.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(tag = "status", rename_all = "kebab-case")]
 pub enum FeatureOutcome {
     Ok {
@@ -122,11 +127,14 @@ pub enum FeatureOutcome {
     Failed {
         diagnostic: Diagnostic,
         /// The kernel call it failed at, kept for a fixture.
+        /// The kernel's own record, which the protocol does not describe.
         #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(feature = "schema", schemars(with = "Option<serde_json::Value>"))]
         call: Option<Box<KernelCall>>,
         /// That call's place in the kernel's records, which a recipe
         /// needs to find the calls that made its operands.
         #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(feature = "schema", schemars(with = "Option<u32>"))]
         call_index: Option<CallIndex>,
     },
     Suppressed,
@@ -136,6 +144,7 @@ pub enum FeatureOutcome {
 
 /// Why a plugin feature evaluates from its stored result.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum FrozenReason {
     /// The registry has no such feature type.
@@ -158,6 +167,7 @@ impl FrozenReason {
 /// A frozen feature's state: stale when its inputs now differ from the
 /// ones its stored result was made from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct FrozenInfo {
     pub reason: FrozenReason,
     pub stale: bool,
@@ -165,6 +175,7 @@ pub struct FrozenInfo {
 
 /// One feature's outcome, as the evaluator publishes it.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct EvalEvent {
     pub feature: FeatureId,
     pub outcome: FeatureOutcome,

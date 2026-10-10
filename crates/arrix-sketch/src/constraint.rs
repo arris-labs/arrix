@@ -14,6 +14,7 @@ use crate::ids::{ConstraintId, EntityId, PointId};
 /// One constraint in the residual system. Dimensional values are SI
 /// (meters / radians) — the UI converts from mm/deg on the way in.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Constraint {
     /// `a` and `b` share coordinates (2 residuals).
@@ -89,6 +90,7 @@ pub enum Constraint {
     },
     /// Point lies on the perpendicular bisector of segment `a`-`b` (1 residual: dist(p,a)^2 - dist(p,b)^2 == 0).
     #[cfg(feature = "unreached")]
+    #[cfg_attr(feature = "schema", schemars(skip))]
     PointOnPerpBisector {
         point: PointId,
         a: PointId,
@@ -96,12 +98,15 @@ pub enum Constraint {
     },
     /// Arc length dimension: s = R * theta (1 residual).
     #[cfg(feature = "unreached")]
+    #[cfg_attr(feature = "schema", schemars(skip))]
     ArcLength { arc: EntityId, value: f64 },
     /// Block/lock all degrees of freedom of an entity relative to sketch coordinates (2, 3, 4, or 6 residuals).
     #[cfg(feature = "unreached")]
+    #[cfg_attr(feature = "schema", schemars(skip))]
     Block { entity: EntityId },
     /// Angle between 3 points with vertex at `vertex` (1 residual).
     #[cfg(feature = "unreached")]
+    #[cfg_attr(feature = "schema", schemars(skip))]
     AnglePoints {
         a: PointId,
         vertex: PointId,
@@ -110,9 +115,11 @@ pub enum Constraint {
     },
     /// Distance from point to datum Vertical Axis X=0 (1 residual: |p.x| == value).
     #[cfg(feature = "unreached")]
+    #[cfg_attr(feature = "schema", schemars(skip))]
     DistanceToAxisX { point: PointId, value: f64 },
     /// Distance from point to datum Horizontal Axis Y=0 (1 residual: |p.y| == value).
     #[cfg(feature = "unreached")]
+    #[cfg_attr(feature = "schema", schemars(skip))]
     DistanceToAxisY { point: PointId, value: f64 },
     /// Perimeter clearance distance between two circles/arcs (1 residual).
     DistanceCircleCircle {
@@ -122,6 +129,7 @@ pub enum Constraint {
     },
     /// Clearance distance from a point to a circle/arc perimeter (1 residual).
     #[cfg(feature = "unreached")]
+    #[cfg_attr(feature = "schema", schemars(skip))]
     DistancePointCircle {
         point: PointId,
         circle: EntityId,
@@ -129,6 +137,7 @@ pub enum Constraint {
     },
     /// Snell's law of refraction across boundary: sin(theta1) - ratio * sin(theta2) == 0 (1 residual).
     #[cfg(feature = "snells-law")]
+    #[cfg_attr(feature = "schema", schemars(skip))]
     SnellsLaw {
         ray1_start: PointId,
         ray1_end: PointId,
@@ -140,6 +149,7 @@ pub enum Constraint {
     PointOnDatum { point: PointId, datum: DatumEntity },
     /// Perpendicular distance from a point to a datum axis (or Euclidean distance to origin).
     #[cfg(feature = "unreached")]
+    #[cfg_attr(feature = "schema", schemars(skip))]
     DistanceToDatum {
         point: PointId,
         datum: DatumEntity,
@@ -147,6 +157,7 @@ pub enum Constraint {
     },
     /// Angle between a line entity and a datum axis (AxisX: horizontal, AxisY: vertical), in radians.
     #[cfg(feature = "unreached")]
+    #[cfg_attr(feature = "schema", schemars(skip))]
     AngleWithDatum {
         line: EntityId,
         datum: DatumEntity,
@@ -154,6 +165,7 @@ pub enum Constraint {
     },
     /// Points `a` and `b` are symmetric across a datum axis (or point-symmetric about origin).
     #[cfg(feature = "unreached")]
+    #[cfg_attr(feature = "schema", schemars(skip))]
     SymmetricAcrossDatum {
         a: PointId,
         b: PointId,
@@ -163,24 +175,30 @@ pub enum Constraint {
     CoincidentToDatum { point: PointId, datum: DatumEntity },
     /// Point lies on an ellipse or elliptic arc (1 residual).
     #[cfg(feature = "conics")]
+    #[cfg_attr(feature = "schema", schemars(skip))]
     PointOnEllipse { point: PointId, ellipse: EntityId },
     /// Line is tangent to an ellipse (1 residual).
     #[cfg(feature = "conics")]
+    #[cfg_attr(feature = "schema", schemars(skip))]
     TangentLineEllipse { line: EntityId, ellipse: EntityId },
     /// Point aligns with an internal geometric feature of an ellipse (focus or axis endpoint) (2 residuals).
     #[cfg(feature = "conics")]
+    #[cfg_attr(feature = "schema", schemars(skip))]
     InternalAlignment {
         ellipse: EntityId,
         alignment: AlignmentKind,
     },
     /// Minor radius of an ellipse in meters (1 residual).
     #[cfg(feature = "conics")]
+    #[cfg_attr(feature = "schema", schemars(skip))]
     MinorRadius { ellipse: EntityId, value: f64 },
     /// Major radius of an ellipse in meters (1 residual).
     #[cfg(feature = "conics")]
+    #[cfg_attr(feature = "schema", schemars(skip))]
     MajorRadius { ellipse: EntityId, value: f64 },
     /// Point lies on a B-spline curve at knot parameter u in [0, 1] (2 residuals).
     #[cfg(feature = "conics")]
+    #[cfg_attr(feature = "schema", schemars(skip))]
     PointOnBSpline {
         point: PointId,
         bspline: EntityId,
@@ -188,6 +206,7 @@ pub enum Constraint {
     },
     /// B-spline tangent at parameter u in [0, 1] is parallel to a line (1 residual).
     #[cfg(feature = "conics")]
+    #[cfg_attr(feature = "schema", schemars(skip))]
     BSplineTangent {
         bspline: EntityId,
         u: f64,
@@ -195,6 +214,7 @@ pub enum Constraint {
     },
     /// Signed/unsigned curvature of a B-spline curve at parameter u in [0, 1] (1 residual).
     #[cfg(feature = "conics")]
+    #[cfg_attr(feature = "schema", schemars(skip))]
     BSplineCurvature {
         bspline: EntityId,
         u: f64,
@@ -233,6 +253,7 @@ impl AlignmentKind {
 
 /// Built-in coordinate datum entity in the sketch's local 2D UV coordinate system.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum DatumEntity {
     /// Origin point at (0, 0).
@@ -711,6 +732,7 @@ fn is_primary(p: &ConstraintPriority) -> bool {
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default,
 )]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum ConstraintPriority {
     #[default]
@@ -721,6 +743,7 @@ pub enum ConstraintPriority {
 /// A stored constraint: its id, the constraint, and its flags. The fields
 /// at their defaults are not written.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct ConstraintRecord {
     pub id: ConstraintId,

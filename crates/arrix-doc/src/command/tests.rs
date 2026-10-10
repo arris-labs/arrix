@@ -460,6 +460,7 @@ fn commands_cross_as_json() {
         r#"{"group":{"label":"g","commands":[{"add_param":{"param":"0000000000001","record":{"name":"w","kind":"length","expr":"8 mm"}}},{"edit_feature":{"feature":"0000000000003","edit":{"params":{"x":null}}}}]}}"#
     );
     assert_eq!(serde_json::from_str::<Command>(&json).unwrap(), c);
+    crate::session::crosses(&crate::Request::Submit(env(ALICE, 0, c)), "request");
 }
 
 /// A random command against the current document, from a few numbers.
@@ -627,7 +628,11 @@ proptest! {
             let back = apply(&a.document, &a.inverse).map_err(|e| TestCaseError::fail(format!("{c:?}: {e}")))?;
             prop_assert_eq!(&back.document, &doc, "{:?}", c);
             prop_assert_eq!(&apply(&back.document, &back.inverse).unwrap().document, &a.document);
-            match auth.submit(&env(ALICE, auth.generation().0, c)).unwrap() {
+            let envelope = env(ALICE, auth.generation().0, c);
+            crate::session::crosses(&crate::Request::Submit(envelope.clone()), "request");
+            let outcome = auth.submit(&envelope).unwrap();
+            crate::session::crosses(&outcome, "outcome");
+            match outcome {
                 Outcome::Applied(_) => states.push(auth.document().clone()),
                 Outcome::NoOp => prop_assert_eq!(&a.document, &doc),
                 Outcome::Previewing | Outcome::Exporting => {

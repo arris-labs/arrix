@@ -101,7 +101,7 @@ None new. `serve`, load and render reach the kernel only through calls
   JSON carries the adapter and a render format version. A document that
   fails to open, or has no adapter, exits non-zero with its diagnostic.
   One test per flag, and a frozen-slice render whose JSON shows the badge.
-- [ ] **[3]** Step 4: the schemas. `schemars` derives behind `schema` on
+- [x] **[3]** Step 4: the schemas. `schemars` derives behind `schema` on
   the protocol types in core, plugin-api and doc. The JSON of every
   existing session round-trip case is validated against its schema
   (`jsonschema` as a dev-dependency). `arrix serve --schema` prints them,
@@ -188,6 +188,16 @@ The whole gate stays green, including step 4's schema freshness and step
   event its request caused; one writer thread owns `serve`'s stdout.
 - Settled by step 1 (ADR-0023 §5): the schemas are printed by `arrix serve
   --schema`, not under `arrix config schema`.
+- Found by step 4: `arrix-plugin-api` has no serde type a command or
+  event carries yet, so its `schema` feature arrives with step 7, when
+  `SessionEvent::Registry` makes `FeatureTypeSpec` wire data (API: minor
+  then). `arrix-sketch` needed the feature too (sketch commands carry its
+  types). No derive disagreed with its serde form; `Id` and `InputHash`,
+  hand-serialised, have hand-written schemas, and a failure's
+  `KernelCall` is opaque JSON rather than a schema feature in
+  `arrix-kernel`. Step 6's base64 codec changes the wire form of meshes,
+  blobs and export bytes: `serve --schema` must then describe that form,
+  not the in-process one it prints now (agent, step 6).
 - Found by step 3: ADR-0025 §1 gives the render's JSON as `{adapter,
   debug_state}`, written before this step added `format`. The decision
   stands; `docs/UI-RENDERING.md` §Visual debugging carries the shape. A

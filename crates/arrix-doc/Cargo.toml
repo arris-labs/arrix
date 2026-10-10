@@ -9,7 +9,13 @@ publish.workspace = true
 [lints]
 workspace = true
 
+[features]
+# The session protocol's JSON Schemas (ADR-0023 §5): `JsonSchema` on
+# the types it carries.
+schema = ["dep:schemars", "arrix-core/schema", "arrix-sketch/schema"]
+
 [dependencies]
+schemars = { workspace = true, optional = true }
 arrix-core.workspace = true
 arrix-kernel.workspace = true
 arrix-sketch.workspace = true
@@ -24,3 +30,4 @@ thiserror.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
+jsonschema.workspace = true

@@ -17,6 +17,7 @@ use crate::document::Document;
 /// A body slot, named by the feature that made it: the name a mesh of its
 /// final version goes by, whatever feature made that version.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct BodySlot {
     pub feature: FeatureId,
     pub slot: SlotName,

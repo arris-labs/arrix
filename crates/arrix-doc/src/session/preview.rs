@@ -20,11 +20,13 @@ use crate::eval::{BodySlot, Evaluator, FinalBody, interrupted};
 
 /// A client's name for one of its previews, counted by the client.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(transparent)]
 pub struct PreviewId(pub u64);
 
 /// Whose preview an event is of, and which.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct PreviewTag {
     pub author: AuthorId,
     pub preview: PreviewId,
@@ -35,6 +37,7 @@ pub struct PreviewTag {
 /// A body of the generation missing from the list is one the preview
 /// consumes.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct PreviewBody {
     pub part: PartId,
     pub slot: BodySlot,

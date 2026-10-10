@@ -98,6 +98,11 @@ ciborium = "0.2"
 base64 = "0.22"
 # The wire tests' JSON Schema check (crates/arrix-plugin-host/tests/support).
 regex = "1"
+# The session protocol's JSON Schemas (ADR-0023 §5), derived from its
+# types behind each crate's `schema` feature, and the validator the
+# round-trip tests hold them to (dev-only; no fetching of remote schemas).
+schemars = { version = "1.2", features = ["semver1"] }
+jsonschema = { version = "0.58", default-features = false }
 
 # The headless visual harness (docs/UI-RENDERING.md §Visual debugging):
 # drives the real eframe app and renders through wgpu, preferring a CPU

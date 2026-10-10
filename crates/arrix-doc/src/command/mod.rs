@@ -20,6 +20,7 @@ use crate::expr::Expr;
 /// One edit of the document. One gesture is one command; a multi-step
 /// gesture is a `Group`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Command {
     AddParam {
@@ -80,6 +81,7 @@ pub enum Command {
 /// What an `EditFeature` changes; a field it leaves out is kept. In
 /// `params`, `choices` and `inputs`, `null` removes the entry.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct FeatureEdit {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,

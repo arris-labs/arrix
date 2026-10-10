@@ -9,6 +9,7 @@ mod export;
 mod load;
 mod plugins;
 mod schema;
+mod serve;
 mod source;
 
 use std::path::PathBuf;
@@ -119,6 +120,13 @@ enum Command {
         #[arg(long = "plugin", value_name = "DIR")]
         plugins: Vec<PathBuf>,
     },
+    /// The session protocol (ADR-0023). `--schema` prints its JSON Schemas:
+    /// `{"protocol", "request", "outcome", "event"}`, each draft 2020-12.
+    Serve {
+        /// Print the protocol's schemas and exit.
+        #[arg(long)]
+        schema: bool,
+    },
     /// Work with the config files.
     Config {
         #[command(subcommand)]
@@ -198,6 +206,7 @@ fn main() -> ExitCode {
             without: &without,
         }),
         Command::Describe { json, dir, plugins } => describe::run(dir.as_deref(), &plugins, json),
+        Command::Serve { schema } => serve::run(schema),
         Command::Config {
             command: ConfigCommand::Check { dir },
         } => config::check(dir.as_deref()),
