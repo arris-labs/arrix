@@ -101,7 +101,8 @@ regex = "1"
 
 # The headless visual harness (docs/UI-RENDERING.md §Visual debugging):
 # drives the real eframe app and renders through wgpu, preferring a CPU
-# adapter so a developer's machine and CI (lavapipe) agree. Dev-only.
+# adapter so a developer's machine and CI (lavapipe) agree. Dev-only;
+# `image` and `pollster` also serve `arrix-app render` (ADR-0025).
 egui_kittest = { version = "0.36", features = ["wgpu", "eframe"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 pollster = "1"

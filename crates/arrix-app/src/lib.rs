@@ -18,6 +18,8 @@ mod keys;
 mod palette;
 mod part_sketch;
 mod preview;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod render;
 mod sketch_constrain;
 mod sketch_dimension;
 mod sketch_drag;
@@ -169,13 +171,31 @@ impl ArrixApp {
         }
     }
 
+    /// The app on `ctx` with no window, rendering through `render_state`
+    /// when there is one: what the headless render (`render`) draws.
+    pub fn headless(
+        ctx: &egui::Context,
+        render_state: Option<&eframe::egui_wgpu::RenderState>,
+        source: &impl ConfigSource,
+    ) -> Self {
+        Self::build_on(ctx, render_state, source)
+    }
+
     fn build(cc: &eframe::CreationContext<'_>, source: &impl ConfigSource) -> Self {
+        Self::build_on(&cc.egui_ctx, cc.wgpu_render_state.as_ref(), source)
+    }
+
+    fn build_on(
+        ctx: &egui::Context,
+        render_state: Option<&eframe::egui_wgpu::RenderState>,
+        source: &impl ConfigSource,
+    ) -> Self {
         let types = commands::feature_types();
         let commands = commands::command_registry(&types);
         let specs = commands::feature_type_specs(&types);
         let config = Config::load(source, &commands, &specs, &arrix_doc::expr::check_constant);
-        let visuals = theme::view(&config.theme).visuals(&cc.egui_ctx.global_style().visuals);
-        cc.egui_ctx.set_visuals(visuals);
+        let visuals = theme::view(&config.theme).visuals(&ctx.global_style().visuals);
+        ctx.set_visuals(visuals);
         Self {
             commands,
             settings: config.settings,
@@ -200,10 +220,7 @@ impl ArrixApp {
                 badge_hover: None,
             },
             drawn: None,
-            renderer: cc
-                .wgpu_render_state
-                .as_ref()
-                .map(|rs| Renderer::new(&rs.device, rs.target_format)),
+            renderer: render_state.map(|rs| Renderer::new(&rs.device, rs.target_format)),
             idle_view: ViewState::default(),
             documents: Vec::new(),
             active: 0,
@@ -869,6 +886,14 @@ impl ArrixApp {
 
 impl eframe::App for ArrixApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        self.show(ui);
+    }
+}
+
+impl ArrixApp {
+    /// One frame of the app, as eframe's `ui` runs it; the headless render
+    /// (`render`) runs it on its own context.
+    pub fn show(&mut self, ui: &mut egui::Ui) {
         self.poll_config(ui.ctx());
         self.drain_documents(ui.ctx());
         self.run_keys(ui.ctx());

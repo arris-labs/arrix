@@ -33,14 +33,17 @@ serde_json.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 rfd.workspace = true
+# `arrix-app render` (src/render.rs, ADR-0025): its arguments, the blocking
+# device setup, and the PNG it writes.
+clap.workspace = true
+pollster.workspace = true
+image.workspace = true
 
 # The visual scenarios and the scratch render (tests/visual/): native and
 # dev-only, never in the shipped binary or the wasm build.
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 egui_kittest.workspace = true
 egui-wgpu.workspace = true
-image.workspace = true
-pollster.workspace = true
 
 # Looked at on demand, compared against nothing: not run by `cargo test`.
 [[test]]

@@ -413,6 +413,7 @@ dependencies = [
  "arrix-sketch",
  "arrix-ui",
  "arrix-viewport",
+ "clap",
  "eframe",
  "egui",
  "egui-wgpu",

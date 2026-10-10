@@ -13,6 +13,7 @@ mod harness;
 mod highlight;
 mod m3_accept;
 mod preview;
+mod render_parity;
 mod sketch;
 mod sketch_accept;
 mod snapshot;

@@ -89,7 +89,7 @@ None new. `serve`, load and render reach the kernel only through calls
 
 - [x] **[2]** Step 1: ADR-0023 and ADR-0024 written and indexed, and the
   idea file deleted. Docs only.
-- [ ] **[3]** Step 2: `arrix-app render`'s offscreen path, plus ADR-0025.
+- [x] **[3]** Step 2: `arrix-app render`'s offscreen path, plus ADR-0025.
   `tests/docs/slice` is rendered to PNG and `debug_state()`, waiting for
   evaluation to be idle. A parity test compares its coarse frame with a
   visual-harness scenario of the same document at the same size, within

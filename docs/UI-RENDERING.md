@@ -855,6 +855,15 @@ the way in.
 - **The scratch render** (`cargo test -p arrix-app --test visual_scratch`)
   draws a state to `target/visual-scratch/scratch.{png,json}` and compares
   against nothing: the agent's way to look before it pins a scenario.
+- **The product render** (`arrix-app render <doc> -o <png> [--json
+  <file>]`, ADR-0025) is the same drawing outside the test harness: the
+  real app on its own `egui::Context` (`ArrixApp::headless`), stepped as the
+  harness steps it, painted through `egui_wgpu` into a texture and read
+  back, after the document has settled. The JSON is `{adapter,
+  debug_state}`. It prefers a CPU adapter and draws on any other; its pixels
+  are promised only on lavapipe. `render_parity` holds it to the harness:
+  the slice drawn by both on one device gives identical pixels and the
+  same `debug_state()`.
 - **Refreshing a golden** (`UPDATE_SNAPSHOTS=1`) is done only for an
   intentional UI change, after reading the before, after and diff images
   rendered on demand and the golden's text diff, and the commit says why
