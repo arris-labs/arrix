@@ -120,12 +120,24 @@ enum Command {
         #[arg(long = "plugin", value_name = "DIR")]
         plugins: Vec<PathBuf>,
     },
-    /// The session protocol (ADR-0023). `--schema` prints its JSON Schemas:
-    /// `{"protocol", "request", "outcome", "event"}`, each draft 2020-12.
+    /// The session protocol (ADR-0023). `--stdio` serves one client one
+    /// document as JSON-RPC, a line per message: `initialize`, then the
+    /// `session.*` methods, with every event a `session.event`
+    /// notification. `--schema` prints its JSON Schemas: `{"protocol",
+    /// "request", "outcome", "rejected", "event", "methods"}`, each draft
+    /// 2020-12, the event's as `serve` writes it (bulk as base64). Exit
+    /// status: 0 at the end of the stream, 2 when the document could not be
+    /// opened.
     Serve {
         /// Print the protocol's schemas and exit.
         #[arg(long)]
         schema: bool,
+        /// Serve the session on stdin and stdout.
+        #[arg(long)]
+        stdio: bool,
+        /// A document directory or an `.arrx` to open; an empty document
+        /// by default.
+        doc: Option<PathBuf>,
     },
     /// Work with the config files.
     Config {
@@ -206,7 +218,11 @@ fn main() -> ExitCode {
             without: &without,
         }),
         Command::Describe { json, dir, plugins } => describe::run(dir.as_deref(), &plugins, json),
-        Command::Serve { schema } => serve::run(schema),
+        Command::Serve { schema, stdio, doc } => serve::run(&serve::Args {
+            schema,
+            stdio,
+            doc: doc.as_deref(),
+        }),
         Command::Config {
             command: ConfigCommand::Check { dir },
         } => config::check(dir.as_deref()),

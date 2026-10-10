@@ -119,6 +119,9 @@ it before ticking a step:
   `UPDATE_SNAPSHOTS=1 cargo test -p arrix-cli catalog`.
   `cargo test -p arrix-cli --test config` and `cargo test -p arrix-app
   --test visual configured_shell` are the configurable shell's accept.
+- `arrix serve --stdio [<doc>]` serves a session as JSON-RPC lines
+  (`--schema` prints the protocol's schemas; `cargo test -p arrix-cli
+  --test serve` drives the binary).
 - Either hook runs by hand as `.githooks/pre-commit` or
   `.githooks/pre-push`. `scripts/size-lint --list` shows offenders past
   the allowlist.

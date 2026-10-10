@@ -30,7 +30,7 @@ fn the_protocol_schemas_are_fresh() {
     );
     let schemas: serde_json::Value = serde_json::from_str(&text).expect("JSON");
     assert_eq!(schemas["protocol"], arrix_doc::PROTOCOL_VERSION);
-    for kind in ["request", "outcome", "event"] {
+    for kind in ["request", "outcome", "rejected", "event"] {
         assert_eq!(
             schemas[kind]["$schema"], "https://json-schema.org/draft/2020-12/schema",
             "{kind}"

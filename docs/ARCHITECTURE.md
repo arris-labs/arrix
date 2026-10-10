@@ -132,8 +132,14 @@ latest frozen result merged in when it is current (ADR-0009): the
 evaluator hands those out beside its events, never inside them, and the
 session keeps them with the input hash each feature last evaluated
 under. Local mode is
-`LocalSession`, an in-process transport over channels, and it is the only
-one that exists. A round-trip test serialises every request and event
+`LocalSession`, an in-process transport over channels. `arrix serve --stdio`
+(ADR-0023) is the second: JSON-RPC, a line per message, one client and one
+document. `initialize` names the protocol version and subscribes the
+client, each `session.*` method is a request (its params that request's
+fields, its result `{"ok": outcome}` or `{"err": rejected}`), and every
+event is a `session.event` notification, a mesh's runs, an `Opened` blob
+and an export's bytes as base64. A reader and one writer thread serve
+it, and a request's response is queued before any event it caused. A round-trip test serialises every request and event
 through JSON and back on every run, so nothing unserialisable can creep
 across. The protocol describes itself (ADR-0023 §5): its types derive
 `schemars::JsonSchema` behind a `schema` feature of `arrix-core`,
@@ -145,7 +151,7 @@ against them. A kernel call record in a failure is described as opaque
 JSON, and the sketch variants behind a feature (`conics`, `snells-law`,
 `unreached`) are left out, since a document never holds them, so every
 build prints the same schemas. `arrix serve --schema` prints the
-schemas. `Rejected`, `CommandError` and the errors inside it are serde too (a
+schemas as `serve` speaks them (the event's bulk as base64, the methods named). `Rejected`, `CommandError` and the errors inside it are serde too (a
 result's `err`), each case in the round-trip test. The framing the Tier 2 host speaks to a plugin
 (JSON-RPC 2.0, one object per line, ADR-0022) is the one `serve` will share. No network code exists until
 remote mode is built.

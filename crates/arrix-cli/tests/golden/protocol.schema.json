@@ -2423,17 +2423,9 @@
             "type": "number"
           },
           "edge_points": {
-            "description": "The edges' polylines, one run each, end to end along the edge.",
-            "items": {
-              "items": {
-                "format": "float",
-                "type": "number"
-              },
-              "maxItems": 3,
-              "minItems": 3,
-              "type": "array"
-            },
-            "type": "array"
+            "contentEncoding": "base64",
+            "description": "base64 of the little-endian f32 elements, three to a vertex",
+            "type": "string"
           },
           "edges": {
             "description": "Each edge's run of `edge_points`.",
@@ -2450,17 +2442,9 @@
             "type": "array"
           },
           "normals": {
-            "description": "Unit and outward, parallel to `positions`.",
-            "items": {
-              "items": {
-                "format": "float",
-                "type": "number"
-              },
-              "maxItems": 3,
-              "minItems": 3,
-              "type": "array"
-            },
-            "type": "array"
+            "contentEncoding": "base64",
+            "description": "base64 of the little-endian f32 elements, three to a vertex",
+            "type": "string"
           },
           "origin": {
             "description": "In the world, metres.",
@@ -2473,30 +2457,14 @@
             "type": "array"
           },
           "positions": {
-            "items": {
-              "items": {
-                "format": "float",
-                "type": "number"
-              },
-              "maxItems": 3,
-              "minItems": 3,
-              "type": "array"
-            },
-            "type": "array"
+            "contentEncoding": "base64",
+            "description": "base64 of the little-endian f32 elements, three to a vertex",
+            "type": "string"
           },
           "triangles": {
-            "description": "Indices into `positions`, anticlockwise seen from outside.",
-            "items": {
-              "items": {
-                "format": "uint32",
-                "minimum": 0,
-                "type": "integer"
-              },
-              "maxItems": 3,
-              "minItems": 3,
-              "type": "array"
-            },
-            "type": "array"
+            "contentEncoding": "base64",
+            "description": "base64 of the little-endian u32 indices, three to a triangle",
+            "type": "string"
           },
           "vertices": {
             "items": {
@@ -2523,13 +2491,9 @@
           {
             "properties": {
               "Ok": {
-                "items": {
-                  "format": "uint8",
-                  "maximum": 255,
-                  "minimum": 0,
-                  "type": "integer"
-                },
-                "type": "array"
+                "contentEncoding": "base64",
+                "description": "base64 of the bytes",
+                "type": "string"
               }
             },
             "required": [
@@ -2842,13 +2806,9 @@
         "properties": {
           "blobs": {
             "additionalProperties": {
-              "items": {
-                "format": "uint8",
-                "maximum": 255,
-                "minimum": 0,
-                "type": "integer"
-              },
-              "type": "array"
+              "contentEncoding": "base64",
+              "description": "base64 of the bytes",
+              "type": "string"
             },
             "type": "object"
           },
@@ -3086,6 +3046,29 @@
       }
     ],
     "title": "SessionEvent"
+  },
+  "methods": {
+    "session.clear_preview": {
+      "request": "clear_preview"
+    },
+    "session.export": {
+      "request": "export"
+    },
+    "session.preview": {
+      "request": "preview"
+    },
+    "session.redo": {
+      "request": "redo"
+    },
+    "session.save": {
+      "result": "saved"
+    },
+    "session.submit": {
+      "request": "submit"
+    },
+    "session.undo": {
+      "request": "undo"
+    }
   },
   "outcome": {
     "$defs": {
@@ -7751,5 +7734,6 @@
       }
     ],
     "title": "Request"
-  }
+  },
+  "result": "a request's result is {\"ok\": outcome} or {\"err\": rejected}; session.save's is {\"files\": {path: text}, \"blobs\": {path: base64}}"
 }

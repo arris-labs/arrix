@@ -442,6 +442,7 @@ dependencies = [
  "base64",
  "ciborium",
  "clap",
+ "jsonschema",
  "serde",
  "serde_json",
  "web-time",

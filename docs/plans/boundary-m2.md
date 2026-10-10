@@ -110,7 +110,7 @@ None new. `serve`, load and render reach the kernel only through calls
   schema is hand-written, with its examples validated.
 - [x] **[2]** Step 5: `Rejected` and `CommandError` serialise. Each case
   joins the round-trip test and the schemas.
-- [ ] **[2]** Step 6: `arrix serve --stdio`. It covers the handshake, the
+- [x] **[2]** Step 6: `arrix serve --stdio`. It covers the handshake, the
   `session.*` methods, events as notifications (`subscribe` implicit at
   `initialize`, one client), the base64 bulk codec, a line limit, and the
   protocol errors (unknown method, bad params, version mismatch). A
@@ -203,6 +203,11 @@ The whole gate stays green, including step 4's schema freshness and step
   stands; `docs/UI-RENDERING.md` §Visual debugging carries the shape. A
   superseding ADR is not worth it unless M3's stability promise wants the
   shape in an ADR (agent, at M3's plan).
+- Found by step 6: `serve --schema` now prints the wire form (the base64
+  runs, `methods`), as step 4's note asked. `serve --plugin` waits for
+  step 8; the protocol version stays 1, nothing having served it before.
+  A request's result keys are `ok`/`err`, while a `Result` inside an event
+  keeps serde's `Ok`/`Err` (agent, step 6).
 - Settled by step 1 (ADR-0024 §3): a reload makes a generation even when
   no spec changed. The registry change is a `SessionEvent::Registry`, not
   a `Change` (a `Change` carries a command, and a load is none).

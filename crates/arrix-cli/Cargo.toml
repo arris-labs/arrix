@@ -17,6 +17,7 @@ arrix-plugin-host.workspace = true
 arrix-kernel.workspace = true
 arrix-gears.workspace = true
 arrix-config.workspace = true
+base64.workspace = true
 clap.workspace = true
 serde_json.workspace = true
 web-time.workspace = true
@@ -24,8 +25,9 @@ web-time.workspace = true
 [dev-dependencies]
 # The wire spike (tests/wire_spike.rs, ADR-0022).
 ciborium.workspace = true
-base64.workspace = true
 serde.workspace = true
+# The serve tests check the wire against its schemas (tests/serve.rs).
+jsonschema.workspace = true
 # The scenario tests draw sketches (tests/slice.rs, tests/gears.rs).
 arrix-sketch.workspace = true
 
