@@ -287,13 +287,16 @@ fn delete_removes_the_selection_as_one_command_and_undo_restores_it() {
     h.key_press_modifiers(Modifiers::CTRL, Key::Z);
     h.run_steps(3);
     assert_eq!(gesture(&h), Some(1));
-    assert_eq!(h.state().saved().unwrap().0, before, "byte for byte");
     let started = web_time::Instant::now();
     while curves(&h) != 4 {
         h.step();
         assert!(started.elapsed().as_secs() < 60, "the undo was not drawn");
         std::thread::sleep(std::time::Duration::from_millis(5));
     }
+    // A save holds the gear's frozen result, which only the undone
+    // generation's evaluation brings back.
+    settle(&mut h);
+    assert_eq!(h.state().saved().unwrap().0, before, "byte for byte");
 }
 
 #[test]
