@@ -4,6 +4,8 @@
 
 #![allow(dead_code)]
 
+pub mod serve_client;
+
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

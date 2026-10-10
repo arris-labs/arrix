@@ -8,164 +8,19 @@
 mod common;
 
 use std::collections::BTreeMap;
-use std::io::{BufRead, BufReader, Write};
-use std::process::{Child, ChildStdin, Command as Process, Stdio};
-use std::sync::mpsc::{Receiver, channel};
-use std::time::Duration;
+use std::io::Write as _;
+use std::process::{Command as Process, Stdio};
 
 use arrix_core::Id;
-use arrix_doc::{
-    AuthorId, Command, CommandEnvelope, Document, Generation, MemorySource, Part, apply, open, save,
-};
+use arrix_doc::{AuthorId, Command, Document, MemorySource, Part, apply, open, save};
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as B64;
+use common::serve_client::Serve;
 use common::{read_tree, workspace};
 use serde_json::{Value, json};
 
 const ME: AuthorId = AuthorId(Id(1));
 const THEM: AuthorId = AuthorId(Id(2));
-
-struct Serve {
-    child: Child,
-    stdin: ChildStdin,
-    lines: Receiver<String>,
-    /// Every line heard so far, in order: responses and notifications.
-    heard: Vec<Value>,
-    next_id: i64,
-    event_schema: jsonschema::Validator,
-}
-
-impl Serve {
-    /// Spawned, not yet initialized.
-    fn spawn() -> Self {
-        let mut child = Process::new(env!("CARGO_BIN_EXE_arrix"))
-            .args(["serve", "--stdio"])
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .spawn()
-            .expect("run arrix");
-        let stdin = child.stdin.take().unwrap();
-        let stdout = child.stdout.take().unwrap();
-        let (tx, lines) = channel();
-        std::thread::spawn(move || {
-            for line in BufReader::new(stdout).lines().map_while(Result::ok) {
-                if tx.send(line).is_err() {
-                    break;
-                }
-            }
-        });
-        let schemas = Process::new(env!("CARGO_BIN_EXE_arrix"))
-            .args(["serve", "--schema"])
-            .output()
-            .expect("run arrix");
-        let schemas: Value = serde_json::from_slice(&schemas.stdout).expect("the schemas");
-        Serve {
-            child,
-            stdin,
-            lines,
-            heard: Vec::new(),
-            next_id: 0,
-            event_schema: jsonschema::validator_for(&schemas["event"]).expect("it compiles"),
-        }
-    }
-
-    /// Spawned and past the handshake.
-    fn start() -> Self {
-        let mut s = Self::spawn();
-        let hello = s.call("initialize", json!({"protocol": 1}));
-        assert_eq!(hello["result"]["protocol"], 1, "{hello}");
-        s
-    }
-
-    fn write(&mut self, line: &str) {
-        writeln!(self.stdin, "{line}").unwrap();
-        self.stdin.flush().unwrap();
-    }
-
-    fn read(&mut self) -> Value {
-        let line = self
-            .lines
-            .recv_timeout(Duration::from_secs(60))
-            .expect("serve writes within the timeout");
-        let value: Value = serde_json::from_str(&line).expect("a line is JSON");
-        if value["method"] == "session.event" {
-            let errors: Vec<String> = self
-                .event_schema
-                .iter_errors(&value["params"])
-                .map(|e| format!("{e} at {}", e.instance_path()))
-                .collect();
-            assert!(errors.is_empty(), "{line:.600}\n{}", errors.join("\n"));
-        }
-        self.heard.push(value.clone());
-        value
-    }
-
-    /// A request and its response, hearing whatever comes before it.
-    fn call(&mut self, method: &str, params: Value) -> Value {
-        self.next_id += 1;
-        let id = self.next_id;
-        self.write(
-            &json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params}).to_string(),
-        );
-        loop {
-            let message = self.read();
-            if message["id"] == id {
-                return message;
-            }
-        }
-    }
-
-    /// `session.<method>`'s result.
-    fn session(&mut self, method: &str, params: Value) -> Value {
-        let response = self.call(&format!("session.{method}"), params);
-        assert!(response.get("error").is_none(), "{response}");
-        response["result"].clone()
-    }
-
-    fn submit(&mut self, author: AuthorId, base: u64, command: Command) -> Value {
-        let envelope = CommandEnvelope {
-            author,
-            base: Generation(base),
-            command,
-        };
-        self.session("submit", serde_json::to_value(envelope).unwrap())
-    }
-
-    /// Hears until some notification satisfies `done`.
-    fn hear_event(&mut self, done: impl Fn(&Value) -> bool) -> Value {
-        if let Some(e) = self.events().into_iter().find(|e| done(e)) {
-            return e;
-        }
-        loop {
-            let message = self.read();
-            if message["method"] == "session.event" && done(&message["params"]) {
-                return message["params"].clone();
-            }
-        }
-    }
-
-    fn events(&self) -> Vec<Value> {
-        self.heard
-            .iter()
-            .filter(|m| m["method"] == "session.event")
-            .map(|m| m["params"].clone())
-            .collect()
-    }
-}
-
-impl Drop for Serve {
-    fn drop(&mut self) {
-        let _ = self.write_exit();
-        let _ = self.child.wait();
-    }
-}
-
-impl Serve {
-    fn write_exit(&mut self) -> std::io::Result<()> {
-        writeln!(self.stdin, r#"{{"jsonrpc":"2.0","method":"exit"}}"#)?;
-        self.stdin.flush()
-    }
-}
 
 /// The standoff scenario's plate as the commands an agent sends: its
 /// parameters, its part, then the sketch and the extrusion that make it.
@@ -371,16 +226,23 @@ fn each_protocol_error_is_a_json_rpc_error() {
         -32602
     );
 
-    // A line that is not JSON, and one that is not a request.
+    // A line that is not JSON, and one that is not a request. The
+    // `Opened` notification may still be on its way ahead of either error.
+    let error = |s: &mut Serve| loop {
+        let message = s.read();
+        if message.get("error").is_some() {
+            return code(&message);
+        }
+    };
     s.write("{not json");
-    assert_eq!(code(&s.read()), -32700);
+    assert_eq!(error(&mut s), -32700);
     s.write("[1, 2]");
-    assert_eq!(code(&s.read()), -32600);
+    assert_eq!(error(&mut s), -32600);
 
     // A line past the limit is skipped, and the next is served.
     let long = "x".repeat(16 * 1024 * 1024 + 1);
     s.write(&long);
-    assert_eq!(code(&s.read()), -32001);
+    assert_eq!(error(&mut s), -32001);
     let after = s.call("session.undo", json!({"author": "0000000000001"}));
     assert_eq!(after["result"]["err"], "nothing_to_undo");
 }

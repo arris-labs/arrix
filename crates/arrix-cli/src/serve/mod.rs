@@ -3,12 +3,14 @@
 //! the Tier 2 host speaks to a plugin (ADR-0022): a line per message.
 //! `--schema` prints the protocol's JSON Schemas as `serve` speaks them
 //! (`codec::wire_schemas`), kept fresh against
-//! `tests/golden/protocol.schema.json`.
+//! `tests/golden/protocol.schema.json`. `--plugin <dir>` starts a Tier 2
+//! plugin with the session, and `session.load_plugin` and
+//! `session.reload_plugin` change the registry while it runs (ADR-0024).
 
 mod codec;
 
 use std::io::Write as _;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::mpsc::{Sender, channel};
 use std::sync::{Arc, Mutex};
@@ -16,6 +18,7 @@ use std::sync::{Arc, Mutex};
 use arrix_doc::{
     Document, EventStream, LocalSession, PROTOCOL_VERSION, Registry, Request, Session as _,
 };
+use arrix_plugin_host::Tier2Loader;
 use arrix_plugin_host::wire::rpc::{
     INVALID_PARAMS, INVALID_REQUEST, LineError, LineReader, METHOD_NOT_FOUND, Message, Response,
     RpcError,
@@ -32,6 +35,7 @@ pub struct Args<'a> {
     pub schema: bool,
     pub stdio: bool,
     pub doc: Option<&'a Path>,
+    pub plugins: &'a [PathBuf],
 }
 
 pub fn run(args: &Args) -> ExitCode {
@@ -47,7 +51,7 @@ pub fn run(args: &Args) -> ExitCode {
         eprintln!("arrix serve: say how: --stdio, or --schema");
         return ExitCode::from(2);
     }
-    let session = match open(args.doc) {
+    let session = match open(args.doc, args.plugins) {
         Ok(session) => session,
         Err(message) => {
             eprintln!("arrix serve: {message}");
@@ -58,7 +62,7 @@ pub fn run(args: &Args) -> ExitCode {
     ExitCode::SUCCESS
 }
 
-fn open(doc: Option<&Path>) -> Result<LocalSession, String> {
+fn open(doc: Option<&Path>, dirs: &[PathBuf]) -> Result<LocalSession, String> {
     let document = match doc {
         None => Document::default(),
         Some(path) => {
@@ -67,8 +71,14 @@ fn open(doc: Option<&Path>) -> Result<LocalSession, String> {
             arrix_doc::open(&source).map_err(|e| format!("{name}: {e}"))?
         }
     };
-    let registry: Registry = plugins::registry();
-    LocalSession::open(document, registry).map_err(|e| e.to_string())
+    let mut registry: Registry = plugins::registry();
+    let started = plugins::register_dirs(&mut registry, dirs)?;
+    let known = started
+        .into_iter()
+        .zip(dirs)
+        .map(|(m, d)| (m.id, d.clone()));
+    let loader = Tier2Loader::with_plugins(known);
+    LocalSession::open_with(document, registry, Some(Box::new(loader))).map_err(|e| e.to_string())
 }
 
 /// The one writer's queue: every line `serve` prints goes through it.

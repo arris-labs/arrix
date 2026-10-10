@@ -127,7 +127,7 @@ None new. `serve`, load and render reach the kernel only through calls
     `PluginLoad`.
   - Undo and redo across a registry change are unaffected.
   - A replica follows the change, and the app rebuilds its forms from it.
-- [ ] **[2]** Step 8: plugins in `serve`. `arrix-plugin-host`'s loader is
+- [x] **[2]** Step 8: plugins in `serve`. `arrix-plugin-host`'s loader is
   wired in, along with `session.load_plugin`, `session.reload_plugin` and
   `serve --plugin`. Tested on the spawned binary: `tests/docs/standoff`
   opened without the plugin is frozen, then loaded and live; the
@@ -221,3 +221,14 @@ The whole gate stays green, including step 4's schema freshness and step
   The `schema` feature of `arrix-plugin-api` arrived here, as step 4's
   note said; its version stays 0.5.0, the WIT package being unchanged
   (agent, step 7).
+- Found by step 8: `Tier2Loader` (`arrix-plugin-host`) remembers each
+  plugin's directory, so a reload restarts it from where it was loaded,
+  `--plugin` ones included. The session does not replay the evaluation of
+  the generation a document opens at to a client that subscribes after it
+  (`Opened` carries files, not outcomes), so a client of `serve <doc>` may
+  miss generation 0's `Evaluated` events; the tests make a change first.
+  M3's `arrix.session` client or a later step may want `Opened` to be
+  followed by the latest outcomes (agent, step 8). The `serve` test client
+  moved to `tests/common/serve_client.rs` for step 9, and a flake in
+  `each_protocol_error_is_a_json_rpc_error` (the `Opened` notification read
+  as an error line) is fixed.

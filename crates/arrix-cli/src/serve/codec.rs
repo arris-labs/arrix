@@ -139,4 +139,6 @@ pub const REQUESTS: &[(&str, &str)] = &[
     ("session.preview", "preview"),
     ("session.clear_preview", "clear_preview"),
     ("session.export", "export"),
+    ("session.load_plugin", "load_plugin"),
+    ("session.reload_plugin", "reload_plugin"),
 ];

@@ -3353,11 +3353,17 @@
     "session.export": {
       "request": "export"
     },
+    "session.load_plugin": {
+      "request": "load_plugin"
+    },
     "session.preview": {
       "request": "preview"
     },
     "session.redo": {
       "request": "redo"
+    },
+    "session.reload_plugin": {
+      "request": "reload_plugin"
     },
     "session.save": {
       "result": "saved"

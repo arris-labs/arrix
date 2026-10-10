@@ -138,6 +138,10 @@ enum Command {
         /// A document directory or an `.arrx` to open; an empty document
         /// by default.
         doc: Option<PathBuf>,
+        /// A Tier 2 plugin directory to start with the session
+        /// (repeatable); `session.load_plugin` adds more later.
+        #[arg(long = "plugin")]
+        plugins: Vec<PathBuf>,
     },
     /// Work with the config files.
     Config {
@@ -218,10 +222,16 @@ fn main() -> ExitCode {
             without: &without,
         }),
         Command::Describe { json, dir, plugins } => describe::run(dir.as_deref(), &plugins, json),
-        Command::Serve { schema, stdio, doc } => serve::run(&serve::Args {
+        Command::Serve {
+            schema,
+            stdio,
+            doc,
+            plugins,
+        } => serve::run(&serve::Args {
             schema,
             stdio,
             doc: doc.as_deref(),
+            plugins: &plugins,
         }),
         Command::Config {
             command: ConfigCommand::Check { dir },

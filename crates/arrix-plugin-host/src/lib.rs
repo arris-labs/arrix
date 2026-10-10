@@ -6,12 +6,16 @@
 //! caught as a diagnostic) and Tier 2 (a child process's feature types,
 //! building by callback on the host's kernel, ADR-0021; native only).
 
+#[cfg(not(target_arch = "wasm32"))]
+mod loader;
 mod manifest;
 mod tier0;
 #[cfg(not(target_arch = "wasm32"))]
 mod tier2;
 pub mod wire;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub use loader::Tier2Loader;
 pub use manifest::{Capabilities, Contributes, Files, Manifest, ManifestError};
 pub use tier0::{HostError, register_tier0};
 #[cfg(not(target_arch = "wasm32"))]
