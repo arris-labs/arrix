@@ -64,3 +64,4 @@ Each rejected option and the one-line reason it lost.
 - [ADR-0023](0023-the-session-on-the-wire-is-its-serde-form.md): `arrix serve` speaks the session's serde form, one method per request, events as notifications, schemas derived; amends ADR-0022 §3 for `serve`
 - [ADR-0024](0024-the-authority-owns-the-registry.md): the authority owns the registry; loading or reloading a plugin is a request, not a command, and makes a new generation
 - [ADR-0025](0025-the-render-ships-in-the-native-app.md): `arrix-app render`, the headless render as product, by the app's own offscreen path; pixels promised on lavapipe, held to the harness by `render_parity`
+- [ADR-0026](0026-the-harness-is-versioned.md): the harness is a versioned public interface: four surfaces each with a `format` or `protocol`, schemas printed and held by goldens, additive-only inside a version, `debug_state()` promised on its marked fields

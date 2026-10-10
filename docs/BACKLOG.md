@@ -43,7 +43,6 @@ idea is not brainstormed twice.
 - The evaluator measures a body more than once: a body is measured two or three times per evaluation (the bracket's kernel calls 9, 10 and 12 all measure the hole's result), 2 to 8 ms each; a measurement kept with the body's handle in `Kernel` would make each body one call (plans/c1-m4 step 16)
 - A plugin reading a body: 1C's read half, a body's bytes or mesh handed to a Tier 2 plugin for analysis, a WIT addition when an analysis scenario asks (plans/boundary-m1, non-goals)
 - Unloading a plugin from a running session: a third request that re-freezes that plugin's features (ADR-0024; plans/boundary-m2, non-goals)
-- A subscriber to `serve <doc>` hears no `Evaluated` events of the generation the document opened at, since `Opened` carries files and not outcomes; `Opened` followed by the latest outcomes, for M3's `arrix.session` client (plans/boundary-m2 step 8)
 - Using `arris` 0.6's new operations: `cut_many` for a pattern's holes in one boolean, `tessellate_faces` for per-face mesh caching, `split`, `shell`; none is needed yet
 
 ## Rejected
