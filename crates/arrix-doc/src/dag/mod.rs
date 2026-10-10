@@ -49,7 +49,9 @@ impl fmt::Display for Node {
 }
 
 /// Why a document's references cannot form a DAG.
-#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "snake_case")]
 pub enum DagError {
     #[error(
         "feature {feature}'s `{field}` reads feature {target}, which is not before it in its part"

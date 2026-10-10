@@ -108,7 +108,7 @@ None new. `serve`, load and render reach the kernel only through calls
   held fresh under `UPDATE_SNAPSHOTS=1`. Where a derive disagrees with the
   serde form (internally tagged enums, transparent ids), that type's
   schema is hand-written, with its examples validated.
-- [ ] **[2]** Step 5: `Rejected` and `CommandError` serialise. Each case
+- [x] **[2]** Step 5: `Rejected` and `CommandError` serialise. Each case
   joins the round-trip test and the schemas.
 - [ ] **[2]** Step 6: `arrix serve --stdio`. It covers the handshake, the
   `session.*` methods, events as notifications (`subscribe` implicit at

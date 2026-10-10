@@ -10,15 +10,16 @@ use schemars::generate::SchemaSettings;
 use serde_json::{Value, json};
 
 use super::{PROTOCOL_VERSION, Request, SessionEvent};
-use crate::authority::Outcome;
+use crate::authority::{Outcome, Rejected};
 
-/// `{"protocol": 1, "request": …, "outcome": …, "event": …}`, each a
+/// `{"protocol": 1, "request": …, "outcome": …, "rejected": …, "event": …}`, each a
 /// standalone draft 2020-12 schema with its own `$defs`.
 pub fn protocol_schemas() -> Value {
     json!({
         "protocol": PROTOCOL_VERSION,
         "request": read::<Request>(),
         "outcome": written::<Outcome>(),
+        "rejected": written::<Rejected>(),
         "event": written::<SessionEvent>(),
     })
 }
@@ -42,7 +43,7 @@ fn written<T: JsonSchema>() -> Value {
 }
 
 /// Fails unless the JSON `json` is valid against the schema of `kind`
-/// (`request`, `outcome` or `event`).
+/// (`request`, `outcome`, `rejected` or `event`).
 #[cfg(test)]
 pub(crate) fn validate(kind: &str, json: &str) {
     let errors = errors(kind, json);
@@ -89,6 +90,8 @@ mod tests {
             ),
             ("request", r#"{"export":{"bodies":[],"format":"iges"}}"#),
             ("outcome", r#""done""#),
+            ("rejected", r#""refused""#),
+            ("rejected", r#"{"stale":{"base":1}}"#),
             (
                 "event",
                 r#"{"kind":"finished","generation":-1,"params":{}}"#,
@@ -103,5 +106,9 @@ mod tests {
             Vec::<String>::new()
         );
         assert_eq!(errors("outcome", r#""no_op""#), Vec::<String>::new());
+        assert_eq!(
+            errors("rejected", r#""nothing_to_undo""#),
+            Vec::<String>::new()
+        );
     }
 }

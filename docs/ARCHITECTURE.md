@@ -138,15 +138,15 @@ through JSON and back on every run, so nothing unserialisable can creep
 across. The protocol describes itself (ADR-0023 §5): its types derive
 `schemars::JsonSchema` behind a `schema` feature of `arrix-core`,
 `arrix-sketch` and `arrix-doc`, `arrix_doc::protocol_schemas()` gives a
-draft 2020-12 schema each for a request (as read), an outcome and an event
-(as written) with `PROTOCOL_VERSION`, and every round-trip case, the
+draft 2020-12 schema each for a request (as read), an outcome, a rejection
+and an event (as written) with `PROTOCOL_VERSION`, and every round-trip case, the
 random command sequences of the command tests included, is validated
 against them. A kernel call record in a failure is described as opaque
 JSON, and the sketch variants behind a feature (`conics`, `snells-law`,
 `unreached`) are left out, since a document never holds them, so every
 build prints the same schemas. `arrix serve --schema` prints the
-schemas. A `Rejected` answer crosses in-process only; its wire form comes
-with `arrix serve --stdio`. The framing the Tier 2 host speaks to a plugin
+schemas. `Rejected`, `CommandError` and the errors inside it are serde too (a
+result's `err`), each case in the round-trip test. The framing the Tier 2 host speaks to a plugin
 (JSON-RPC 2.0, one object per line, ADR-0022) is the one `serve` will share. No network code exists until
 remote mode is built.
 

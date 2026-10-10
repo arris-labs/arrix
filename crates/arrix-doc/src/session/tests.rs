@@ -233,6 +233,94 @@ fn every_request_and_event_crosses_as_json() {
     }
 }
 
+/// Every way a request is turned down crosses as JSON, so a client reads
+/// why from a result's `err` (ADR-0023 §1).
+#[test]
+fn every_rejection_crosses_as_json() {
+    use crate::dag::{DagError, Node};
+    use crate::document::Invalid;
+    use arrix_core::{FeatureId, ParamId, SketchEntityId};
+    use arrix_sketch::SketchError;
+
+    let mut m = IdMinter::new(5);
+    let (part, param, feature): (PartId, ParamId, FeatureId) = (m.mint(), m.mint(), m.mint());
+    let (a, b): (SketchEntityId, SketchEntityId) = (m.mint(), m.mint());
+    let sketch = [
+        SketchError::IdTaken(a),
+        SketchError::MissingPoint { by: a, point: b },
+        SketchError::MissingEntity { by: a, entity: b },
+        SketchError::KeyMismatch { key: a, id: b },
+        SketchError::SourceOnUnprojectable { entity: a },
+        SketchError::SourceNotTopo { entity: a },
+    ];
+    let invalid = [
+        Invalid::Dag(DagError::Order {
+            feature,
+            field: "plane".into(),
+            target: feature,
+        }),
+        Invalid::Dag(DagError::Cycle(vec![
+            Node::Feature(feature),
+            Node::Param(param),
+        ])),
+        Invalid::ParamName("1x".into()),
+        Invalid::DuplicateParam("h".into()),
+        Invalid::DuplicateFeatureName {
+            part,
+            name: "plate".into(),
+        },
+        Invalid::FeatureInTwoParts(feature),
+        Invalid::History(part),
+        Invalid::IdMismatch {
+            part,
+            key: "k".into(),
+            id: "i".into(),
+        },
+        Invalid::Rollback {
+            part,
+            at: 3,
+            len: 2,
+        },
+        Invalid::SketchExpr {
+            feature,
+            constraint: a,
+            text: "2 +".into(),
+            error: "ends early".into(),
+        },
+    ];
+    let mut refused = vec![
+        CommandError::NoParam(param),
+        CommandError::NoPart(part),
+        CommandError::NoFeature(feature),
+        CommandError::IdTaken(Id(9)),
+        CommandError::Index { at: 4, len: 2 },
+        CommandError::NoSketch(feature),
+    ];
+    refused.extend(
+        sketch
+            .into_iter()
+            .map(|error| CommandError::Sketch { feature, error }),
+    );
+    refused.extend(invalid.into_iter().map(CommandError::Invalid));
+
+    let mut rejected = vec![
+        Rejected::Stale {
+            base: Generation(3),
+            nodes: vec![Node::Feature(feature), Node::Part(part)],
+        },
+        Rejected::NothingToUndo,
+        Rejected::NothingToRedo,
+    ];
+    rejected.extend(refused.iter().cloned().map(Rejected::Refused));
+    for r in &rejected {
+        crate::session::crosses(r, "rejected");
+    }
+    for e in &refused {
+        let again: CommandError = serde_json::from_str(&serde_json::to_string(e).unwrap()).unwrap();
+        assert_eq!(&again, e);
+    }
+}
+
 #[test]
 fn the_evaluation_catches_up_with_the_newest_generation() {
     let s = LocalSession::open(Document::default(), Registry::with_core_types()).unwrap();

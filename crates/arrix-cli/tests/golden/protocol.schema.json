@@ -5068,6 +5068,616 @@
     "title": "Outcome"
   },
   "protocol": 1,
+  "rejected": {
+    "$defs": {
+      "CommandError": {
+        "description": "Why a command was refused. The document is unchanged.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "no_param": {
+                "$ref": "#/$defs/ParamId"
+              }
+            },
+            "required": [
+              "no_param"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "no_part": {
+                "$ref": "#/$defs/PartId"
+              }
+            },
+            "required": [
+              "no_part"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "no_feature": {
+                "$ref": "#/$defs/FeatureId"
+              }
+            },
+            "required": [
+              "no_feature"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "id_taken": {
+                "$ref": "#/$defs/Id"
+              }
+            },
+            "required": [
+              "id_taken"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "index": {
+                "properties": {
+                  "at": {
+                    "format": "uint",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "len": {
+                    "format": "uint",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "at",
+                  "len"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "index"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "no_sketch": {
+                "$ref": "#/$defs/FeatureId"
+              }
+            },
+            "required": [
+              "no_sketch"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "sketch": {
+                "properties": {
+                  "error": {
+                    "$ref": "#/$defs/SketchError"
+                  },
+                  "feature": {
+                    "$ref": "#/$defs/FeatureId"
+                  }
+                },
+                "required": [
+                  "feature",
+                  "error"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "sketch"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "invalid": {
+                "$ref": "#/$defs/Invalid"
+              }
+            },
+            "required": [
+              "invalid"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "DagError": {
+        "description": "Why a document's references cannot form a DAG.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "order": {
+                "properties": {
+                  "feature": {
+                    "$ref": "#/$defs/FeatureId"
+                  },
+                  "field": {
+                    "type": "string"
+                  },
+                  "target": {
+                    "$ref": "#/$defs/FeatureId"
+                  }
+                },
+                "required": [
+                  "feature",
+                  "field",
+                  "target"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "order"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "cycle": {
+                "items": {
+                  "$ref": "#/$defs/Node"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "cycle"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "FeatureId": {
+        "$ref": "#/$defs/Id",
+        "description": "A feature record in a part's history."
+      },
+      "Generation": {
+        "description": "Bumped by every applied command, undo and redo included.",
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "Id": {
+        "description": "64 bits as 13 Crockford base32 characters",
+        "pattern": "^[0-9A-F][0-9A-HJKMNP-TV-Z]{12}$",
+        "type": "string"
+      },
+      "Invalid": {
+        "description": "What makes a document malformed, whoever built it: a command that\nwould leave it so is refused, and a file that holds it is not opened.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "dag": {
+                "$ref": "#/$defs/DagError"
+              }
+            },
+            "required": [
+              "dag"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "param_name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "param_name"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "duplicate_param": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "duplicate_param"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "duplicate_feature_name": {
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "part": {
+                    "$ref": "#/$defs/PartId"
+                  }
+                },
+                "required": [
+                  "part",
+                  "name"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "duplicate_feature_name"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "feature_in_two_parts": {
+                "$ref": "#/$defs/FeatureId"
+              }
+            },
+            "required": [
+              "feature_in_two_parts"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "history": {
+                "$ref": "#/$defs/PartId"
+              }
+            },
+            "required": [
+              "history"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "id_mismatch": {
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "key": {
+                    "type": "string"
+                  },
+                  "part": {
+                    "$ref": "#/$defs/PartId"
+                  }
+                },
+                "required": [
+                  "part",
+                  "key",
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "id_mismatch"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "rollback": {
+                "properties": {
+                  "at": {
+                    "format": "uint",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "len": {
+                    "format": "uint",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "part": {
+                    "$ref": "#/$defs/PartId"
+                  }
+                },
+                "required": [
+                  "part",
+                  "at",
+                  "len"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "rollback"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "sketch_expr": {
+                "properties": {
+                  "constraint": {
+                    "$ref": "#/$defs/SketchEntityId"
+                  },
+                  "error": {
+                    "type": "string"
+                  },
+                  "feature": {
+                    "$ref": "#/$defs/FeatureId"
+                  },
+                  "text": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "feature",
+                  "constraint",
+                  "text",
+                  "error"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "sketch_expr"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "Node": {
+        "description": "A node of the DAG: what a command touches and the evaluator orders.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "param": {
+                "$ref": "#/$defs/ParamId"
+              }
+            },
+            "required": [
+              "param"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "part": {
+                "$ref": "#/$defs/PartId"
+              }
+            },
+            "required": [
+              "part"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "feature": {
+                "$ref": "#/$defs/FeatureId"
+              }
+            },
+            "required": [
+              "feature"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ParamId": {
+        "$ref": "#/$defs/Id",
+        "description": "A parameter."
+      },
+      "PartId": {
+        "$ref": "#/$defs/Id",
+        "description": "A part."
+      },
+      "SketchEntityId": {
+        "$ref": "#/$defs/Id",
+        "description": "A point, curve or constraint in a sketch."
+      },
+      "SketchError": {
+        "description": "Why a record could not join a sketch. The sketch is unchanged.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "id_taken": {
+                "$ref": "#/$defs/SketchEntityId"
+              }
+            },
+            "required": [
+              "id_taken"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "missing_point": {
+                "properties": {
+                  "by": {
+                    "$ref": "#/$defs/SketchEntityId"
+                  },
+                  "point": {
+                    "$ref": "#/$defs/SketchEntityId"
+                  }
+                },
+                "required": [
+                  "by",
+                  "point"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "missing_point"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "missing_entity": {
+                "properties": {
+                  "by": {
+                    "$ref": "#/$defs/SketchEntityId"
+                  },
+                  "entity": {
+                    "$ref": "#/$defs/SketchEntityId"
+                  }
+                },
+                "required": [
+                  "by",
+                  "entity"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "missing_entity"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "key_mismatch": {
+                "properties": {
+                  "id": {
+                    "$ref": "#/$defs/SketchEntityId"
+                  },
+                  "key": {
+                    "$ref": "#/$defs/SketchEntityId"
+                  }
+                },
+                "required": [
+                  "key",
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "key_mismatch"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "source_on_unprojectable": {
+                "properties": {
+                  "entity": {
+                    "$ref": "#/$defs/SketchEntityId"
+                  }
+                },
+                "required": [
+                  "entity"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "source_on_unprojectable"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "source_not_topo": {
+                "properties": {
+                  "entity": {
+                    "$ref": "#/$defs/SketchEntityId"
+                  }
+                },
+                "required": [
+                  "entity"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "source_not_topo"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Why nothing was applied.",
+    "oneOf": [
+      {
+        "enum": [
+          "nothing_to_undo",
+          "nothing_to_redo"
+        ],
+        "type": "string"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "stale": {
+            "properties": {
+              "base": {
+                "$ref": "#/$defs/Generation"
+              },
+              "nodes": {
+                "items": {
+                  "$ref": "#/$defs/Node"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "base",
+              "nodes"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "stale"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "refused": {
+            "$ref": "#/$defs/CommandError"
+          }
+        },
+        "required": [
+          "refused"
+        ],
+        "type": "object"
+      }
+    ],
+    "title": "Rejected"
+  },
   "request": {
     "$defs": {
       "AuthorId": {

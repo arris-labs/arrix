@@ -151,7 +151,9 @@ pub fn is_param_name(name: &str) -> bool {
 
 /// What makes a document malformed, whoever built it: a command that
 /// would leave it so is refused, and a file that holds it is not opened.
-#[derive(Clone, Debug, PartialEq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, thiserror::Error, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "snake_case")]
 pub enum Invalid {
     #[error(transparent)]
     Dag(#[from] DagError),

@@ -96,7 +96,9 @@ pub struct FeatureEdit {
 }
 
 /// Why a command was refused. The document is unchanged.
-#[derive(Clone, Debug, PartialEq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, thiserror::Error, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "snake_case")]
 pub enum CommandError {
     #[error("no parameter {0}")]
     NoParam(ParamId),

@@ -13,7 +13,9 @@ use crate::entity::{Entity, Point};
 use crate::ids::{ConstraintId, EntityId, PointId, SketchEntityId};
 
 /// Why a record could not join a sketch. The sketch is unchanged.
-#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "snake_case")]
 pub enum SketchError {
     #[error("the sketch already holds a record with id {0}")]
     IdTaken(SketchEntityId),

@@ -65,7 +65,9 @@ pub enum Outcome {
 }
 
 /// Why nothing was applied.
-#[derive(Clone, Debug, PartialEq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, thiserror::Error, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "snake_case")]
 pub enum Rejected {
     #[error("stale: {nodes:?} changed after generation {base:?}; rebuild against the new state")]
     Stale { base: Generation, nodes: Vec<Node> },

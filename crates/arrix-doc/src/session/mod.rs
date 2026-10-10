@@ -50,7 +50,7 @@ pub const PROTOCOL_VERSION: u32 = 1;
 /// The round-trip check every protocol test case goes through: `value`
 /// serialised, read back equal, and, with the `schema` feature (which the
 /// workspace's test run turns on), valid against the schema of `kind`
-/// (`request`, `outcome` or `event`). Returns the JSON.
+/// (`request`, `outcome`, `rejected` or `event`). Returns the JSON.
 #[cfg(test)]
 pub(crate) fn crosses<T>(value: &T, kind: &str) -> String
 where
