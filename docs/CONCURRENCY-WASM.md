@@ -88,6 +88,13 @@ preclude (`SEED.md` §6.1). Locally all three are in one process.
   every body coarse first, then every body refined, each a `Meshed` event
   of its generation. A newer snapshot stops it between meshes, and a
   version the evaluator's cache holds keeps its meshes.
+- **A registry change is a generation** (ADR-0024). Loading or reloading a
+  plugin bumps the generation without stamping a node; the session hands
+  the worker the new registry ahead of that generation's commit, and the
+  evaluator swaps it between evaluations, never within one. A reload drops
+  the cache entries of its types first, since an equal version no longer
+  promises equal code; other types' entries stay. Undo and redo stacks
+  are untouched.
 - **Previews come after commits** (ADR-0019). A preview waits until the
   newest commit is evaluated and meshed, and never stops it; a running
   preview stops between features or meshes for a commit, a newer preview
@@ -210,7 +217,8 @@ compiling; C4 makes it run.
   is the fallback and costs its cache. Chosen in C4, by ADR.
 - **Files** come from the browser's file APIs as bytes; there is no
   filesystem. Importers already take bytes (`docs/PLUGINS.md` §4).
-- **Plugins**: Tier 0 only. A document using a Tier 1 or Tier 2 plugin
+- **Plugins**: Tier 0 only, and no `PluginLoader`, so `LoadPlugin` and
+  `ReloadPlugin` are `Rejected::NoPluginLoader` (ADR-0024). A document using a Tier 1 or Tier 2 plugin
   opens with those features frozen (`docs/DATA-MODEL.md` §Frozen results).
 - **Picking** uses the same asynchronous readback as native.
 

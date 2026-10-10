@@ -73,14 +73,14 @@ a document over a stdio protocol, renders it headless and checks the result.
 The risk to retire: **the `Session` protocol and the plugin world hold across
 a process boundary** (ADR-0016), before Tier 1 and the browser build on them.*
 
-**Status: open 2026-10-09; M1 done 2026-10-09 (`cargo test -p arrix-cli --test boundary_m1`); M2 next.**
+**Status: open 2026-10-09; M1 done 2026-10-09 (`cargo test -p arrix-cli --test boundary_m1`); M2 done 2026-10-10 (`--test boundary_m2`); M3 next.**
 Unnumbered until it closes, as ADR-0016 says; C2 to C4 keep their names.
 Three milestones, a plan each, the riskiest first:
 
 - M1, the plugin crosses (done): the wire encoding's ADR from a measured spike,
   the WIT-generated wire, the Tier 2 host, the Python SDK and a sample
   Python feature in a real history, frozen without it.
-- M2, the session crosses: `arrix serve --stdio`, the wire `Rejected`, a
+- M2, the session crosses (done): `arrix serve --stdio`, the wire `Rejected`, a
   plugin loaded into a running session (an ADR for the registry's
   ownership), and `arrix-app render`, the headless render as a product
   command (an ADR: the render stack ships in the native app).

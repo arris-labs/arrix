@@ -32,9 +32,12 @@ batch; `arris` 0.5, 0.6 after; ADR-0004 to ADR-0020): `cargo test -p arrix-cli -
 c1_accept` is its accept, `--test c1_benchmark -- --nocapture` its budgets
 (the first coarse mesh misses, an Arris finding), `cargo test -p arrix-app
 --test visual m3_accept` the app's.
-**Open 2026-10-09: the boundary opened** (ADR-0016, ADR-0021, ADR-0022), M1 to
+**Open 2026-10-09: the boundary opened** (ADR-0016, ADR-0021 to ADR-0025), M1 to
 M3 in `docs/ROADMAP.md`; **M1 done 2026-10-09**: a Python feature plugin runs
-as Tier 2 over a JSON-RPC wire, frozen without it (`--test boundary_m1`).
+as Tier 2 over a JSON-RPC wire, frozen without it (`--test boundary_m1`);
+**M2 done 2026-10-10**: `arrix serve --stdio` carries the session, a plugin
+is loaded and reloaded by a request, `arrix-app render` renders headless
+(`--test boundary_m2`).
 
 ## Rules that are not derivable from the code
 
@@ -119,9 +122,12 @@ it before ticking a step:
   `UPDATE_SNAPSHOTS=1 cargo test -p arrix-cli catalog`.
   `cargo test -p arrix-cli --test config` and `cargo test -p arrix-app
   --test visual configured_shell` are the configurable shell's accept.
-- `arrix serve --stdio [<doc>]` serves a session as JSON-RPC lines
-  (`--schema` prints the protocol's schemas; `cargo test -p arrix-cli
-  --test serve` drives the binary).
+- `arrix serve --stdio [--plugin <dir>]… [<doc>]` serves a session as JSON-RPC
+  lines (`--schema` prints the protocol's schemas, held fresh by `cargo test
+  -p arrix-cli --test serve_schema`; `--test serve` drives the binary);
+  `cargo test -p arrix-cli --test boundary_m2` is M2's accept.
+  `cargo run -p arrix-app -- render <doc> -o <png> [--json <file>] [--view …]
+  [--size WxH] [--plugin <dir>]…` renders a document headless (needs lavapipe).
 - Either hook runs by hand as `.githooks/pre-commit` or
   `.githooks/pre-push`. `scripts/size-lint --list` shows offenders past
   the allowlist.

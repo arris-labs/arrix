@@ -22,13 +22,13 @@ unless an ADR says otherwise.
 | `arrix-kernel` | the only crate naming Arris types: operations, naming from provenance, render meshes, body bytes, call records | core | `arris`, `blake3`, `serde`, `thiserror` |
 | `arrix-sketch` | the sketch model and `SketchEdit`, the constraint solver and diagnostics, regions and their keyed profiles, trim/extend/offset/mirror, inference (ported) | core | `serde`, `thiserror` |
 | `arrix-plugin-api` | the WIT world, its Rust traits and plain types; semver of its own | core | `wit-bindgen`, `wit-parser` (the equality test only, dev) |
-| `arrix-doc` | document, parameters and expressions, DAG, feature registry, commands, undo, evaluator, `.arrx`, the `arrix eval` line; reads no files (a `DocumentSource` hands it bytes) | core, kernel, sketch, plugin-api | `serde_json`, `blake3`, `miniz_oxide`, `crc32fast` |
+| `arrix-doc` | document, parameters and expressions, DAG, feature registry, commands, undo, evaluator, `.arrx`, the `arrix eval` line, the `PluginLoader` trait, the protocol's schemas (`schema` feature, as in core, sketch and plugin-api); reads no files (a `DocumentSource` hands it bytes) | core, kernel, sketch, plugin-api | `serde_json`, `blake3`, `miniz_oxide`, `crc32fast` |
 | `arrix-plugin-host` | tier 0/1/2 hosting, manifests, capabilities, the frozen fallback; the wire (ADR-0022): the JSON-RPC framing and a codec per plugin-API type, generated from the WIT by `arrix-plugin-api`'s `tests/wire.rs`; the Tier 2 host (`tier2`, native only: spawn, handshake, kernel callbacks, timeout, restart) | core, doc, plugin-api | `toml`, `semver`, `serde_json`, `wasmtime` (native, C3) |
 | `arrix-viewport` | wgpu scene, ID-buffer picking, overlays, camera (ported) | core | `wgpu`, `egui-wgpu`, `glam`, `bytemuck` |
 | `arrix-ui` | egui widgets over plain view types; the declarative-UI renderer | core, viewport, plugin-api (UI types only) | `egui` |
 | `arrix-config` | the user's configuration (ADR-0015): setting specs, the layered model (built-in defaults, then the user's directory), each file's diagnostics with its file and line; reads no files (a `ConfigSource` hands it bytes); never reaches the document or `evaluate`. Holds the settings, the command registry (`CommandSpec` as plain data), the keymap, the themes and the feature parameter defaults (their expression check is handed in by the caller, since this crate cannot depend on `arrix-doc`). Read by app and cli; not by `arrix-ui`, which gets plain view data | core, plugin-api | `toml`, `serde` |
 | `arrix-app` | the binary: the shell, the command registry, translation between document and view types; `arrix-app render`, the headless render (ADR-0025) | all of the above, and each compiled-in plugin (`arrix-gears`, its own Tier 0 list) | `eframe` |
-| `arrix-cli` | headless open / eval / export / run / test; its Tier 0 registration list | core, doc, plugin-host, kernel, plugin-api and sketch (its tests), and each compiled-in plugin (`arrix-gears`) | `clap` |
+| `arrix-cli` | headless open / eval / export / run / test, and `serve` (`--stdio`, `--schema`; native only); its Tier 0 registration list | core, doc, plugin-host, kernel, plugin-api and sketch (its tests), and each compiled-in plugin (`arrix-gears`) | `clap` |
 | `plugins/*` | first-party plugins: `gears` (C1), `robotics` (by C3) | plugin-api **only** | — |
 | `python/arrix` | the Tier 2 SDK, pure stdlib, not a Cargo crate: `_wire.py` and `shapes.py` generated from the WIT, `@feature_type`, the `kernel` proxy, the stdio loop (`python -m arrix.plugin`); `python/examples/standoff` is the sample plugin | — | — |
 
@@ -115,7 +115,7 @@ day 0:
 
 The boundary is the `Session` trait in `arrix-doc`: `request(Request) ->
 Result<Outcome, Rejected>` (a `Request` is a submitted `CommandEnvelope`,
-an author's undo or redo, a preview or its clearing, ADR-0019, or an export) and `subscribe() -> EventStream`, whose
+an author's undo or redo, a preview or its clearing, ADR-0019, an export, or the loading or reloading of a plugin, ADR-0024) and `subscribe() -> EventStream`, whose
 `SessionEvent`s are `opened` (the document at subscription, as its
 directory form's files: the JSON ones as text, the frozen results' blobs as
 bytes), each `applied` change (from which each client
@@ -126,8 +126,8 @@ and refined (`docs/CONCURRENCY-WASM.md` §Tessellation), these three with
 their generation, then, while a preview is the session's, its `previewed`
 evaluation (every feature's outcome, the parameters and the final bodies,
 each saying whether the preview changed it) and a `preview_meshed` mesh
-of each body it changed, both with its `PreviewTag`, an `exported` file,
-and `save() -> MemorySource`, the directory form with each plugin feature's
+of each body it changed, both with its `PreviewTag`, an `exported` file, a `registry` change (a plugin loaded or reloaded, with the feature-type specs added or
+replaced and the type ids removed), and `save() -> MemorySource`, the directory form with each plugin feature's
 latest frozen result merged in when it is current (ADR-0009): the
 evaluator hands those out beside its events, never inside them, and the
 session keeps them with the input hash each feature last evaluated
@@ -153,8 +153,19 @@ JSON, and the sketch variants behind a feature (`conics`, `snells-law`,
 build prints the same schemas. `arrix serve --schema` prints the
 schemas as `serve` speaks them (the event's bulk as base64, the methods named). `Rejected`, `CommandError` and the errors inside it are serde too (a
 result's `err`), each case in the round-trip test. The framing the Tier 2 host speaks to a plugin
-(JSON-RPC 2.0, one object per line, ADR-0022) is the one `serve` will share. No network code exists until
+(JSON-RPC 2.0, one object per line, ADR-0022) is the one `serve` shares. No network code exists until
 remote mode is built.
+
+The authority owns the registry (ADR-0024). `Request::LoadPlugin { dir }`
+and `ReloadPlugin { plugin }` go to the `PluginLoader` that
+`LocalSession::open_with` was handed (`arrix-plugin-host`'s `Tier2Loader`);
+with none, they are `Rejected::NoPluginLoader`, and a failed load is
+`Rejected::PluginLoad`. Neither is a command: no undo entry, no gesture,
+no document change, and nothing persisted. Each makes a new generation
+that stamps no node, announced by `SessionEvent::Registry`, so a feature
+frozen for lack of its type evaluates live under it and a client orders
+events by generation alone. A `Replica` takes the generation and the app
+rebuilds its command registry and forms from the specs.
 
 A **preview** (ADR-0019) is the document evaluated with a command applied
 that is never applied: `Request::Preview { preview, envelope }` is checked
@@ -181,6 +192,7 @@ file, with the evaluation's line beside it.
 | UI (main) | client | egui, the viewport's frame, input, the sketch solver during sketch edits, the document replica, command submission | kernel calls, file I/O beyond a picked file's bytes |
 | Session | authority | the document: applies or rejects commands, publishes the applied stream, hands snapshots to the evaluator | kernel calls, anything egui |
 | Evaluator | authority | evaluates snapshots, calls the kernel, tessellates | anything egui |
+| `serve` reader and writer | transport | `arrix serve --stdio` (native only): the reader turns stdin lines into requests; the one writer owns stdout, so a response precedes the events it caused | kernel calls |
 | Plugin processes | — | Tier 2 plugins, one process each, with a reader thread in the host (native only) | — |
 
 Each open document is its own session and evaluator pair, with the client's
@@ -449,6 +461,11 @@ tests of **pre-push** cover it with no step of their own.
    (test code, the audit marker, a comment), which must pass. It also
    checks that CI's `gate: …` steps run exactly the hooks' commands, each
    as often, and that the check fails on a planted drift of either side.
+
+`arrix-app`'s product render is held to the visual harness by a test,
+too: `render_parity`, a module of `cargo test -p arrix-app --test visual`,
+draws `tests/docs/slice` through both paths on one device and compares
+pixels and `debug_state()` (ADR-0025).
 
 The protocol's schemas are held fresh by a test, not a step: `cargo test -p
 arrix-cli --test serve_schema` compares `arrix serve --schema` with

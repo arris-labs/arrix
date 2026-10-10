@@ -820,6 +820,11 @@ it touched. It either applies whole or not at all.
   (a sketch drag that adds a point and a coincidence) is one `Group`. A
   command whose effect equals the current state is not applied and leaves
   no undo entry.
+- **A registry change is no command.** Loading or reloading a plugin
+  (`Request::LoadPlugin`, `ReloadPlugin`, ADR-0024) makes a generation,
+  announced by `SessionEvent::Registry`, with no `Change`, no undo entry
+  and no stamp; the document does not change and a registry change is
+  never persisted.
 - **Plugin commands** are composed from core commands and the plugin's own
   `PluginData` edits (`docs/PLUGINS.md` §Commands), below.
 

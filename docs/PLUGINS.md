@@ -223,7 +223,14 @@ shapes generated from the WIT world (ADR-0022): `kernel.extrude`,
 `feature.evaluate`, a record as an object, a variant as a one-key object, a
 `result` as `{"ok": …}` or `{"err": …}`, a resource as its handle, bulk
 `f32` and `u32` runs as base64. `arrix serve --stdio` uses the same
-framing. A plugin calls `kernel.*` while it answers `feature.evaluate`.
+framing.
+
+A Tier 2 plugin is loaded into a running session by a request, not a
+command (ADR-0024): `session.load_plugin` takes a plugin directory, and
+`session.reload_plugin` restarts the process from where it was loaded, so
+an edit to its source is seen with no rebuild. `arrix serve --plugin
+<dir>` loads at start. Each makes a generation, and the features frozen
+for lack of the plugin evaluate live. Unloading is not built. A plugin calls `kernel.*` while it answers `feature.evaluate`.
 
 ## The manifest
 
