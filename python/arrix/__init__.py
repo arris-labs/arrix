@@ -12,9 +12,13 @@ plugin API's WIT (`_wire.py`).
         return {"body": body}
 
 Run with `python -m arrix.plugin <module>` (the manifest's `[tier2] command`).
+
+The same package drives ArriX from outside: `arrix.session.Session` speaks
+`arrix serve --stdio`, and `arrix.eval(paths)` returns `arrix eval`'s lines.
 """
 
 from . import _wire as wire
+from . import session  # noqa: F401
 from ._wire import (  # noqa: F401
     API_VERSION,
     Failure,
@@ -24,6 +28,7 @@ from ._wire import (  # noqa: F401
     Severity,
     SlotKind,
 )
+from ._eval import EVAL_FORMAT, EvalError, eval  # noqa: F401
 from .feature import Args, choice, diagnostic, feature_type, input, param, slot  # noqa: F401
 from .ids import key  # noqa: F401
 from .shapes import circle_loop, polygon_loop, profile  # noqa: F401

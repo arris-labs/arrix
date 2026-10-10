@@ -148,7 +148,7 @@ failure check reuses `--save-fixtures` recipes (`SEED.md` §6.6).
   Each check gets a passing case on gears or the standoff and a planted
   failing one: a plugin whose fixture lacks a type, and a `fail` fixture
   that succeeds.
-- [ ] **[2]** Step 7: `arrix.session` and `arrix.eval` in the SDK, with
+- [x] **[2]** Step 7: `arrix.session` and `arrix.eval` in the SDK, with
   `python -m unittest` cases run by `python_sdk.rs` against the built
   `arrix`.
   - The session spawns, initializes, submits the plate as a dict command,
