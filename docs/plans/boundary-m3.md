@@ -115,7 +115,7 @@ failure check reuses `--save-fixtures` recipes (`SEED.md` §6.6).
   `arrix-app`'s tests. `render_cli` validates every render it makes
   against the schema. A test checks that every marked field is present in
   a slice render's JSON.
-- [ ] **[2]** Step 4: `Opened` followed by the latest outcomes. A client
+- [x] **[2]** Step 4: `Opened` followed by the latest outcomes. A client
   of `serve tests/docs/standoff` hears generation 0's `Evaluated`,
   `Finished` and refined `Meshed` with no change made first. Tested in
   `arrix-doc` with a late subscriber, and on the spawned binary in

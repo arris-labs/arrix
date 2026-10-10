@@ -418,3 +418,43 @@ fn a_replica_that_differs_from_the_authority_says_so() {
     .unwrap();
     assert_eq!(r.document(), other.document());
 }
+
+/// A subscriber that joins after the evaluation has spoken hears
+/// `Opened`, then the newest generation's outcomes, finish and refined
+/// meshes, with no change made first.
+#[test]
+fn a_late_subscriber_hears_the_latest_outcomes_again() {
+    let s = LocalSession::open(Document::default(), Registry::with_core_types()).unwrap();
+    let events = s.subscribe();
+    for (g, c) in build().into_iter().enumerate() {
+        envelope(&s, ME, g as u64, c);
+    }
+    let mut replica = Replica::default();
+    until_finished(&events, &mut replica, 4);
+    // Meshes follow `Finished`; wait for the refined ones.
+    let late = s.subscribe();
+    let mut heard = vec![next(&late)];
+    assert!(matches!(heard[0], SessionEvent::Opened { .. }));
+    let mut follower = Replica::default();
+    follower.receive(&heard[0]).unwrap();
+    until_finished(&late, &mut follower, 4)
+        .into_iter()
+        .for_each(|e| heard.push(e));
+    for feature in [ids().low, ids().high] {
+        assert!(
+            (z(&follower, feature) - z(&replica, feature)).abs() < 1e-15,
+            "the late replica has the outcome of {feature:?}"
+        );
+    }
+    let evaluated = heard
+        .iter()
+        .filter(|e| matches!(e, SessionEvent::Evaluated { generation, .. } if *generation == Generation(4)))
+        .count();
+    assert_eq!(evaluated, 2, "{heard:?}");
+    assert!(
+        heard
+            .iter()
+            .all(|e| !matches!(e, SessionEvent::Applied { .. })),
+        "no change was made"
+    );
+}

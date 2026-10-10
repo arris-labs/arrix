@@ -256,3 +256,24 @@ fn a_document_opens_from_a_path_and_a_bad_path_exits_2() {
     assert_eq!(lines[1]["params"]["kind"], "opened");
     assert!(lines[1]["params"]["files"].as_object().unwrap().len() > 2);
 }
+
+/// A client of `serve <doc>` hears generation 0's `Evaluated`, `Finished`
+/// and refined `Meshed` after `Opened`, with no change made first.
+#[test]
+fn a_client_hears_the_opening_generations_outcomes_without_a_change() {
+    let doc = workspace().join("tests/docs/standoff");
+    let mut s = Serve::spawn_with(&[doc.to_str().unwrap()]);
+    let hello = s.call("initialize", json!({"protocol": 1}));
+    assert_eq!(hello["result"]["protocol"], 1, "{hello}");
+    s.hear_event(|e| e["kind"] == "finished" && e["generation"] == 0);
+    s.hear_event(|e| e["kind"] == "meshed" && e["generation"] == 0 && e["detail"] == "refined");
+    let events = s.events();
+    assert_eq!(events[0]["kind"], "opened");
+    assert!(
+        events
+            .iter()
+            .any(|e| e["kind"] == "evaluated" && e["generation"] == 0),
+        "an outcome of generation 0 was heard"
+    );
+    assert!(events.iter().all(|e| e["kind"] != "applied"));
+}

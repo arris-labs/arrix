@@ -40,6 +40,61 @@ enum Msg {
     Stop,
 }
 
+/// What the evaluation of the newest generation has said so far, which a
+/// late subscriber is told after `Opened`: each feature's outcome, the
+/// `Finished`, and the latest mesh of each body (refined replacing coarse).
+#[derive(Default)]
+struct Replay {
+    generation: Option<Generation>,
+    events: Vec<SessionEvent>,
+}
+
+impl Replay {
+    fn record(&mut self, event: &SessionEvent) {
+        let (SessionEvent::Evaluated { generation, .. }
+        | SessionEvent::Finished { generation, .. }
+        | SessionEvent::Meshed { generation, .. }) = event
+        else {
+            return;
+        };
+        match self.generation {
+            Some(held) if held > *generation => return,
+            Some(held) if held == *generation => {}
+            _ => {
+                self.generation = Some(*generation);
+                self.events.clear();
+            }
+        }
+        let same = |old: &SessionEvent| match (old, event) {
+            (
+                SessionEvent::Evaluated { event: a, .. },
+                SessionEvent::Evaluated { event: b, .. },
+            ) => a.feature == b.feature,
+            (SessionEvent::Finished { .. }, SessionEvent::Finished { .. }) => true,
+            (
+                SessionEvent::Meshed { part, slot, .. },
+                SessionEvent::Meshed {
+                    part: p, slot: s, ..
+                },
+            ) => part == p && slot == s,
+            _ => false,
+        };
+        match self.events.iter().position(same) {
+            Some(at) => self.events[at] = event.clone(),
+            None => self.events.push(event.clone()),
+        }
+    }
+
+    /// The events of `generation`, in the order they were first heard.
+    fn of(&self, generation: Generation) -> &[SessionEvent] {
+        if self.generation == Some(generation) {
+            &self.events
+        } else {
+            &[]
+        }
+    }
+}
+
 /// A session in this process. Dropping it stops both threads, the worker
 /// after the feature it is evaluating.
 pub struct LocalSession {
@@ -148,6 +203,7 @@ fn serve(
     let mut kept: BTreeMap<FeatureId, Arc<Frozen>> = BTreeMap::new();
     let mut hashes: BTreeMap<FeatureId, (Generation, InputHash)> = BTreeMap::new();
     let mut previewing: Option<PreviewTag> = None;
+    let mut replay = Replay::default();
     // The flag goes up before the snapshot is queued, so a worker that
     // takes the snapshot and lowers the flag never lowers a raise that
     // is still to be followed by its job.
@@ -227,7 +283,14 @@ fn serve(
                     blobs,
                     types: plugins.loaded_specs(),
                 };
-                if tx.send(opened).is_ok() {
+                // The newest generation's outcomes follow, so that a client
+                // that joins after the evaluation has spoken still hears it.
+                let told = tx.send(opened).is_ok()
+                    && replay
+                        .of(authority.generation())
+                        .iter()
+                        .all(|e| tx.send(e.clone()).is_ok());
+                if told {
                     subscribers.push(tx);
                 }
             }
@@ -251,6 +314,7 @@ fn serve(
                     }
                     _ => {}
                 }
+                replay.record(&event);
                 subscribers.retain(|s| s.send(event.clone()).is_ok());
             }
             Msg::Freeze(results) => kept.extend(results),
