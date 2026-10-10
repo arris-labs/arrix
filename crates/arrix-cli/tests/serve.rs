@@ -12,11 +12,11 @@ use std::io::Write as _;
 use std::process::{Command as Process, Stdio};
 
 use arrix_core::Id;
-use arrix_doc::{AuthorId, Command, Document, MemorySource, Part, apply, open, save};
+use arrix_doc::{AuthorId, Command, Document, apply, save};
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as B64;
-use common::serve_client::Serve;
-use common::{read_tree, workspace};
+use common::serve_client::{Serve, standoff_commands};
+use common::workspace;
 use serde_json::{Value, json};
 
 const ME: AuthorId = AuthorId(Id(1));
@@ -25,34 +25,7 @@ const THEM: AuthorId = AuthorId(Id(2));
 /// The standoff scenario's plate as the commands an agent sends: its
 /// parameters, its part, then the sketch and the extrusion that make it.
 fn plate() -> Vec<Command> {
-    let mut files = BTreeMap::new();
-    read_tree(&workspace().join("tests/docs/standoff"), "", &mut files);
-    let doc = open(&MemorySource(files)).unwrap();
-    let mut commands: Vec<Command> = doc
-        .params()
-        .iter()
-        .map(|(id, record)| Command::AddParam {
-            param: *id,
-            record: record.clone(),
-        })
-        .collect();
-    let part = doc.parts().values().next().unwrap();
-    commands.push(Command::AddPart {
-        part: Part {
-            history: vec![],
-            features: BTreeMap::new(),
-            rollback: None,
-            ..part.clone()
-        },
-    });
-    for (at, id) in part.history.iter().take(2).enumerate() {
-        commands.push(Command::AddFeature {
-            part: part.id,
-            at,
-            record: part.features[id].clone(),
-        });
-    }
-    commands
+    standoff_commands(2)
 }
 
 fn is(kind: &'static str, generation: u64) -> impl Fn(&Value) -> bool {

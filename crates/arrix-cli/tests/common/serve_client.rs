@@ -7,7 +7,9 @@ use std::process::{Child, ChildStdin, Command as Process, Stdio};
 use std::sync::mpsc::{Receiver, channel};
 use std::time::Duration;
 
-use arrix_doc::{AuthorId, Command, CommandEnvelope, Generation};
+use std::collections::BTreeMap;
+
+use arrix_doc::{AuthorId, Command, CommandEnvelope, Generation, MemorySource, Part, open};
 use serde_json::{Value, json};
 
 pub struct Serve {
@@ -156,4 +158,42 @@ impl Serve {
         writeln!(self.stdin, r#"{{"jsonrpc":"2.0","method":"exit"}}"#)?;
         self.stdin.flush()
     }
+}
+
+/// `tests/docs/standoff` as the commands that build it: its parameters, its
+/// part, then its first `features` features (the plate's sketch and
+/// extrusion, the standoff, the fillet).
+pub fn standoff_commands(features: usize) -> Vec<Command> {
+    let mut files = BTreeMap::new();
+    crate::common::read_tree(
+        &crate::common::workspace().join("tests/docs/standoff"),
+        "",
+        &mut files,
+    );
+    let doc = open(&MemorySource(files)).unwrap();
+    let mut commands: Vec<Command> = doc
+        .params()
+        .iter()
+        .map(|(id, record)| Command::AddParam {
+            param: *id,
+            record: record.clone(),
+        })
+        .collect();
+    let part = doc.parts().values().next().unwrap();
+    commands.push(Command::AddPart {
+        part: Part {
+            history: vec![],
+            features: BTreeMap::new(),
+            rollback: None,
+            ..part.clone()
+        },
+    });
+    for (at, id) in part.history.iter().take(features).enumerate() {
+        commands.push(Command::AddFeature {
+            part: part.id,
+            at,
+            record: part.features[id].clone(),
+        });
+    }
+    commands
 }

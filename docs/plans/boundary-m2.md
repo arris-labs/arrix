@@ -133,7 +133,7 @@ None new. `serve`, load and render reach the kernel only through calls
   opened without the plugin is frozen, then loaded and live; the
   standoff's source is edited in a temporary copy and reloaded, and the
   new height is evaluated; a bad directory gives `PluginLoad`.
-- [ ] **[2]** Step 9: M2's accept, `cargo test -p arrix-cli --test
+- [x] **[2]** Step 9: M2's accept, `cargo test -p arrix-cli --test
   boundary_m2`.
 
 ## Acceptance
@@ -232,3 +232,9 @@ The whole gate stays green, including step 4's schema freshness and step
   moved to `tests/common/serve_client.rs` for step 9, and a flake in
   `each_protocol_error_is_a_json_rpc_error` (the `Opened` notification read
   as an error line) is fixed.
+- Found by step 9: `arrix-cli`'s tests cannot name `arrix-app`'s binary, so
+  the accept builds it with `cargo build -p arrix-app` and runs it from the
+  test executable's `target/<profile>` directory; where the machine has no
+  adapter ("no wgpu") the render half prints `SKIPPED` and the rest still
+  runs. `--without-plugin` names only the build's own plugins, so the
+  frozen render of the accept is one given no `--plugin` (agent, step 9).
