@@ -20,7 +20,7 @@ mod resolve;
 mod sketch_tests;
 mod sweep;
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 #[cfg(test)]
 mod version_tests;
 
@@ -46,7 +46,7 @@ pub use meshing::{BodySlot, FinalBody};
 pub use sweep::{Sweep, SweepError, sweep};
 
 use crate::dag::{Dag, Node};
-use crate::document::{Document, FeatureRecord, Part};
+use crate::document::{Document, FeatureRecord, FeatureTypeId, Part};
 use crate::expr::Expr;
 use crate::frozen::{BlobRef, Frozen, FrozenResult};
 use crate::registry::{FeatureArgs, FeatureType, Registry, SketchArgs};
@@ -301,6 +301,8 @@ fn error(code: &str, message: impl Into<String>) -> Diagnostic {
 }
 
 struct CacheEntry {
+    /// The feature type it was made for, for a reload to drop.
+    type_id: FeatureTypeId,
     slots: Slots,
     tool: Option<KeptTool>,
     /// A plugin feature's result as the file stores it, made on first use.
@@ -345,6 +347,15 @@ impl Evaluator {
 
     pub fn registry(&self) -> &Registry {
         &self.registry
+    }
+
+    /// Takes `registry` for the evaluations after this call (ADR-0024),
+    /// dropping the cache entries of `stale` types: an equal version no
+    /// longer promises equal code once a plugin is reloaded. Other types'
+    /// entries stay.
+    pub fn set_registry(&mut self, registry: Registry, stale: &BTreeSet<FeatureTypeId>) {
+        self.registry = registry;
+        self.cache.retain(|_, e| !stale.contains(&e.type_id));
     }
 
     /// Caps the steps of each kernel call (`Kernel::set_budget`): one a
@@ -558,6 +569,7 @@ impl Evaluator {
             self.cache.insert(
                 hash,
                 CacheEntry {
+                    type_id: record.type_id.clone(),
                     slots: slots.clone(),
                     tool,
                     frozen: None,

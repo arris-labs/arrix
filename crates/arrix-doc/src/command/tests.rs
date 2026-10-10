@@ -635,8 +635,8 @@ proptest! {
             match outcome {
                 Outcome::Applied(_) => states.push(auth.document().clone()),
                 Outcome::NoOp => prop_assert_eq!(&a.document, &doc),
-                Outcome::Previewing | Outcome::Exporting => {
-                    unreachable!("a submit is never a preview or an export")
+                Outcome::Previewing | Outcome::Exporting | Outcome::Loaded { .. } => {
+                    unreachable!("a submit is never a preview, an export or a load")
                 }
             }
         }

@@ -11,8 +11,15 @@ publish.workspace = true
 [lints]
 workspace = true
 
+[features]
+# The session protocol's JSON Schemas (ADR-0023 §5): `JsonSchema` on the
+# feature-type specs a `SessionEvent::Registry` carries.
+schema = ["dep:schemars", "arrix-core/schema"]
+
 [dependencies]
 arrix-core.workspace = true
+schemars = { workspace = true, optional = true }
+serde.workspace = true
 
 [dev-dependencies]
 wit-bindgen.workspace = true

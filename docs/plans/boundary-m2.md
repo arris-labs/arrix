@@ -118,7 +118,7 @@ None new. `serve`, load and render reach the kernel only through calls
   spawned binary: the plate built by commands, its `Finished` and
   `Meshed` read, a stale submit refused, and `session.save` equal to the
   same commands' in-process save. Each protocol error has a test.
-- [ ] **[2]** Step 7: load and reload in `LocalSession`, tested with a
+- [x] **[2]** Step 7: load and reload in `LocalSession`, tested with a
   Tier 0 double loader in `arrix-doc`.
   - A load makes a generation with `SessionEvent::Registry`, and a frozen
     feature of the type evaluates live under it.
@@ -211,3 +211,13 @@ The whole gate stays green, including step 4's schema freshness and step
 - Settled by step 1 (ADR-0024 §3): a reload makes a generation even when
   no spec changed. The registry change is a `SessionEvent::Registry`, not
   a `Change` (a `Change` carries a command, and a load is none).
+- Found by step 7: `Request::LoadPlugin { dir: String }` and
+  `ReloadPlugin { plugin }` are answered `Outcome::Loaded { generation }`
+  (a new variant; the specs travel in `SessionEvent::Registry`).
+  `LocalSession::open_with(document, registry, loader)` takes the
+  `PluginLoader`; `open` is it with none. The session thread holds a copy
+  of the registry, changes it atomically (a failed load leaves it as it
+  was) and hands the worker the result ahead of the generation's commit.
+  The `schema` feature of `arrix-plugin-api` arrived here, as step 4's
+  note said; its version stays 0.5.0, the WIT package being unchanged
+  (agent, step 7).

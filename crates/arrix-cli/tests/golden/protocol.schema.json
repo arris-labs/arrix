@@ -92,6 +92,53 @@
         ],
         "type": "object"
       },
+      "ChoiceOption": {
+        "description": "One word a choice may hold.",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "title"
+        ],
+        "type": "object"
+      },
+      "ChoiceSpec": {
+        "description": "A choice of a feature type's form: one of a few words, kept in the\nrecord's `choices` (ADR-0018).",
+        "properties": {
+          "default": {
+            "description": "The option a record that gives none holds. `None` is a choice left\nunset, which means something of its own (a datum plane's `world`:\nunset, it stands on its `plane` input).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/$defs/ChoiceOption"
+            },
+            "type": "array"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "title",
+          "options",
+          "default"
+        ],
+        "type": "object"
+      },
       "Command": {
         "description": "One edit of the document. One gesture is one command; a multi-step\ngesture is a `Group`.",
         "oneOf": [
@@ -1654,6 +1701,58 @@
         "description": "`core.<name>` for a built-in, `<plugin>.<name>` for a plugin's; the\nname is lower-kebab words.",
         "type": "string"
       },
+      "FeatureTypeSpec": {
+        "description": "A feature type: its form, inputs and output slots.",
+        "properties": {
+          "choices": {
+            "items": {
+              "$ref": "#/$defs/ChoiceSpec"
+            },
+            "type": "array"
+          },
+          "id": {
+            "description": "`<plugin-id>.<name>`.",
+            "type": "string"
+          },
+          "inputs": {
+            "items": {
+              "$ref": "#/$defs/InputSpec"
+            },
+            "type": "array"
+          },
+          "outputs": {
+            "items": {
+              "$ref": "#/$defs/SlotSpec"
+            },
+            "type": "array"
+          },
+          "params": {
+            "items": {
+              "$ref": "#/$defs/ParamSpec"
+            },
+            "type": "array"
+          },
+          "title": {
+            "type": "string"
+          },
+          "version": {
+            "description": "The type's own schema version (`type_version` in the document).",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "title",
+          "params",
+          "choices",
+          "inputs",
+          "outputs"
+        ],
+        "type": "object"
+      },
       "Frame": {
         "description": "A right-handed frame: an origin and unit X and Z axes, Y = Z × X. A\nplane is the frame's XY plane, its normal Z.",
         "properties": {
@@ -1783,6 +1882,81 @@
         "pattern": "^[0-9a-f]{64}$",
         "type": "string"
       },
+      "InputKind": {
+        "description": "What an input resolves to before `evaluate` sees it.",
+        "oneOf": [
+          {
+            "const": "Plane",
+            "description": "A datum plane, a planar face or a world plane, as a `Frame`.",
+            "type": "string"
+          },
+          {
+            "const": "Region",
+            "description": "A sketch region, referenced by its key (`Ref::Region`), as a\n`Profile` on the sketch's plane whose curves are keyed by the\nentities that bound it.",
+            "type": "string"
+          },
+          {
+            "const": "Body",
+            "description": "A body slot, referenced by the feature that made it (`Ref::Slot`),\nas a `Body` handle to the slot's version current at the feature\n(ADR-0007, ADR-0008).",
+            "type": "string"
+          },
+          {
+            "const": "Edge",
+            "description": "An edge, referenced by its name (`Ref::Topo`), as a\n`PersistentName`. Which body it is on is the kernel call's to check\n(ADR-0012).",
+            "type": "string"
+          },
+          {
+            "const": "Point",
+            "description": "A sketch point (`Ref::Sketch`) or a vertex (`Ref::Topo`), as a\nworld `Point`.",
+            "type": "string"
+          },
+          {
+            "const": "Axis",
+            "description": "A sketch line (`Ref::Sketch`) or a straight edge (`Ref::Topo`), as\na world `Axis` with a unit direction.",
+            "type": "string"
+          },
+          {
+            "const": "Tool",
+            "description": "The tool a joining or cutting feature kept (`Ref::Feature`), as a\n`Tool` (ADR-0013).",
+            "type": "string"
+          }
+        ]
+      },
+      "InputSpec": {
+        "properties": {
+          "kind": {
+            "$ref": "#/$defs/InputKind"
+          },
+          "list": {
+            "description": "The input takes a list of references, and arrives as one\n`ResolvedInput` per element in the record's order, each with the\ninput's name (ADR-0012).",
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "shown_when": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ShownWhen"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "title",
+          "kind",
+          "list",
+          "shown_when"
+        ],
+        "type": "object"
+      },
       "MeshDetail": {
         "description": "How fine a mesh is asked for: a coarse one first so a body shows at\nonce, then a refined one (docs/CONCURRENCY-WASM.md §Tessellation).",
         "enum": [
@@ -1902,6 +2076,42 @@
       "ParamId": {
         "$ref": "#/$defs/Id",
         "description": "A parameter."
+      },
+      "ParamSpec": {
+        "description": "A numeric field of a feature type's form.",
+        "properties": {
+          "default": {
+            "description": "An expression, as the user would type it: `20`, `1 mm`.",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/$defs/QuantityKind"
+          },
+          "name": {
+            "type": "string"
+          },
+          "shown_when": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ShownWhen"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "title",
+          "kind",
+          "default",
+          "shown_when"
+        ],
+        "type": "object"
       },
       "Part": {
         "additionalProperties": false,
@@ -2578,6 +2788,27 @@
         ],
         "type": "string"
       },
+      "ShownWhen": {
+        "description": "A field shown only while a choice holds one of some values (ADR-0018).\nA hidden field is neither shown nor required; its value, if the record\nhas one, is kept.",
+        "properties": {
+          "choice": {
+            "description": "The name of one of the type's choices.",
+            "type": "string"
+          },
+          "values": {
+            "description": "The values of that choice under which the field shows.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "choice",
+          "values"
+        ],
+        "type": "object"
+      },
       "Sketch": {
         "description": "A 2D sketch on a plane, in plane-local metres. The hosting `core.sketch`\nfeature maps the plane into space.\n\nEvery reference inside resolves: an entity's points and a constraint's\npoints and entities are in the sketch, construction marks name entities\nit holds, and one id names one record across all three maps. The\ninserts and a deserialised sketch are checked; removal sweeps what\nreferenced the removed record.",
         "properties": {
@@ -2752,9 +2983,39 @@
         ],
         "type": "object"
       },
+      "SlotKind": {
+        "enum": [
+          "Body",
+          "Plane"
+        ],
+        "type": "string"
+      },
       "SlotName": {
         "description": "A feature's named output: `body`, `plane`, `sketch`. One lower-kebab\nsegment, as a diagnostic code's segments are.",
         "type": "string"
+      },
+      "SlotSpec": {
+        "description": "An output slot a feature type declares. A body slot that `modifies`\none of the type's body inputs, by the input's name, is that input's\nslot's next version, not a slot of its own; a body input no slot\nmodifies is a tool, and its slot ends there (ADR-0007).",
+        "properties": {
+          "kind": {
+            "$ref": "#/$defs/SlotKind"
+          },
+          "modifies": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "$ref": "#/$defs/SlotName"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "modifies"
+        ],
+        "type": "object"
       },
       "SlotView": {
         "description": "An output slot as a client sees it: plain data, no kernel handle.",
@@ -2824,6 +3085,13 @@
           "kind": {
             "const": "opened",
             "type": "string"
+          },
+          "types": {
+            "description": "The feature types loaded since the session opened (ADR-0024\n§5), which the document's files do not say.",
+            "items": {
+              "$ref": "#/$defs/FeatureTypeSpec"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -2857,6 +3125,37 @@
         "required": [
           "kind",
           "change"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "The registry changed (ADR-0024): `generation` is the one it made,\nevaluated like any other. `added` are the specs of the types\nloaded, new or replaced; `removed` the ids a reload no longer has.\nNot part of the document: a replica takes the generation only.",
+        "properties": {
+          "added": {
+            "items": {
+              "$ref": "#/$defs/FeatureTypeSpec"
+            },
+            "type": "array"
+          },
+          "generation": {
+            "$ref": "#/$defs/Generation"
+          },
+          "kind": {
+            "const": "registry",
+            "type": "string"
+          },
+          "removed": {
+            "items": {
+              "$ref": "#/$defs/FeatureTypeId"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "kind",
+          "generation",
+          "added",
+          "removed"
         ],
         "type": "object"
       },
@@ -5046,6 +5345,27 @@
         "const": "exporting",
         "description": "An export was queued (`Request::Export`): nothing applied, and the\nfile follows on the subscription.",
         "type": "string"
+      },
+      {
+        "additionalProperties": false,
+        "description": "A plugin was loaded or reloaded (ADR-0024): the registry made this\ngeneration, announced by `SessionEvent::Registry`, and nothing was\napplied.",
+        "properties": {
+          "loaded": {
+            "properties": {
+              "generation": {
+                "$ref": "#/$defs/Generation"
+              }
+            },
+            "required": [
+              "generation"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "loaded"
+        ],
+        "type": "object"
       }
     ],
     "title": "Outcome"
@@ -5229,6 +5549,44 @@
             "type": "object"
           }
         ]
+      },
+      "Diagnostic": {
+        "description": "A failure, warning or note the user sees, on a feature, in the status\nbar and in `arrix eval`'s output.",
+        "properties": {
+          "candidates": {
+            "description": "For a lost reference, what the user might re-pick, best first\n(docs/DATA-MODEL.md §Persistent naming, \"Resolution\"). Never\napplied by the core: re-picking is the user's command.",
+            "items": {
+              "$ref": "#/$defs/Ref"
+            },
+            "type": "array"
+          },
+          "code": {
+            "$ref": "#/$defs/DiagnosticCode"
+          },
+          "message": {
+            "type": "string"
+          },
+          "refs": {
+            "description": "What to highlight: the entities the failure is about.",
+            "items": {
+              "$ref": "#/$defs/Ref"
+            },
+            "type": "array"
+          },
+          "severity": {
+            "$ref": "#/$defs/Severity"
+          }
+        },
+        "required": [
+          "severity",
+          "code",
+          "message"
+        ],
+        "type": "object"
+      },
+      "DiagnosticCode": {
+        "description": "A stable, countable key: `segment(.segment)*`, each segment lower-kebab\n(`ref.lost`, `kernel.degenerate.tangent-contact`). Checked when built,\nso one that crosses a boundary is always well-formed.",
+        "type": "string"
       },
       "FeatureId": {
         "$ref": "#/$defs/Id",
@@ -5475,6 +5833,195 @@
         "$ref": "#/$defs/Id",
         "description": "A part."
       },
+      "PersistentName": {
+        "description": "A face, edge or vertex: a root and what happened to it since.",
+        "type": "string"
+      },
+      "PluginId": {
+        "description": "`[a-z][a-z0-9-]*`, and never `core`, which the built-ins own.",
+        "type": "string"
+      },
+      "RecordId": {
+        "$ref": "#/$defs/Id",
+        "description": "A plugin's record in its own section."
+      },
+      "Ref": {
+        "description": "A reference from one record to another. `Topo` is the one naming\nsolves; the rest are by id.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "param": {
+                "$ref": "#/$defs/ParamId"
+              }
+            },
+            "required": [
+              "param"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "feature": {
+                "$ref": "#/$defs/FeatureId"
+              }
+            },
+            "required": [
+              "feature"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "A body, datum or sketch output of a feature.",
+            "properties": {
+              "slot": {
+                "properties": {
+                  "feature": {
+                    "$ref": "#/$defs/FeatureId"
+                  },
+                  "slot": {
+                    "$ref": "#/$defs/SlotName"
+                  }
+                },
+                "required": [
+                  "feature",
+                  "slot"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "slot"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "A face, edge or vertex.",
+            "properties": {
+              "topo": {
+                "$ref": "#/$defs/PersistentName"
+              }
+            },
+            "required": [
+              "topo"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "A point or curve of a sketch.",
+            "properties": {
+              "sketch": {
+                "properties": {
+                  "entity": {
+                    "$ref": "#/$defs/SketchEntityId"
+                  },
+                  "feature": {
+                    "$ref": "#/$defs/FeatureId"
+                  }
+                },
+                "required": [
+                  "feature",
+                  "entity"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "sketch"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "A region of a sketch: a face of its planar arrangement, by its key.",
+            "properties": {
+              "region": {
+                "properties": {
+                  "feature": {
+                    "$ref": "#/$defs/FeatureId"
+                  },
+                  "key": {
+                    "$ref": "#/$defs/RegionKey"
+                  }
+                },
+                "required": [
+                  "feature",
+                  "key"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "region"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "A plugin's document record.",
+            "properties": {
+              "plugin": {
+                "properties": {
+                  "plugin": {
+                    "$ref": "#/$defs/PluginId"
+                  },
+                  "record": {
+                    "$ref": "#/$defs/RecordId"
+                  }
+                },
+                "required": [
+                  "plugin",
+                  "record"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "plugin"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "RegionKey": {
+        "description": "Which face of a sketch's planar arrangement a feature was given\n(docs/DATA-MODEL.md §Sketches): every entity bounding the face, its\nholes' included, sorted, plus a point inside it. The entity set alone\ndoes not name a face (a circle and its chord bound the cap and the D\nalike), so the sample tells two faces of the same curves apart.\n`arrix-sketch` resolves a key to exactly one region or to none.\n\nThe sample is in whole nanometres of the sketch's `(u, v)`, so a key\nis plain data that compares, orders and hashes exactly, as every `Ref`\ndoes. A nanometre is a thousandth of the length tolerance, and the\nsample sits as far inside its face as the face allows.",
+        "properties": {
+          "entities": {
+            "description": "Sorted and deduplicated, so two keys of one face compare equal\nwhichever order their loops were walked in.",
+            "items": {
+              "$ref": "#/$defs/SketchEntityId"
+            },
+            "type": "array"
+          },
+          "sample": {
+            "description": "A point inside the face, in nanometres.",
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          }
+        },
+        "required": [
+          "entities",
+          "sample"
+        ],
+        "type": "object"
+      },
+      "Severity": {
+        "enum": [
+          "info",
+          "warning",
+          "error"
+        ],
+        "type": "string"
+      },
       "SketchEntityId": {
         "$ref": "#/$defs/Id",
         "description": "A point, curve or constraint in a sketch."
@@ -5607,6 +6154,10 @@
             "type": "object"
           }
         ]
+      },
+      "SlotName": {
+        "description": "A feature's named output: `body`, `plane`, `sketch`. One lower-kebab\nsegment, as a diagnostic code's segments are.",
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5655,6 +6206,24 @@
         },
         "required": [
           "refused"
+        ],
+        "type": "object"
+      },
+      {
+        "const": "no_plugin_loader",
+        "description": "The session has no plugin loader (wasm, or a test): ADR-0024 §1.",
+        "type": "string"
+      },
+      {
+        "additionalProperties": false,
+        "description": "A plugin directory that did not load, or a plugin that is not\nloaded to reload.",
+        "properties": {
+          "plugin_load": {
+            "$ref": "#/$defs/Diagnostic"
+          }
+        },
+        "required": [
+          "plugin_load"
         ],
         "type": "object"
       }
@@ -7729,6 +8298,48 @@
         },
         "required": [
           "export"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "description": "Loads the plugin directory `dir` on the authority's machine\n(ADR-0024): its feature types join the registry in a generation of\ntheir own, announced by `SessionEvent::Registry`, and answered\n`Loaded`. Not a command: nothing is undone and no document changes.",
+        "properties": {
+          "load_plugin": {
+            "properties": {
+              "dir": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "dir"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "load_plugin"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "description": "Restarts the loaded `plugin` and takes its feature types again, in\na generation even when no spec changed, since the code did.",
+        "properties": {
+          "reload_plugin": {
+            "properties": {
+              "plugin": {
+                "$ref": "#/$defs/PluginId"
+              }
+            },
+            "required": [
+              "plugin"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "reload_plugin"
         ],
         "type": "object"
       }

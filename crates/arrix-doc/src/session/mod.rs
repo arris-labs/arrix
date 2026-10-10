@@ -13,6 +13,9 @@ mod export_tests;
 #[cfg(test)]
 mod interrupt_tests;
 mod local;
+#[cfg(test)]
+mod plugin_tests;
+mod plugins;
 mod preview;
 #[cfg(test)]
 mod preview_tests;
@@ -26,15 +29,18 @@ use std::fmt;
 use std::sync::mpsc::Receiver;
 
 use arrix_core::{
-    Diagnostic, ExportFormat, FeatureId, MeshDetail, ParamId, PartId, Quantity, RenderMesh,
+    Diagnostic, ExportFormat, FeatureId, MeshDetail, ParamId, PartId, PluginId, Quantity,
+    RenderMesh,
 };
+use arrix_plugin_api::FeatureTypeSpec;
 use serde::{Deserialize, Serialize};
 
 pub use local::LocalSession;
+pub use plugins::PluginLoader;
 
 use crate::authority::{AuthorId, Change, CommandEnvelope, Generation, Outcome, Rejected};
 use crate::command::{CommandError, apply};
-use crate::document::Document;
+use crate::document::{Document, FeatureTypeId};
 use crate::eval::{BodySlot, EvalEvent, FeatureOutcome};
 use crate::open::{MemorySource, open};
 use crate::save::save;
@@ -101,6 +107,18 @@ pub enum Request {
         bodies: Vec<BodySlot>,
         format: ExportFormat,
     },
+    /// Loads the plugin directory `dir` on the authority's machine
+    /// (ADR-0024): its feature types join the registry in a generation of
+    /// their own, announced by `SessionEvent::Registry`, and answered
+    /// `Loaded`. Not a command: nothing is undone and no document changes.
+    LoadPlugin {
+        dir: String,
+    },
+    /// Restarts the loaded `plugin` and takes its feature types again, in
+    /// a generation even when no spec changed, since the code did.
+    ReloadPlugin {
+        plugin: PluginId,
+    },
 }
 
 /// BLAKE3 over a document's saved files, as 64 hex digits: equal
@@ -145,6 +163,10 @@ pub enum SessionEvent {
         files: BTreeMap<String, String>,
         #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
         blobs: BTreeMap<String, Vec<u8>>,
+        /// The feature types loaded since the session opened (ADR-0024
+        /// §5), which the document's files do not say.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        types: Vec<FeatureTypeSpec>,
     },
     /// A change the authority applied, with the document's hash after it
     /// in a debug build, for the replicas to check theirs against.
@@ -152,6 +174,15 @@ pub enum SessionEvent {
         change: Change,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         hash: Option<DocHash>,
+    },
+    /// The registry changed (ADR-0024): `generation` is the one it made,
+    /// evaluated like any other. `added` are the specs of the types
+    /// loaded, new or replaced; `removed` the ids a reload no longer has.
+    /// Not part of the document: a replica takes the generation only.
+    Registry {
+        generation: Generation,
+        added: Vec<FeatureTypeSpec>,
+        removed: Vec<FeatureTypeId>,
     },
     /// One feature's outcome in the evaluation of `generation`.
     Evaluated {
@@ -246,6 +277,14 @@ pub trait Session {
     fn clear_preview(&self, author: AuthorId) -> Result<Outcome, Rejected> {
         self.request(Request::ClearPreview { author })
     }
+
+    fn load_plugin(&self, dir: &str) -> Result<Outcome, Rejected> {
+        self.request(Request::LoadPlugin { dir: dir.into() })
+    }
+
+    fn reload_plugin(&self, plugin: PluginId) -> Result<Outcome, Rejected> {
+        self.request(Request::ReloadPlugin { plugin })
+    }
 }
 
 /// Why a replica could not follow the stream: each is a bug in the
@@ -302,6 +341,7 @@ impl Replica {
                 generation,
                 files,
                 blobs,
+                ..
             } => {
                 let source = MemorySource(
                     files
@@ -335,6 +375,16 @@ impl Replica {
                 }
                 self.document = applied.document;
                 self.generation = change.generation;
+            }
+            SessionEvent::Registry { generation, .. } => {
+                let expected = Generation(self.generation.0 + 1);
+                if *generation != expected {
+                    return Err(ReplicaError::Gap {
+                        expected,
+                        got: *generation,
+                    });
+                }
+                self.generation = *generation;
             }
             SessionEvent::Evaluated { generation, event } => {
                 let newer = self

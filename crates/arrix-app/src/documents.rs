@@ -180,6 +180,15 @@ pub struct CardToggles {
 }
 
 /// One open document.
+/// What a session said about its feature types after it opened.
+#[derive(Debug, Default)]
+pub struct TypeChanges {
+    /// Specs loaded, new or replacing.
+    pub added: Vec<arrix_plugin_api::FeatureTypeSpec>,
+    /// Ids no longer there.
+    pub removed: Vec<String>,
+}
+
 pub struct OpenDocument {
     pub title: String,
     /// Where it was opened from; the tab's tooltip.
@@ -189,6 +198,9 @@ pub struct OpenDocument {
     pub cards: CardToggles,
     events: EventStream,
     _session: LocalSession,
+    /// The feature types the session has said it loaded or dropped
+    /// (ADR-0024), until the app takes them (`take_type_changes`).
+    type_changes: TypeChanges,
     pub replica: Replica,
     pub view: ViewState,
     /// The sketch being edited, while there is one: session state, one
@@ -288,6 +300,7 @@ impl OpenDocument {
             applied: 0,
             serial: SERIALS.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             gestured: 0,
+            type_changes: TypeChanges::default(),
         })
     }
 
@@ -329,7 +342,9 @@ impl OpenDocument {
                 Ok(true)
             }
             // A preview is not counted: it applies nothing (ADR-0019).
-            Ok(Outcome::NoOp | Outcome::Previewing | Outcome::Exporting) => Ok(false),
+            Ok(
+                Outcome::NoOp | Outcome::Previewing | Outcome::Exporting | Outcome::Loaded { .. },
+            ) => Ok(false),
             Err(rejected) => Err(rejected.to_string()),
         }
     }
@@ -378,7 +393,13 @@ impl OpenDocument {
         self.settled = self.compute_settled();
     }
 
-    fn receive(&mut self, event: &SessionEvent, renderer: Option<&Renderer>) {
+    /// The feature types the session loaded or dropped since the last
+    /// call: the app rebuilds its command registry and forms from them.
+    pub fn take_type_changes(&mut self) -> TypeChanges {
+        std::mem::take(&mut self.type_changes)
+    }
+
+    pub(crate) fn receive(&mut self, event: &SessionEvent, renderer: Option<&Renderer>) {
         if let Err(err) = self.replica.receive(event) {
             self.problems.push(err.to_string());
             self.broken = true;
@@ -429,6 +450,13 @@ impl OpenDocument {
                     }
                     Err(diagnostic) => self.problems.push(diagnostic.message.clone()),
                 }
+            }
+            SessionEvent::Opened { types, .. } => self.type_changes.added.extend(types.clone()),
+            SessionEvent::Registry { added, removed, .. } => {
+                self.type_changes.added.extend(added.clone());
+                self.type_changes
+                    .removed
+                    .extend(removed.iter().map(|id| id.as_str().to_owned()));
             }
             SessionEvent::Exported { bytes, .. } => self.exports.heard(bytes),
             SessionEvent::Previewed { .. } | SessionEvent::PreviewMeshed { .. } => {

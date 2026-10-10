@@ -6,7 +6,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use arrix_core::Id;
+use arrix_core::{Diagnostic, Id};
 use serde::{Deserialize, Serialize};
 
 use crate::command::{Applied, Command, CommandError, apply};
@@ -62,6 +62,12 @@ pub enum Outcome {
     /// An export was queued (`Request::Export`): nothing applied, and the
     /// file follows on the subscription.
     Exporting,
+    /// A plugin was loaded or reloaded (ADR-0024): the registry made this
+    /// generation, announced by `SessionEvent::Registry`, and nothing was
+    /// applied.
+    Loaded {
+        generation: Generation,
+    },
 }
 
 /// Why nothing was applied.
@@ -77,6 +83,13 @@ pub enum Rejected {
     NothingToUndo,
     #[error("nothing to redo")]
     NothingToRedo,
+    /// The session has no plugin loader (wasm, or a test): ADR-0024 §1.
+    #[error("this session cannot load plugins")]
+    NoPluginLoader,
+    /// A plugin directory that did not load, or a plugin that is not
+    /// loaded to reload.
+    #[error("plugin load failed: {}", .0.message)]
+    PluginLoad(Diagnostic),
 }
 
 /// An undo or redo entry: the command that reverses a change, the
@@ -122,6 +135,14 @@ impl Authority {
     }
 
     pub fn generation(&self) -> Generation {
+        self.generation
+    }
+
+    /// Makes a generation no node is stamped with (ADR-0024): the
+    /// registry changed, the document did not, and no author's pending
+    /// command goes stale.
+    pub fn advance(&mut self) -> Generation {
+        self.generation = Generation(self.generation.0 + 1);
         self.generation
     }
 

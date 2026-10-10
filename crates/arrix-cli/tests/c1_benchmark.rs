@@ -137,6 +137,7 @@ fn command_apply(runs: usize) -> (Duration, Duration) {
         generation: Generation(0),
         files,
         blobs: BTreeMap::new(),
+        types: Vec::new(),
     };
     replica.receive(&opened).unwrap();
     let (mut a, mut r) = (Vec::new(), Vec::new());

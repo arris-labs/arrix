@@ -396,6 +396,30 @@ impl ArrixApp {
         }
     }
 
+    /// Rebuilds the command registry and the forms' types from the feature
+    /// types a session loaded or dropped (ADR-0024). The app loads none
+    /// itself.
+    fn follow_registry(&mut self) {
+        let mut changed = false;
+        for document in &mut self.documents {
+            let changes = document.take_type_changes();
+            for id in &changes.removed {
+                self.feature_types.retain(|t| &t.id != id);
+                changed = true;
+            }
+            for spec in changes.added {
+                match self.feature_types.iter_mut().find(|t| t.id == spec.id) {
+                    Some(held) => *held = spec,
+                    None => self.feature_types.push(spec),
+                }
+                changed = true;
+            }
+        }
+        if changed {
+            self.commands = arrix_config::CommandRegistry::new(&self.feature_types);
+        }
+    }
+
     /// Takes in what each session has said since the last frame. A document
     /// still waiting for its meshes asks for another frame soon; one that
     /// has said everything does not, so an idle app does not repaint.
@@ -406,6 +430,7 @@ impl ArrixApp {
             document.drain(self.renderer.as_ref());
             waiting |= !document.settled();
         }
+        self.follow_registry();
         self.write_exports();
         self.follow_sketches();
         self.follow_forms();
@@ -1059,5 +1084,54 @@ impl ArrixApp {
         if let Some(intent) = self.answer_pick(ui.ctx()) {
             self.apply(intent);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use arrix_doc::{Generation, SessionEvent};
+
+    fn spec(id: &str) -> FeatureTypeSpec {
+        FeatureTypeSpec {
+            id: id.into(),
+            version: 1,
+            title: "Standoff".into(),
+            params: vec![],
+            choices: vec![],
+            inputs: vec![],
+            outputs: vec![],
+        }
+    }
+
+    /// A `SessionEvent::Registry` it hears gives the app the commands and
+    /// the form of a type it never registered, and takes them away again
+    /// (ADR-0024 §6).
+    #[test]
+    fn the_app_follows_the_registry_a_session_announces() {
+        let ctx = egui::Context::default();
+        let mut app = ArrixApp::headless(&ctx, None, &MemorySource::default());
+        let doc = OpenDocument::empty("t", commands::feature_types()).unwrap();
+        app.documents.push(doc);
+        assert!(app.commands.command("standoff.post.create").is_none());
+
+        let announce =
+            |added: Vec<FeatureTypeSpec>, removed: Vec<&str>, generation| SessionEvent::Registry {
+                generation: Generation(generation),
+                added,
+                removed: removed
+                    .into_iter()
+                    .map(|id| arrix_doc::FeatureTypeId::new(id).unwrap())
+                    .collect(),
+            };
+        app.documents[0].receive(&announce(vec![spec("standoff.post")], vec![], 1), None);
+        app.follow_registry();
+        assert!(app.commands.command("standoff.post.create").is_some());
+        assert!(app.feature_types.iter().any(|t| t.id == "standoff.post"));
+
+        app.documents[0].receive(&announce(vec![], vec!["standoff.post"], 2), None);
+        app.follow_registry();
+        assert!(app.commands.command("standoff.post.create").is_none());
+        assert!(!app.feature_types.iter().any(|t| t.id == "standoff.post"));
     }
 }

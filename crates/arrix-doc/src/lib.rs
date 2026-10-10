@@ -54,7 +54,7 @@ pub use save::{save, to_json};
 #[cfg(feature = "schema")]
 pub use session::protocol_schemas;
 pub use session::{
-    DocHash, EventStream, LocalSession, PROTOCOL_VERSION, ParamValues, PreviewBody, PreviewId,
-    PreviewTag, Replica, ReplicaError, Request, Session, SessionEvent,
+    DocHash, EventStream, LocalSession, PROTOCOL_VERSION, ParamValues, PluginLoader, PreviewBody,
+    PreviewId, PreviewTag, Replica, ReplicaError, Request, Session, SessionEvent,
 };
 pub use zip::{ZipError, from_zip, open_zip, save_zip, to_zip};

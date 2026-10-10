@@ -6,7 +6,7 @@
 //! newest commit and never in its way (docs/CONCURRENCY-WASM.md §The
 //! evaluator).
 
-use std::collections::VecDeque;
+use std::collections::{BTreeSet, VecDeque};
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, TryRecvError};
 
@@ -16,7 +16,9 @@ use serde::{Deserialize, Serialize};
 use super::SessionEvent;
 use crate::authority::{AuthorId, Generation};
 use crate::document::Document;
+use crate::document::FeatureTypeId;
 use crate::eval::{BodySlot, Evaluator, FinalBody, interrupted};
+use crate::registry::Registry;
 
 /// A client's name for one of its previews, counted by the client.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -62,6 +64,10 @@ pub(super) struct ExportJob {
 /// What the session thread hands its worker.
 pub(super) enum Job {
     Commit(Snapshot),
+    /// The registry after a plugin load or reload (ADR-0024), with the
+    /// types whose cache entries to drop. Always followed by the commit
+    /// of the generation it made.
+    Registry(Box<Registry>, BTreeSet<FeatureTypeId>),
     Preview(PreviewJob),
     ClearPreview,
     Export(ExportJob),
@@ -73,6 +79,9 @@ pub(super) enum Job {
 pub(super) struct Queue<'a> {
     rx: &'a Receiver<Job>,
     pub commit: Option<Snapshot>,
+    /// The newest registry not yet taken, and the types stale in any of
+    /// those it replaced.
+    pub registry: Option<(Box<Registry>, BTreeSet<FeatureTypeId>)>,
     pub preview: Option<PreviewJob>,
     /// A preview or a clear arrived since the flag was last reset.
     pub preview_moved: bool,
@@ -87,6 +96,7 @@ impl<'a> Queue<'a> {
         Self {
             rx,
             commit: None,
+            registry: None,
             preview: None,
             preview_moved: false,
             exports: VecDeque::new(),
@@ -99,6 +109,11 @@ impl<'a> Queue<'a> {
             Job::Commit(s) => {
                 self.commit = Some(s);
                 self.preview = None;
+            }
+            Job::Registry(registry, stale) => {
+                let mut all = self.registry.take().map(|(_, s)| s).unwrap_or_default();
+                all.extend(stale);
+                self.registry = Some((registry, all));
             }
             Job::Preview(p) => {
                 self.preview = Some(p);

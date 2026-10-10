@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender, channel};
 
+use super::plugins::{PluginLoader, Plugins, RegistryChange};
 use super::preview::{self, ExportJob, Job, PreviewJob, Queue};
 use super::{DocHash, EventStream, PreviewTag, Request, Session, SessionEvent, files};
 use crate::authority::{Authority, Generation, Outcome, Rejected};
@@ -51,6 +52,18 @@ impl LocalSession {
     /// evaluator with `registry`'s feature types. Fails where no thread
     /// can be spawned (wasm32 until C4).
     pub fn open(document: Document, registry: Registry) -> std::io::Result<Self> {
+        Self::open_with(document, registry, None)
+    }
+
+    /// As [`open`](Self::open), with the loader that serves
+    /// `Request::LoadPlugin` and `ReloadPlugin` (ADR-0024). Without one,
+    /// both are `Rejected::NoPluginLoader`.
+    pub fn open_with(
+        document: Document,
+        registry: Registry,
+        loader: Option<Box<dyn PluginLoader>>,
+    ) -> std::io::Result<Self> {
+        let plugins = Plugins::new(registry.clone(), loader);
         let (inbox, rx) = channel();
         let (jobs, job_rx) = channel();
         let (handle, interrupt_rx) = channel();
@@ -64,7 +77,14 @@ impl LocalSession {
             .recv()
             .expect("the evaluator thread hands out its interrupt first");
         let thread = executor::spawn("arrix-session", move || {
-            serve(Authority::new(document), &rx, jobs, worker, &interrupt);
+            serve(
+                Authority::new(document),
+                plugins,
+                &rx,
+                jobs,
+                worker,
+                &interrupt,
+            );
         })?;
         Ok(Self {
             inbox,
@@ -116,6 +136,7 @@ impl Drop for LocalSession {
 /// preview, a clear or an applied change ends it.
 fn serve(
     mut authority: Authority,
+    mut plugins: Plugins,
     inbox: &Receiver<Msg>,
     jobs: Sender<Job>,
     worker: Worker,
@@ -164,6 +185,20 @@ fn serve(
                         let _ = jobs.send(Job::Export(ExportJob { bodies, format }));
                         Ok(Outcome::Exporting)
                     }
+                    Request::LoadPlugin { dir } => plugins.load(&dir).map(|change| {
+                        let out = announce(change, &mut authority, &plugins, &jobs);
+                        previewing = None;
+                        subscribers.retain(|s| s.send(out.1.clone()).is_ok());
+                        commit(&authority);
+                        out.0
+                    }),
+                    Request::ReloadPlugin { plugin } => plugins.reload(&plugin).map(|change| {
+                        let out = announce(change, &mut authority, &plugins, &jobs);
+                        previewing = None;
+                        subscribers.retain(|s| s.send(out.1.clone()).is_ok());
+                        commit(&authority);
+                        out.0
+                    }),
                     Request::ClearPreview { author } => {
                         if previewing.is_some_and(|t| t.author == author) {
                             previewing = None;
@@ -190,6 +225,7 @@ fn serve(
                     generation: authority.generation(),
                     files,
                     blobs,
+                    types: plugins.loaded_specs(),
                 };
                 if tx.send(opened).is_ok() {
                     subscribers.push(tx);
@@ -239,6 +275,28 @@ fn serve(
     drop(worker);
 }
 
+/// Makes the generation of a registry change (ADR-0024) and hands the
+/// worker its registry, ahead of the commit that follows: the outcome to
+/// reply and the `Registry` event to publish.
+fn announce(
+    change: RegistryChange,
+    authority: &mut Authority,
+    plugins: &Plugins,
+    jobs: &Sender<Job>,
+) -> (Outcome, SessionEvent) {
+    let generation = authority.advance();
+    let event = SessionEvent::Registry {
+        generation,
+        added: change.added,
+        removed: change.removed,
+    };
+    let _ = jobs.send(Job::Registry(
+        Box::new(plugins.registry().clone()),
+        change.stale,
+    ));
+    (Outcome::Loaded { generation }, event)
+}
+
 /// The evaluator worker: evaluates the newest commit's snapshot,
 /// publishing each feature's event as it is made, and starts over on a
 /// newer one between features; the cache makes starting over cheap. A
@@ -258,6 +316,11 @@ fn evaluate(mut evaluator: Evaluator, jobs: &Receiver<Job>, publish: &Sender<Msg
     while queue.wait(finished.is_some()) {
         // Whatever raised the flag is the job taken now, or an older one.
         interrupt.lower();
+        if let Some((registry, stale)) = queue.registry.take() {
+            evaluator.set_registry(*registry, &stale);
+            // What the evaluator held was of the old registry.
+            held = false;
+        }
         if let Some((generation, doc)) = queue.commit.take() {
             let done = evaluator.evaluate_while(&doc, |event| {
                 let event = SessionEvent::Evaluated {

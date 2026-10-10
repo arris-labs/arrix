@@ -5,12 +5,15 @@ use arrix_core::{
     Axis, DVec3, Diagnostic, Frame, PersistentName, Profile, Quantity, QuantityKind, SlotName,
 };
 
+use serde::{Deserialize, Serialize};
+
 use crate::{Body, Kernel};
 
 /// A field shown only while a choice holds one of some values (ADR-0018).
 /// A hidden field is neither shown nor required; its value, if the record
 /// has one, is kept.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ShownWhen {
     /// The name of one of the type's choices.
     pub choice: String,
@@ -19,7 +22,8 @@ pub struct ShownWhen {
 }
 
 /// A numeric field of a feature type's form.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ParamSpec {
     pub name: String,
     pub title: String,
@@ -30,7 +34,8 @@ pub struct ParamSpec {
 }
 
 /// One word a choice may hold.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ChoiceOption {
     pub name: String,
     pub title: String,
@@ -38,7 +43,8 @@ pub struct ChoiceOption {
 
 /// A choice of a feature type's form: one of a few words, kept in the
 /// record's `choices` (ADR-0018).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ChoiceSpec {
     pub name: String,
     pub title: String,
@@ -50,7 +56,8 @@ pub struct ChoiceSpec {
 }
 
 /// What an input resolves to before `evaluate` sees it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum InputKind {
     /// A datum plane, a planar face or a world plane, as a `Frame`.
     Plane,
@@ -77,7 +84,8 @@ pub enum InputKind {
     Tool,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct InputSpec {
     pub name: String,
     pub title: String,
@@ -89,7 +97,8 @@ pub struct InputSpec {
     pub shown_when: Option<ShownWhen>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum SlotKind {
     Body,
     Plane,
@@ -99,7 +108,8 @@ pub enum SlotKind {
 /// one of the type's body inputs, by the input's name, is that input's
 /// slot's next version, not a slot of its own; a body input no slot
 /// modifies is a tool, and its slot ends there (ADR-0007).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct SlotSpec {
     pub name: SlotName,
     pub kind: SlotKind,
@@ -107,7 +117,8 @@ pub struct SlotSpec {
 }
 
 /// A feature type: its form, inputs and output slots.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct FeatureTypeSpec {
     /// `<plugin-id>.<name>`.
     pub id: String,

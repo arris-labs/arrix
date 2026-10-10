@@ -516,6 +516,8 @@ name = "arrix-plugin-api"
 version = "0.5.0"
 dependencies = [
  "arrix-core",
+ "schemars",
+ "serde",
  "serde_json",
  "wit-bindgen 0.62.0",
  "wit-parser",

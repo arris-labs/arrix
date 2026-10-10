@@ -158,6 +158,7 @@ impl Evaluator {
             self.cache.insert(
                 hash,
                 CacheEntry {
+                    type_id: record.type_id.clone(),
                     tool: None,
                     slots: slots.clone(),
                     frozen: None,

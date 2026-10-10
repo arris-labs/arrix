@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use arrix_core::{
     CurveKey, DVec2, DVec3, Diagnostic, FeatureId, Id, Input, NameRoot, ParamId, PartId,
@@ -16,22 +17,28 @@ use super::*;
 use crate::document::{FeatureTypeId, Param};
 use crate::registry::TypeOutput;
 
-pub(super) const PART: PartId = PartId(Id(1));
+pub(crate) const PART: PartId = PartId(Id(1));
 
-pub(super) fn fid(n: u64) -> FeatureId {
+pub(crate) fn fid(n: u64) -> FeatureId {
     FeatureId(Id(n))
 }
 
-pub(super) fn slot(s: &str) -> SlotName {
+pub(crate) fn slot(s: &str) -> SlotName {
     SlotName::new(s).unwrap()
 }
 
 /// `test.block`: a `width` square on its `plane`, extruded `height`. Its
 /// sides are keyed 1–4 from the plane's origin anticlockwise.
-pub(super) struct Block(FeatureTypeSpec);
+pub(crate) struct Block(FeatureTypeSpec, Arc<AtomicU64>);
 
 impl Block {
-    pub(super) fn new() -> Self {
+    pub(crate) fn new() -> Self {
+        Self::skewed(Arc::default())
+    }
+
+    /// A block taller by the metres, as `f64` bits, that `skew` holds: a
+    /// plugin's code that an edit and a reload change.
+    pub(crate) fn skewed(skew: Arc<AtomicU64>) -> Self {
         let param = |name: &str, default: &str| ParamSpec {
             name: name.into(),
             title: name.into(),
@@ -39,25 +46,28 @@ impl Block {
             default: default.into(),
             shown_when: None,
         };
-        Block(FeatureTypeSpec {
-            id: "test.block".into(),
-            version: 1,
-            title: "Block".into(),
-            params: vec![param("width", "10 mm"), param("height", "5 mm")],
-            inputs: vec![InputSpec {
-                name: "plane".into(),
-                title: "Plane".into(),
-                kind: InputKind::Plane,
-                list: false,
-                shown_when: None,
-            }],
-            outputs: vec![SlotSpec {
-                name: slot("body"),
-                kind: SlotKind::Body,
-                modifies: None,
-            }],
-            choices: vec![],
-        })
+        Block(
+            FeatureTypeSpec {
+                id: "test.block".into(),
+                version: 1,
+                title: "Block".into(),
+                params: vec![param("width", "10 mm"), param("height", "5 mm")],
+                inputs: vec![InputSpec {
+                    name: "plane".into(),
+                    title: "Plane".into(),
+                    kind: InputKind::Plane,
+                    list: false,
+                    shown_when: None,
+                }],
+                outputs: vec![SlotSpec {
+                    name: slot("body"),
+                    kind: SlotKind::Body,
+                    modifies: None,
+                }],
+                choices: vec![],
+            },
+            skew,
+        )
     }
 }
 
@@ -90,7 +100,8 @@ impl FeatureType for Block {
             ],
         };
         let profile = Profile::new(plane, outer, vec![]).unwrap();
-        let body = kernel.extrude(&profile, args.param("height").unwrap())?;
+        let skew = f64::from_bits(self.1.load(Ordering::Relaxed));
+        let body = kernel.extrude(&profile, args.param("height").unwrap() + skew)?;
         Ok(FeatureOutput {
             slots: vec![SlotOutput {
                 name: slot("body"),
@@ -108,7 +119,7 @@ fn registry() -> Registry {
     r
 }
 
-pub(super) fn record(
+pub(crate) fn record(
     id: u64,
     type_id: &str,
     params: &[(&str, &str)],
@@ -134,14 +145,14 @@ pub(super) fn record(
     }
 }
 
-pub(super) fn plane_slot(id: u64) -> Ref {
+pub(crate) fn plane_slot(id: u64) -> Ref {
     Ref::Slot {
         feature: fid(id),
         slot: slot("plane"),
     }
 }
 
-pub(super) fn face(feature: u64, part: SweepPartName) -> PersistentName {
+pub(crate) fn face(feature: u64, part: SweepPartName) -> PersistentName {
     PersistentName {
         kind: TopoKind::Face,
         root: NameRoot::Sweep {
@@ -153,7 +164,7 @@ pub(super) fn face(feature: u64, part: SweepPartName) -> PersistentName {
     }
 }
 
-pub(super) fn doc(params: &[(u64, &str, &str)], features: Vec<FeatureRecord>) -> Document {
+pub(crate) fn doc(params: &[(u64, &str, &str)], features: Vec<FeatureRecord>) -> Document {
     Document {
         params: params
             .iter()
@@ -214,14 +225,14 @@ fn origin(e: &Evaluation, feature: u64) -> DVec3 {
     }
 }
 
-pub(super) fn failure(e: &Evaluation, feature: u64) -> &Diagnostic {
+pub(crate) fn failure(e: &Evaluation, feature: u64) -> &Diagnostic {
     match e.outcome(fid(feature)) {
         Some(FeatureOutcome::Failed { diagnostic, .. }) => diagnostic,
         other => panic!("feature {feature}: {other:?}"),
     }
 }
 
-pub(super) fn cached(e: &Evaluation, feature: u64) -> bool {
+pub(crate) fn cached(e: &Evaluation, feature: u64) -> bool {
     match e.outcome(fid(feature)) {
         Some(FeatureOutcome::Ok { cached, .. }) => *cached,
         other => panic!("feature {feature}: {other:?}"),

@@ -12,7 +12,7 @@ workspace = true
 [features]
 # The session protocol's JSON Schemas (ADR-0023 §5): `JsonSchema` on
 # the types it carries.
-schema = ["dep:schemars", "arrix-core/schema", "arrix-sketch/schema"]
+schema = ["dep:schemars", "arrix-core/schema", "arrix-sketch/schema", "arrix-plugin-api/schema"]
 
 [dependencies]
 schemars = { workspace = true, optional = true }
