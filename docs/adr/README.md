@@ -61,3 +61,5 @@ Each rejected option and the one-line reason it lost.
 - [ADR-0020](0020-a-name-into-a-consumed-slot-follows-its-consumer.md): a persistent name into a consumed slot follows its consumer into the slot it modified; a body input there stays `slot.consumed`
 - [ADR-0021](0021-tier-2-builds-by-callback-and-is-trusted.md): a Tier 2 feature builds through the host's kernel by callback, bodies as handles; Tier 2 is trusted, `files` and `network` unenforced; `SEED.md` §8.4 amended
 - [ADR-0022](0022-the-wire-is-json-rpc-generated-from-the-wit.md): the Tier 2 and `serve` wire is JSON-RPC 2.0, newline-framed, generated from the WIT; bulk numbers as base64; no binary encoding, by measurement
+- [ADR-0023](0023-the-session-on-the-wire-is-its-serde-form.md): `arrix serve` speaks the session's serde form, one method per request, events as notifications, schemas derived; amends ADR-0022 §3 for `serve`
+- [ADR-0024](0024-the-authority-owns-the-registry.md): the authority owns the registry; loading or reloading a plugin is a request, not a command, and makes a new generation
