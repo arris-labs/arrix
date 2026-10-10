@@ -38,7 +38,18 @@ fn rendered(mut cmd: Command, json: &Path) -> Value {
         String::from_utf8_lossy(&out.stderr)
     );
     let text = std::fs::read_to_string(json).expect("the JSON is written");
-    serde_json::from_str(&text).expect("the JSON parses")
+    let value: Value = serde_json::from_str(&text).expect("the JSON parses");
+    assert_valid(&golden_validator(), &value, "a render");
+    value
+}
+
+/// The validator of the golden schema, which `the_render_schema_is_fresh…`
+/// holds equal to what `--schema` prints: every render here is checked
+/// against it.
+fn golden_validator() -> jsonschema::Validator {
+    let text = std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join(SCHEMA_GOLDEN))
+        .expect("the schema golden");
+    jsonschema::validator_for(&serde_json::from_str(&text).expect("JSON")).expect("a schema")
 }
 
 fn failed(out: &Output) -> String {
@@ -201,5 +212,99 @@ fn render_failures_exit_non_zero_with_the_reason() {
         ])));
         assert!(err.contains("WxH"), "{err}");
         assert!(!png.exists(), "a failed render writes no PNG");
+    });
+}
+
+const SCHEMA_GOLDEN: &str = "tests/snapshots/render.schema.json";
+
+/// `render --schema` prints the schema, held to a golden (rewritten under
+/// `UPDATE_SNAPSHOTS=1`). It needs no GPU, no document and no `-o`.
+fn schema() -> Value {
+    let out = render(&["--schema"]).output().expect("arrix-app runs");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let text = String::from_utf8(out.stdout).expect("UTF-8");
+    let golden = Path::new(env!("CARGO_MANIFEST_DIR")).join(SCHEMA_GOLDEN);
+    if harness::env_flag("UPDATE_SNAPSHOTS") {
+        std::fs::write(&golden, &text).expect("the golden is written");
+    }
+    assert!(
+        text == std::fs::read_to_string(&golden).unwrap_or_default(),
+        "{SCHEMA_GOLDEN} differs from `arrix-app render --schema`; rerun with UPDATE_SNAPSHOTS=1 and read the diff"
+    );
+    serde_json::from_str(&text).expect("JSON")
+}
+
+fn assert_valid(validator: &jsonschema::Validator, value: &Value, what: &str) {
+    let errors: Vec<String> = validator
+        .iter_errors(value)
+        .map(|e| e.to_string())
+        .collect();
+    assert!(errors.is_empty(), "{what}:\n{}", errors.join("\n"));
+}
+
+/// The schema is fresh, names the format, and rejects a JSON without one.
+#[test]
+fn the_render_schema_is_fresh_and_names_the_format() {
+    let schema = schema();
+    assert_eq!(
+        schema["$schema"],
+        "https://json-schema.org/draft/2020-12/schema"
+    );
+    assert_eq!(
+        schema["properties"]["format"]["const"],
+        arrix_app::render::FORMAT
+    );
+    let validator = jsonschema::validator_for(&schema).expect("a valid schema");
+    assert!(!validator.is_valid(&serde_json::json!({"adapter": "x", "debug_state": {}})));
+}
+
+/// Every render the CLI makes validates against its schema, and every
+/// field the schema marks promised is present in a slice render with a
+/// frozen gear (which has bodies, a camera, a badge and an evaluation).
+#[test]
+fn renders_validate_and_carry_every_promised_field() {
+    harness::with_app("renders_validate_and_carry_every_promised_field", |h| {
+        let schema = schema();
+        let validator = jsonschema::validator_for(&schema).expect("a valid schema");
+        let dir = scratch("schema");
+        harness::open_settled(h, "tests/docs/slice");
+        let saved = h.state().saved().expect("a document is open");
+        let arrx = dir.join("slice.arrx");
+        std::fs::write(&arrx, arrix_doc::to_zip(&saved).expect("it zips")).expect("written");
+
+        let (png, json) = (dir.join("a.png"), dir.join("a.json"));
+        let mut cmd = render(&[
+            path(&arrx),
+            "--without-plugin",
+            "gears",
+            "--size",
+            "320x200",
+        ]);
+        cmd.args(["-o", path(&png), "--json", path(&json)]);
+        let frozen = rendered(cmd, &json);
+        assert_valid(&validator, &frozen, "a frozen slice");
+
+        let mut cmd = render(&["tests/docs/slice", "--size", "320x200"]);
+        cmd.args(["-o", path(&png), "--json", path(&json)]);
+        assert_valid(&validator, &rendered(cmd, &json), "the slice");
+
+        let promised: Vec<&String> = schema["properties"]["debug_state"]["properties"]
+            .as_object()
+            .expect("properties")
+            .iter()
+            .filter(|(_, v)| v["x-arrix-promised"] == true)
+            .map(|(k, _)| k)
+            .collect();
+        assert!(promised.len() >= 5, "{promised:?}");
+        for field in promised {
+            assert!(
+                !frozen["debug_state"][field.as_str()].is_null(),
+                "promised field `{field}` is missing from the render"
+            );
+        }
     });
 }

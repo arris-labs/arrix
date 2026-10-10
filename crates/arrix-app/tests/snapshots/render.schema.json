@@ -1,0 +1,218 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "What `arrix-app render --json` writes. Only the fields marked `x-arrix-promised` are kept across a format; the rest of `debug_state` is informational (ADR-0026).",
+  "properties": {
+    "adapter": {
+      "description": "The wgpu adapter drawn on: name, backend and driver.",
+      "type": "string"
+    },
+    "debug_state": {
+      "additionalProperties": true,
+      "properties": {
+        "badges": {
+          "description": "The frozen badges the viewport drew. Absent while there are none.",
+          "items": {
+            "properties": {
+              "at": {
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 2,
+                "minItems": 2,
+                "type": "array"
+              },
+              "feature": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              },
+              "state": {
+                "description": "`frozen` or `frozen-stale`; a reader tolerates others.",
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "feature",
+              "title",
+              "state",
+              "reason",
+              "at"
+            ],
+            "type": "object"
+          },
+          "type": "array",
+          "x-arrix-promised": true
+        },
+        "bodies": {
+          "description": "The active document's bodies as the scene holds them. Absent while there are none.",
+          "items": {
+            "description": "One body in the scene, in metres.",
+            "properties": {
+              "bounds": {
+                "description": "[min_x, min_y, min_z, max_x, max_y, max_z] in the world, metres.",
+                "oneOf": [
+                  {
+                    "items": {
+                      "type": "number"
+                    },
+                    "maxItems": 6,
+                    "minItems": 6,
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "chord_um": {
+                "description": "The chord of the mesh drawn, in micrometres.",
+                "type": "number"
+              },
+              "feature": {
+                "type": "string"
+              },
+              "part": {
+                "type": "string"
+              },
+              "slot": {
+                "type": "string"
+              },
+              "triangles": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "part",
+              "feature",
+              "slot",
+              "chord_um",
+              "triangles",
+              "bounds"
+            ],
+            "type": "object"
+          },
+          "type": "array",
+          "x-arrix-promised": true
+        },
+        "camera": {
+          "description": "The camera the active view looks through. Absent without a document.",
+          "properties": {
+            "distance": {
+              "type": "number"
+            },
+            "pitch": {
+              "type": "number"
+            },
+            "projection": {
+              "type": "string"
+            },
+            "target": {
+              "items": {
+                "type": "number"
+              },
+              "maxItems": 3,
+              "minItems": 3,
+              "type": "array"
+            },
+            "view_proj": {
+              "items": {
+                "type": "number"
+              },
+              "maxItems": 16,
+              "minItems": 16,
+              "type": "array"
+            },
+            "yaw": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "target",
+            "distance",
+            "yaw",
+            "pitch",
+            "projection",
+            "view_proj"
+          ],
+          "type": "object",
+          "x-arrix-promised": true
+        },
+        "config_diagnostics": {
+          "description": "What the config files got wrong, each with its file and line.",
+          "items": {
+            "properties": {
+              "column": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "file": {
+                "type": "string"
+              },
+              "line": {
+                "minimum": 1,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "file"
+            ],
+            "type": "object"
+          },
+          "type": "array",
+          "x-arrix-promised": true
+        },
+        "evaluation": {
+          "description": "Where the active document's evaluation is. Absent without a document.",
+          "properties": {
+            "document": {
+              "type": "string"
+            },
+            "finished": {
+              "type": "boolean"
+            },
+            "generation": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "problems": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "settled": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "document",
+            "generation",
+            "finished",
+            "settled",
+            "problems"
+          ],
+          "type": "object",
+          "x-arrix-promised": true
+        }
+      },
+      "type": "object"
+    },
+    "format": {
+      "const": 1,
+      "description": "This schema's version."
+    }
+  },
+  "required": [
+    "format",
+    "adapter",
+    "debug_state"
+  ],
+  "title": "arrix-app render JSON",
+  "type": "object"
+}

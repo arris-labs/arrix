@@ -420,6 +420,7 @@ dependencies = [
  "egui-wgpu",
  "egui_kittest",
  "image",
+ "jsonschema",
  "pollster 1.0.1",
  "rfd",
  "serde",

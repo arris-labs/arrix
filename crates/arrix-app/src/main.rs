@@ -38,10 +38,15 @@ enum Command {
 #[derive(clap::Args)]
 struct RenderArgs {
     /// The document: a directory or an `.arrx`.
-    document: std::path::PathBuf,
+    #[arg(required_unless_present = "schema")]
+    document: Option<std::path::PathBuf>,
     /// The PNG to write.
-    #[arg(short, long)]
-    output: std::path::PathBuf,
+    #[arg(short, long, required_unless_present = "schema")]
+    output: Option<std::path::PathBuf>,
+    /// Print the JSON's JSON Schema (draft 2020-12) and exit. The fields it
+    /// marks `x-arrix-promised` are kept across a format (ADR-0026).
+    #[arg(long)]
+    schema: bool,
     /// Where to write the JSON: its format, the adapter drawn on, and
     /// `debug_state()`.
     #[arg(long)]
@@ -94,21 +99,29 @@ fn run(paths: Vec<std::path::PathBuf>) -> eframe::Result<()> {
 #[cfg(not(target_arch = "wasm32"))]
 fn render(args: &RenderArgs) -> std::process::ExitCode {
     use arrix_app::render::{RenderOptions, render_document};
+    let (Some(document), Some(output)) = (&args.document, &args.output) else {
+        let text = serde_json::to_string_pretty(&arrix_app::render::schema())
+            .expect("a schema is plain data");
+        return match std::io::Write::write_fmt(&mut std::io::stdout(), format_args!("{text}\n")) {
+            Ok(()) => std::process::ExitCode::SUCCESS,
+            Err(_) => std::process::ExitCode::from(2),
+        };
+    };
     let options = RenderOptions {
         size: egui::vec2(args.size.0 as f32, args.size.1 as f32),
         plugins: args.plugins.clone(),
         without: args.without.clone(),
         view: args.view,
     };
-    let done = render_document(&args.document, &options).and_then(|r| {
+    let done = render_document(document, &options).and_then(|r| {
         if let Some(json) = &args.json {
             std::fs::write(json, r.json()?).map_err(|err| format!("{}: {err}", json.display()))?;
         }
         let [w, h] = r.size;
         image::RgbaImage::from_raw(w, h, r.pixels)
             .ok_or_else(|| "the frame has the wrong size".to_owned())?
-            .save(&args.output)
-            .map_err(|err| format!("{}: {err}", args.output.display()))
+            .save(output)
+            .map_err(|err| format!("{}: {err}", output.display()))
     });
     match done {
         Ok(()) => std::process::ExitCode::SUCCESS,

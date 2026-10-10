@@ -94,6 +94,113 @@ impl Rendered {
     }
 }
 
+/// `--schema`: the JSON Schema (draft 2020-12) of the render's JSON
+/// (ADR-0026). Only `debug_state()`'s promised fields are described, each
+/// marked `x-arrix-promised`; every other field is informational, so
+/// `debug_state` stays open (`additionalProperties` allowed).
+pub fn schema() -> serde_json::Value {
+    let number = || serde_json::json!({"type": "number"});
+    let string = || serde_json::json!({"type": "string"});
+    let numbers = |n: usize| serde_json::json!({"type": "array", "items": number(), "minItems": n, "maxItems": n});
+    let body = serde_json::json!({
+        "description": "One body in the scene, in metres.",
+        "type": "object",
+        "properties": {
+            "part": string(),
+            "feature": string(),
+            "slot": string(),
+            "chord_um": {"description": "The chord of the mesh drawn, in micrometres.", "type": "number"},
+            "triangles": {"type": "integer", "minimum": 0},
+            "bounds": {
+                "description": "[min_x, min_y, min_z, max_x, max_y, max_z] in the world, metres.",
+                "oneOf": [numbers(6), {"type": "null"}]
+            }
+        },
+        "required": ["part", "feature", "slot", "chord_um", "triangles", "bounds"]
+    });
+    serde_json::json!({
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "arrix-app render JSON",
+        "description": "What `arrix-app render --json` writes. Only the fields marked `x-arrix-promised` are kept across a format; the rest of `debug_state` is informational (ADR-0026).",
+        "type": "object",
+        "properties": {
+            "format": {"description": "This schema's version.", "const": FORMAT},
+            "adapter": {"description": "The wgpu adapter drawn on: name, backend and driver.", "type": "string"},
+            "debug_state": {
+                "type": "object",
+                "properties": {
+                    "bodies": {
+                        "description": "The active document's bodies as the scene holds them. Absent while there are none.",
+                        "x-arrix-promised": true,
+                        "type": "array",
+                        "items": body
+                    },
+                    "camera": {
+                        "description": "The camera the active view looks through. Absent without a document.",
+                        "x-arrix-promised": true,
+                        "type": "object",
+                        "properties": {
+                            "target": numbers(3),
+                            "distance": number(),
+                            "yaw": number(),
+                            "pitch": number(),
+                            "projection": string(),
+                            "view_proj": numbers(16)
+                        },
+                        "required": ["target", "distance", "yaw", "pitch", "projection", "view_proj"]
+                    },
+                    "badges": {
+                        "description": "The frozen badges the viewport drew. Absent while there are none.",
+                        "x-arrix-promised": true,
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "feature": string(),
+                                "title": string(),
+                                "state": {"description": "`frozen` or `frozen-stale`; a reader tolerates others.", "type": "string"},
+                                "reason": string(),
+                                "at": numbers(2)
+                            },
+                            "required": ["feature", "title", "state", "reason", "at"]
+                        }
+                    },
+                    "evaluation": {
+                        "description": "Where the active document's evaluation is. Absent without a document.",
+                        "x-arrix-promised": true,
+                        "type": "object",
+                        "properties": {
+                            "document": string(),
+                            "generation": {"type": "integer", "minimum": 0},
+                            "finished": {"type": "boolean"},
+                            "settled": {"type": "boolean"},
+                            "problems": {"type": "array", "items": string()}
+                        },
+                        "required": ["document", "generation", "finished", "settled", "problems"]
+                    },
+                    "config_diagnostics": {
+                        "description": "What the config files got wrong, each with its file and line.",
+                        "x-arrix-promised": true,
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "file": string(),
+                                "line": {"type": "integer", "minimum": 1},
+                                "column": {"type": "integer", "minimum": 1}
+                            },
+                            "required": ["file"]
+                        }
+                    }
+                },
+                "additionalProperties": true
+            }
+        },
+        "required": ["format", "adapter", "debug_state"],
+        "additionalProperties": true
+    })
+}
+
 /// How long a document may take to evaluate and mesh before the render
 /// gives up on it.
 const SETTLE: Duration = Duration::from_secs(120);

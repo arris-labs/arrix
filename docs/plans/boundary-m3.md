@@ -108,7 +108,7 @@ failure check reuses `--save-fixtures` recipes (`SEED.md` §6.6).
   line's schema, held as `eval.schema.json` under `UPDATE_SNAPSHOTS=1`.
   A test validates every eval golden, a sweep and a `--timings` line
   against it.
-- [ ] **[2]** Step 3: the render's schema. `arrix-app render --schema`
+- [x] **[2]** Step 3: the render's schema. `arrix-app render --schema`
   prints `{format, adapter, debug_state}`, with `debug_state()`'s
   promised fields marked `x-arrix-promised` and the rest open
   (`additionalProperties` allowed). It is held as a golden in
@@ -225,5 +225,5 @@ and pre-push).
   by a copy inside `plugins/gears/tests/`? A copy keeps a plugin
   self-contained, as an outside plugin would be. Agent, step 5.
 - ⚠ OPEN: is `DebugState`'s schema derived (`schemars` in `arrix-app`) or
-  hand-written over the promised fields only? Agent, step 3, whichever
-  keeps the golden readable.
+  hand-written over the promised fields only? Decided at step 3: hand-written
+  (`render::schema()`), promised fields only, the rest open.

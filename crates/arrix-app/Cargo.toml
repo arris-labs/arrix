@@ -44,6 +44,7 @@ image.workspace = true
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 egui_kittest.workspace = true
 egui-wgpu.workspace = true
+jsonschema.workspace = true
 
 # Looked at on demand, compared against nothing: not run by `cargo test`.
 [[test]]
