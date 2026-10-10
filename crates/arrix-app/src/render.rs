@@ -8,25 +8,61 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use arrix_config::MemorySource;
+use std::path::{Path, PathBuf};
+
+use arrix_config::{MemorySource, VIEW_FRONT, VIEW_HOME, VIEW_ISO, VIEW_RIGHT, VIEW_TOP};
 use eframe::egui_wgpu::{self, RenderState, ScreenDescriptor, wgpu};
 
 use crate::ArrixApp;
 
-/// What `render` draws into.
+/// The version of the render's JSON (`{format, adapter, debug_state}`),
+/// raised when a reader of it would have to change.
+pub const FORMAT: u32 = 1;
+
+/// What `render` draws, and into what.
 #[derive(Clone, Debug)]
 pub struct RenderOptions {
     /// The window, in points (one pixel each).
     pub size: egui::Vec2,
+    /// Tier 2 plugin directories started for the document, as `arrix eval
+    /// --plugin`.
+    pub plugins: Vec<PathBuf>,
     /// Plugins left out of the build, as `arrix eval --without-plugin`.
     pub without: Vec<String>,
+    /// The view the camera turns to once the document has settled; `None`
+    /// keeps the one it opens with (home).
+    pub view: Option<View>,
 }
 
 impl Default for RenderOptions {
     fn default() -> Self {
         Self {
             size: egui::vec2(1440.0, 900.0),
+            plugins: Vec::new(),
             without: Vec::new(),
+            view: None,
+        }
+    }
+}
+
+/// The views a render can be drawn from: the app's own view commands.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]
+pub enum View {
+    Home,
+    Top,
+    Front,
+    Right,
+    Iso,
+}
+
+impl View {
+    fn command(self) -> &'static str {
+        match self {
+            View::Home => VIEW_HOME,
+            View::Top => VIEW_TOP,
+            View::Front => VIEW_FRONT,
+            View::Right => VIEW_RIGHT,
+            View::Iso => VIEW_ISO,
         }
     }
 }
@@ -40,6 +76,22 @@ pub struct Rendered {
     pub debug_state: String,
     /// The wgpu adapter it was drawn on: name, backend and driver.
     pub adapter: String,
+}
+
+impl Rendered {
+    /// The render's JSON: its [`FORMAT`], the adapter and `debug_state()`.
+    pub fn json(&self) -> Result<String, String> {
+        let state: serde_json::Value =
+            serde_json::from_str(&self.debug_state).map_err(|err| err.to_string())?;
+        let out = serde_json::json!({
+            "format": FORMAT,
+            "adapter": self.adapter,
+            "debug_state": state,
+        });
+        serde_json::to_string_pretty(&out)
+            .map(|text| format!("{text}\n"))
+            .map_err(|err| err.to_string())
+    }
 }
 
 /// How long a document may take to evaluate and mesh before the render
@@ -60,13 +112,10 @@ const STEP_DT: f32 = 0.25;
 /// Opens the document at `path` (a document directory or an `.arrx`) in
 /// the app on its built-in configuration, waits until it is evaluated and
 /// every body meshed refined, and renders one frame.
-pub fn render_document(
-    path: &std::path::Path,
-    options: &RenderOptions,
-) -> Result<Rendered, String> {
+pub fn render_document(path: &Path, options: &RenderOptions) -> Result<Rendered, String> {
     render_with(options, |app| {
         let without: Vec<&str> = options.without.iter().map(String::as_str).collect();
-        app.open_path_without(path, &without)
+        app.open_path_with(path, &options.plugins, &without)
     })
 }
 
@@ -102,6 +151,10 @@ pub fn render_with(
         std::thread::sleep(Duration::from_millis(5));
     }
     app.skip_animations();
+    if let Some(view) = options.view {
+        app.run(view.command());
+        app.skip_animations();
+    }
     frames.settle(&mut app);
     let (pixels, size) = frames.paint()?;
     Ok(Rendered {

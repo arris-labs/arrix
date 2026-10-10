@@ -1,0 +1,205 @@
+//! `arrix-app render`'s surface (ADR-0025): each flag on the spawned
+//! binary, the JSON it writes, and the failures it reports with a non-zero
+//! exit.
+
+use std::path::{Path, PathBuf};
+use std::process::{Command, Output};
+
+use serde_json::Value;
+
+use crate::harness;
+
+/// The repository root: the binary is run from there, as an agent would.
+fn root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
+/// A fresh directory for one test's outputs.
+fn scratch(name: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("arrix-render-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("a temporary directory");
+    dir
+}
+
+/// `arrix-app render <args>` from the repository root.
+fn render(args: &[&str]) -> Command {
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_arrix-app"));
+    cmd.current_dir(root()).arg("render").args(args);
+    cmd
+}
+
+/// Runs `cmd`, requires success, and reads the JSON it wrote to `json`.
+fn rendered(mut cmd: Command, json: &Path) -> Value {
+    let out = cmd.output().expect("arrix-app runs");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let text = std::fs::read_to_string(json).expect("the JSON is written");
+    serde_json::from_str(&text).expect("the JSON parses")
+}
+
+fn failed(out: &Output) -> String {
+    assert!(!out.status.success(), "it should have failed");
+    assert!(out.stdout.is_empty(), "nothing on stdout");
+    String::from_utf8_lossy(&out.stderr).into_owned()
+}
+
+fn path(p: &Path) -> &str {
+    p.to_str().expect("a UTF-8 temporary path")
+}
+
+/// The JSON names its format and the adapter, and `--size` is the
+/// window's and the PNG's.
+#[test]
+fn render_size_sets_the_window_and_the_png() {
+    harness::with_gpu("render_size_sets_the_window_and_the_png", || {
+        let dir = scratch("size");
+        let (png, json) = (dir.join("slice.png"), dir.join("slice.json"));
+        let mut cmd = render(&["tests/docs/slice", "--size", "640x400"]);
+        cmd.args(["-o", path(&png), "--json", path(&json)]);
+        let out = rendered(cmd, &json);
+        assert_eq!(out["format"], arrix_app::render::FORMAT);
+        assert!(!out["adapter"].as_str().unwrap_or_default().is_empty());
+        assert_eq!(
+            out["debug_state"]["window"],
+            serde_json::json!([640.0, 400.0])
+        );
+        let image = image::open(&png).expect("the PNG reads");
+        assert_eq!((image.width(), image.height()), (640, 400));
+    });
+}
+
+/// `--view` turns the camera once the document has settled: the app's
+/// view commands, from where home left it.
+#[test]
+fn render_view_turns_the_camera() {
+    harness::with_gpu("render_view_turns_the_camera", || {
+        let dir = scratch("view");
+        let camera = |view: Option<&str>| {
+            let (png, json) = (dir.join("v.png"), dir.join("v.json"));
+            let mut cmd = render(&["tests/docs/slice", "--size", "320x200"]);
+            cmd.args(["-o", path(&png), "--json", path(&json)]);
+            if let Some(view) = view {
+                cmd.args(["--view", view]);
+            }
+            let out = rendered(cmd, &json);
+            let c = &out["debug_state"]["camera"];
+            let angle = |k: &str| c[k].as_f64().expect("an angle");
+            (angle("yaw"), angle("pitch"))
+        };
+        let close =
+            |a: (f64, f64), b: (f64, f64)| (a.0 - b.0).abs() < 1e-4 && (a.1 - b.1).abs() < 1e-4;
+        let home = camera(None);
+        assert!(close(camera(Some("home")), home));
+        let top = camera(Some("top"));
+        assert!(
+            (top.1 - std::f64::consts::FRAC_PI_2).abs() < 1e-4,
+            "{top:?}"
+        );
+        assert!(close(
+            camera(Some("front")),
+            (std::f64::consts::FRAC_PI_2, 0.0)
+        ));
+        assert!(close(camera(Some("right")), (0.0, 0.0)));
+        let iso = camera(Some("iso"));
+        assert!(!close(iso, home) && iso.1 > 0.0, "{iso:?}");
+    });
+}
+
+/// `--plugin` starts a Tier 2 plugin for the document: the standoff
+/// evaluates live and is drawn; without it, it fails and is not.
+#[test]
+fn render_plugin_evaluates_a_tier2_feature() {
+    harness::with_gpu("render_plugin_evaluates_a_tier2_feature", || {
+        const STANDOFF: &str = "9HN9VBVEXFYYQ";
+        let dir = scratch("plugin");
+        let bodies = |plugin: bool| {
+            let (png, json) = (dir.join("s.png"), dir.join("s.json"));
+            let mut cmd = render(&["tests/docs/standoff", "--size", "320x200"]);
+            cmd.args(["-o", path(&png), "--json", path(&json)]);
+            if plugin {
+                cmd.args(["--plugin", "python/examples/standoff"]);
+            }
+            let out = rendered(cmd, &json);
+            out["debug_state"]["bodies"]
+                .as_array()
+                .expect("bodies")
+                .clone()
+        };
+        let live = bodies(true);
+        let standoff = live
+            .iter()
+            .find(|b| b["feature"] == STANDOFF)
+            .expect("the standoff is drawn");
+        // 10 mm tall, on the 5 mm plate.
+        let top = standoff["bounds"][5].as_f64().expect("bounds");
+        assert!((top - 0.015).abs() < 1e-6, "{standoff}");
+        assert!(
+            bodies(false).iter().all(|b| b["feature"] != STANDOFF),
+            "without the plugin the standoff has no body"
+        );
+    });
+}
+
+/// `--without-plugin` opens a saved slice as a build without `gears`
+/// would: the gear frozen, and its badge in the JSON.
+#[test]
+fn render_without_plugin_shows_the_frozen_badge() {
+    harness::with_app("render_without_plugin_shows_the_frozen_badge", |h| {
+        let dir = scratch("without");
+        harness::open_settled(h, "tests/docs/slice");
+        let saved = h.state().saved().expect("a document is open");
+        let arrx = dir.join("slice.arrx");
+        std::fs::write(&arrx, arrix_doc::to_zip(&saved).expect("it zips")).expect("written");
+
+        let (png, json) = (dir.join("frozen.png"), dir.join("frozen.json"));
+        let mut cmd = render(&[path(&arrx), "--without-plugin", "gears"]);
+        cmd.args(["-o", path(&png), "--json", path(&json)]);
+        let out = rendered(cmd, &json);
+        let badges = out["debug_state"]["badges"].as_array().expect("badges");
+        assert_eq!(badges.len(), 1, "{badges:?}");
+        assert_eq!(badges[0]["title"], "Spur gear");
+        assert_eq!(badges[0]["state"], "frozen");
+
+        let out = render(&[path(&arrx), "--without-plugin", "nosuch", "-o", path(&png)])
+            .output()
+            .expect("arrix-app runs");
+        assert!(failed(&out).contains("no plugin `nosuch`"));
+    });
+}
+
+/// A document that does not open, a plugin that does not start, and no
+/// adapter at all: each exits non-zero with its reason, and writes nothing.
+#[test]
+fn render_failures_exit_non_zero_with_the_reason() {
+    harness::with_gpu("render_failures_exit_non_zero_with_the_reason", || {
+        let dir = scratch("failures");
+        let png = dir.join("x.png");
+        let run = |cmd: &mut Command| cmd.output().expect("arrix-app runs");
+
+        let err = failed(&run(&mut render(&["tests/docs/nosuch", "-o", path(&png)])));
+        assert!(err.contains("tests/docs/nosuch"), "{err}");
+
+        let mut cmd = render(&["tests/docs/slice", "--plugin", "tests/docs/nosuch"]);
+        let err = failed(&run(cmd.args(["-o", path(&png)])));
+        assert!(err.contains("tests/docs/nosuch"), "{err}");
+
+        // No backend is a machine without an adapter.
+        let mut cmd = render(&["tests/docs/slice", "-o", path(&png)]);
+        let err = failed(&run(cmd.env("WGPU_BACKEND", "none")));
+        assert!(err.contains("no wgpu"), "{err}");
+
+        let err = failed(&run(&mut render(&[
+            "tests/docs/slice",
+            "--size",
+            "0x9",
+            "-o",
+            path(&png),
+        ])));
+        assert!(err.contains("WxH"), "{err}");
+        assert!(!png.exists(), "a failed render writes no PNG");
+    });
+}

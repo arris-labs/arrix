@@ -96,7 +96,7 @@ None new. `serve`, load and render reach the kernel only through calls
   the harness's tolerance and with zero budget. ADR-0025 is written from
   the result; if parity fails, the step stops for the human (option B3,
   shipping `egui_kittest`).
-- [ ] **[2]** Step 3: render's surface. `--view`, `--size`, `--plugin`,
+- [x] **[2]** Step 3: render's surface. `--view`, `--size`, `--plugin`,
   and `--without-plugin` so a frozen feature renders with its badge. The
   JSON carries the adapter and a render format version. A document that
   fails to open, or has no adapter, exits non-zero with its diagnostic.
@@ -188,6 +188,11 @@ The whole gate stays green, including step 4's schema freshness and step
   event its request caused; one writer thread owns `serve`'s stdout.
 - Settled by step 1 (ADR-0023 §5): the schemas are printed by `arrix serve
   --schema`, not under `arrix config schema`.
+- Found by step 3: ADR-0025 §1 gives the render's JSON as `{adapter,
+  debug_state}`, written before this step added `format`. The decision
+  stands; `docs/UI-RENDERING.md` §Visual debugging carries the shape. A
+  superseding ADR is not worth it unless M3's stability promise wants the
+  shape in an ADR (agent, at M3's plan).
 - Settled by step 1 (ADR-0024 §3): a reload makes a generation even when
   no spec changed. The registry change is a `SessionEvent::Registry`, not
   a `Change` (a `Change` carries a command, and a load is none).

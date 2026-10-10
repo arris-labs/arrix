@@ -42,9 +42,36 @@ struct RenderArgs {
     /// The PNG to write.
     #[arg(short, long)]
     output: std::path::PathBuf,
-    /// Where to write `debug_state()`'s JSON, with the adapter drawn on.
+    /// Where to write the JSON: its format, the adapter drawn on, and
+    /// `debug_state()`.
     #[arg(long)]
     json: Option<std::path::PathBuf>,
+    /// The view to draw from, once the document has settled.
+    #[arg(long, value_enum)]
+    view: Option<arrix_app::render::View>,
+    /// The window, in pixels.
+    #[arg(long, value_name = "WxH", default_value = "1440x900", value_parser = parse_size)]
+    size: (u32, u32),
+    /// Start the Tier 2 plugin in this directory (repeatable).
+    #[arg(long = "plugin", value_name = "DIR")]
+    plugins: Vec<std::path::PathBuf>,
+    /// Leave this plugin out (repeatable): its features open frozen.
+    #[arg(long = "without-plugin", value_name = "ID")]
+    without: Vec<String>,
+}
+
+/// `WxH`, each between 1 and 8192 pixels.
+#[cfg(not(target_arch = "wasm32"))]
+fn parse_size(text: &str) -> Result<(u32, u32), String> {
+    let bad = || format!("`{text}` is not WxH, each 1 to 8192 pixels");
+    let (w, h) = text.split_once(['x', 'X']).ok_or_else(bad)?;
+    let side = |s: &str| {
+        s.parse::<u32>()
+            .ok()
+            .filter(|n| (1..=8192).contains(n))
+            .ok_or_else(bad)
+    };
+    Ok((side(w)?, side(h)?))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -67,21 +94,21 @@ fn run(paths: Vec<std::path::PathBuf>) -> eframe::Result<()> {
 #[cfg(not(target_arch = "wasm32"))]
 fn render(args: &RenderArgs) -> std::process::ExitCode {
     use arrix_app::render::{RenderOptions, render_document};
-    let done = render_document(&args.document, &RenderOptions::default()).and_then(|r| {
+    let options = RenderOptions {
+        size: egui::vec2(args.size.0 as f32, args.size.1 as f32),
+        plugins: args.plugins.clone(),
+        without: args.without.clone(),
+        view: args.view,
+    };
+    let done = render_document(&args.document, &options).and_then(|r| {
+        if let Some(json) = &args.json {
+            std::fs::write(json, r.json()?).map_err(|err| format!("{}: {err}", json.display()))?;
+        }
         let [w, h] = r.size;
         image::RgbaImage::from_raw(w, h, r.pixels)
             .ok_or_else(|| "the frame has the wrong size".to_owned())?
             .save(&args.output)
-            .map_err(|err| format!("{}: {err}", args.output.display()))?;
-        if let Some(json) = &args.json {
-            let state: serde_json::Value =
-                serde_json::from_str(&r.debug_state).map_err(|err| err.to_string())?;
-            let out = serde_json::json!({ "adapter": r.adapter, "debug_state": state });
-            let text = serde_json::to_string_pretty(&out).map_err(|err| err.to_string())?;
-            std::fs::write(json, format!("{text}\n"))
-                .map_err(|err| format!("{}: {err}", json.display()))?;
-        }
-        Ok(())
+            .map_err(|err| format!("{}: {err}", args.output.display()))
     });
     match done {
         Ok(()) => std::process::ExitCode::SUCCESS,

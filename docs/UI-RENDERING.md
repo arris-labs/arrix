@@ -856,14 +856,22 @@ the way in.
   draws a state to `target/visual-scratch/scratch.{png,json}` and compares
   against nothing: the agent's way to look before it pins a scenario.
 - **The product render** (`arrix-app render <doc> -o <png> [--json
-  <file>]`, ADR-0025) is the same drawing outside the test harness: the
-  real app on its own `egui::Context` (`ArrixApp::headless`), stepped as the
-  harness steps it, painted through `egui_wgpu` into a texture and read
-  back, after the document has settled. The JSON is `{adapter,
-  debug_state}`. It prefers a CPU adapter and draws on any other; its pixels
-  are promised only on lavapipe. `render_parity` holds it to the harness:
-  the slice drawn by both on one device gives identical pixels and the
-  same `debug_state()`.
+  <file>] [--view home|top|front|right|iso] [--size WxH] [--plugin <dir>]…
+  [--without-plugin <id>]…`, ADR-0025) is the same drawing outside the test
+  harness: the real app on its own `egui::Context` (`ArrixApp::headless`),
+  stepped as the harness steps it, painted through `egui_wgpu` into a
+  texture and read back, after the document has settled. `--view` runs the
+  app's view command once it has; `--size` is the window in pixels
+  (1440×900 by default); `--plugin` starts a Tier 2 plugin for the
+  document and `--without-plugin` leaves one out, so a frozen feature draws
+  with its badge, as `arrix eval`'s flags do. The JSON is `{format, adapter,
+  debug_state}`, `format` being `render::FORMAT` (1). A document that does
+  not open, a plugin that does not start, or no adapter exits 1 with the
+  reason on stderr. It prefers a CPU adapter and draws on any other; its
+  pixels are promised only on lavapipe. `render_parity` holds it to the
+  harness: the slice drawn by both on one device gives identical pixels
+  and the same `debug_state()`; `render_cli` tests each flag on the
+  binary.
 - **Refreshing a golden** (`UPDATE_SNAPSHOTS=1`) is done only for an
   intentional UI change, after reading the before, after and diff images
   rendered on demand and the golden's text diff, and the commit says why

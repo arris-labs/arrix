@@ -256,14 +256,17 @@ impl ArrixApp {
         without: &[&str],
     ) -> Result<(), String> {
         let mut registry = commands::feature_types();
-        for id in without {
-            let removed = arrix_core::PluginId::new(*id)
-                .map(|plugin| registry.remove_plugin(&plugin))
-                .unwrap_or(false);
-            if !removed {
-                return Err(format!("no plugin `{id}` in this build"));
-            }
-        }
+        remove_plugins(&mut registry, without)?;
+        self.open_in(path, source, registry)
+    }
+
+    /// Opens the document `source` holds on `registry`'s feature types.
+    fn open_in(
+        &mut self,
+        path: &str,
+        source: &impl arrix_doc::DocumentSource,
+        registry: arrix_doc::Registry,
+    ) -> Result<(), String> {
         let title = path
             .trim_end_matches(['/', '\\'])
             .rsplit(['/', '\\'])
@@ -290,6 +293,25 @@ impl ArrixApp {
     ) -> Result<(), String> {
         let source = document_files::PathSource::read(path)?;
         self.open_without(&path.to_string_lossy(), &source, without)
+    }
+
+    /// [`Self::open_path_without`] with each Tier 2 plugin directory of
+    /// `plugins` started first (`arrix-app render --plugin`), so its
+    /// features evaluate live; one of `without` may name such a plugin too.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn open_path_with(
+        &mut self,
+        path: &std::path::Path,
+        plugins: &[std::path::PathBuf],
+        without: &[&str],
+    ) -> Result<(), String> {
+        let source = document_files::PathSource::read(path)?;
+        let mut registry = commands::feature_types();
+        for dir in plugins {
+            arrix_plugin_host::register_tier2(&mut registry, dir).map_err(|err| err.to_string())?;
+        }
+        remove_plugins(&mut registry, without)?;
+        self.open_in(&path.to_string_lossy(), &source, registry)
     }
 
     /// The active document as it saves: its directory form's files, with
@@ -882,6 +904,20 @@ impl ArrixApp {
             }
         }
     }
+}
+
+/// Leaves each plugin of `without` out of `registry`, as a build without
+/// it would; fails on the first it does not have.
+fn remove_plugins(registry: &mut arrix_doc::Registry, without: &[&str]) -> Result<(), String> {
+    for id in without {
+        let removed = arrix_core::PluginId::new(*id)
+            .map(|plugin| registry.remove_plugin(&plugin))
+            .unwrap_or(false);
+        if !removed {
+            return Err(format!("no plugin `{id}` in this build"));
+        }
+    }
+    Ok(())
 }
 
 impl eframe::App for ArrixApp {

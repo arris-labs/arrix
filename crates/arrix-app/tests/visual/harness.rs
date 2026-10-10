@@ -145,6 +145,16 @@ pub fn with_app(name: &str, body: impl FnOnce(&mut Harness<'_, ArrixApp>)) {
     with_config(name, &MemorySource::default(), body);
 }
 
+/// Runs `body`, which renders by other means (the `arrix-app render`
+/// binary), under the same adapter check and lock as a scenario.
+pub fn with_gpu(name: &str, body: impl FnOnce()) {
+    if !can_render(name) {
+        return;
+    }
+    let _gpu = gpu_lock();
+    body();
+}
+
 /// [`with_app`] on the config files `source` holds.
 pub fn with_config(
     name: &str,
