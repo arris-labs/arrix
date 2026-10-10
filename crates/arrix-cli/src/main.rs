@@ -7,6 +7,7 @@ mod describe;
 mod eval;
 mod export;
 mod load;
+mod plugin_test;
 mod plugins;
 mod schema;
 mod serve;
@@ -147,6 +148,23 @@ enum Command {
         #[arg(long = "plugin")]
         plugins: Vec<PathBuf>,
     },
+    /// Test a plugin of any tier: run the checks on the fixture documents
+    /// its manifest's `[test]` table names, and print one JSON line per
+    /// check. Exit status: 0 when every check passed, 1 when one failed,
+    /// 2 when the plugin could not be tested (a bad manifest, a missing
+    /// fixture).
+    Test {
+        /// The plugin's directory, holding its `arrix-plugin.toml`.
+        #[arg(required_unless_present = "schema", value_name = "PLUGIN_DIR")]
+        dir: Option<PathBuf>,
+        /// Print a report line's JSON Schema (draft 2020-12) and exit. A
+        /// line carries `"format"` (ADR-0026).
+        #[arg(long)]
+        schema: bool,
+        /// Start another Tier 2 plugin for the fixtures (repeatable).
+        #[arg(long = "plugin", value_name = "DIR")]
+        plugins: Vec<PathBuf>,
+    },
     /// Work with the config files.
     Config {
         #[command(subcommand)]
@@ -227,6 +245,15 @@ fn main() -> ExitCode {
             plugins: &plugins,
             without: &without,
         }),
+        Command::Test {
+            dir: Some(dir),
+            schema: false,
+            plugins,
+        } => plugin_test::run(&plugin_test::Args {
+            dir: &dir,
+            plugins: &plugins,
+        }),
+        Command::Test { .. } => plugin_test::print_schema(),
         Command::Describe { json, dir, plugins } => describe::run(dir.as_deref(), &plugins, json),
         Command::Serve {
             schema,

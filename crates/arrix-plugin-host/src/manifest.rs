@@ -22,6 +22,27 @@ pub struct Manifest {
     pub timeout: Option<std::time::Duration>,
     pub capabilities: Capabilities,
     pub contributes: Contributes,
+    /// The fixtures `arrix test` runs the plugin on.
+    pub test: TestFixtures,
+}
+
+/// A path named in the manifest and the line it is on, for the diagnostic
+/// of a fixture that is not there.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Fixture {
+    /// Relative to the plugin's directory.
+    pub path: String,
+    /// 1-based, in the manifest.
+    pub line: u32,
+}
+
+/// The `[test]` table (docs/PLUGINS.md §The test kit).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct TestFixtures {
+    /// Documents that must evaluate, round-trip and open frozen.
+    pub documents: Vec<Fixture>,
+    /// Documents expected to fail with a `kernel.*` category.
+    pub fail: Vec<Fixture>,
 }
 
 /// What a plugin may reach (docs/PLUGINS.md §Capabilities). Everything is
@@ -64,6 +85,15 @@ struct Raw {
     capabilities: Capabilities,
     #[serde(default)]
     contributes: Contributes,
+    #[serde(default)]
+    test: RawTest,
+}
+
+#[derive(Default, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+struct RawTest {
+    documents: Vec<toml::Spanned<String>>,
+    fail: Vec<toml::Spanned<String>>,
 }
 
 #[derive(Deserialize)]
@@ -127,6 +157,14 @@ impl Manifest {
             (0 | 1, None) => (Vec::new(), None),
             _ => return Err(ManifestError::Command),
         };
+        let fixtures = |list: Vec<toml::Spanned<String>>| {
+            list.into_iter()
+                .map(|f| Fixture {
+                    line: 1 + text[..f.span().start].matches('\n').count() as u32,
+                    path: f.into_inner(),
+                })
+                .collect()
+        };
         Ok(Manifest {
             id: PluginId::new(p.id)?,
             version,
@@ -138,6 +176,10 @@ impl Manifest {
             timeout,
             capabilities: raw.capabilities,
             contributes: raw.contributes,
+            test: TestFixtures {
+                documents: fixtures(raw.test.documents),
+                fail: fixtures(raw.test.fail),
+            },
         })
     }
 
@@ -180,6 +222,29 @@ features = ["gears.spur"]
         assert_eq!(m.capabilities.files, Files::None);
         assert_eq!(m.contributes.features, ["gears.spur"]);
         assert!(m.api_matches());
+    }
+
+    #[test]
+    fn reads_the_test_table_with_the_line_of_each_fixture() {
+        let m = Manifest::parse(&format!(
+            "{GEARS}\n[test]\ndocuments = [\n  \"a\",\n  \"b/c\",\n]\nfail = [\"f\"]\n"
+        ))
+        .unwrap();
+        let at = |f: &[Fixture]| {
+            f.iter()
+                .map(|f| (f.path.clone(), f.line))
+                .collect::<Vec<_>>()
+        };
+        let first = GEARS.lines().count() as u32 + 4;
+        assert_eq!(
+            at(&m.test.documents),
+            [("a".into(), first), ("b/c".into(), first + 1)]
+        );
+        assert_eq!(at(&m.test.fail), [("f".into(), first + 3)]);
+        assert!(matches!(
+            Manifest::parse(&format!("{GEARS}\n[test]\nbogus = 1\n")),
+            Err(ManifestError::Toml(_))
+        ));
     }
 
     #[test]

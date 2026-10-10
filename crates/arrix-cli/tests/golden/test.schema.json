@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "One line per check on a fixture document. `status` is `pass` or `fail`; `detail` says what was compared, or what differed.",
+  "properties": {
+    "check": {
+      "description": "The check; a reader tolerates ones it does not know.",
+      "type": "string"
+    },
+    "detail": {
+      "type": "string"
+    },
+    "doc": {
+      "description": "The fixture, as the manifest names it.",
+      "type": "string"
+    },
+    "format": {
+      "const": 1,
+      "description": "This schema's version."
+    },
+    "plugin": {
+      "description": "The plugin's id.",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "pass",
+        "fail"
+      ]
+    }
+  },
+  "required": [
+    "format",
+    "plugin",
+    "check",
+    "doc",
+    "status",
+    "detail"
+  ],
+  "title": "arrix test report line",
+  "type": "object"
+}

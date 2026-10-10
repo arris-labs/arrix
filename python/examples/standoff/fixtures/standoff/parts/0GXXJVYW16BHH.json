@@ -1,0 +1,210 @@
+{
+  "features": {
+    "01JBS2R9CRWRN": {
+      "id": "01JBS2R9CRWRN",
+      "inputs": {
+        "edges": [
+          {
+            "topo": "edge:sweep.9HN9VBVEXFYYQ.end-edge.0000000000001"
+          },
+          {
+            "topo": "edge:sweep.9HN9VBVEXFYYQ.end-edge.0000000000002"
+          },
+          {
+            "topo": "edge:sweep.9HN9VBVEXFYYQ.end-edge.0000000000003"
+          },
+          {
+            "topo": "edge:sweep.9HN9VBVEXFYYQ.end-edge.0000000000004"
+          },
+          {
+            "topo": "edge:sweep.9HN9VBVEXFYYQ.end-edge.0000000000005"
+          },
+          {
+            "topo": "edge:sweep.9HN9VBVEXFYYQ.end-edge.0000000000006"
+          }
+        ],
+        "target": {
+          "slot": {
+            "feature": "9HN9VBVEXFYYQ",
+            "slot": "body"
+          }
+        }
+      },
+      "name": "Fillet",
+      "params": {
+        "radius": "0.3 mm"
+      },
+      "suppressed": false,
+      "type_id": "core.fillet",
+      "type_version": 1
+    },
+    "1Q6C2SNAKZKP3": {
+      "id": "1Q6C2SNAKZKP3",
+      "inputs": {},
+      "name": "Plate sketch",
+      "params": {},
+      "sketch": {
+        "constraints": {
+          "3ZPNYGV5VXAGH": {
+            "constraint": {
+              "horizontal": {
+                "line": "77MSVCSN1W8ET"
+              }
+            },
+            "id": "3ZPNYGV5VXAGH"
+          },
+          "57Z6PA4YG5FQY": {
+            "constraint": {
+              "vertical": {
+                "line": "7FJY4M4SW5M7P"
+              }
+            },
+            "id": "57Z6PA4YG5FQY"
+          },
+          "6KGX2ET47JMV9": {
+            "constraint": {
+              "horizontal": {
+                "line": "24QP0FACN0SV1"
+              }
+            },
+            "id": "6KGX2ET47JMV9"
+          },
+          "DY3WS4JHG2S1G": {
+            "constraint": {
+              "distance": {
+                "a": "08K1WTZT3RSGW",
+                "b": "ED620G2XB2AG2",
+                "value": 0.03
+              }
+            },
+            "id": "DY3WS4JHG2S1G"
+          },
+          "EP0TMVX54BCTE": {
+            "constraint": {
+              "distance": {
+                "a": "67JZ1WHCK43EQ",
+                "b": "08K1WTZT3RSGW",
+                "value": 0.05
+              }
+            },
+            "expr": "w",
+            "id": "EP0TMVX54BCTE"
+          },
+          "FBEJEPWMDTRSC": {
+            "constraint": {
+              "vertical": {
+                "line": "1N0Q7KC2VBYQB"
+              }
+            },
+            "id": "FBEJEPWMDTRSC"
+          }
+        },
+        "entities": {
+          "1N0Q7KC2VBYQB": {
+            "line": {
+              "end": "67JZ1WHCK43EQ",
+              "start": "9AEQBE1KKWAEB"
+            }
+          },
+          "24QP0FACN0SV1": {
+            "line": {
+              "end": "9AEQBE1KKWAEB",
+              "start": "ED620G2XB2AG2"
+            }
+          },
+          "77MSVCSN1W8ET": {
+            "line": {
+              "end": "08K1WTZT3RSGW",
+              "start": "67JZ1WHCK43EQ"
+            }
+          },
+          "7FJY4M4SW5M7P": {
+            "line": {
+              "end": "ED620G2XB2AG2",
+              "start": "08K1WTZT3RSGW"
+            }
+          }
+        },
+        "points": {
+          "08K1WTZT3RSGW": {
+            "x": 0.05,
+            "y": 0.0
+          },
+          "67JZ1WHCK43EQ": {
+            "fixed": true,
+            "x": 0.0,
+            "y": 0.0
+          },
+          "9AEQBE1KKWAEB": {
+            "x": 0.0,
+            "y": 0.03
+          },
+          "ED620G2XB2AG2": {
+            "x": 0.05,
+            "y": 0.03
+          }
+        }
+      },
+      "suppressed": false,
+      "type_id": "core.sketch",
+      "type_version": 1
+    },
+    "9HN9VBVEXFYYQ": {
+      "id": "9HN9VBVEXFYYQ",
+      "inputs": {
+        "plane": {
+          "topo": "face:sweep.FBPNAWF1N79XE.end-cap"
+        }
+      },
+      "name": "Standoff",
+      "params": {
+        "x": "25 mm",
+        "y": "15 mm"
+      },
+      "suppressed": false,
+      "type_id": "standoff.standoff",
+      "type_version": 1
+    },
+    "FBPNAWF1N79XE": {
+      "choices": {
+        "mode": "new"
+      },
+      "id": "FBPNAWF1N79XE",
+      "inputs": {
+        "region": {
+          "region": {
+            "feature": "1Q6C2SNAKZKP3",
+            "key": {
+              "entities": [
+                "1N0Q7KC2VBYQB",
+                "24QP0FACN0SV1",
+                "77MSVCSN1W8ET",
+                "7FJY4M4SW5M7P"
+              ],
+              "sample": [
+                25000000,
+                15000000
+              ]
+            }
+          }
+        }
+      },
+      "name": "Plate",
+      "params": {
+        "distance": "5 mm"
+      },
+      "suppressed": false,
+      "type_id": "core.extrude",
+      "type_version": 1
+    }
+  },
+  "history": [
+    "1Q6C2SNAKZKP3",
+    "FBPNAWF1N79XE",
+    "9HN9VBVEXFYYQ",
+    "01JBS2R9CRWRN"
+  ],
+  "id": "0GXXJVYW16BHH",
+  "name": "Plate with a standoff",
+  "rollback": null
+}

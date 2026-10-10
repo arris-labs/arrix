@@ -16,7 +16,9 @@ pub mod wire;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use loader::Tier2Loader;
-pub use manifest::{Capabilities, Contributes, Files, Manifest, ManifestError};
+pub use manifest::{
+    Capabilities, Contributes, Files, Fixture, Manifest, ManifestError, TestFixtures,
+};
 pub use tier0::{HostError, register_tier0};
 #[cfg(not(target_arch = "wasm32"))]
 pub use tier2::{DEFAULT_TIMEOUT, MANIFEST, register_tier2};

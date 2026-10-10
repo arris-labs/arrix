@@ -120,7 +120,7 @@ failure check reuses `--save-fixtures` recipes (`SEED.md` §6.6).
   `Finished` and refined `Meshed` with no change made first. Tested in
   `arrix-doc` with a late subscriber, and on the spawned binary in
   `serve.rs`. The workaround in `boundary_m2.rs` and its comment go.
-- [ ] **[2]** Step 5: the manifest's `[test]` table, and `arrix test`'s
+- [x] **[2]** Step 5: the manifest's `[test]` table, and `arrix test`'s
   core: determinism and round trip.
   - Fixtures: `plugins/gears` gets `tests/docs/gear-on-plane` by a
     relative path or a copy (agent's call), and the standoff example gets
@@ -219,11 +219,13 @@ and pre-push).
 ## Open questions
 
 - ⚠ OPEN: is the manifest given a JSON Schema in `config schema` (as
-  `plugin`) now that it grows a table? Constraint 3 leans yes. Agent, by
-  step 5. If it costs more than the step, it goes to the backlog.
+  `plugin`) now that it grows a table? Constraint 3 leans yes. Decided at step 5:
+  it costs more than the step, so it goes to the backlog.
 - ⚠ OPEN: does gears get its fixture by a path outside its directory, or
   by a copy inside `plugins/gears/tests/`? A copy keeps a plugin
-  self-contained, as an outside plugin would be. Agent, step 5.
+  self-contained, as an outside plugin would be. Decided at step 5: a copy,
+  in `fixtures/` (`plugins/gears/fixtures/gear-on-plane`,
+  `python/examples/standoff/fixtures/standoff`).
 - ⚠ OPEN: is `DebugState`'s schema derived (`schemars` in `arrix-app`) or
   hand-written over the promised fields only? Decided at step 3: hand-written
   (`render::schema()`), promised fields only, the rest open.

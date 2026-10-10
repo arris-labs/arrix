@@ -13,3 +13,7 @@ kernel = true
 
 [contributes]
 features = ["gears.spur"]
+
+# The fixtures `arrix test` runs (docs/PLUGINS.md §The test kit).
+[test]
+documents = ["fixtures/gear-on-plane"]
