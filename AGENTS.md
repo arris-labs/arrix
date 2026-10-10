@@ -32,16 +32,15 @@ batch; `arris` 0.5, 0.6 after; ADR-0004 to ADR-0020): `cargo test -p arrix-cli -
 c1_accept` is its accept, `--test c1_benchmark -- --nocapture` its budgets
 (the first coarse mesh misses, an Arris finding), `cargo test -p arrix-app
 --test visual m3_accept` the app's.
-**Open 2026-10-09: the boundary opened** (ADR-0016, ADR-0021 to ADR-0026), M1 to
-M3 in `docs/ROADMAP.md`; **M1 done 2026-10-09**: a Python feature plugin runs
-as Tier 2 over a JSON-RPC wire, frozen without it (`--test boundary_m1`);
-**M2 done 2026-10-10**: `arrix serve --stdio` carries the session, a plugin
-is loaded and reloaded by a request, `arrix-app render` renders headless
-(`--test boundary_m2`); **M3 done 2026-10-11**: `arrix test` checks any plugin,
-the eval line, the render JSON and the kit's report are versioned with
-schemas (ADR-0026), `arrix.session` and `arrix.eval` in the SDK, and an
-agent with only the binaries and the SDK does ADR-0016's scenario
-(`--test boundary_m3`); the cycle's accept is met, `/close-cycle` next.
+**The boundary opened done 2026-10-11** (M1 to M3; ADR-0016, ADR-0021 to
+ADR-0026): a Python feature runs as Tier 2 and is frozen without its plugin
+(`--test boundary_m1`), `arrix serve --stdio` carries the session and loads
+a plugin by a request, `arrix-app render` renders headless (`--test
+boundary_m2`), `arrix test` checks any plugin, the harness is versioned, and
+an agent with only the binaries and the SDK does ADR-0016's scenario (`--test
+boundary_m3`).
+**Next:** C2, the mechanical core (`docs/ROADMAP.md`); no plan yet, start
+with `/idea`.
 
 ## Rules that are not derivable from the code
 

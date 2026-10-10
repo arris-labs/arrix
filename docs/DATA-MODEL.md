@@ -4,7 +4,8 @@ What a document is, how it changes, how it evaluates, how its geometry is
 named and how it is written to disk. The charter is `SEED.md` §6.4–§6.5;
 this document is the design those sections commit to. Built, as of C1:
 everything below but plugin-data edits (§Commands and undo) and the
-plugin-record nodes, which wait for the boundary-opened cycle.
+plugin-record nodes, which wait for plugin document data (not scheduled;
+`docs/BACKLOG.md`).
 
 Types live in `arrix-doc` unless named otherwise. Persistent-reference types
 live in `arrix-core`, so that `arrix-plugin-api` and `arrix-ui` can carry

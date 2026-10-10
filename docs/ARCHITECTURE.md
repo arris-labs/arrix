@@ -30,7 +30,7 @@ unless an ADR says otherwise.
 | `arrix-app` | the binary: the shell, the command registry, translation between document and view types; `arrix-app render`, the headless render (ADR-0025) | all of the above, and each compiled-in plugin (`arrix-gears`, its own Tier 0 list) | `eframe` |
 | `arrix-cli` | headless open / eval / export / run / test, and `serve` (`--stdio`, `--schema`; native only); its Tier 0 registration list | core, doc, plugin-host, kernel, plugin-api and sketch (its tests), and each compiled-in plugin (`arrix-gears`) | `clap` |
 | `plugins/*` | first-party plugins: `gears` (C1), `robotics` (by C3) | plugin-api **only** | — |
-| `python/arrix` | the Tier 2 SDK, pure stdlib, not a Cargo crate: `_wire.py` and `shapes.py` generated from the WIT, `@feature_type`, the `kernel` proxy, the stdio loop (`python -m arrix.plugin`); `python/examples/standoff` is the sample plugin | — | — |
+| `python/arrix` | the Tier 2 SDK, pure stdlib, not a Cargo crate: `_wire.py` and `shapes.py` generated from the WIT, `@feature_type`, the `kernel` proxy, the stdio loop (`python -m arrix.plugin`); `arrix.session` (spawn and drive `arrix serve --stdio`) and `arrix.eval` (the eval lines), for an agent; `python/examples/standoff` is the sample plugin | — | — |
 
 Crates live in `crates/<name>/`, plugins in `plugins/<name>/` (package
 `arrix-<name>`: `plugins/gears` is `arrix-gears`). External versions are

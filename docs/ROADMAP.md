@@ -7,8 +7,8 @@ before its plan starts. One section per cycle; a finished cycle compresses
 to its status line (`/close-cycle`), and the next is detailed below it.
 
 Spine: **C1** (the vertical slice with a plugin feature in it; done), then
-**the boundary opened** (the agent's way in; ADR-0016; next), **C2** (the
-mechanical core), **C3** (the boundary crossed), **C4** (the web). Beyond
+**the boundary opened** (the agent's way in; ADR-0016; done), **C2** (the
+mechanical core; next), **C3** (the boundary crossed), **C4** (the web). Beyond
 C4, the named cycles are unordered.
 
 ---
@@ -69,41 +69,30 @@ snapshot scenarios, the budgets and the whole gate green.
 
 *Goal: a user's agent, without ArriX's source, extends and drives a running
 ArriX: it writes a feature plugin in Python, loads it into a session, builds
-a document over a stdio protocol, renders it headless and checks the result.
-The risk to retire: **the `Session` protocol and the plugin world hold across
-a process boundary** (ADR-0016), before Tier 1 and the browser build on them.*
+a document over a stdio protocol, renders it headless and checks the result.*
 
-**Status: open 2026-10-09; M1 done 2026-10-09 (`cargo test -p arrix-cli --test boundary_m1`); M2 done 2026-10-10 (`--test boundary_m2`); M3 done 2026-10-11 (`--test boundary_m3`, ADR-0026); the cycle's accept is met, ready for `/close-cycle`.**
-Unnumbered until it closes, as ADR-0016 says; C2 to C4 keep their names.
-Three milestones, a plan each, the riskiest first:
+**Status: done 2026-10-11, tag `c1b`.** The risk retired: the `Session`
+protocol and the plugin world hold across a process boundary. A Python
+feature runs as Tier 2 in a real history and is frozen without its plugin
+(M1), `arrix serve --stdio` carries the session and loads a plugin by a
+request (M2), and an agent with only the binaries and the SDK does the whole
+scenario (M3, `cargo test -p arrix-cli --test boundary_m3`). M1 to M3
+landed 2026-10-09 to 10-11 on `arris` 0.6; the plans are in the git log and
+the decisions in ADR-0021 to ADR-0026.
 
-- M1, the plugin crosses (done): the wire encoding's ADR from a measured spike,
-  the WIT-generated wire, the Tier 2 host, the Python SDK and a sample
-  Python feature in a real history, frozen without it.
-- M2, the session crosses (done): `arrix serve --stdio`, the wire `Rejected`, a
-  plugin loaded into a running session (an ADR for the registry's
-  ownership), and `arrix-app render`, the headless render as a product
-  command (an ADR: the render stack ships in the native app).
-- M3, the kit and the accept (done): `arrix test`, the harness versioned
-  (ADR-0026), `arrix.session` and `arrix.eval` in the SDK, the accept below.
-
-
-- `arrix serve --stdio`: the `Session` protocol framed on stdio (commands
-  in, events out, `save`, preview, export), the same `LocalSession` behind
-  it; the wire JSON-RPC, newline-framed, generated from the WIT world
-  (ADR-0022, by a measured spike).
-- The Tier 2 host in `arrix-plugin-host`: one process per plugin over the
-  same encoding, capabilities from the manifest, a crash or timeout as that
-  feature's diagnostic with its result frozen.
+- `arrix serve --stdio`: the `Session` protocol framed on stdio, JSON-RPC,
+  the wire generated from the WIT world (ADR-0022, ADR-0023).
+- The Tier 2 host in `arrix-plugin-host`: one process per plugin, capabilities
+  from the manifest, a crash or timeout as that feature's diagnostic with
+  its result frozen.
 - The Python SDK `python/arrix`: stubs generated from the WIT world, a thin
-  runtime on the Tier 2 protocol, pure stdlib, geometry through the host's
-  kernel by callback (ADR-0021; no `arris` in the plugin's process).
+  runtime, pure stdlib, geometry through the host's kernel by callback
+  (ADR-0021), and `arrix.session` and `arrix.eval` for an agent.
 - The test kit packaged (`arrix test`): determinism, round trip, frozen
-  open, migration (`docs/PLUGINS.md` §The test kit), for a plugin outside
-  the repository.
-- The harness as product: `debug_state()`, the eval line and the headless
-  render versioned, with the stability promise of ADR-0016 constraint 5.
-  `arrix describe`, schemas and catalogs already hold constraints 1 to 4.
+  open, migration, spec and kernel failure, for a plugin outside the
+  repository (`docs/PLUGINS.md` §The test kit).
+- The harness as product (ADR-0026): the eval line, the render JSON, the
+  kit's report and the protocol each versioned, with schemas held by goldens.
 
 **Out:** assemblies, STEP import and the mechanical core (C2); the Tier 1
 host and robotics (C3); the browser (C4); remote mode, authentication and
@@ -122,8 +111,12 @@ stays green.
 
 Assemblies (components, instances, joints, FK), materials, mass
 properties, measure, section view, STEP import as a feature with assembly
-structure (A4), 3MF, DXF/SVG sketch exchange. Accept: a real multi-part
-assembly round-trips through STEP against another CAD's reading of it.
+structure (A4), 3MF, DXF/SVG sketch exchange. First, the exchange unit:
+Arris's STEP writer declares millimetres for ArriX's metres, so a length
+unit on the writer (an Arris ask) and an ADR fixing ArriX's exchange unit
+come before import. Each capability says core or plugin when it is
+planned (`SEED.md` §6.2). Accept: a real multi-part assembly round-trips
+through STEP against another CAD's reading of it.
 
 ## C3 — the boundary crossed
 
