@@ -132,6 +132,9 @@ fn a_component_is_made_and_edited_by_its_form() {
         .find(|(n, _)| n == "servo 2")
         .expect("named free");
     assert_eq!(servo2["pose"]["position"][0], "50 mm");
+    // The fields left alone are zeros in their units, not bare numbers.
+    assert_eq!(servo2["pose"]["position"][1], "0 mm");
+    assert_eq!(servo2["pose"]["rpy"][2], "0 deg");
 
     // A double-click edits it: one command per field.
     double_click(&mut h, "servo 2");

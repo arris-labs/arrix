@@ -274,9 +274,16 @@ impl ComponentForm {
     /// The pose the texts say over `record`'s.
     fn pose(&self, record: Option<&Component>) -> Result<Pose, String> {
         let mut pose = identity();
-        for (n, (name, _, _, _)) in POSE.iter().enumerate() {
-            let expr = Expr::parse(&self.text(record, n))
-                .map_err(|e| format!("Component: {name}: {e}"))?;
+        for (n, (name, _, _, unit)) in POSE.iter().enumerate() {
+            // The field shows its unit beside the text, so a bare number
+            // (the untouched zero among them) is in it.
+            let text = self.text(record, n);
+            let text = if text.trim().parse::<f64>().is_ok() {
+                format!("{} {unit}", text.trim())
+            } else {
+                text
+            };
+            let expr = Expr::parse(&text).map_err(|e| format!("Component: {name}: {e}"))?;
             match n {
                 0..=2 => pose.position[n] = expr,
                 _ => pose.rpy[n - 3] = expr,
