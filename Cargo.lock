@@ -480,6 +480,7 @@ dependencies = [
  "arrix-kernel",
  "arrix-plugin-api",
  "arrix-sketch",
+ "base64",
  "blake3",
  "crc32fast",
  "jsonschema",
