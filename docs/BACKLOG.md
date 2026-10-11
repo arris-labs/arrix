@@ -48,6 +48,13 @@ idea is not brainstormed twice.
 - `arrix run script.py doc.arrx`, a Tier 2 script that runs once (`SEED.md` §4): not built; the boundary opened gave an agent `arrix.session` instead (close of the boundary opened)
 - Using `arris` 0.6's new operations: `cut_many` for a pattern's holes in one boolean, `tessellate_faces` for per-face mesh caching, `split`, `shell`; none is needed yet
 - One STEP file read once across several import features: a cache keyed by the blob's BLAKE3, when a budget asks (plans/c2-m1, non-goals)
+- Editing a part in place at a component's pose: a part's features and sketches are edited in the part's own context, at its origin, so the component's pose is not shown while editing (plans/c2-m2, non-goals)
+- A joint create form's preview: it needs the anchor frames, which only an evaluation of the draft gives, and ADR-0019's preview carries no `Assembled` yet (plans/c2-m2, non-goals)
+- Deleting features, components, joints and assemblies from the app, from the tree or a form: the app deletes no feature yet and undo covers a gesture; the accept deletes its assembly from the scenario side (plans/c2-m2, non-goals and step 11)
+- A feature's create form in an assembly's view adds to the document's first part, not to a part, as ADR-0030 §1 says it switches to its part's context first: `Form::command` falls back to the first part where the view has none (plans/c2-m2 step 9; the fix is a context switch in the form's open or in `Form::command`)
+- `ArrixApp::last_click` still keeps the click's `Hit` beside the selection, which step 6 said would go: the scenarios read it, so the selection should carry the scenarios' pick instead (plans/c2-m2 step 6)
+- A joint drag's preview under a nested assembly, where a joint of the assembly above is anchored on the moved subtree, keeps that joint's last frame until the solve; no scenario nests a jointed assembly yet (plans/c2-m2 step 10)
+- The harness's frame step (0.25 s) is longer than a double click's gap, so a scenario cannot open a form by a double click: the accept sets the first servo's placement by `EditComponent` (plans/c2-m2 step 11)
 
 ## Rejected
 

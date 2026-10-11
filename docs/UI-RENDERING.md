@@ -28,7 +28,7 @@ headless harness. Where a section says "not built", it is later than C1.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│ ribbon: Sketch │ Part │ Assembly │ <plugin tabs> …                              │
+│ ribbon: Sketch │ Part │ Assembly │ <plugin tabs> …                   │
 ├──────────────────────────────────────────────────────────────────────┤
 │ ┌─────────────┐                                      ┌─────────────┐ │
 │ │ feature tree│              viewport      ViewCube  │ properties  │ │
@@ -161,6 +161,19 @@ else what to do next.
   `themes/<name>.toml`. A missing role takes the base's and is one warning
   naming all of them. A theme never touches the text cursor's blink, which
   the test harness turns off for determinism.
+- **The context** (ADR-0030 §1) is what a tab looks at: one part, drawn at
+  its own origin, or one assembly, drawn as its components are placed. It is
+  session state. A document opens in its first root assembly (one no
+  assembly contains), else in its first part, so a document without
+  assemblies looks as it always did. Activating a part or an assembly in the
+  tree looks at it; activating a feature looks at its part, and so does a
+  sketch's start; activating a joint looks at its assembly. A feature's
+  create form adds to the part in view, and in an assembly's view to the
+  first part, which ADR-0030 §1 does not allow (backlog). An assembly's
+  context draws each placed component's bodies at its world pose from the
+  last `Assembled`, nested ones composed; a component the joints leave
+  unplaced draws at the identity. The `--context` of `arrix-app render`
+  looks at one by id or name.
 - **The feature tree** shows each part's history with state per feature:
   ok, failed (with the diagnostic), frozen or frozen-stale (with the
   reason), suppressed, rolled back. A rollback bar is dragged by one
@@ -884,6 +897,21 @@ the way in.
   run-to-run noise.
 - **No image is committed** (ADR-0001). Goldens are text; images are build
   output, re-rendered from any commit on demand.
+- **The C2 M2 scenarios** (`crates/arrix-app/tests/visual/`):
+  `component_picks`, `assembly_view`, `tree_assembly`, `component_form` and
+  `joint_form` pin the assembly's context, the tree, the forms and the picks
+  by path, on `tests/docs/assembly` or its import. `c2_m2_accept` is the
+  milestone's: `tests/docs/assembly` minus its assembly (the scenario deletes
+  it before the first frame, the app having no deletion), then the app's own
+  commands alone: a servo's STEP file imported as a part, an assembly made,
+  the bracket grounded and the servo inserted twice, a revolute joint picked
+  on the servo's shaft and the bracket's bore, a drag of the first servo
+  whose release is one command, a pick on the second servo, and an undo walk
+  of nine gestures back to the opened document. Two departures, both the
+  harness's: the first servo is moved 80 mm along -X (its faces are hidden in
+  the bracket at the origin), and it is set to be placed by a joint with one
+  `EditComponent` from the scenario (a double click is shorter than a frame
+  step). The joint drag's frame budget is `joint_drag_frame_budget`.
 - **The golden** is `{"debug_state": …, "coarse_frame": {"cell", "size",
   "rows"}}`, pretty-printed; `debug_state` is the app's JSON with its keys
   sorted. A failure reports the first `debug_state` difference as a JSON
@@ -919,7 +947,7 @@ the way in.
   to six places: the camera (eye, target, projection, matrices), the
   evaluation (generation, each feature's state and diagnostic), the bodies
   drawn (triangle, face, edge and vertex counts, bounds), selection and
-  hover as persistent names, the open sketch (points in plane and screen
+  hover as `Hit`s (a path and a name), the open sketch (points in plane and screen
   coordinates, constraints, DoF, solver status), the ribbon and palette,
   and each plugin form and panel rendered. It is how the agent tells which
   number is wrong, not only that a pixel is. Built so far: the window
@@ -929,7 +957,11 @@ the way in.
   finished, settled), `bodies` (counts and bounds), `camera` (pose,
   projection and the 16 numbers of its view-projection), `selection`,
   `hover` and whether a `picking` is in flight, each left out while empty;
-  the sketch joins as its part of the app is built. While a create form
+  `context` (`kind`, `id`, `name`) of a document with an assembly, in an
+  assembly's view `instances` (each one's component `path`, the part it
+  draws and its origin and axes), `joint_drag` while a joint is dragged, and
+  the selection's and hover's component paths (`selection_path`,
+  `hover_path`); the sketch joins as its part of the app is built. While a create form
   previews, `preview` says whether its outcome is `heard` and its bodies
   drawn refined (`settled`), its `bodies` as `bodies` lists the
   document's, and the document bodies it `replaced`.

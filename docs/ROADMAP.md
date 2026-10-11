@@ -116,8 +116,10 @@ and returns through STEP with its structure, in metres.*
 **Status: open.** Split from the mechanical core by ADR-0027; M1 done
 2026-10-11 (assemblies in the document, headless: `core.import-step`,
 schema 4, the commands, forward kinematics, the eval line and `Assembled`;
-`cargo test -p arrix-cli --test c2_m1`; ADR-0028, ADR-0029); M2 and M3 are
-unplanned. The risk to retire: a persistent name
+`cargo test -p arrix-cli --test c2_m1`; ADR-0028, ADR-0029); M2 done 2026-10-12
+(the app: instanced meshes, picks by component path, the tree, the component
+and joint forms, the joint drag; `cargo test -p arrix-app --test visual
+c2_m2_accept`; ADR-0030); M3 is unplanned. The risk to retire: a persistent name
 across parts and instances, into imported and frozen geometry.
 
 **In:**

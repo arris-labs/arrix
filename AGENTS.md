@@ -26,23 +26,17 @@ skills for the idea → plan → work → retire → close-cycle pipeline live i
 
 **Seeded 2026-09-26.** `SEED.md` agreed; the docs system scaffolded; the
 design docs of `SEED.md` §10.2 written.
-**C1 done 2026-10-08** (M0 to M4: the gate and harness, the document and a
-plugin feature in its history, part features and naming, the app, export and
-batch; `arris` 0.5, 0.6 after; ADR-0004 to ADR-0020): `cargo test -p arrix-cli --test
-c1_accept` is its accept, `--test c1_benchmark -- --nocapture` its budgets
-(the first coarse mesh misses, an Arris finding), `cargo test -p arrix-app
---test visual m3_accept` the app's.
-**The boundary opened done 2026-10-11** (M1 to M3; ADR-0016, ADR-0021 to
-ADR-0026): a Python feature runs as Tier 2 and is frozen without its plugin
-(`--test boundary_m1`), `arrix serve --stdio` carries the session and loads
-a plugin by a request, `arrix-app render` renders headless (`--test
-boundary_m2`), `arrix test` checks any plugin, the harness is versioned, and
-an agent with only the binaries and the SDK does ADR-0016's scenario (`--test
-boundary_m3`).
-**C2 M1 done 2026-10-11** (assemblies in the document, headless;
-ADR-0027 to ADR-0029): `core.import-step`, schema 4, joints and forward
-kinematics, `Assembled` on the eval line and the protocol (`--test c2_m1`).
-**Next:** C2 M2, the app (`docs/ROADMAP.md`); plan it.
+**C1 done 2026-10-08** (ADR-0004 to ADR-0020; `arris` 0.5, 0.6 after): its
+accept is `--test c1_accept`, its budgets `--test c1_benchmark` (the first
+coarse mesh misses, an Arris finding), the app's `--test visual m3_accept`.
+**The boundary opened done 2026-10-11** (ADR-0016, ADR-0021 to ADR-0026):
+Tier 2 Python plugins, `arrix serve --stdio`, headless `arrix-app render`,
+`arrix test`; its accept `--test boundary_m3`.
+**C2 M1 done 2026-10-11** (assemblies in the document, headless; ADR-0027 to
+ADR-0029): `--test c2_m1`.
+**C2 M2 done 2026-10-12** (assemblies in the app, the joint drag; ADR-0030):
+`cargo test -p arrix-app --test visual c2_m2_accept`.
+**Next:** C2 M3, exchange and the accept (`docs/ROADMAP.md`); plan it.
 
 ## Rules that are not derivable from the code
 
@@ -140,8 +134,11 @@ it before ticking a step:
   `cargo test -p arrix-cli --test boundary_m3` is M3's accept.
   `cargo test -p arrix-cli --test c2_m1` is C2 M1's (`tests/docs/assembly`,
   written with `UPDATE_SNAPSHOTS=1`).
+  `cargo test -p arrix-app --test visual c2_m2_accept` is C2 M2's (the app
+  builds an assembly on `tests/docs/assembly`, minus its assembly).
   `cargo run -p arrix-app -- render <doc> -o <png> [--json <file>] [--view …]
-  [--size WxH] [--plugin <dir>]…` renders a document headless (needs lavapipe).
+  [--context <part|assembly>] [--size WxH] [--plugin <dir>]…` renders a
+  document headless (needs lavapipe).
 - Either hook runs by hand as `.githooks/pre-commit` or
   `.githooks/pre-push`. `scripts/size-lint --list` shows offenders past
   the allowlist.

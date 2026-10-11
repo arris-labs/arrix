@@ -595,6 +595,12 @@ component at every depth by its path from the assembly, with its pose as a
 `Frame` in the assembly's frame, and each joint `ok` (its value plus
 offset, both anchors' frames, any warning) or `failed` with a diagnostic.
 
+Forward kinematics is `arrix_doc::place`, a pure function of an assembly,
+its nested outcomes' frames and its values, with one value optionally
+overridden. The evaluator's pass and the app's joint drag both call it, so a
+drag's preview is the pose the release's evaluation gives (ADR-0030 §3); it
+reads no document and makes no kernel call.
+
 **Determinism.** Evaluating the same snapshot twice, on any machine,
 native or wasm, gives byte-identical outputs and names. Nothing in
 evaluation reads the clock, a random source or a `HashMap`'s iteration
