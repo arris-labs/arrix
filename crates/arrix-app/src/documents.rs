@@ -231,6 +231,12 @@ pub struct OpenDocument {
     /// The form open in the property card, while there is one: a create
     /// form's draft. Session state, one per tab.
     pub form: Option<crate::form::Form>,
+    /// A component's form in the property card, while there is one
+    /// (ADR-0030 §5); never open together with `form`.
+    pub component_form: Option<crate::component_form::ComponentForm>,
+    /// Why the last command was refused by the document, as the form shows
+    /// it; cleared by the next that applies.
+    pub refusal: Option<Diagnostic>,
     /// The finished sketches, solved, for part mode to draw.
     pub part_sketches: std::collections::BTreeMap<FeatureId, crate::part_sketch::PartSketch>,
     /// The create form's preview, while one is asked for (ADR-0019).
@@ -316,6 +322,8 @@ impl OpenDocument {
             view: ViewState::default(),
             sketch: None,
             form: None,
+            component_form: None,
+            refusal: None,
             part_sketches: std::collections::BTreeMap::new(),
             preview: crate::preview::FormPreview::default(),
             chosen: None,
@@ -369,13 +377,20 @@ impl OpenDocument {
         match outcome {
             Ok(Outcome::Applied(_)) => {
                 self.applied += 1;
+                self.refusal = None;
                 Ok(true)
             }
             // A preview is not counted: it applies nothing (ADR-0019).
             Ok(
                 Outcome::NoOp | Outcome::Previewing | Outcome::Exporting | Outcome::Loaded { .. },
             ) => Ok(false),
-            Err(rejected) => Err(rejected.to_string()),
+            Err(rejected) => {
+                self.refusal = match &rejected {
+                    arrix_doc::Rejected::Refused(refused) => Some(refused.diagnostic()),
+                    _ => None,
+                };
+                Err(rejected.to_string())
+            }
         }
     }
 
@@ -524,6 +539,14 @@ impl OpenDocument {
     /// camera is fitted to them.
     pub fn set_context(&mut self, context: Context) {
         self.chosen = Some(context);
+        // A component's form is of the assembly in view.
+        if self
+            .component_form
+            .as_ref()
+            .is_some_and(|f| context != Context::Assembly(f.assembly()))
+        {
+            self.component_form = None;
+        }
         // What was picked or hovered is of the other context.
         self.view.selection = None;
         self.view.hover = None;

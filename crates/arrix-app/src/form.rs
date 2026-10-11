@@ -518,6 +518,7 @@ impl ArrixApp {
         let first = form.shown_inputs(None).next().map(|i| i.name.clone());
         form.active = first;
         if let Some(document) = self.documents.get_mut(self.active) {
+            document.component_form = None;
             document.form = Some(form);
         }
         self.seed_form();
@@ -542,12 +543,16 @@ impl ArrixApp {
             None => Form::edit_stored(record),
         };
         if let Some(document) = self.documents.get_mut(self.active) {
+            document.component_form = None;
             document.form = Some(form);
         }
     }
 
     /// The form the property card draws, if one is open.
     pub(crate) fn form_view(&self) -> Option<FormView> {
+        if self.component_form_open() {
+            return self.component_form_view();
+        }
         let document = self.active_document()?;
         let form = document.form.as_ref()?;
         let doc = document.replica.document();
@@ -571,6 +576,7 @@ impl ArrixApp {
     /// feature an undo took away closes, and a typed text or name the
     /// record now says is dropped, so the record is what shows.
     pub(crate) fn follow_forms(&mut self) {
+        self.follow_component_forms();
         for document in &mut self.documents {
             let Some(feature) = document.form.as_ref().and_then(|f| f.edit) else {
                 continue;
@@ -612,11 +618,15 @@ impl ArrixApp {
     }
 
     pub(crate) fn form_open(&self) -> bool {
-        self.active_document().is_some_and(|d| d.form.is_some())
+        self.active_document()
+            .is_some_and(|d| d.form.is_some() || d.component_form.is_some())
     }
 
     /// What the user did in the open form.
     pub(crate) fn form_intent(&mut self, intent: UiIntent) {
+        if self.component_form_open() {
+            return self.component_form_intent(intent);
+        }
         // A form that shows a stored result takes no edit; it can be closed.
         if self.form_read_only() && !matches!(intent, UiIntent::FormOk | UiIntent::FormCancelled) {
             return;
@@ -800,6 +810,9 @@ impl ArrixApp {
     /// as a sketch is placed. A draft that cannot be added stays open, and
     /// the status line says why.
     pub(crate) fn form_ok(&mut self) {
+        if self.component_form_open() {
+            return self.component_form_ok();
+        }
         // An edit form commits as it goes: Enter only closes it.
         if self
             .active_document()
@@ -834,6 +847,9 @@ impl ArrixApp {
 
     /// Cancel, or Escape: the draft goes. No command.
     pub(crate) fn form_cancel(&mut self) {
+        if self.component_form_open() {
+            return self.component_form_cancel();
+        }
         if let Some(document) = self.documents.get_mut(self.active) {
             document.form = None;
             document.clear_preview();

@@ -105,6 +105,9 @@ pub const EDIT_REDO: &str = "core.edit.redo";
 /// generated from a feature type's spec.
 pub const IMPORT_STEP_CREATE: &str = "core.import-step.create";
 pub const ASSEMBLY_CREATE: &str = "core.assembly.create";
+/// Inserting a component: a part or an assembly placed in the assembly in
+/// view; applies only there.
+pub const COMPONENT_CREATE: &str = "core.assembly.component.create";
 
 /// Core feature types that are made in the Sketch tab; the rest of the core
 /// types are part features.
@@ -229,6 +232,7 @@ impl CommandRegistry {
         for (id, title, group) in [
             (IMPORT_STEP_CREATE, "Import STEP…", "Import"),
             (ASSEMBLY_CREATE, "New assembly", "Assembly"),
+            (COMPONENT_CREATE, "Insert component", "Assembly"),
         ] {
             commands.push(CommandSpec {
                 ribbon: Some(RibbonPlacement {

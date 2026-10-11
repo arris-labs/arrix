@@ -5,6 +5,7 @@ mod assembly_tab;
 mod assembly_view;
 mod camera;
 mod coarse;
+mod component_form;
 mod component_picks;
 mod export;
 mod fixture;

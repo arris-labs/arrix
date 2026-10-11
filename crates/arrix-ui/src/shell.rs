@@ -333,7 +333,13 @@ fn component_row(
             });
         });
     });
-    if row.response.interact(egui::Sense::CLICK).clicked() {
+    let response = row.response.interact(egui::Sense::CLICK);
+    if response.double_clicked() {
+        intents.push(UiIntent::TreeComponentActivated {
+            assembly: assembly.to_owned(),
+            path: component.path.clone(),
+        });
+    } else if response.clicked() {
         intents.push(UiIntent::TreeComponentSelected {
             assembly: assembly.to_owned(),
             path: component.path.clone(),

@@ -6,9 +6,9 @@ use egui_kittest::kittest::Queryable as _;
 use crate::{harness, snapshot};
 
 #[test]
-fn the_assembly_tab_offers_the_import_and_a_new_assembly() {
+fn the_assembly_tab_offers_the_import_an_assembly_and_a_component() {
     harness::with_app(
-        "the_assembly_tab_offers_the_import_and_a_new_assembly",
+        "the_assembly_tab_offers_the_import_an_assembly_and_a_component",
         |h| {
             harness::open_settled(h, "tests/docs/assembly");
             h.get_by_label("Assembly").click();
@@ -20,7 +20,14 @@ fn the_assembly_tab_offers_the_import_and_a_new_assembly() {
                 .iter()
                 .flat_map(|g| g.commands.iter().map(|c| (c.title.as_str(), c.enabled)))
                 .collect();
-            assert_eq!(buttons, [("Import STEP…", true), ("New assembly", true)]);
+            assert_eq!(
+                buttons,
+                [
+                    ("Import STEP…", true),
+                    ("New assembly", true),
+                    ("Insert component", true)
+                ]
+            );
             snapshot::check(h, "assembly_tab");
         },
     );

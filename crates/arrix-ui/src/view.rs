@@ -341,6 +341,9 @@ pub enum UiIntent {
     /// selection, and its instances are marked in the viewport. `path` is
     /// the component ids from the assembly. Session state, no command.
     TreeComponentSelected { assembly: String, path: Vec<String> },
+    /// A component's row in the tree was double-clicked: its form opens in
+    /// the property card. Session state, no command.
+    TreeComponentActivated { assembly: String, path: Vec<String> },
     /// A joint's row in the tree was double-clicked.
     TreeJointActivated { assembly: String, joint: String },
     /// A feature's row in the tree was clicked: it becomes the tree's

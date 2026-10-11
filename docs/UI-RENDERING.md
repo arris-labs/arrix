@@ -114,7 +114,18 @@ else what to do next.
   `AddFeature`, so one gesture and one undo, and the tab then looks at the
   new part) and `core.assembly.create` (`AddAssembly`, then looks at it);
   the keymap context `assembly` is active while the tab looks at an
-  assembly and no sketch is edited. Each key or intent the app handles
+  assembly and no sketch is edited. `core.assembly.component.create`
+  (enabled only there) opens the **component form** in the property card,
+  and a double-click on a component row opens it over the record: a
+  component has no feature spec, so the app builds its `FormView` (the one
+  renderer) itself, with what it instances and whether a pose grounds it
+  as choices and the pose's six quantities (shown when grounded). A create
+  form is a draft until OK, one `AddComponent` (grounded at the identity,
+  the new row selected); an edit form is read from the record and commits
+  one `EditComponent` per field, none for a value the record holds. The
+  document's refusal of a command (`assembly.dangling` for a part it does
+  not hold) is the form's diagnostic. At most one of this and a feature's
+  form is open. Each key or intent the app handles
   (a hover is none) is a **gesture**, opened and closed around its
   handling (a drag is one, closed by its release; a click on a finished
   sketch's item while a field asks for one is one too); the commands it
@@ -224,7 +235,8 @@ rule).
   `Picked { name, path }`, `Hovered { name, path }`, `TreeFeatureSelected { feature }`,
   `TreeFeatureActivated { feature }`, `TreePartActivated { part }`,
   `TreeAssemblyActivated { assembly }`, `TreeComponentSelected { assembly,
-  path }`, `TreeJointActivated { assembly, joint }`, `SketchHovered { hit }`,
+  path }`, `TreeComponentActivated { assembly, path }`,
+  `TreeJointActivated { assembly, joint }`, `SketchHovered { hit }`,
   `SketchClicked { hit, extend, pointer }`, `SketchPointerMoved { pointer }`
   (a `PlanePointer`: plane-local metres, the snap radius in metres, whether
   Alt is held, and egui's clock). The ViewCube returns a

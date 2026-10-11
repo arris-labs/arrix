@@ -4,6 +4,7 @@
 mod assembly_commands;
 mod badges;
 mod commands;
+mod component_form;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod config_files;
 mod context;
@@ -38,15 +39,15 @@ pub use file_dialog::{NativeDialog, OpenDialog, SaveDialog};
 pub use gestures::Gesture;
 
 use arrix_config::{
-    ASSEMBLY_CREATE, CONFIG_RELOAD, CommandRegistry, Config, ConfigDiagnostic, ConfigSource,
-    DOCUMENT_CLOSE, DOCUMENT_NEW, DOCUMENT_NEXT, DOCUMENT_PREVIOUS, EDIT_REDO, EDIT_UNDO,
-    FILE_EXPORT, FORM_CANCEL, FORM_OK, IMPORT_STEP_CREATE, Keymap, MemorySource, PALETTE_CLOSE,
-    PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN, PANEL_PROPERTIES_TOGGLE,
-    PANEL_TREE_TOGGLE, ParamDefaults, SELECTION_CLEAR, SKETCH_ARC, SKETCH_CIRCLE,
-    SKETCH_CONSTRUCTION, SKETCH_CREATE, SKETCH_DELETE, SKETCH_DIMENSION, SKETCH_EDIT,
-    SKETCH_EXTEND, SKETCH_FINISH, SKETCH_LINE, SKETCH_MIRROR, SKETCH_OFFSET, SKETCH_RECTANGLE,
-    SKETCH_SELECT, SKETCH_TOOL_CANCEL, SKETCH_TRIM, Settings, Theme, VIEW_FRONT, VIEW_HOME,
-    VIEW_ISO, VIEW_PROJECTION_TOGGLE, VIEW_RIGHT, VIEW_TOP,
+    ASSEMBLY_CREATE, COMPONENT_CREATE, CONFIG_RELOAD, CommandRegistry, Config, ConfigDiagnostic,
+    ConfigSource, DOCUMENT_CLOSE, DOCUMENT_NEW, DOCUMENT_NEXT, DOCUMENT_PREVIOUS, EDIT_REDO,
+    EDIT_UNDO, FILE_EXPORT, FORM_CANCEL, FORM_OK, IMPORT_STEP_CREATE, Keymap, MemorySource,
+    PALETTE_CLOSE, PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN,
+    PANEL_PROPERTIES_TOGGLE, PANEL_TREE_TOGGLE, ParamDefaults, SELECTION_CLEAR, SKETCH_ARC,
+    SKETCH_CIRCLE, SKETCH_CONSTRUCTION, SKETCH_CREATE, SKETCH_DELETE, SKETCH_DIMENSION,
+    SKETCH_EDIT, SKETCH_EXTEND, SKETCH_FINISH, SKETCH_LINE, SKETCH_MIRROR, SKETCH_OFFSET,
+    SKETCH_RECTANGLE, SKETCH_SELECT, SKETCH_TOOL_CANCEL, SKETCH_TRIM, Settings, Theme, VIEW_FRONT,
+    VIEW_HOME, VIEW_ISO, VIEW_PROJECTION_TOGGLE, VIEW_RIGHT, VIEW_TOP,
 };
 use arrix_core::{FeatureId, IdMinter, RenderMesh};
 use arrix_plugin_api::FeatureTypeSpec;
@@ -405,6 +406,9 @@ impl ArrixApp {
             sketching: mode.is_some(),
             tool: mode.map(|m| m.drawing.tool.command()),
             form_open: self.form_open(),
+            assembly_in_view: self
+                .active_document()
+                .is_some_and(|d| matches!(d.context(), Some(context::Context::Assembly(_)))),
             sketch_selected: self.selected_sketch().is_some(),
             sketch_selection: self
                 .active_document()
@@ -798,6 +802,9 @@ impl ArrixApp {
                     self.view_mut().component_selection = Some((assembly, path));
                 }
             }
+            UiIntent::TreeComponentActivated { assembly, path } => {
+                self.open_component_edit(&assembly, &path);
+            }
             UiIntent::TreeJointActivated { assembly, .. } => {
                 if let Ok(assembly) = assembly.parse::<arrix_core::AssemblyId>() {
                     self.look_at(context::Context::Assembly(assembly));
@@ -874,6 +881,7 @@ impl ArrixApp {
             FILE_EXPORT => self.export_file(),
             IMPORT_STEP_CREATE => self.import_step(),
             ASSEMBLY_CREATE => self.create_assembly(),
+            COMPONENT_CREATE => self.open_component_create(),
             SKETCH_CREATE => self.create_sketch(),
             SKETCH_EDIT => self.edit_sketch(),
             SKETCH_FINISH => self.finish_sketch(),
