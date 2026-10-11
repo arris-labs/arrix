@@ -20,6 +20,7 @@ mod render_parity;
 mod sketch;
 mod sketch_accept;
 mod snapshot;
+mod tree_assembly;
 mod viewport;
 
 /// The shell at startup: no document content, the Sketch tab open.

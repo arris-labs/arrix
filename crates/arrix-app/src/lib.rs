@@ -29,6 +29,7 @@ mod sketch_modify;
 mod sketch_tools;
 mod sketch_view;
 mod theme;
+mod tree_assembly;
 mod viewport;
 
 pub use debug::DebugState;
@@ -471,6 +472,17 @@ impl ArrixApp {
         view.last_click.clone()
     }
 
+    /// The active tab looks at `context` from now on, unless it is already
+    /// there: a tree click is session state, no command.
+    fn look_at(&mut self, context: context::Context) {
+        if let Some(document) = self.documents.get_mut(self.active)
+            && document.context() != Some(context)
+        {
+            document.view.component_selection = None;
+            document.set_context(context);
+        }
+    }
+
     /// Switches the active tab to the part or assembly `spec` names, by id
     /// or by name (`arrix-app render --context`).
     pub fn set_context(&mut self, spec: &str) -> Result<(), String> {
@@ -736,6 +748,29 @@ impl ArrixApp {
             UiIntent::DimensionEdited { constraint, text } => {
                 self.edit_dimension_field(&constraint, text);
             }
+            UiIntent::TreePartActivated { part } => {
+                if let Ok(part) = part.parse::<arrix_core::PartId>() {
+                    self.look_at(context::Context::Part(part));
+                }
+            }
+            UiIntent::TreeAssemblyActivated { assembly } => {
+                if let Ok(assembly) = assembly.parse::<arrix_core::AssemblyId>() {
+                    self.look_at(context::Context::Assembly(assembly));
+                }
+            }
+            UiIntent::TreeComponentSelected { assembly, path } => {
+                let path: Result<Vec<arrix_core::ComponentId>, _> =
+                    path.iter().map(|c| c.parse()).collect();
+                if let (Ok(assembly), Ok(path)) = (assembly.parse::<arrix_core::AssemblyId>(), path)
+                {
+                    self.view_mut().component_selection = Some((assembly, path));
+                }
+            }
+            UiIntent::TreeJointActivated { assembly, .. } => {
+                if let Ok(assembly) = assembly.parse::<arrix_core::AssemblyId>() {
+                    self.look_at(context::Context::Assembly(assembly));
+                }
+            }
             UiIntent::TreeFeatureSelected { feature } => {
                 if let Ok(feature) = feature.parse::<FeatureId>()
                     && !self.form_pick_feature(feature)
@@ -988,6 +1023,9 @@ impl ArrixApp {
         self.apply_theme(ui);
         self.session.shift = ui.input(|i| i.modifiers.shift);
         let marks = self.form_marks();
+        let component_marks = self
+            .active_document()
+            .map_or_else(Vec::new, OpenDocument::component_marks);
         let window = ui.max_rect();
         let view = self.shell_view();
         let overlay = self.sketch_overlay();
@@ -1000,6 +1038,7 @@ impl ArrixApp {
             None => &mut self.idle_view,
         };
         view_state.marked = marks;
+        view_state.component_marks = component_marks;
         let renderer = self.renderer.as_mut();
         let mut frame = None;
         let response = arrix_ui::shell(ui, &view, |ui| {

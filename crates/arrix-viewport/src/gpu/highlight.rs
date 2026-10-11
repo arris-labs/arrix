@@ -35,6 +35,9 @@ pub struct Highlights<'a> {
     /// More entities drawn as the selection is: what a form's reference
     /// fields hold.
     pub marked: &'a [Hit],
+    /// Whole components, each a path: every visible instance whose path
+    /// starts with one is tinted all over, as the selection is.
+    pub components: &'a [Vec<arrix_core::ComponentId>],
 }
 
 /// Where each entity of a mesh sits in its body's buffers.

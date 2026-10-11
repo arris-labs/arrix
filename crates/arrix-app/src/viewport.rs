@@ -157,6 +157,7 @@ pub fn show(
             hover: hover.as_ref(),
             selection: selection.as_ref(),
             marked: &marked,
+            components: &view.component_marks,
         };
         let pick = renderer.paint(
             ui.painter(),

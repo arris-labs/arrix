@@ -263,6 +263,13 @@ impl ArrixApp {
             return;
         }
         document.view.feature_selection = Some(feature);
+        // A feature is edited in its part's own context (ADR-0030 §1).
+        if let Some(part) = document.part_of(feature)
+            && document.context() != Some(crate::context::Context::Part(part))
+        {
+            document.view.component_selection = None;
+            document.set_context(crate::context::Context::Part(part));
+        }
         let kind = document
             .replica
             .document()

@@ -134,7 +134,13 @@ else what to do next.
 - **The feature tree** shows each part's history with state per feature:
   ok, failed (with the diagnostic), frozen or frozen-stale (with the
   reason), suppressed, rolled back. A rollback bar is dragged by one
-  command on release.
+  command on release. Above the parts it lists the **assemblies** (C2,
+  ADR-0030): each one's components, nested, with how each is placed
+  (grounded, by a joint, unplaced, in a loop) and its joints with how each
+  solved (ok, over its limit, lost, loop, failed), and the name of the part
+  or assembly the tab looks at is accented. A click on a name looks at it
+  (session state), a click on a component selects it and tints its
+  instances in the viewport, and activating a feature looks at its part.
 - **The property panel** is the form of the feature or record being
   edited, rendered from its `Form` (§Declarative plugin UI). Built-in
   features use the same renderer, so the renderer is proven on every
@@ -161,7 +167,9 @@ rule).
   that `debug_state()` reports; neither is a view type of `arrix-ui`. Built so far: `ShellView`, holding
   a `RibbonView` (tabs, the open one, and its groups of buttons with
   whether each is enabled, and a tool's whether it is the one in use), a `PaletteView` (the query, results and
-  selection, while open), a `TreeView` (each part's features with their `FeatureState`), a `DocumentTabsView`
+  selection, while open), a `TreeView` (each part's features with their `FeatureState`, each
+  assembly's `TreeComponent`s with their `Placement` and `TreeJoint`s with
+  their `JointState`), a `DocumentTabsView`
   (the open documents), a `CardsView` (which cards show), a
   `StatusView` (the help text, generation, diagnostics count, display units,
   config diagnostics included) and a `ThemeView` (the 16 roles as colours, and the
@@ -208,7 +216,9 @@ rule).
   `RibbonTabSelected { tab }`, `PaletteQuery { text }`, `PaletteClosed`,
   `DocumentTabSelected { index }`, `DocumentTabClosed { index }`,
   `Picked { name }`, `Hovered { name }`, `TreeFeatureSelected { feature }`,
-  `TreeFeatureActivated { feature }`, `SketchHovered { hit }`,
+  `TreeFeatureActivated { feature }`, `TreePartActivated { part }`,
+  `TreeAssemblyActivated { assembly }`, `TreeComponentSelected { assembly,
+  path }`, `TreeJointActivated { assembly, joint }`, `SketchHovered { hit }`,
   `SketchClicked { hit, extend, pointer }`, `SketchPointerMoved { pointer }`
   (a `PlanePointer`: plane-local metres, the snap radius in metres, whether
   Alt is held, and egui's clock). The ViewCube returns a

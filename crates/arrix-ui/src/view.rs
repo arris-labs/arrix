@@ -60,9 +60,13 @@ pub struct RibbonTab {
     pub title: String,
 }
 
-/// The feature tree: one entry per part, in document order.
+/// The feature tree: one entry per assembly and per part, in document
+/// order.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct TreeView {
+    /// Each assembly with its components, nested, and its joints.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub assemblies: Vec<TreeAssembly>,
     pub parts: Vec<TreePart>,
 }
 
@@ -70,8 +74,115 @@ pub struct TreeView {
 pub struct TreePart {
     pub id: String,
     pub name: String,
+    /// The tab looks at this part. Set only in a document that has an
+    /// assembly, where there is a choice.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub current: bool,
     /// The part's history, in order.
     pub features: Vec<TreeFeature>,
+}
+
+/// An assembly: what places what, and how each joint stands (ADR-0030).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TreeAssembly {
+    pub id: String,
+    pub name: String,
+    /// The tab looks at this assembly.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub current: bool,
+    pub components: Vec<TreeComponent>,
+    pub joints: Vec<TreeJoint>,
+}
+
+/// One component of an assembly, with those of the assembly it places.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TreeComponent {
+    /// The component ids from the assembly the row is listed under.
+    pub path: Vec<String>,
+    pub name: String,
+    /// The name of the part or assembly it places.
+    pub of: String,
+    pub placement: Placement,
+    /// The joint that places it, for `placement` `by-joint`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub joint: Option<String>,
+    /// The tree's selection, session state.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub selected: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub children: Vec<TreeComponent>,
+}
+
+/// How a component comes to be where it is (ADR-0029 §4), in its own
+/// assembly.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Placement {
+    /// By a pose of its own.
+    Grounded,
+    ByJoint,
+    /// Neither: it sits at the assembly's origin.
+    Unplaced,
+    /// Its joint closes a loop and is ignored.
+    Loop,
+    /// No outcome heard yet.
+    Pending,
+}
+
+impl Placement {
+    /// The short word the tree shows.
+    pub fn tag(self) -> &'static str {
+        match self {
+            Self::Grounded => "grounded",
+            Self::ByJoint => "joint",
+            Self::Unplaced => "unplaced",
+            Self::Loop => "loop",
+            Self::Pending => "…",
+        }
+    }
+}
+
+/// One joint of an assembly.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TreeJoint {
+    pub id: String,
+    pub name: String,
+    /// `fixed`, `revolute` or `prismatic`.
+    pub kind: String,
+    pub state: JointState,
+    /// What is worth saying beside the state: why it is lost or ignored.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+}
+
+/// Where a joint stands, as its last solve ended.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum JointState {
+    Ok,
+    /// Its value is outside its limits, and applied as given.
+    Limit,
+    /// An anchor names nothing any more (`ref.lost`).
+    Lost,
+    /// It closes a loop and is ignored.
+    Loop,
+    Failed,
+    /// No outcome heard yet.
+    Evaluating,
+}
+
+impl JointState {
+    /// The short word the tree shows; none for a joint that is fine.
+    pub fn tag(self) -> Option<&'static str> {
+        match self {
+            Self::Ok => None,
+            Self::Limit => Some("over limit"),
+            Self::Lost => Some("lost"),
+            Self::Loop => Some("loop"),
+            Self::Failed => Some("failed"),
+            Self::Evaluating => Some("…"),
+        }
+    }
 }
 
 /// One feature of a part, as the tree shows it.
@@ -218,6 +329,16 @@ pub enum UiIntent {
     Picked {
         name: Option<arrix_core::PersistentName>,
     },
+    /// A part's name in the tree was clicked: the tab looks at it.
+    TreePartActivated { part: String },
+    /// An assembly's name in the tree was clicked: the tab looks at it.
+    TreeAssemblyActivated { assembly: String },
+    /// A component's row in the tree was clicked: it becomes the tree's
+    /// selection, and its instances are marked in the viewport. `path` is
+    /// the component ids from the assembly. Session state, no command.
+    TreeComponentSelected { assembly: String, path: Vec<String> },
+    /// A joint's row in the tree was double-clicked.
+    TreeJointActivated { assembly: String, joint: String },
     /// A feature's row in the tree was clicked: it becomes the tree's
     /// selection. Session state, no command.
     TreeFeatureSelected { feature: String },

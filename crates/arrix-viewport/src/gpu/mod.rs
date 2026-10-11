@@ -358,6 +358,11 @@ impl Renderer {
             let model_offset = (at.body * stride) as u32;
             HighlightDraw::new(&drawn.entry.mesh, at, model_offset, style)
         })
+        .chain(scene.visible().enumerate().filter_map(|(i, d)| {
+            let marked = highlights.components.iter().any(|p| d.path.starts_with(p));
+            marked
+                .then(|| HighlightDraw::body(&d.entry.mesh, (i * stride) as u32, Style::Selection))
+        }))
         .chain(scene.preview().enumerate().map(|(i, entry)| {
             HighlightDraw::body(&entry.mesh, ((count + i) * stride) as u32, Style::Preview)
         }))

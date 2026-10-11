@@ -7,8 +7,8 @@
 //! only while they show.
 
 use crate::view::{
-    CardsView, DocumentTabsView, FeatureState, RibbonView, ShellView, StatusView, TreeFeature,
-    TreeView, UiIntent,
+    CardsView, DocumentTabsView, FeatureState, JointState, RibbonView, ShellView, StatusView,
+    TreeAssembly, TreeComponent, TreeFeature, TreeJoint, TreeView, UiIntent,
 };
 
 /// Fixed so a frame's layout is a function of the window size and of which
@@ -246,17 +246,140 @@ fn tree_card(
     intents: &mut Vec<UiIntent>,
 ) -> egui::Rect {
     card(ctx, "arrix.tree", viewport, false, TREE_WIDTH, |ui| {
+        if !tree.assemblies.is_empty() {
+            ui.heading("Assemblies");
+            for assembly in &tree.assemblies {
+                assembly_rows(ui, assembly, intents);
+            }
+        }
         ui.heading("Parts");
         if tree.parts.is_empty() {
             ui.weak("No parts");
         }
         for part in &tree.parts {
-            ui.strong(&part.name);
+            if name_row(ui, &part.name, part.current) {
+                intents.push(UiIntent::TreePartActivated {
+                    part: part.id.clone(),
+                });
+            }
             for feature in &part.features {
                 feature_row(ui, feature, intents);
             }
         }
     })
+}
+
+/// A part's or an assembly's name, strong, accented while the tab looks
+/// at it; whether it was clicked.
+fn name_row(ui: &mut egui::Ui, name: &str, current: bool) -> bool {
+    let text = egui::RichText::new(name).strong();
+    let text = if current {
+        text.color(ui.visuals().selection.stroke.color)
+    } else {
+        text
+    };
+    // `CLICK` alone is not focusable: a name that is focused and then
+    // hidden with its card leaves the accessibility tree holding a node
+    // that is gone.
+    ui.add(egui::Label::new(text).sense(egui::Sense::CLICK))
+        .clicked()
+}
+
+fn assembly_rows(ui: &mut egui::Ui, assembly: &TreeAssembly, intents: &mut Vec<UiIntent>) {
+    if name_row(ui, &assembly.name, assembly.current) {
+        intents.push(UiIntent::TreeAssemblyActivated {
+            assembly: assembly.id.clone(),
+        });
+    }
+    for component in &assembly.components {
+        component_row(ui, &assembly.id, component, 0, intents);
+    }
+    for joint in &assembly.joints {
+        joint_row(ui, &assembly.id, joint, intents);
+    }
+}
+
+fn component_row(
+    ui: &mut egui::Ui,
+    assembly: &str,
+    component: &TreeComponent,
+    depth: usize,
+    intents: &mut Vec<UiIntent>,
+) {
+    let visuals = ui.visuals();
+    let weak = visuals.weak_text_color();
+    let fill = if component.selected {
+        visuals.selection.bg_fill
+    } else {
+        egui::Color32::TRANSPARENT
+    };
+    let colour = match component.placement {
+        crate::Placement::Grounded | crate::Placement::ByJoint => visuals.text_color(),
+        crate::Placement::Unplaced | crate::Placement::Loop => visuals.warn_fg_color,
+        crate::Placement::Pending => weak,
+    };
+    let row = egui::Frame::new().fill(fill).show(ui, |ui| {
+        ui.set_width(ui.available_width());
+        ui.horizontal(|ui| {
+            ui.add_space(8.0 + 12.0 * depth as f32);
+            ui.label(egui::RichText::new(&component.name).color(colour));
+            ui.label(egui::RichText::new(&component.of).color(weak).small());
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                let tag = match &component.joint {
+                    Some(joint) => format!("{} {joint}", component.placement.tag()),
+                    None => component.placement.tag().to_owned(),
+                };
+                ui.label(egui::RichText::new(tag).color(colour).small());
+            });
+        });
+    });
+    if row.response.interact(egui::Sense::CLICK).clicked() {
+        intents.push(UiIntent::TreeComponentSelected {
+            assembly: assembly.to_owned(),
+            path: component.path.clone(),
+        });
+    }
+    for child in &component.children {
+        component_row(ui, assembly, child, depth + 1, intents);
+    }
+}
+
+fn joint_row(ui: &mut egui::Ui, assembly: &str, joint: &TreeJoint, intents: &mut Vec<UiIntent>) {
+    let visuals = ui.visuals();
+    let colour = match joint.state {
+        JointState::Ok => visuals.text_color(),
+        JointState::Evaluating => visuals.weak_text_color(),
+        JointState::Limit | JointState::Loop => visuals.warn_fg_color,
+        JointState::Lost | JointState::Failed => visuals.error_fg_color,
+    };
+    let weak = visuals.weak_text_color();
+    let row = egui::Frame::new().show(ui, |ui| {
+        ui.set_width(ui.available_width());
+        ui.horizontal(|ui| {
+            ui.add_space(8.0);
+            ui.label(egui::RichText::new(&joint.name).color(colour));
+            ui.label(egui::RichText::new(&joint.kind).color(weak).small());
+            if let Some(tag) = joint.state.tag() {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.label(egui::RichText::new(tag).color(colour).small());
+                });
+            }
+        });
+    });
+    let hover = match &joint.note {
+        Some(note) => format!("{} joint\n{note}", joint.kind),
+        None => format!("{} joint", joint.kind),
+    };
+    let response = row
+        .response
+        .interact(egui::Sense::CLICK)
+        .on_hover_text(hover);
+    if response.double_clicked() {
+        intents.push(UiIntent::TreeJointActivated {
+            assembly: assembly.to_owned(),
+            joint: joint.id.clone(),
+        });
+    }
 }
 
 fn feature_row(ui: &mut egui::Ui, feature: &TreeFeature, intents: &mut Vec<UiIntent>) {

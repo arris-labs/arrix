@@ -8,7 +8,9 @@ use std::time::Duration;
 
 use crate::context::{self, Context};
 use crate::sketch_mode::SketchMode;
-use arrix_core::{Diagnostic, FeatureId, Id, MeshDetail, PersistentName};
+use arrix_core::{
+    AssemblyId, ComponentId, Diagnostic, FeatureId, Id, MeshDetail, PartId, PersistentName,
+};
 use arrix_doc::{
     AuthorId, Command, CommandEnvelope, Document, DocumentSource, EventStream, FeatureOutcome,
     FrozenInfo, FrozenReason, Generation, LocalSession, Outcome, Registry, Replica, Session,
@@ -58,6 +60,11 @@ pub struct ViewState {
     /// the selection keeps the name alone until picks carry the path
     /// (plans/c2-m2 step 6).
     pub last_click: Option<Hit>,
+    /// The component selected in the tree: its assembly and its path.
+    pub component_selection: Option<(AssemblyId, Vec<ComponentId>)>,
+    /// The paths whose instances the viewport tints, set every frame from
+    /// the selection and the context.
+    pub component_marks: Vec<Vec<ComponentId>>,
 }
 
 /// What a pick is for: a click selects, the pointer resting hovers.
@@ -151,7 +158,12 @@ pub(crate) fn standing_of(
 
 /// The tree card's view of the part `part`: each feature with where it
 /// stands, from the replica's document and the outcomes it has heard.
-fn tree_part(replica: &Replica, part: &arrix_doc::Part, selected: Option<FeatureId>) -> TreePart {
+fn tree_part(
+    replica: &Replica,
+    part: &arrix_doc::Part,
+    selected: Option<FeatureId>,
+    current: bool,
+) -> TreePart {
     let features = part
         .history
         .iter()
@@ -176,6 +188,7 @@ fn tree_part(replica: &Replica, part: &arrix_doc::Part, selected: Option<Feature
     TreePart {
         id: part.id.0.to_string(),
         name: part.name.clone(),
+        current,
         features,
     }
 }
@@ -382,13 +395,23 @@ impl OpenDocument {
     /// The feature tree: every part of the document as the replica holds
     /// it, in id order.
     pub fn tree(&self) -> TreeView {
+        let doc = self.replica.document();
+        let context = self.context();
+        // Where the tab looks is shown only where there is a choice.
+        let choice = !doc.assemblies().is_empty();
         TreeView {
-            parts: self
-                .replica
-                .document()
+            assemblies: crate::tree_assembly::tree_assemblies(
+                &self.replica,
+                context,
+                self.view.component_selection.as_ref(),
+            ),
+            parts: doc
                 .parts()
                 .values()
-                .map(|part| tree_part(&self.replica, part, self.view.feature_selection))
+                .map(|part| {
+                    let current = choice && context == Some(Context::Part(part.id));
+                    tree_part(&self.replica, part, self.view.feature_selection, current)
+                })
                 .collect(),
         }
     }
@@ -504,6 +527,27 @@ impl OpenDocument {
         self.fitting = false;
         self.refresh_view();
         self.frame_once();
+    }
+
+    /// The paths whose instances the viewport tints: the tree's selected
+    /// component, while the tab looks at its assembly.
+    pub fn component_marks(&self) -> Vec<Vec<ComponentId>> {
+        match (&self.view.component_selection, self.context()) {
+            (Some((assembly, path)), Some(Context::Assembly(looking))) if *assembly == looking => {
+                vec![path.clone()]
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    /// The part holding `feature`.
+    pub fn part_of(&self, feature: FeatureId) -> Option<PartId> {
+        self.replica
+            .document()
+            .parts()
+            .values()
+            .find(|p| p.features.contains_key(&feature))
+            .map(|p| p.id)
     }
 
     /// Makes the scene draw the context: a part's bodies alone at their

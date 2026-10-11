@@ -30,7 +30,7 @@ pub use sketch_preview::{SketchPreviewView, SnapGlyphView};
 pub use sketch_regions::SketchRegionView;
 pub use theme::{Rgba, ThemeView};
 pub use view::{
-    CardsView, DocumentTab, DocumentTabsView, FeatureState, PaletteEntry, PaletteView,
-    PlanePointer, RibbonCommand, RibbonGroup, RibbonTab, RibbonView, ShellView, StatusView,
-    TreeFeature, TreePart, TreeView, UiIntent,
+    CardsView, DocumentTab, DocumentTabsView, FeatureState, JointState, PaletteEntry, PaletteView,
+    Placement, PlanePointer, RibbonCommand, RibbonGroup, RibbonTab, RibbonView, ShellView,
+    StatusView, TreeAssembly, TreeComponent, TreeFeature, TreeJoint, TreePart, TreeView, UiIntent,
 };
