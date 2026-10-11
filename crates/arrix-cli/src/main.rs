@@ -84,9 +84,10 @@ enum Command {
         budget: Option<u64>,
     },
     /// Write a document's final bodies (or the `--body` ones) as a STEP,
-    /// STL or OBJ file, in metres. Exit status: 0 when written from a clean
-    /// document, 1 when written but some feature failed, 2 when the
-    /// document could not be read or exported.
+    /// STL or OBJ file, in metres. STEP is refused (`kernel.export.unit`)
+    /// until Arris's writer can declare metres. Exit status: 0 when written
+    /// from a clean document, 1 when written but some feature failed, 2
+    /// when the document could not be read or exported.
     Export {
         /// A document directory, or an `.arrx` file.
         doc: PathBuf,

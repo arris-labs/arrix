@@ -142,8 +142,10 @@ class Session:
         return self._request("redo", {"author": author})
 
     def export(self, format: str, bodies: Sequence[dict] = ()) -> dict:
-        """Queues an export (`step`, `stl` or `obj`); the file follows as an
-        `exported` event, its bytes in base64 (see `exported_bytes`)."""
+        """Queues an export (`stl` or `obj`; `step` is refused as
+        `kernel.export.unit` until Arris's writer can declare metres); the
+        file follows as an `exported` event, its bytes in base64 (see
+        `exported_bytes`)."""
         return self._request("export", {"bodies": list(bodies), "format": format})
 
     def load_plugin(self, directory: str | os.PathLike) -> dict:

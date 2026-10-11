@@ -4,7 +4,6 @@
 
 use arris::io::MeshWriteError;
 use arris::io::body::BodyError;
-use arris::io::step::StepError;
 use arris::mesh::MeshError;
 use arris::ops::{Fault, OpError, Reason};
 use arris::{Interrupted, Stop};
@@ -105,26 +104,6 @@ impl KernelError {
             code: DiagnosticCode::new(format!("kernel.export.{word}")).expect("a literal code"),
             message,
         }
-    }
-
-    pub(crate) fn step(call: CallIndex, e: &StepError) -> Self {
-        let word = match e {
-            StepError::NotFound(_) => "not-found",
-            StepError::Unsupported { .. } => "unsupported",
-            StepError::Lumps { .. } => "lumps",
-            StepError::NonFinite { .. } => "non-finite",
-            StepError::NoBodies => "no-bodies",
-            StepError::Tree(_) => "tree",
-            StepError::Interrupted(stop) => {
-                let code = DiagnosticCode::new(interrupted(stop)).expect("a literal code");
-                return KernelError::Op {
-                    call,
-                    code,
-                    message: e.to_string(),
-                };
-            }
-        };
-        Self::export(call, word, e.to_string())
     }
 
     pub(crate) fn mesh_write(call: CallIndex, e: &MeshWriteError) -> Self {

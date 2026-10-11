@@ -866,23 +866,22 @@ fn arrix(args: &[&str]) -> std::process::Output {
         .expect("run arrix")
 }
 
-/// Criterion 6: the bracket exported in each format through `arrix export`
-/// and read back: STEP to the same counts and the volume of the evaluated
-/// body, STL and OBJ closed with that volume within the mesh's tolerance.
+/// Criterion 6: the bracket exported through `arrix export` and read back:
+/// STL and OBJ closed with the evaluated body's volume within the mesh's
+/// tolerance. STEP, which C1 read back to the body's counts and volume, is
+/// refused as `kernel.export.unit` until Arris's writer can declare metres
+/// (Arris ask A12): the file it wrote read a thousand times too small.
 #[test]
 fn the_bracket_exports_and_reads_back() {
     let line = arrix(&["eval", "tests/docs/bracket"]);
     let line: serde_json::Value = serde_json::from_slice(&line.stdout).unwrap();
     let last = line["bodies"].as_array().unwrap().last().unwrap().clone();
-    let count = |k: &str| last[k].as_u64().unwrap() as usize;
-    let (counts, want) = (
-        [count("faces"), count("edges"), count("vertices")],
-        last["volume"].as_f64().unwrap(),
-    );
+    let want = last["volume"].as_f64().unwrap();
     let dir = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join("c1-accept-export");
     std::fs::create_dir_all(&dir).unwrap();
-    let export = |format: &str| {
+    let run = |format: &str| {
         let to = dir.join(format!("bracket.{format}"));
+        let _ = std::fs::remove_file(&to);
         let out = arrix(&[
             "export",
             "tests/docs/bracket",
@@ -891,20 +890,19 @@ fn the_bracket_exports_and_reads_back() {
             "-o",
             to.to_str().unwrap(),
         ]);
+        (out, to)
+    };
+    let export = |format: &str| {
+        let (out, to) = run(format);
         assert_eq!(out.status.code(), Some(0), "{format}");
         to
     };
 
-    let step = std::fs::read_to_string(export("step")).unwrap();
-    let solids = arrix_kernel::read_step(&step).expect("Arris reads the file");
-    assert_eq!(solids.len(), 1);
-    let solid = solids[0];
-    assert_eq!([solid.faces, solid.edges, solid.vertices], counts);
-    assert!(
-        (solid.volume - want).abs() <= 1e-9 * want,
-        "{} against {want}",
-        solid.volume
-    );
+    let (out, to) = run("step");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(out.status.code(), Some(2), "{stderr}");
+    assert!(stderr.contains("kernel.export.unit"), "{stderr}");
+    assert!(!to.exists(), "a refused export writes nothing");
     let stl = std::fs::read(export("stl")).unwrap();
     common::assert_closed_mesh(&common::stl_triangles(&stl), want);
     let obj = std::fs::read_to_string(export("obj")).unwrap();

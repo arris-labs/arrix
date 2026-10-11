@@ -1,14 +1,10 @@
-//! Bodies as exchange files (plans/c1-m4 step 4): STEP read back by Arris
-//! to the same topology and volume, STL and OBJ closed with their volume
-//! within the refined chord, the same bytes on a second export, and a
-//! frozen body exporting like a live one.
+//! Bodies as exchange files (plans/c1-m4 step 4): STL and OBJ closed with
+//! their volume within the refined chord, the same bytes on a second
+//! export, a frozen body exporting like a live one, and STEP refused until
+//! Arris's writer can declare metres (Arris ask A12).
 
 use std::collections::BTreeMap;
 
-use arris::Control;
-use arris::io::step::{self, ReadOptions};
-use arris::math::Precision;
-use arris::topo::Model;
 use arrix_core::{
     CurveKey, DVec2, FeatureId, Frame, Id, NameRoot, PersistentName, Profile, ProfileLoop,
     ProfileSegment, SweepPartName, TopoKind,
@@ -54,14 +50,6 @@ fn bracket(k: &mut Kernel) -> KernelBody {
         chain: vec![],
     };
     k.fillet(ROUND, 0, plate, &[edge], 2.0 * MM).unwrap()
-}
-
-fn model() -> Model {
-    Model::new(Precision {
-        default_tolerance: Kernel::DEFAULT_TOLERANCE,
-        ..Precision::DEFAULT
-    })
-    .unwrap()
 }
 
 type Triangle = [[f64; 3]; 3];
@@ -131,41 +119,18 @@ fn volume_tolerance(k: &mut Kernel, body: KernelBody) -> f64 {
 }
 
 #[test]
-fn step_reads_back_to_the_same_topology_and_volume() {
+fn step_is_refused_until_the_writer_declares_metres() {
     let mut k = Kernel::new();
     let body = bracket(&mut k);
-    let text = k.export_step(&[body]).unwrap();
-    assert_eq!(k.export_step(&[body]).unwrap(), text, "deterministic");
+    let err = k.export_step(&[body]).unwrap_err();
+    assert_eq!(err.code().as_str(), "kernel.export.unit");
+    assert!(err.to_string().contains("A12"), "{err}");
+    let call = k.records().last().unwrap();
     assert!(matches!(
-        k.records().last().unwrap().op,
+        call.op,
         KernelOp::Export { format } if format == arrix_core::ExportFormat::Step
     ));
-
-    let mut back = model();
-    let read = step::read(&mut back, &text, &ReadOptions::default(), &Control::NONE).unwrap();
-    assert_eq!(read.solids.len(), 1);
-    let solid = read.solids[0].result.as_ref().expect("the solid reads");
-    let names = k.names(body).unwrap();
-    assert_eq!(
-        back.faces(solid.body).unwrap().len(),
-        names.count(TopoKind::Face)
-    );
-    assert_eq!(
-        back.edges(solid.body).unwrap().len(),
-        names.count(TopoKind::Edge)
-    );
-    assert_eq!(
-        back.vertices(solid.body).unwrap().len(),
-        names.count(TopoKind::Vertex)
-    );
-    let volume = arris::ops::measure::mass_properties(&back, solid.body, &Control::NONE)
-        .unwrap()
-        .volume;
-    let want = k.mass_properties(body).unwrap().volume;
-    assert!(
-        (volume - want).abs() <= 1e-9 * want,
-        "{volume} against {want}"
-    );
+    assert_eq!(call.operands.len(), 1, "the refused call is recorded");
 }
 
 #[test]
@@ -202,8 +167,6 @@ fn several_bodies_are_one_file_in_the_order_given() {
     let single = obj_triangles(&k.export_obj(&[one]).unwrap()).len();
     let both = obj_triangles(&k.export_obj(&[one, two]).unwrap()).len();
     assert_eq!(both, 2 * single);
-    let text = k.export_step(&[one, two]).unwrap();
-    assert_eq!(text.matches("MANIFOLD_SOLID_BREP(").count(), 2);
     let call = k.records().last().unwrap();
     assert_eq!(call.operands.len(), 2, "both bodies are operands");
 }
@@ -215,8 +178,6 @@ fn a_frozen_body_exports_like_a_live_one() {
     let written = live.to_bytes(body).unwrap();
     let mut thawed = Kernel::new();
     let frozen = thawed.from_bytes(&written.bytes, &written.names).unwrap();
-    let step = thawed.export_step(&[frozen]).unwrap();
-    assert!(step.starts_with("ISO-10303-21;"));
     let stl = thawed.export_stl(&[frozen]).unwrap();
     let (closed, volume) = closed_and_volume(&stl_triangles(&stl));
     let want = live.mass_properties(body).unwrap().volume;
@@ -225,11 +186,8 @@ fn a_frozen_body_exports_like_a_live_one() {
 }
 
 #[test]
-fn no_bodies_is_a_category_and_a_record() {
+fn an_stl_of_nothing_is_a_header_and_a_zero() {
     let mut k = Kernel::new();
-    let err = k.export_step(&[]).unwrap_err();
-    assert_eq!(err.code().as_str(), "kernel.export.no-bodies");
-    assert_eq!(k.records().len(), 1, "the failed call is recorded");
     let empty = k.export_stl(&[]).unwrap();
     assert_eq!(empty.len(), 84, "an STL of nothing is a header and a zero");
 }

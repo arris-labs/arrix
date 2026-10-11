@@ -31,7 +31,6 @@ use arrix_core::{Axis, DVec3, FeatureId, Frame, PersistentName, Profile, TopoKin
 pub use arrix_core::Motion;
 pub use bytes::{BodyBytes, NameEntry, NameTable};
 pub use error::KernelError;
-pub use export::{StepSolid, read_step};
 pub use fixture::{FixtureError, FixtureRecipe};
 pub use interrupt::Interrupt;
 pub use naming::BodyNames;

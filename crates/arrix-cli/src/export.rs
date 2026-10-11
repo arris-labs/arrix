@@ -1,5 +1,6 @@
-//! `arrix export`: a document's final bodies as STEP, STL or OBJ, through
-//! `arrix_doc::export` (the path the app's export takes too).
+//! `arrix export`: a document's final bodies as STL or OBJ (STEP refused
+//! until Arris's writer can declare metres), through `arrix_doc::export`
+//! (the path the app's export takes too).
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;

@@ -39,8 +39,8 @@ a plugin by a request, `arrix-app render` renders headless (`--test
 boundary_m2`), `arrix test` checks any plugin, the harness is versioned, and
 an agent with only the binaries and the SDK does ADR-0016's scenario (`--test
 boundary_m3`).
-**Next:** C2, the mechanical core (`docs/ROADMAP.md`); no plan yet, start
-with `/idea`.
+**Next:** C2, assemblies and exchange (`docs/ROADMAP.md`, ADR-0027); M1 is
+planned (`docs/plans/c2-m1.md`), work it with `/work`.
 
 ## Rules that are not derivable from the code
 
@@ -119,8 +119,10 @@ it before ticking a step:
 - `arrix eval` also takes several paths and directories, `--sweep
   <target>=<from>..<to>:<n>`, `--summary`, `--timings`, `--jobs <n>` and
   `--budget <steps>` (`docs/CONCURRENCY-WASM.md` §Batch evaluation).
-  `cargo run -p arrix-cli -- export <doc> --format step|stl|obj [--body
-  <feature>.<slot>]… -o <file>` writes the final bodies, in metres.
+  `cargo run -p arrix-cli -- export <doc> --format stl|obj [--body
+  <feature>.<slot>]… -o <file>` writes the final bodies, in metres;
+  `step` is refused (`kernel.export.unit`) until Arris's writer can
+  declare metres (Arris ask A12).
 - `cargo run -p arrix-cli -- describe [--json]` lists everything there is to
   configure; `config check [--dir]` validates the files (exit 1 on any
   diagnostic); `config schema [kind]` prints their JSON Schemas; `config

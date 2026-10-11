@@ -1,6 +1,7 @@
 //! `arrix export` as a user runs it (plans/c1-m4 step 6): the slice in each
-//! format, read back as the kernel's tests read an export, the body
-//! selection, the `.arrx` input and the exit statuses.
+//! format, read back as the kernel's tests read an export (STEP refused
+//! until Arris's writer can declare metres), the body selection, the
+//! `.arrx` input and the exit statuses.
 
 mod common;
 
@@ -34,7 +35,6 @@ fn arrix_export(doc: &str, extra: &[&str], out: &Path) -> Output {
 struct Final {
     feature: String,
     volume: f64,
-    counts: [usize; 3],
 }
 
 fn slice_final() -> Final {
@@ -46,11 +46,9 @@ fn slice_final() -> Final {
     let line: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     let bodies = line["bodies"].as_array().unwrap();
     let last = bodies.last().unwrap().clone();
-    let n = |k: &str| last[k].as_u64().unwrap() as usize;
     Final {
         feature: bodies[0]["feature"].as_str().unwrap().to_owned(),
         volume: last["volume"].as_f64().unwrap(),
-        counts: [n("faces"), n("edges"), n("vertices")],
     }
 }
 
@@ -64,34 +62,13 @@ fn assert_exit(out: &Output, code: i32) {
 }
 
 #[test]
-fn step_reads_back_to_the_evaluated_body() {
-    let want = slice_final();
+fn step_is_refused_until_the_writer_declares_metres() {
     let path = scratch("slice.step");
-    assert_exit(
-        &arrix_export("tests/docs/slice", &["--format", "step"], &path),
-        0,
-    );
-    let text = std::fs::read_to_string(&path).unwrap();
-    let solids = arrix_kernel::read_step(&text).expect("Arris reads the file");
-    assert_eq!(solids.len(), 1);
-    let solid = solids[0];
-    assert_eq!([solid.faces, solid.edges, solid.vertices], want.counts);
-    assert!(
-        (solid.volume - want.volume).abs() <= 1e-9 * want.volume,
-        "{} against {}",
-        solid.volume,
-        want.volume
-    );
-    let again = scratch("slice-again.step");
-    assert_exit(
-        &arrix_export("tests/docs/slice", &["--format", "step"], &again),
-        0,
-    );
-    assert_eq!(
-        std::fs::read(&again).unwrap(),
-        text.as_bytes(),
-        "deterministic"
-    );
+    let _ = std::fs::remove_file(&path);
+    let out = arrix_export("tests/docs/slice", &["--format", "step"], &path);
+    assert_refused(&out, "kernel.export.unit");
+    assert!(String::from_utf8_lossy(&out.stderr).contains("A12"));
+    assert!(!path.exists(), "a refused export writes nothing");
 }
 
 #[test]
@@ -117,17 +94,17 @@ fn stl_and_obj_are_closed_with_the_bodys_volume() {
 #[test]
 fn a_body_by_feature_id_is_the_same_file_as_all_of_them() {
     let want = slice_final();
-    let all = scratch("all.step");
-    let one = scratch("one.step");
+    let all = scratch("all.obj");
+    let one = scratch("one.obj");
     assert_exit(
-        &arrix_export("tests/docs/slice", &["--format", "step"], &all),
+        &arrix_export("tests/docs/slice", &["--format", "obj"], &all),
         0,
     );
     let by_id = format!("{}.body", want.feature);
     assert_exit(
         &arrix_export(
             "tests/docs/slice",
-            &["--format", "step", "--body", &by_id],
+            &["--format", "obj", "--body", &by_id],
             &one,
         ),
         0,
@@ -166,17 +143,17 @@ fn assert_refused(out: &Output, says: &str) {
 
 #[test]
 fn what_cannot_be_exported_exits_2_and_writes_nothing() {
-    let out = scratch("never.step");
+    let out = scratch("never.obj");
     let _ = std::fs::remove_file(&out);
-    let step = ["--format", "step"];
+    let obj = ["--format", "obj"];
     assert_refused(
-        &arrix_export("tests/docs/no-such", &step, &out),
+        &arrix_export("tests/docs/no-such", &obj, &out),
         "no such directory",
     );
     assert_refused(
         &arrix_export(
             "tests/docs/slice",
-            &["--format", "step", "--body", "nope.body"],
+            &["--format", "obj", "--body", "nope.body"],
             &out,
         ),
         "no such feature",
@@ -184,13 +161,13 @@ fn what_cannot_be_exported_exits_2_and_writes_nothing() {
     assert_refused(
         &arrix_export(
             "tests/docs/slice",
-            &["--format", "step", "--body", "nodot"],
+            &["--format", "obj", "--body", "nodot"],
             &out,
         ),
         "expected <feature>.<slot>",
     );
     assert_refused(
-        &arrix_export("tests/docs/empty", &step, &out),
+        &arrix_export("tests/docs/empty", &obj, &out),
         "export.no-bodies",
     );
     assert!(!out.exists());
@@ -215,20 +192,23 @@ fn a_document_with_a_failed_parameter_exits_1_with_the_file_written() {
     )
     .unwrap();
 
-    let out = scratch("partial.step");
+    let out = scratch("partial.obj");
     let _ = std::fs::remove_file(&out);
-    let result = arrix_export(doc.to_str().unwrap(), &["--format", "step"], &out);
+    let result = arrix_export(doc.to_str().unwrap(), &["--format", "obj"], &out);
     assert_exit(&result, 1);
     assert!(String::from_utf8_lossy(&result.stderr).contains("some features failed"));
-    assert!(arrix_kernel::read_step(&std::fs::read_to_string(&out).unwrap()).is_ok());
+    common::assert_closed_mesh(
+        &common::obj_triangles(&std::fs::read_to_string(&out).unwrap()),
+        slice_final().volume,
+    );
 }
 
 #[test]
 fn a_gear_frozen_away_leaves_no_body_to_write() {
-    let out = scratch("frozen.step");
+    let out = scratch("frozen.obj");
     let result = arrix_export(
         "tests/docs/gear-on-plane",
-        &["--format", "step", "--without-plugin", "gears"],
+        &["--format", "obj", "--without-plugin", "gears"],
         &out,
     );
     assert_refused(&result, "export.no-bodies");

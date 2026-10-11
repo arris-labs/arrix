@@ -219,9 +219,11 @@ geometry from provenance, and to make every kernel call a record.
   `face_frame`, `mass_properties`, `tessellate`, `export_step`,
   `export_stl`, `export_obj` (built: each one recorded call,
   `KernelOp::Export { format }`, over the bodies given as its operands;
-  STEP of the exact B-rep, STL and OBJ of the refined meshes in one file;
-  lengths in metres as the model has them, see `docs/BACKLOG.md` on
-  STEP's declared unit). Handles
+  STL and OBJ of the refined meshes in one file, lengths in metres as the
+  model has them; `export_step` is refused as `kernel.export.unit`, the
+  call recorded, because Arris's STEP writer declares millimetres, so a
+  file of metres would read a thousand times too small; it waits on the
+  Arris ask A12, §Arris dependencies). Handles
   it returns are opaque (`KernelBody`) and valid while a cache entry
   holds them; a plugin sees only its own evaluation's, by handle.
   Built: `extrude` (a keyed `Profile` along its plane's normal, a
@@ -337,9 +339,9 @@ geometry from provenance, and to make every kernel call a record.
   `invalid-input`, …) for tessellation, `kernel.interrupted` for any
   call the interrupt stopped (`kernel.interrupted.budget` for a spent
   step budget), whatever the call was, since the stop is the caller's,
-  `kernel.export.<error>` (`no-bodies`, `unsupported`, `lumps`,
-  `not-found`, `non-finite`, `too-many-triangles`) for a format that could
-  not be written, and `kernel.naming`,
+  `kernel.export.<error>` (`unit` for STEP until A12,
+  `too-many-triangles`) for a format that could not be written, and
+  `kernel.naming`,
   `kernel.unknown-body`, `kernel.unknown-name`, `kernel.wrong-kind` for
   ArriX's own refusals. The same failure across a thousand documents is one row with
   a count in `arrix eval`'s summary.
@@ -498,6 +500,7 @@ A step blocked on an ask names it and waits.
 | A3 | cancellation: an interrupt token, optionally a step budget | C1: superseded evaluations; C4: the browser | released in 0.4.0 (`Control`), taken in C1 M4 |
 | A11 | `ops::mirror` | C1: the mirror feature | released in 0.4.0, taken in C1 M2 |
 | A4 | STEP product structure | C2 | released in 0.4.0 (`Read::products`, `step::write_products`), not taken |
+| A12 | the STEP writer declares the caller's length unit (the reader's `LengthUnit`) | STEP export, refused as `kernel.export.unit` until then; C2's round trip | asked 2026-10-11 |
 | A8 | multi-tool booleans (`cut_many`, `fuse_many`) | a pattern's holes in one boolean | released in 0.6.0, not used yet (`docs/BACKLOG.md`) |
 | A9 | per-face tessellation (`tessellate_faces`, `TriMesh::weld`) | per-face mesh caching | released in 0.6.0, not taken |
 | A10 | the Python binding | the Tier 2 SDK, which does not need it (ADR-0021) | released by 2026-10-01, not taken |

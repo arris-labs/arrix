@@ -66,3 +66,4 @@ Each rejected option and the one-line reason it lost.
 - [ADR-0025](0025-the-render-ships-in-the-native-app.md): `arrix-app render`, the headless render as product, by the app's own offscreen path; pixels promised on lavapipe, held to the harness by `render_parity`
 - [ADR-0026](0026-the-harness-is-versioned.md): the harness is a versioned public interface: four surfaces each with a `format` or `protocol`, schemas printed and held by goldens, additive-only inside a version, `debug_state()` promised on its marked fields
 - [ADR-0027](0027-c2-is-assemblies-and-exchange.md): C2 is assemblies and exchange in three milestones; measure, section view, 3MF and DXF/SVG move to the named cycle "the mechanical core completed"; `SEED.md` §7 amended
+- [ADR-0028](0028-the-exchange-unit.md): the exchange unit is metres, written as metres; the reader passes `Metre` explicitly; STEP export refused as `kernel.export.unit` until Arris's writer takes a unit (A12)
