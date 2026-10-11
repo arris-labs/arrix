@@ -261,6 +261,20 @@ geometry from provenance, and to make every kernel call a record.
   model's ids and the same body gives the same bytes in any evaluation.
   `from_bytes` refuses a table that does not cover the body one name to
   one entity (`kernel.naming`) and never names by position.
+  `import_step` (C2 M1, ADR-0028, ADR-0029) reads solid number `solid`
+  (from 1, in the reader's order) of a STEP file's bytes with Arris's
+  reader at `LengthUnit::Metre`, whatever unit the file declares, names
+  every entity `import.<feature>.<entity>[.<instance>]` from its
+  `Role::File` (`docs/DATA-MODEL.md` §Persistent naming) and drops the
+  file's other solids from the model. Text that is no exchange structure
+  is `kernel.import.parse`, a solid the reader refuses
+  `kernel.import.<refusal kind>` (`offset`, `pcurve`, `gap`, …, its message
+  naming the file entity), a solid past the file's count
+  `import.no-solid`; each is a recorded call (`KernelOp::ImportStep {
+  feature, file, solid, entity }`, `file` the bytes' BLAKE3), and the
+  record shares the file's bytes, kept once per kernel by hash, for its
+  recipe. Invalid UTF-8 is replaced: Part 21 is ASCII outside string
+  literals.
 - **Interrupt.** The `Kernel` owns a flag (`Interrupt`, an
   `Arc<AtomicBool>`: no clock, the same on wasm) and passes a poll of it
   as Arris's `Control` to every call it makes (A3, ADR-0030 there).
@@ -311,7 +325,13 @@ geometry from provenance, and to make every kernel call a record.
   is the recipe's `analytic.expect_error`; any other is left for the
   runner to meet, as a regression fixture. A body read from bytes (a
   frozen result) has no recipe step, and its closure fails to export as
-  `FixtureError::NoStep`. A call that succeeded but is kept for its
+  `FixtureError::NoStep`. An import is Arris's `step` step over the file
+  (`<12 hex of its BLAKE3>.step`, its SHA-256, the solid's `#id`), the
+  file handed back by `FixtureRecipe::files` to be written beside
+  `fixture.json`; since that step reads in Arris's default millimetres, a
+  recipe holding one is written in millimetres, every length, the
+  precision and the mesh chord the records' times 1000. A placement past
+  the first (`near` in Arris's grammar) is `FixtureError::Placement`. A call that succeeded but is kept for its
   time (a slow one Arris is asked about) is `FixtureRecipe::measured`,
   the same recipe with the reason in its description and no
   `expect_error`. The recipe is held to a copy of Arris's
@@ -341,6 +361,9 @@ geometry from provenance, and to make every kernel call a record.
   step budget), whatever the call was, since the stop is the caller's,
   `kernel.export.<error>` (`unit` for STEP until A12,
   `too-many-triangles`) for a format that could not be written, and
+  `kernel.import.<error>` (`parse`, or the reader's refusal kind) for a
+  file or solid that could not be read, `import.no-solid` for a solid the
+  file lacks, and
   `kernel.naming`,
   `kernel.unknown-body`, `kernel.unknown-name`, `kernel.wrong-kind` for
   ArriX's own refusals. The same failure across a thousand documents is one row with

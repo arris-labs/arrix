@@ -5,7 +5,7 @@
 //! Built so far: the `Kernel` service's first slice (`extrude`, `revolve`,
 //! `fuse`, `cut`, `common`, `fillet`, `chamfer`, `copy`, `mirror`,
 //! `project`, `face_frame`, `mass_properties`, `tessellate`, `to_bytes`,
-//! `from_bytes`),
+//! `from_bytes`, `import_step`),
 //! names from the sweeps' and the booleans' provenance, a
 //! `KernelCall` record made before every call, a record's export as
 //! an Arris fixture recipe (`FixtureRecipe`), and an [`Interrupt`] every
@@ -16,6 +16,7 @@ mod convert;
 mod error;
 mod export;
 mod fixture;
+mod import;
 mod interrupt;
 mod mesh;
 mod naming;
@@ -35,7 +36,10 @@ pub use fixture::{FixtureError, FixtureRecipe};
 pub use interrupt::Interrupt;
 pub use naming::BodyNames;
 pub use project::Projected;
-pub use record::{ARRIS_VERSION, BodyHash, CallIndex, CallPrecision, KernelCall, KernelOp};
+pub use record::{
+    ARRIS_VERSION, BodyHash, CallIndex, CallPrecision, FileBytes, FileHash, FileSolid, KernelCall,
+    KernelOp,
+};
 
 /// Arris's `fillet` and `chamfer`, one signature.
 type BlendOp = fn(
@@ -83,6 +87,8 @@ pub struct Kernel {
     interrupt: Interrupt,
     /// Steps each Arris call may take, `None` for as many as it needs.
     budget: Option<u64>,
+    /// Every file an import read, by hash, shared with its records.
+    files: std::collections::BTreeMap<FileHash, std::sync::Arc<[u8]>>,
 }
 
 impl Default for Kernel {
@@ -108,6 +114,7 @@ impl Kernel {
             bodies: Vec::new(),
             interrupt: Interrupt::default(),
             budget: None,
+            files: Default::default(),
         }
     }
 

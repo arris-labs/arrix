@@ -587,7 +587,15 @@ import feature read: `entity` is the file's own entity number (a `u64`,
 Arris's `Role::File`), `instance` which of the instances of that entity the
 reader made, from 0; 0 is not written and a written 0 is an error, as for a
 sweep's index (ADR-0029). It is stable for one file; a vendor's next
-revision can lose a name, which is `ref.lost`, never a re-bind.
+revision can lose a name, which is `ref.lost`, never a re-bind. `instance`
+is the placement of the solid read (Arris's `FileEntity::instance`), and
+every entity of one read body has the solid's. The `entity` is the face's
+`ADVANCED_FACE`, the edge's `EDGE_CURVE`, the vertex's `VERTEX_POINT`; an
+edge the file left out and the reader rebuilt (a seam, a degenerate edge)
+takes its face's. Where the reader made several entities of one kind from
+one file entity (an edge split where it runs through a pole), the first in
+the reader's order keeps the name and piece `k` adds `mod.<F>.<k>`, as a
+boolean's pieces do (`crates/arrix-kernel/src/import.rs`).
 
 - **Roots** come from what made an entity from nothing. A sweep's side
   face is rooted at the **key of the curve** that swept it, not at its

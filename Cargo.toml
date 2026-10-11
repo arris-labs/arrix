@@ -85,6 +85,9 @@ semver = { version = "1", features = ["serde"] }
 miniz_oxide = { version = "0.9", default-features = false, features = ["with-alloc"] }
 crc32fast = "1"
 blake3 = { version = "1", default-features = false, features = ["std", "pure"] }
+# The SHA-256 Arris's fixture recipes name a STEP file by (`arrix-kernel`'s
+# fixture export of an import).
+sha2 = { version = "0.10", default-features = false }
 
 # The plugin API's equality test (docs/PLUGINS.md §One interface): the
 # guest bindings generated from the WIT world, and its parser for the

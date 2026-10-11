@@ -4,6 +4,7 @@
 
 use arris::io::MeshWriteError;
 use arris::io::body::BodyError;
+use arris::io::step::ReadError;
 use arris::mesh::MeshError;
 use arris::ops::{Fault, OpError, Reason};
 use arris::{Interrupted, Stop};
@@ -26,6 +27,14 @@ pub enum KernelError {
     /// other failure.
     #[error("kernel call {} made an entity naming cannot place: {message}", .call.0)]
     Naming { call: CallIndex, message: String },
+    /// An import asked for a solid the file does not have: `import.
+    /// no-solid`, the input's fault and not the kernel's.
+    #[error("kernel call {}: the file has no solid {asked}, only {count} solid(s)", .call.0)]
+    NoSolid {
+        call: CallIndex,
+        asked: u32,
+        count: usize,
+    },
     #[error("{0:?} is not a body of this evaluation")]
     UnknownBody(KernelBody),
     #[error("{name} names nothing in the body")]
@@ -44,6 +53,7 @@ impl KernelError {
         let code = match self {
             KernelError::Op { code, .. } => return code.clone(),
             KernelError::Naming { .. } => "kernel.naming",
+            KernelError::NoSolid { .. } => "import.no-solid",
             KernelError::UnknownBody(_) => "kernel.unknown-body",
             KernelError::UnknownName { .. } => "kernel.unknown-name",
             KernelError::WrongKind { .. } => "kernel.wrong-kind",
@@ -54,7 +64,9 @@ impl KernelError {
     /// The call this failure is recorded at, when a kernel call ran.
     pub fn call(&self) -> Option<CallIndex> {
         match self {
-            KernelError::Op { call, .. } | KernelError::Naming { call, .. } => Some(*call),
+            KernelError::Op { call, .. }
+            | KernelError::Naming { call, .. }
+            | KernelError::NoSolid { call, .. } => Some(*call),
             _ => None,
         }
     }
@@ -86,6 +98,29 @@ impl KernelError {
             code: DiagnosticCode::new(format!("kernel.unsupported.{what}"))
                 .expect("a literal code"),
             message,
+        }
+    }
+
+    /// `kernel.import.<word>`: why a file was not read, or a solid of it
+    /// refused (`word` the refusal's kind, `parse` for the file).
+    pub(crate) fn import(call: CallIndex, word: &str, message: String) -> Self {
+        KernelError::Op {
+            call,
+            code: DiagnosticCode::new(format!("kernel.import.{word}")).expect("a kebab word"),
+            message,
+        }
+    }
+
+    /// Why a read stopped: an interrupt, or text that is no exchange
+    /// structure.
+    pub(crate) fn read(call: CallIndex, e: &ReadError) -> Self {
+        match e {
+            ReadError::Interrupted(stop) => KernelError::Op {
+                call,
+                code: DiagnosticCode::new(interrupted(stop)).expect("a literal code"),
+                message: e.to_string(),
+            },
+            ReadError::Parse(_) => Self::import(call, "parse", e.to_string()),
         }
     }
 
@@ -188,8 +223,13 @@ fn category(e: &OpError) -> String {
 /// Arris keeps `Reason::name` stable across regroupings, so the codes a
 /// histogram counts under do not move when the groups do.
 fn reason_word(reason: &Reason) -> String {
+    kebab(reason.name())
+}
+
+/// `CamelCase` as `camel-case`.
+pub(crate) fn kebab(name: &str) -> String {
     let mut word = String::new();
-    for (i, c) in reason.name().chars().enumerate() {
+    for (i, c) in name.chars().enumerate() {
         if c.is_ascii_uppercase() {
             if i > 0 {
                 word.push('-');

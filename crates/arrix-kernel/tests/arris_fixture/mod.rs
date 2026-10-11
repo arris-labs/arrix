@@ -191,6 +191,15 @@ pub enum Step {
         edges: Vec<[Num; 3]>,
         distance: Num,
     },
+    #[serde(rename = "step")]
+    Read {
+        name: String,
+        file: String,
+        sha256: String,
+        id: u64,
+        #[serde(default)]
+        near: Option<[Num; 3]>,
+    },
 }
 
 impl Step {
@@ -207,14 +216,17 @@ impl Step {
             | Step::Common { name, .. }
             | Step::Cut { name, .. }
             | Step::Fillet { name, .. }
-            | Step::Chamfer { name, .. } => name,
+            | Step::Chamfer { name, .. }
+            | Step::Read { name, .. } => name,
         }
     }
 
     /// The steps this one reads, by name.
     pub fn reads(&self) -> Vec<&str> {
         match self {
-            Step::Box { .. } | Step::Cylinder { .. } | Step::Profile { .. } => vec![],
+            Step::Box { .. } | Step::Cylinder { .. } | Step::Profile { .. } | Step::Read { .. } => {
+                vec![]
+            }
             Step::Extrude { profile, .. } | Step::Revolve { profile, .. } => vec![profile],
             Step::Transform { of, .. }
             | Step::Mirror { of, .. }
@@ -240,6 +252,7 @@ impl Step {
             Step::Cut { .. } => "cut",
             Step::Fillet { .. } => "fillet",
             Step::Chamfer { .. } => "chamfer",
+            Step::Read { .. } => "step",
         }
     }
 }

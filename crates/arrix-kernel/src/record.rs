@@ -7,6 +7,8 @@
 use arrix_core::{
     DVec3, ExportFormat, FeatureId, Frame, MeshDetail, Motion, PersistentName, Profile,
 };
+use std::sync::Arc;
+
 use serde::{Deserialize, Serialize};
 
 /// The Arris release this crate is built against, as `Cargo.lock` pins it.
@@ -33,6 +35,59 @@ impl BodyHash {
     pub fn as_str(&self) -> &str {
         &self.0
     }
+}
+
+/// A file's content hash: the BLAKE3 of its bytes, as 64 lower-case hex
+/// digits, which is how the document names the blob an import reads.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct FileHash(String);
+
+impl FileHash {
+    pub fn of(bytes: &[u8]) -> Self {
+        Self(blake3::hash(bytes).to_hex().to_string())
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// The bytes of a file a call read, shared by every record of it, so a
+/// fixture recipe can write the file beside itself. Not serialised: a
+/// record read back holds none, and its recipe is
+/// `FixtureError::NoFile`.
+#[derive(Clone, Default)]
+pub struct FileBytes(pub(crate) Option<Arc<[u8]>>);
+
+impl FileBytes {
+    pub fn get(&self) -> Option<&[u8]> {
+        self.0.as_deref()
+    }
+}
+
+impl PartialEq for FileBytes {
+    /// The same file or none: the hash beside it says which.
+    fn eq(&self, other: &Self) -> bool {
+        self.0.is_some() == other.0.is_some()
+    }
+}
+
+impl std::fmt::Debug for FileBytes {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.0 {
+            Some(bytes) => write!(f, "FileBytes({} bytes)", bytes.len()),
+            None => f.write_str("FileBytes(none)"),
+        }
+    }
+}
+
+/// A solid of an exchange file: its `#id` and which placement of it, from
+/// 0 (Arris's `FileEntity`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct FileSolid {
+    pub id: u64,
+    pub instance: u32,
 }
 
 /// One kernel call. `operands` are the bodies this one reads, by content
@@ -156,6 +211,19 @@ pub enum KernelOp {
     /// The operand bodies, in operand order, written as `format`: the
     /// exact B-rep for STEP, the refined meshes for STL and OBJ.
     Export { format: ExportFormat },
+    /// Solid number `solid` (from 1, in the reader's order) of the STEP
+    /// file whose hash is `file`, read in metres; `feature` roots the
+    /// names (`import.<feature>.<entity>`). `entity` is the solid's file
+    /// entity, once the read found it; `bytes` the file, for a recipe.
+    ImportStep {
+        feature: FeatureId,
+        file: FileHash,
+        solid: u32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        entity: Option<FileSolid>,
+        #[serde(skip)]
+        bytes: FileBytes,
+    },
     /// Body bytes read into the model; `bytes` is their hash. The operand
     /// list is empty: the bytes are the input.
     FromBytes { bytes: BodyHash },

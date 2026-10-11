@@ -7,6 +7,7 @@
 //! name (`tests/fixtures/README.md` in Arris).
 
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
 use arrix_core::{DVec2, DVec3, DiagnosticCode, Profile, ProfileLoop, ProfileSegment};
 use serde::Serialize;
@@ -28,6 +29,18 @@ pub enum FixtureError {
     /// A blend whose edges are not each given by a point.
     #[error("kernel call {0:?} has an edge with no point on it")]
     EdgeWithoutPoint(CallIndex),
+    /// An import whose record holds no file: one read back from text.
+    #[error("kernel call {0:?} holds no file to write beside the recipe")]
+    NoFile(CallIndex),
+    /// An import whose read found no solid to name: the file did not
+    /// parse, or had fewer solids than asked.
+    #[error("kernel call {0:?} names no solid of its file")]
+    NoFileSolid(CallIndex),
+    /// An import of a solid the file places more than once: Arris's step
+    /// op then takes a point near the placement's centroid, which the
+    /// record does not hold.
+    #[error("kernel call {0:?} reads a solid the file places more than once")]
+    Placement(CallIndex),
 }
 
 /// An Arris fixture recipe, ready to be written as `fixture.json`.
@@ -40,6 +53,22 @@ pub struct FixtureRecipe {
     tolerances: Tolerances,
     #[serde(skip_serializing_if = "Option::is_none")]
     analytic: Option<Analytic>,
+    /// The files its `step` steps read, to be written beside it.
+    #[serde(skip)]
+    files: Vec<RecipeFile>,
+}
+
+/// A file a recipe reads, by the name its `step` step gives it.
+#[derive(Clone, PartialEq)]
+struct RecipeFile {
+    name: String,
+    bytes: Arc<[u8]>,
+}
+
+impl std::fmt::Debug for RecipeFile {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} ({} bytes)", self.name, self.bytes.len())
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
@@ -121,6 +150,14 @@ enum Step {
         edges: Vec<[f64; 3]>,
         distance: f64,
     },
+    /// A solid of a STEP file beside the recipe, by its `#id`.
+    #[serde(rename = "step")]
+    Read {
+        name: String,
+        file: String,
+        sha256: String,
+        id: u64,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -183,6 +220,10 @@ impl FixtureRecipe {
     /// chord its `mesh_chord`. A failure Arris's runner asserts
     /// by type (`blend-too-large`, `unsupported`, …) is its
     /// `analytic.expect_error`; any other is left for the runner to meet.
+    /// An import is a `step` step over the file, written beside the
+    /// recipe ([`files`](Self::files)); since that step reads in Arris's
+    /// default millimetres, a recipe holding one is in millimetres, every
+    /// length and the precision the records' times 1000.
     pub fn of(
         records: &[KernelCall],
         call: CallIndex,
@@ -225,9 +266,17 @@ impl FixtureRecipe {
                 stack.extend(&record.sources);
             }
         }
-        let mut steps = Vec::new();
+        let imports = closure
+            .iter()
+            .any(|&c| matches!(records[c.0 as usize].op, KernelOp::ImportStep { .. }));
+        let scale = if imports { 1e3 } else { 1.0 };
+        let mut out = Out {
+            steps: Vec::new(),
+            files: Vec::new(),
+            scale,
+        };
         for &c in &closure {
-            push_steps(&mut steps, c, get(records, c)?)?;
+            out.push(c, get(records, c)?)?;
         }
         let result = match failed.op {
             KernelOp::Project { .. }
@@ -245,24 +294,38 @@ impl FixtureRecipe {
             description: format!(
                 "ArriX's kernel call {} ({}) on arris {}, {why}: the call and every \
                  call that made its operands, one step each named c<call>, exported \
-                 from their records. Lengths in metres.",
+                 from their records. {}",
                 call.0,
                 op_word(&failed.op),
                 failed.arris_version,
+                if imports {
+                    "Lengths in millimetres, the records' metres times 1000, since a \
+                     step step reads its file in millimetres."
+                } else {
+                    "Lengths in metres."
+                },
             ),
-            steps,
+            steps: out.steps,
             result,
             precision: Precision {
-                default_tolerance: failed.precision.default_tolerance,
+                default_tolerance: failed.precision.default_tolerance * scale,
             },
             tolerances: Tolerances {
-                mesh_chord: match failed.op {
-                    KernelOp::Tessellate { chord, .. } => chord,
-                    _ => 1e-5,
-                },
+                mesh_chord: scale
+                    * match failed.op {
+                        KernelOp::Tessellate { chord, .. } => chord,
+                        _ => 1e-5,
+                    },
             },
             analytic: expect_error.map(|expect_error| Analytic { expect_error }),
+            files: out.files,
         })
+    }
+
+    /// The files the recipe reads, each by the name it gives it, to be
+    /// written beside `fixture.json`.
+    pub fn files(&self) -> impl Iterator<Item = (&str, &[u8])> {
+        self.files.iter().map(|f| (f.name.as_str(), &*f.bytes))
     }
 
     /// The recipe as `fixture.json`'s text.
@@ -281,163 +344,221 @@ fn name(call: CallIndex) -> String {
     format!("c{}", call.0)
 }
 
-/// The step (two for a sweep: its profile first) that remakes `record`'s
-/// body; none for a query, which makes no body.
-fn push_steps(
-    steps: &mut Vec<Step>,
-    call: CallIndex,
-    record: &KernelCall,
-) -> Result<(), FixtureError> {
-    let name = name(call);
-    let operand = |i: usize| self::name(record.sources[i]);
-    let blend_edges = |edges: &[_], at: &[DVec3]| {
-        if at.len() == edges.len() {
-            Ok(at.iter().map(|p| p.to_array()).collect())
-        } else {
-            Err(FixtureError::EdgeWithoutPoint(call))
-        }
-    };
-    let step = match &record.op {
-        KernelOp::Extrude {
-            profile, distance, ..
-        } => {
-            let profile_name = format!("{name}.profile");
-            steps.push(profile_step(&profile_name, profile));
-            Step::Extrude {
-                name,
-                profile: profile_name,
-                direction: (profile.plane().z_axis() * distance.signum()).to_array(),
-                length: distance.abs(),
-            }
-        }
-        KernelOp::Revolve {
-            profile,
-            axis_origin,
-            axis_direction,
-            angle,
-            ..
-        } => {
-            let profile_name = format!("{name}.profile");
-            steps.push(profile_step(&profile_name, profile));
-            Step::Revolve {
-                name,
-                profile: profile_name,
-                axis: Axis {
-                    origin: axis_origin.to_array(),
-                    direction: axis_direction.to_array(),
-                },
-                angle_deg: angle.to_degrees(),
-            }
-        }
-        KernelOp::Fuse { .. } => Step::Fuse {
-            name,
-            a: operand(0),
-            b: operand(1),
-        },
-        KernelOp::Common { .. } => Step::Common {
-            name,
-            a: operand(0),
-            b: operand(1),
-        },
-        KernelOp::Cut { .. } => Step::Cut {
-            name,
-            target: operand(0),
-            tool: operand(1),
-        },
-        KernelOp::Fillet {
-            edges, at, radius, ..
-        } => Step::Fillet {
-            name,
-            of: operand(0),
-            edges: blend_edges(edges, at)?,
-            radius: *radius,
-        },
-        KernelOp::Chamfer {
-            edges,
-            at,
-            distance,
-            ..
-        } => Step::Chamfer {
-            name,
-            of: operand(0),
-            edges: blend_edges(edges, at)?,
-            distance: *distance,
-        },
-        // Arris's transform turns first, about `origin`, then translates:
-        // a `Motion`'s order.
-        KernelOp::Copy { motion, .. } => Step::Transform {
-            name,
-            of: operand(0),
-            translate: (motion.translation != DVec3::ZERO).then(|| motion.translation.to_array()),
-            rotate: (motion.angle != 0.0).then(|| Rotate {
-                axis: motion.axis.to_array(),
-                origin: [0.0; 3],
-                angle_deg: motion.angle.to_degrees(),
-            }),
-        },
-        KernelOp::Mirror { origin, normal, .. } => Step::Mirror {
-            name,
-            of: operand(0),
-            plane: MirrorPlane {
-                origin: origin.to_array(),
-                normal: normal.to_array(),
-            },
-        },
-        KernelOp::Project { .. }
-        | KernelOp::FaceFrame { .. }
-        | KernelOp::VertexPoint { .. }
-        | KernelOp::EdgeAxis { .. }
-        | KernelOp::MassProperties
-        | KernelOp::Tessellate { .. }
-        | KernelOp::ToBytes => return Ok(()),
-        KernelOp::Export { .. } | KernelOp::FromBytes { .. } => {
-            return Err(FixtureError::NoStep {
-                call,
-                op: op_word(&record.op),
-            });
-        }
-    };
-    steps.push(step);
-    Ok(())
+/// A recipe being built: its steps, the files they read, and the factor
+/// every length is written at (1 in metres, 1000 in millimetres).
+struct Out {
+    steps: Vec<Step>,
+    files: Vec<RecipeFile>,
+    scale: f64,
 }
 
-fn profile_step(name: &str, profile: &Profile) -> Step {
-    let plane = profile.plane();
-    Step::Profile {
-        name: name.to_owned(),
-        plane: Plane {
-            origin: plane.origin().to_array(),
-            x: plane.x_axis().to_array(),
-            y: plane.y_axis().to_array(),
-        },
-        outer: profile_loop(profile.outer()),
-        holes: profile.holes().iter().map(profile_loop).collect(),
+impl Out {
+    fn len(&self, x: f64) -> f64 {
+        x * self.scale
     }
-}
 
-fn profile_loop(l: &ProfileLoop) -> Loop {
-    let uv = |p: &DVec2| p.to_array();
-    match l {
-        ProfileLoop::Circle { center, radius, .. } => Loop::Circle {
-            circle: Circle {
-                center: uv(center),
-                radius: *radius,
-            },
-        },
-        ProfileLoop::Path { start, segments } => Loop::Path {
-            start: uv(start),
-            segments: segments
-                .iter()
-                .map(|s| match s {
-                    ProfileSegment::Line { to, .. } => Segment::Line { line_to: uv(to) },
-                    ProfileSegment::Arc { to, via, .. } => Segment::Arc {
-                        arc_to: uv(to),
-                        via: uv(via),
+    fn point(&self, p: DVec3) -> [f64; 3] {
+        (p * self.scale).to_array()
+    }
+
+    /// The step (two for a sweep: its profile first) that remakes
+    /// `record`'s body; none for a query, which makes no body.
+    fn push(&mut self, call: CallIndex, record: &KernelCall) -> Result<(), FixtureError> {
+        let name = name(call);
+        let operand = |i: usize| self::name(record.sources[i]);
+        let blend_edges = |edges: &[_], at: &[DVec3]| {
+            if at.len() == edges.len() {
+                Ok(at.iter().map(|&p| self.point(p)).collect())
+            } else {
+                Err(FixtureError::EdgeWithoutPoint(call))
+            }
+        };
+        let step = match &record.op {
+            KernelOp::Extrude {
+                profile, distance, ..
+            } => {
+                let profile_name = format!("{name}.profile");
+                let profile_step = self.profile_step(&profile_name, profile);
+                self.steps.push(profile_step);
+                Step::Extrude {
+                    name,
+                    profile: profile_name,
+                    direction: (profile.plane().z_axis() * distance.signum()).to_array(),
+                    length: self.len(distance.abs()),
+                }
+            }
+            KernelOp::Revolve {
+                profile,
+                axis_origin,
+                axis_direction,
+                angle,
+                ..
+            } => {
+                let profile_name = format!("{name}.profile");
+                let profile_step = self.profile_step(&profile_name, profile);
+                self.steps.push(profile_step);
+                Step::Revolve {
+                    name,
+                    profile: profile_name,
+                    axis: Axis {
+                        origin: self.point(*axis_origin),
+                        direction: axis_direction.to_array(),
                     },
-                })
-                .collect(),
-        },
+                    angle_deg: angle.to_degrees(),
+                }
+            }
+            KernelOp::Fuse { .. } => Step::Fuse {
+                name,
+                a: operand(0),
+                b: operand(1),
+            },
+            KernelOp::Common { .. } => Step::Common {
+                name,
+                a: operand(0),
+                b: operand(1),
+            },
+            KernelOp::Cut { .. } => Step::Cut {
+                name,
+                target: operand(0),
+                tool: operand(1),
+            },
+            KernelOp::Fillet {
+                edges, at, radius, ..
+            } => Step::Fillet {
+                name,
+                of: operand(0),
+                edges: blend_edges(edges, at)?,
+                radius: self.len(*radius),
+            },
+            KernelOp::Chamfer {
+                edges,
+                at,
+                distance,
+                ..
+            } => Step::Chamfer {
+                name,
+                of: operand(0),
+                edges: blend_edges(edges, at)?,
+                distance: self.len(*distance),
+            },
+            // Arris's transform turns first, about `origin`, then translates:
+            // a `Motion`'s order.
+            KernelOp::Copy { motion, .. } => Step::Transform {
+                name,
+                of: operand(0),
+                translate: (motion.translation != DVec3::ZERO)
+                    .then(|| self.point(motion.translation)),
+                rotate: (motion.angle != 0.0).then(|| Rotate {
+                    axis: motion.axis.to_array(),
+                    origin: [0.0; 3],
+                    angle_deg: motion.angle.to_degrees(),
+                }),
+            },
+            KernelOp::Mirror { origin, normal, .. } => Step::Mirror {
+                name,
+                of: operand(0),
+                plane: MirrorPlane {
+                    origin: self.point(*origin),
+                    normal: normal.to_array(),
+                },
+            },
+            KernelOp::ImportStep {
+                file,
+                entity,
+                bytes,
+                ..
+            } => {
+                let entity = entity.ok_or(FixtureError::NoFileSolid(call))?;
+                if entity.instance > 0 {
+                    return Err(FixtureError::Placement(call));
+                }
+                let bytes = bytes.0.clone().ok_or(FixtureError::NoFile(call))?;
+                let file_name = format!("{}.step", &file.as_str()[..12]);
+                let sha256 = sha256_hex(&bytes);
+                if !self.files.iter().any(|f| f.name == file_name) {
+                    self.files.push(RecipeFile {
+                        name: file_name.clone(),
+                        bytes,
+                    });
+                }
+                Step::Read {
+                    name,
+                    file: file_name,
+                    sha256,
+                    id: entity.id,
+                }
+            }
+            KernelOp::Project { .. }
+            | KernelOp::FaceFrame { .. }
+            | KernelOp::VertexPoint { .. }
+            | KernelOp::EdgeAxis { .. }
+            | KernelOp::MassProperties
+            | KernelOp::Tessellate { .. }
+            | KernelOp::ToBytes => return Ok(()),
+            KernelOp::Export { .. } | KernelOp::FromBytes { .. } => {
+                return Err(FixtureError::NoStep {
+                    call,
+                    op: op_word(&record.op),
+                });
+            }
+        };
+        self.steps.push(step);
+        Ok(())
     }
+
+    fn profile_step(&self, name: &str, profile: &Profile) -> Step {
+        let plane = profile.plane();
+        Step::Profile {
+            name: name.to_owned(),
+            plane: Plane {
+                origin: self.point(plane.origin()),
+                x: plane.x_axis().to_array(),
+                y: plane.y_axis().to_array(),
+            },
+            outer: self.profile_loop(profile.outer()),
+            holes: profile
+                .holes()
+                .iter()
+                .map(|l| self.profile_loop(l))
+                .collect(),
+        }
+    }
+
+    fn profile_loop(&self, l: &ProfileLoop) -> Loop {
+        let uv = |p: &DVec2| (*p * self.scale).to_array();
+        match l {
+            ProfileLoop::Circle { center, radius, .. } => Loop::Circle {
+                circle: Circle {
+                    center: uv(center),
+                    radius: self.len(*radius),
+                },
+            },
+            ProfileLoop::Path { start, segments } => Loop::Path {
+                start: uv(start),
+                segments: segments
+                    .iter()
+                    .map(|s| match s {
+                        ProfileSegment::Line { to, .. } => Segment::Line { line_to: uv(to) },
+                        ProfileSegment::Arc { to, via, .. } => Segment::Arc {
+                            arc_to: uv(to),
+                            via: uv(via),
+                        },
+                    })
+                    .collect(),
+            },
+        }
+    }
+}
+
+/// The SHA-256 Arris's step step checks its file against, lower-case hex.
+fn sha256_hex(bytes: &[u8]) -> String {
+    use sha2::Digest;
+    use std::fmt::Write as _;
+    let mut hex = String::with_capacity(64);
+    for b in sha2::Sha256::digest(bytes) {
+        write!(hex, "{b:02x}").expect("a String takes any text");
+    }
+    hex
 }
 
 fn op_word(op: &KernelOp) -> &'static str {
@@ -460,6 +581,7 @@ fn op_word(op: &KernelOp) -> &'static str {
         KernelOp::ToBytes => "to_bytes",
         KernelOp::Export { .. } => "export",
         KernelOp::FromBytes { .. } => "from_bytes",
+        KernelOp::ImportStep { .. } => "import_step",
     }
 }
 
