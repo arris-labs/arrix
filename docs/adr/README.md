@@ -67,3 +67,4 @@ Each rejected option and the one-line reason it lost.
 - [ADR-0026](0026-the-harness-is-versioned.md): the harness is a versioned public interface: four surfaces each with a `format` or `protocol`, schemas printed and held by goldens, additive-only inside a version, `debug_state()` promised on its marked fields
 - [ADR-0027](0027-c2-is-assemblies-and-exchange.md): C2 is assemblies and exchange in three milestones; measure, section view, 3MF and DXF/SVG move to the named cycle "the mechanical core completed"; `SEED.md` §7 amended
 - [ADR-0028](0028-the-exchange-unit.md): the exchange unit is metres, written as metres; the reader passes `Metre` explicitly; STEP export refused as `kernel.export.unit` until Arris's writer takes a unit (A12)
+- [ADR-0029](0029-assemblies-in-the-document.md): assemblies in the document: components, joints with anchors by persistent name, tree FK with soft diagnostics, imported names, `core.import-step`, schema 4
