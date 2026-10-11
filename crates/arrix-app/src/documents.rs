@@ -628,6 +628,11 @@ impl OpenDocument {
         match context {
             Some(Context::Assembly(id)) => {
                 let keys: Vec<BodyKey> = scene.keys().cloned().collect();
+                // A part's context hid the other parts' bodies: an
+                // assembly draws every one its components place.
+                for key in &keys {
+                    scene.set_body_visible(key, true);
+                }
                 let dragged = self.view.joint_drag.as_ref().and_then(|d| d.shown(id));
                 let list = context::instances(&self.replica, id, &keys, dragged);
                 scene.set_instances(Some(list));

@@ -66,5 +66,9 @@ fn an_assembly_opens_drawn_at_its_poses() {
             .expect("by name");
         settled(h);
         assert_eq!(h.state().debug_state().instances.len(), 2);
+        assert!(
+            harness::render(h) == before,
+            "looking at a part hid the other part's body for good"
+        );
     });
 }
