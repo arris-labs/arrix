@@ -13,8 +13,9 @@ struct Camera {
 @group(0) @binding(0) var<uniform> camera: Camera;
 
 // The body's model matrix, at its dynamic offset, and its pick bits (read
-// by the pick pass only). Bodies are placed by translations, so the normal
-// takes the same matrix.
+// by the pick pass only). Bodies are placed by rigid motions (an
+// instance's pose and its mesh's origin), so the normal takes the same
+// matrix.
 struct Body {
     model: mat4x4<f32>,
     pick: vec4<u32>,

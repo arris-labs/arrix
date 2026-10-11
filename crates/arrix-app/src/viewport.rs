@@ -8,7 +8,7 @@ use arrix_ui::{
     CardsView, FieldEvent, PlanePointer, PlaneToScreen, SketchHit, paint_sketch, pick_sketch_item,
     viewcube_rect,
 };
-use arrix_viewport::{Highlights, OrbitCamera, Renderer, StandardView};
+use arrix_viewport::{Highlights, Hit, OrbitCamera, Renderer, StandardView};
 use web_time::Instant;
 
 use crate::badges::{self, BadgeAnchor};
@@ -149,10 +149,14 @@ pub fn show(
         hover_left = true;
     }
     if let Some(renderer) = renderer {
+        // A part's context, so every name is of no component.
+        let hover = view.hover.clone().map(Hit::bare);
+        let selection = view.selection.clone().map(Hit::bare);
+        let marked: Vec<Hit> = view.marked.iter().cloned().map(Hit::bare).collect();
         let highlights = Highlights {
-            hover: view.hover.as_ref(),
-            selection: view.selection.as_ref(),
-            marked: &view.marked,
+            hover: hover.as_ref(),
+            selection: selection.as_ref(),
+            marked: &marked,
         };
         let pick = renderer.paint(
             ui.painter(),

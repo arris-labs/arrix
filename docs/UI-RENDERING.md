@@ -636,6 +636,14 @@ draws). Ported, reviewed on the way in (`SEED.md` §8.1).
   feature's own faces are on a body it was joined into. A frozen feature's
   faces keep their live names (a frozen body is named by its stored
   table), so this is where its badge goes.
+- **Instances** (ADR-0030 §2). A body's mesh is uploaded once and drawn
+  once per `Instance { path, key, pose }`: an assembly's context sets the
+  scene's instances, each a component path, the body it draws and the
+  component's world pose (a `Frame`), composed in f64 with the mesh's
+  origin and cast to f32 last. With none set (a part's context) each
+  visible body draws once at its own origin, with an empty path; both are
+  `Scene::visible`'s `Drawn` instances, so the draw, pick, highlight,
+  bounds and badge paths are one. Moving an instance re-uploads nothing.
 - **Meshes** arrive in `EvalEvent`s as `RenderMesh`: f32 positions
   relative to the body's local origin (the kernel works in f64; the cast
   happens where the buffer layout is known), normals, face ranges and edge
@@ -644,8 +652,8 @@ draws). Ported, reviewed on the way in (`SEED.md` §8.1).
   at once, then a refined one.
 - **Picking by ID buffer.** On a frame with a click, a pick pass draws
   every face, edge and vertex as a `u32` id into an `R32Uint` target with
-  its own depth: the kind in the top two bits, the body's index among the
-  visible bodies in the next ten, the entity's index in its mesh's range
+  its own depth: the kind in the top two bits, the instance's index among
+  the visible instances in the next ten, the entity's index in its mesh's range
   table in the low twenty (`arrix_viewport::pick`; `0` is nothing, and a
   body or entity past those bits draws as nothing). The kind and index are
   vertex data, uploaded with the mesh; the body index is in the body's
@@ -655,9 +663,10 @@ draws). Ported, reviewed on the way in (`SEED.md` §8.1).
   the cursor are copied out on the pass's own encoder and read back
   asynchronously (`map_async`, the device polled each frame, never
   waited on); the region ranks vertex over edge over face, then the
-  nearest to the cursor, and resolves to the `PersistentName` through the
-  names the scene keeps per body, only if the body still holds the mesh
-  the pass drew (a refined mesh may land in between). A click on a card
+  nearest to the cursor, and resolves to a `Hit { path, name }`, the
+  instance's component path and the `PersistentName` through the names the
+  scene keeps per body, only if the body still holds the mesh the pass
+  drew (a refined mesh may land in between). A click on a card
   never reaches the viewport (a layer above). The result is
   `UiIntent::Picked { name }`, `None` for empty space, and the selection is
   session state per tab. The path is the same on native and wasm, and
@@ -668,8 +677,8 @@ draws). Ported, reviewed on the way in (`SEED.md` §8.1).
   list) and face outline (a range of one more line list, made once per
   mesh from the sides only one triangle of the face has) sits
   (`arrix_viewport` `HighlightRanges`). `Renderer::paint` takes the hovered
-  and the selected `PersistentName`, `Scene::locate` finds each among the
-  visible bodies, and the draw is the range again in a style: a face as a
+  and the selected `Hit`, `Scene::locate` finds each among the visible
+  instances by its path and name, and the draw is the range again in a style: a face as a
   tint over its shading, with its outline; an edge as its line; a vertex as
   its point. Lines and points are a pixel thin, so each is drawn five
   times a pixel apart (a cross three pixels wide). Everything is moved

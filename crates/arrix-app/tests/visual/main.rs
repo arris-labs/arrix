@@ -11,6 +11,7 @@ mod forms_accept;
 mod frozen_badge;
 mod harness;
 mod highlight;
+mod instances;
 mod m3_accept;
 mod preview;
 mod render_cli;

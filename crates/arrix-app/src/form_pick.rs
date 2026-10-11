@@ -224,7 +224,7 @@ impl ArrixApp {
         };
         let view = &self.active_document().expect("a form is open").view;
         let extend = view.click_extend;
-        let body = view.scene.body_of(&name).cloned();
+        let body = view.scene.body_of(&[], &name).cloned();
         self.form_pick(&Pick::Topo(name, body), extend);
         true
     }
@@ -413,7 +413,7 @@ impl ArrixApp {
         };
         let mut picks = Vec::new();
         if let Some(name) = &document.view.selection {
-            let body = document.view.scene.body_of(name).cloned();
+            let body = document.view.scene.body_of(&[], name).cloned();
             picks.push(Pick::Topo(name.clone(), body));
         }
         if let Some(feature) = document.view.feature_selection {

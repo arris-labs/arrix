@@ -291,8 +291,8 @@ impl Renderer {
         let aspect = rect.width().max(1.0) / rect.height().max(1.0);
         let dark = painter.ctx().global_style().visuals.dark_mode;
 
-        // The document's visible bodies, then the preview's: the pick ids
-        // and highlight indices count the document's alone.
+        // The document's visible instances, then the preview's bodies: the
+        // pick ids and highlight indices count the document's alone.
         let count = scene.visible().count();
         let total = count + scene.preview().count();
         self.models.reserve(&self.device, total);
@@ -301,12 +301,12 @@ impl Renderer {
         let mut bodies = Vec::with_capacity(total);
         let entries = scene
             .visible()
-            .map(|e| (e, false))
-            .chain(scene.preview().map(|e| (e, true)));
-        for (i, (entry, preview)) in entries.enumerate() {
+            .map(|d| (d.entry, d.model, false))
+            .chain(scene.preview().map(|e| (e, e.model, true)));
+        for (i, (entry, model, preview)) in entries.enumerate() {
             let at = i * stride;
             let uniforms = BodyUniforms {
-                model: entry.model.to_cols_array_2d(),
+                model: model.to_cols_array_2d(),
                 pick: [if preview { 0 } else { body_bits(i) }, 0, 0, 0],
             };
             model_data[at..at + MODEL_SIZE as usize].copy_from_slice(bytemuck::bytes_of(&uniforms));
@@ -351,11 +351,12 @@ impl Renderer {
                 .iter()
                 .map(|n| (Some(n), Style::Selection)),
         )
-        .filter_map(|(name, style)| {
-            let at = scene.locate(name?)?;
-            let entry = scene.visible().nth(at.body)?;
+        .filter_map(|(hit, style)| {
+            let hit = hit?;
+            let at = scene.locate(&hit.path, &hit.name)?;
+            let drawn = scene.visible().nth(at.body)?;
             let model_offset = (at.body * stride) as u32;
-            HighlightDraw::new(&entry.mesh, at, model_offset, style)
+            HighlightDraw::new(&drawn.entry.mesh, at, model_offset, style)
         })
         .chain(scene.preview().enumerate().map(|(i, entry)| {
             HighlightDraw::body(&entry.mesh, ((count + i) * stride) as u32, Style::Preview)

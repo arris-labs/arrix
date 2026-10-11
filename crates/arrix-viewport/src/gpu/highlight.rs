@@ -10,11 +10,11 @@
 use std::collections::BTreeMap;
 use std::ops::Range;
 
-use arrix_core::{PersistentName, RenderMesh, TopoKind};
+use arrix_core::{RenderMesh, TopoKind};
 use egui_wgpu::wgpu;
 
 use super::mesh::GpuMesh;
-use crate::scene::Located;
+use crate::scene::{Hit, Located};
 
 /// Which style a highlight is drawn in; the shader's `style_color` indexes
 /// by it.
@@ -26,14 +26,15 @@ pub enum Style {
     Preview = 2,
 }
 
-/// The names the viewport highlights this frame.
+/// The entities the viewport highlights this frame, each of the instance
+/// its path names.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Highlights<'a> {
-    pub hover: Option<&'a PersistentName>,
-    pub selection: Option<&'a PersistentName>,
+    pub hover: Option<&'a Hit>,
+    pub selection: Option<&'a Hit>,
     /// More entities drawn as the selection is: what a form's reference
     /// fields hold.
-    pub marked: &'a [PersistentName],
+    pub marked: &'a [Hit],
 }
 
 /// Where each entity of a mesh sits in its body's buffers.
@@ -197,7 +198,7 @@ impl HighlightDraw {
 
 #[cfg(test)]
 mod tests {
-    use arrix_core::{DVec3, FeatureId, Id, MeshRange, NameRoot};
+    use arrix_core::{DVec3, FeatureId, Id, MeshRange, NameRoot, PersistentName};
 
     use super::*;
 

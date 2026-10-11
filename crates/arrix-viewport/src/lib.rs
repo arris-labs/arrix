@@ -16,5 +16,6 @@ pub use pick::{
     encode as encode_pick, resolve_region,
 };
 pub use scene::{
-    Aabb, BodyEntry, BodyKey, BodyPayload, EntityNames, Located, PickBodies, Scene, Upload,
+    Aabb, BodyEntry, BodyKey, BodyPayload, Drawn, EntityNames, Hit, Instance, Located, PickBodies,
+    Scene, Upload,
 };

@@ -14,7 +14,7 @@ use arrix_doc::{
     SessionEvent,
 };
 use arrix_ui::{FeatureState, TreeFeature, TreePart, TreeView};
-use arrix_viewport::{BodyKey, GpuMesh, OrbitCamera, PendingPick, Renderer, Scene};
+use arrix_viewport::{BodyKey, GpuMesh, Hit, OrbitCamera, PendingPick, Renderer, Scene};
 use web_time::Instant;
 
 /// How long after an evaluation finished with no mesh heard it is taken to
@@ -53,6 +53,10 @@ pub struct ViewState {
     /// What the open form's reference fields hold, drawn as the selection
     /// is. Set every frame from the form.
     pub marked: Vec<PersistentName>,
+    /// What the last click's pick landed on, its component path included;
+    /// the selection keeps the name alone until picks carry the path
+    /// (plans/c2-m2 step 6).
+    pub last_click: Option<Hit>,
 }
 
 /// What a pick is for: a click selects, the pointer resting hovers.
@@ -69,10 +73,13 @@ impl ViewState {
     pub fn take_pick(&mut self) -> Option<(PickFor, Option<PersistentName>)> {
         let (pending, purpose) = self.pick.as_ref()?;
         let hit = pending.poll()?;
-        let name = hit.and_then(|h| self.scene.resolve(&pending.bodies, h).cloned());
+        let hit = hit.and_then(|h| self.scene.resolve(&pending.bodies, h));
         let purpose = *purpose;
         self.pick = None;
-        Some((purpose, name))
+        if purpose == PickFor::Click {
+            self.last_click = hit.clone();
+        }
+        Some((purpose, hit.map(|h| h.name)))
     }
 }
 

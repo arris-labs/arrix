@@ -456,6 +456,20 @@ impl ArrixApp {
         }
     }
 
+    /// Draws the active view's bodies as `instances`, or each once at its
+    /// origin with `None`: how a test places hand-made meshes as an
+    /// assembly's components would be.
+    pub fn show_instances(&mut self, instances: Option<Vec<arrix_viewport::Instance>>) {
+        self.view_mut().scene.set_instances(instances);
+    }
+
+    /// What the active view's last click landed on, its component path
+    /// included.
+    pub fn last_click(&self) -> Option<arrix_viewport::Hit> {
+        let view = self.active_document().map_or(&self.idle_view, |d| &d.view);
+        view.last_click.clone()
+    }
+
     /// The active view, a document's or the empty start's.
     fn view_mut(&mut self) -> &mut ViewState {
         match self.documents.get_mut(self.active) {
