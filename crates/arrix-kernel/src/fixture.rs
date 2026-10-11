@@ -283,6 +283,7 @@ impl FixtureRecipe {
             | KernelOp::FaceFrame { .. }
             | KernelOp::VertexPoint { .. }
             | KernelOp::EdgeAxis { .. }
+            | KernelOp::AnchorFrame { .. }
             | KernelOp::MassProperties
             | KernelOp::Tessellate { .. }
             | KernelOp::ToBytes => name(failed.sources[0]),
@@ -492,6 +493,7 @@ impl Out {
             | KernelOp::FaceFrame { .. }
             | KernelOp::VertexPoint { .. }
             | KernelOp::EdgeAxis { .. }
+            | KernelOp::AnchorFrame { .. }
             | KernelOp::MassProperties
             | KernelOp::Tessellate { .. }
             | KernelOp::ToBytes => return Ok(()),
@@ -576,6 +578,7 @@ fn op_word(op: &KernelOp) -> &'static str {
         KernelOp::FaceFrame { .. } => "face_frame",
         KernelOp::VertexPoint { .. } => "vertex_point",
         KernelOp::EdgeAxis { .. } => "edge_axis",
+        KernelOp::AnchorFrame { .. } => "anchor_frame",
         KernelOp::MassProperties => "mass_properties",
         KernelOp::Tessellate { .. } => "tessellate",
         KernelOp::ToBytes => "to_bytes",

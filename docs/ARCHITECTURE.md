@@ -275,6 +275,18 @@ geometry from provenance, and to make every kernel call a record.
   record shares the file's bytes, kept once per kernel by hash, for its
   recipe. Invalid UTF-8 is replaced: Part 21 is ASCII outside string
   literals.
+  `anchor_frame` (C2 M1, ADR-0029 §3) is the frame a joint attaches at,
+  a recorded query (`KernelOp::AnchorFrame { axis, origin }`) on a part's
+  final body: a cylindrical face gives its axis as Arris orients the
+  surface, at the face's lowest extent along it (so the point does not
+  depend on how the cylinder was made); a planar face its outward normal
+  at its frame's origin; a circular edge its normal at its centre; a
+  straight edge its line at the edge's start along it. A planar origin
+  face moves the point to where the axis meets it and gives x (its u
+  projected), else x is the world axis least aligned with z, X before Y
+  before Z. Any other kind (a cone, a sphere, a B-spline cylinder), a
+  curved origin face or an axis parallel to it is `kernel.invalid-input`
+  naming the entity.
 - **Interrupt.** The `Kernel` owns a flag (`Interrupt`, an
   `Arc<AtomicBool>`: no clock, the same on wasm) and passes a poll of it
   as Arris's `Control` to every call it makes (A3, ADR-0030 there).

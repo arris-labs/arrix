@@ -201,6 +201,14 @@ pub enum KernelOp {
     VertexPoint { vertex: PersistentName },
     /// The line a straight edge of the operand body lies on.
     EdgeAxis { edge: PersistentName },
+    /// An assembly anchor's frame on the operand body: z and a point from
+    /// `axis`, a face or an edge, moved onto the planar face `origin`
+    /// (ADR-0029 §3).
+    AnchorFrame {
+        axis: PersistentName,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        origin: Option<PersistentName>,
+    },
     /// Volume, area and centroid of the operand body.
     MassProperties,
     /// The operand body as a render mesh at `detail`, which came to

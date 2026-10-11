@@ -5,12 +5,13 @@
 //! Built so far: the `Kernel` service's first slice (`extrude`, `revolve`,
 //! `fuse`, `cut`, `common`, `fillet`, `chamfer`, `copy`, `mirror`,
 //! `project`, `face_frame`, `mass_properties`, `tessellate`, `to_bytes`,
-//! `from_bytes`, `import_step`),
+//! `from_bytes`, `import_step`, `anchor_frame`),
 //! names from the sweeps' and the booleans' provenance, a
 //! `KernelCall` record made before every call, a record's export as
 //! an Arris fixture recipe (`FixtureRecipe`), and an [`Interrupt`] every
 //! Arris call polls.
 
+mod anchor;
 mod bytes;
 mod convert;
 mod error;
@@ -621,19 +622,7 @@ impl Kernel {
             None => return Err(KernelError::UnknownName { name: face.clone() }),
         };
         let call = self.begin(KernelOp::FaceFrame { face: face.clone() }, &[body])?;
-        // The face as the body uses it, so the frame is outward.
-        let used = self
-            .model
-            .faces(target)
-            .map_err(|e| KernelError::op(call, &e.into()))?
-            .into_iter()
-            .find(|f| f.id == id)
-            .ok_or_else(|| KernelError::Naming {
-                call,
-                message: format!("{face} is not a face of the body it was named in"),
-            })?;
-        let frame = arris::ops::query::face_frame(&self.model, used)
-            .map_err(|e| KernelError::op(call, &e))?;
+        let frame = self.outward_frame(call, target, id, face)?;
         Ok(convert::frame_back(&frame))
     }
 
