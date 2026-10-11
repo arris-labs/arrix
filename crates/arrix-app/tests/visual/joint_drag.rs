@@ -20,7 +20,7 @@ fn servo() -> ComponentId {
     ComponentId(SERVO.parse::<Id>().expect("the servo's id"))
 }
 
-fn button(h: &mut Harness<'_>, pos: egui::Pos2, pressed: bool) {
+pub(crate) fn button(h: &mut Harness<'_>, pos: egui::Pos2, pressed: bool) {
     h.event(egui::Event::PointerButton {
         pos,
         button: egui::PointerButton::Primary,
@@ -31,7 +31,7 @@ fn button(h: &mut Harness<'_>, pos: egui::Pos2, pressed: bool) {
 }
 
 /// The pose of the instance of `path`'s first body: origin, x and z.
-fn pose(h: &Harness<'_>, path: &str) -> [[f64; 3]; 3] {
+pub(crate) fn pose(h: &Harness<'_>, path: &str) -> [[f64; 3]; 3] {
     let state = h.state().debug_state();
     let i = state
         .instances
@@ -42,7 +42,7 @@ fn pose(h: &Harness<'_>, path: &str) -> [[f64; 3]; 3] {
 }
 
 /// The angle between two orientations, from their x and z axes.
-fn turned(a: [[f64; 3]; 3], b: [[f64; 3]; 3]) -> f64 {
+pub(crate) fn turned(a: [[f64; 3]; 3], b: [[f64; 3]; 3]) -> f64 {
     let dot = |u: [f64; 3], v: [f64; 3]| u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
     let cross = |u: [f64; 3], v: [f64; 3]| {
         [
@@ -59,7 +59,7 @@ fn turned(a: [[f64; 3]; 3], b: [[f64; 3]; 3]) -> f64 {
 
 /// Presses at `from` and walks the pointer to `to` in `steps`, waiting for
 /// the press's pick on the way; the button stays down.
-fn press_and_walk(h: &mut Harness<'_>, from: egui::Pos2, to: egui::Pos2, steps: usize) {
+pub(crate) fn press_and_walk(h: &mut Harness<'_>, from: egui::Pos2, to: egui::Pos2, steps: usize) {
     h.event(egui::Event::PointerMoved(from));
     h.step();
     button(h, from, true);
@@ -77,7 +77,7 @@ fn press_and_walk(h: &mut Harness<'_>, from: egui::Pos2, to: egui::Pos2, steps: 
     }
 }
 
-fn hint(h: &Harness<'_>) -> String {
+pub(crate) fn hint(h: &Harness<'_>) -> String {
     h.state().debug_state().shell.expect("a frame").status.hint
 }
 
