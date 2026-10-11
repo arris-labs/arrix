@@ -4,18 +4,23 @@
 //! and the nodes touched, whole or not at all.
 
 mod apply;
+mod assemblies;
 #[cfg(test)]
 mod tests;
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use arrix_core::{Diagnostic, FeatureId, Id, Input, ParamId, PartId, Severity};
+use arrix_core::{
+    AssemblyId, ComponentId, Diagnostic, FeatureId, Id, Input, JointId, ParamId, PartId, Severity,
+};
 use arrix_sketch::{SketchEdit, SketchError};
 use serde::{Deserialize, Serialize};
 
+use crate::assembly::{Assembly, Component, Joint};
 use crate::dag::Node;
 use crate::document::{Document, FeatureRecord, Invalid, Param, Part};
 use crate::expr::Expr;
+use crate::frozen::BlobRef;
 
 /// One edit of the document. One gesture is one command; a multi-step
 /// gesture is a `Group`.
@@ -71,11 +76,77 @@ pub enum Command {
         feature: FeatureId,
         edit: SketchEdit,
     },
+    /// Holds an imported file's bytes, named by their BLAKE3 (the blob
+    /// `<hash>.step`: a STEP file is the only kind imported so far). Adding
+    /// bytes the document holds changes nothing.
+    AddFile {
+        #[serde(with = "bytes")]
+        #[cfg_attr(feature = "schema", schemars(with = "String"))]
+        bytes: Vec<u8>,
+    },
+    /// The inverse of `AddFile`; refused while a record names the blob.
+    RemoveFile {
+        blob: BlobRef,
+    },
+    /// An assembly with its components and joints: the inverse of
+    /// `DeleteAssembly`.
+    AddAssembly {
+        assembly: Assembly,
+    },
+    /// Refused while a component places it (`assembly.dangling`).
+    DeleteAssembly {
+        assembly: AssemblyId,
+    },
+    AddComponent {
+        assembly: AssemblyId,
+        component: Box<Component>,
+    },
+    /// Replaces the component of the same id.
+    EditComponent {
+        assembly: AssemblyId,
+        component: Box<Component>,
+    },
+    /// Refused while a joint's anchor goes through it.
+    DeleteComponent {
+        assembly: AssemblyId,
+        component: ComponentId,
+    },
+    AddJoint {
+        assembly: AssemblyId,
+        joint: Box<Joint>,
+    },
+    /// Replaces the joint of the same id.
+    EditJoint {
+        assembly: AssemblyId,
+        joint: Box<Joint>,
+    },
+    DeleteJoint {
+        assembly: AssemblyId,
+        joint: JointId,
+    },
     /// One undo entry.
     Group {
         label: String,
         commands: Vec<Command>,
     },
+}
+
+/// A file's bytes as base64 in JSON.
+mod bytes {
+    use base64::Engine as _;
+    use base64::engine::general_purpose::STANDARD;
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S: Serializer>(bytes: &[u8], s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(&STANDARD.encode(bytes))
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<u8>, D::Error> {
+        let text = <std::borrow::Cow<'de, str>>::deserialize(d)?;
+        STANDARD
+            .decode(text.as_bytes())
+            .map_err(serde::de::Error::custom)
+    }
 }
 
 /// What an `EditFeature` changes; a field it leaves out is kept. In
@@ -106,6 +177,22 @@ pub enum CommandError {
     NoPart(PartId),
     #[error("no feature {0}")]
     NoFeature(FeatureId),
+    #[error("no assembly {0}")]
+    NoAssembly(AssemblyId),
+    #[error("assembly {assembly} has no component {component}")]
+    NoComponent {
+        assembly: AssemblyId,
+        component: ComponentId,
+    },
+    #[error("assembly {assembly} has no joint {joint}")]
+    NoJoint {
+        assembly: AssemblyId,
+        joint: JointId,
+    },
+    #[error("the document holds no file {0}")]
+    NoFile(BlobRef),
+    #[error("{blob} is named by feature {feature}")]
+    FileInUse { blob: BlobRef, feature: FeatureId },
     #[error("the id {0} is already in use")]
     IdTaken(Id),
     #[error("index {at} is past the {len} places there are")]

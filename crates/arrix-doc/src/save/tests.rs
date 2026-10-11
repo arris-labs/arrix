@@ -8,6 +8,7 @@ use crate::authority::{AuthorId, Authority, CommandEnvelope, Outcome};
 use crate::command::{Command, FeatureEdit};
 use crate::document::{FeatureRecord, FeatureTypeId, Param, Part};
 use crate::expr::Expr;
+use crate::frozen::BlobRef;
 use crate::open::open;
 
 const ME: AuthorId = AuthorId(Id(1));
@@ -369,6 +370,163 @@ fn a_sketch_saves_opens_saves_the_same_and_undo_restores_every_earlier_file() {
     let part = auth.document().parts.keys().next().unwrap();
     let text = text(saves.last().unwrap(), &format!("parts/{part}.json"));
     assert!(text.contains("\"expr\": \"h / 2\""), "{text}");
+    for want in saves.iter().rev().skip(1) {
+        auth.undo(ME).unwrap();
+        assert_eq!(&save(auth.document()).0, &want.0);
+    }
+    for want in saves.iter().skip(1) {
+        auth.redo(ME).unwrap();
+        assert_eq!(&save(auth.document()).0, &want.0);
+    }
+}
+
+/// A part with an imported file, an assembly of two components and a
+/// revolute joint between them, then the edits and deletions of each.
+fn assembly_scenario() -> Vec<Command> {
+    use crate::assembly::{Anchor, Assembly, Component, ComponentOf, Joint, JointKind, Pose};
+    use crate::document::ImportedFile;
+    use arrix_core::{AssemblyId, ComponentId, JointId};
+
+    let mut ids = IdMinter::new(11);
+    let (base, servo): (PartId, PartId) = (ids.mint(), ids.mint());
+    let import: FeatureId = ids.mint();
+    let (asm, c1, c2, j): (AssemblyId, ComponentId, ComponentId, JointId) =
+        (ids.mint(), ids.mint(), ids.mint(), ids.mint());
+    let bytes = b"ISO-10303-21;".to_vec();
+    let part = |id, name: &str| Part {
+        id,
+        name: name.into(),
+        history: vec![],
+        features: BTreeMap::new(),
+        rollback: None,
+    };
+    let e = |t: &str| Expr::parse(t).unwrap();
+    let component = |id: ComponentId, name: &str, of: ComponentOf, grounded: bool| Component {
+        id,
+        name: name.into(),
+        of,
+        pose: grounded.then(|| Pose {
+            position: [e("0 mm"), e("0 mm"), e("5 mm")],
+            rpy: [e("0 deg"), e("0 deg"), e("0 deg")],
+        }),
+    };
+    let anchor = |c: ComponentId| Anchor {
+        path: vec![c],
+        axis: "face:import.0000000000007.42".parse().unwrap(),
+        origin: None,
+    };
+    let joint = Joint {
+        id: j,
+        name: "hinge".into(),
+        kind: JointKind::Revolute,
+        parent: anchor(c1),
+        child: anchor(c2),
+        value: e("30 deg"),
+        offset: e("0 deg"),
+        limits: Some([e("-90 deg"), e("90 deg")]),
+        flip: false,
+    };
+    let record = FeatureRecord {
+        file: Some(ImportedFile {
+            name: "servo.step".into(),
+            blob: BlobRef::of(&bytes, "step"),
+        }),
+        ..feature(import, "core.import-step", "Servo", &[], vec![])
+    };
+    vec![
+        Command::AddPart {
+            part: part(base, "Bracket"),
+        },
+        Command::AddPart {
+            part: part(servo, "Servo"),
+        },
+        Command::Group {
+            label: "import servo.step".into(),
+            commands: vec![
+                Command::AddFile { bytes },
+                Command::AddFeature {
+                    part: servo,
+                    at: 0,
+                    record,
+                },
+            ],
+        },
+        Command::AddAssembly {
+            assembly: Assembly {
+                id: asm,
+                name: "Arm".into(),
+                components: BTreeMap::new(),
+                joints: BTreeMap::new(),
+            },
+        },
+        Command::AddComponent {
+            assembly: asm,
+            component: Box::new(component(c1, "bracket", ComponentOf::Part(base), true)),
+        },
+        Command::AddComponent {
+            assembly: asm,
+            component: Box::new(component(c2, "servo", ComponentOf::Part(servo), false)),
+        },
+        Command::AddJoint {
+            assembly: asm,
+            joint: Box::new(joint.clone()),
+        },
+        Command::EditJoint {
+            assembly: asm,
+            joint: Box::new(Joint {
+                value: e("45 deg"),
+                flip: true,
+                ..joint
+            }),
+        },
+        Command::EditComponent {
+            assembly: asm,
+            component: Box::new(component(c1, "bracket", ComponentOf::Part(base), false)),
+        },
+        Command::DeleteJoint {
+            assembly: asm,
+            joint: j,
+        },
+        Command::DeleteComponent {
+            assembly: asm,
+            component: c2,
+        },
+        Command::DeleteAssembly { assembly: asm },
+    ]
+}
+
+#[test]
+fn assembly_commands_save_deterministically_and_undo_restores_every_earlier_file() {
+    let mut auth = Authority::default();
+    let mut saves = vec![save(auth.document())];
+    for command in assembly_scenario() {
+        let envelope = CommandEnvelope {
+            author: ME,
+            base: auth.generation(),
+            command,
+        };
+        match auth.submit(&envelope) {
+            Ok(Outcome::Applied(_)) => {}
+            other => panic!("{:?}: {other:?}", envelope.command),
+        }
+        let files = save(auth.document());
+        assert_eq!(save(auth.document()).0, files.0, "saved twice");
+        let reopened = open(&files).unwrap();
+        assert_eq!(&reopened, auth.document());
+        assert_eq!(save(&reopened).0, files.0, "saved, opened, saved");
+        saves.push(files);
+    }
+    assert!(
+        saves
+            .iter()
+            .any(|s| s.0.keys().any(|p| p.starts_with("blobs/"))),
+        "the imported file is saved as a blob"
+    );
+    assert!(
+        saves
+            .iter()
+            .any(|s| s.0.keys().any(|p| p.starts_with("assemblies/")))
+    );
     for want in saves.iter().rev().skip(1) {
         auth.undo(ME).unwrap();
         assert_eq!(&save(auth.document()).0, &want.0);

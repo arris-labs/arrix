@@ -1,12 +1,16 @@
 use std::collections::BTreeMap;
 
-use arrix_core::{FeatureId, Id, IdMinter, Input, ParamId, PartId, QuantityKind, Ref};
+use arrix_core::{
+    AssemblyId, ComponentId, FeatureId, Id, IdMinter, Input, JointId, ParamId, PartId,
+    QuantityKind, Ref,
+};
 use arrix_sketch::{Constraint, Draft, Entity, Point, Sketch, SketchEdit, SketchError};
 use proptest::prelude::*;
 
 use super::*;
 use crate::authority::{AuthorId, Authority, CommandEnvelope, Generation, Outcome, Rejected};
 use crate::document::FeatureTypeId;
+use crate::frozen::BlobRef;
 
 const ALICE: AuthorId = AuthorId(Id(1));
 const BOB: AuthorId = AuthorId(Id(2));
@@ -479,6 +483,9 @@ fn command_for(doc: &Document, minter: &mut IdMinter, op: (u8, u64, u64), depth:
         .flat_map(|p| p.features.values())
         .filter_map(|r| Some((r.id, r.sketch.as_deref()?)))
         .collect();
+    if (16..24).contains(&(kind % 32)) {
+        return assembly_command_for(doc, minter, kind % 32 - 16, a, b);
+    }
     match kind % 16 {
         3 => {
             let id = minter.next_id().0;
@@ -503,7 +510,7 @@ fn command_for(doc: &Document, minter: &mut IdMinter, op: (u8, u64, u64), depth:
             feature: features[pick(features.len())],
             edit: FeatureEdit {
                 name: (b % 3 == 0).then(|| format!("f{}", a % 5)),
-                suppressed: (b % 2 == 0).then_some(a % 2 == 0),
+                suppressed: b.is_multiple_of(2).then_some(a % 2 == 0),
                 params: BTreeMap::from([("offset".into(), (b % 4 != 1).then(e))]),
                 choices: BTreeMap::from([("world".into(), (b % 5 == 0).then(|| "yz".into()))]),
                 inputs: BTreeMap::from([("plane".into(), None)]),
@@ -556,6 +563,148 @@ fn command_for(doc: &Document, minter: &mut IdMinter, op: (u8, u64, u64), depth:
             let id = minter.next_id().0;
             empty_part(id)
         }
+    }
+}
+
+/// A random assembly or file command, from a few numbers.
+fn assembly_command_for(
+    doc: &Document,
+    minter: &mut IdMinter,
+    which: u8,
+    a: u64,
+    b: u64,
+) -> Command {
+    use crate::assembly::{Anchor, Assembly, Component, ComponentOf, Joint, JointKind, Pose};
+    let assemblies: Vec<&Assembly> = doc.assemblies.values().collect();
+    let parts: Vec<PartId> = doc.parts.keys().copied().collect();
+    let pick = |n: usize| (a as usize) % n.max(1);
+    let id: u64 = minter.next_id().0;
+    let named = |what: &str| format!("{what}{id:x}");
+    let pose = || Pose {
+        position: [expr("1 mm"), expr("2 mm"), expr("p0 + 1 mm")],
+        rpy: [expr("0 deg"), expr("0 deg"), expr("90 deg")],
+    };
+    let component = |of| Component {
+        id: ComponentId(Id(id)),
+        name: named("c"),
+        of,
+        pose: b.is_multiple_of(2).then(pose),
+    };
+    let files: Vec<BlobRef> = doc
+        .blobs
+        .keys()
+        .filter(|k| k.path().ends_with(".step"))
+        .cloned()
+        .collect();
+    let Some(asm) = assemblies.get(pick(assemblies.len())).copied() else {
+        return match which {
+            0 | 1 => Command::AddFile {
+                bytes: vec![a as u8; (b % 3) as usize + 1],
+            },
+            _ => Command::AddAssembly {
+                assembly: Assembly {
+                    id: AssemblyId(Id(id)),
+                    name: named("a"),
+                    components: BTreeMap::new(),
+                    joints: BTreeMap::new(),
+                },
+            },
+        };
+    };
+    let components: Vec<&Component> = asm.components.values().collect();
+    let joints: Vec<&Joint> = asm.joints.values().collect();
+    match which {
+        0 => Command::AddFile {
+            bytes: vec![a as u8; (b % 3) as usize + 1],
+        },
+        1 if !files.is_empty() => Command::RemoveFile {
+            blob: files[pick(files.len())].clone(),
+        },
+        2 => Command::AddAssembly {
+            assembly: Assembly {
+                id: AssemblyId(Id(id)),
+                name: named("a"),
+                components: BTreeMap::new(),
+                joints: BTreeMap::new(),
+            },
+        },
+        3 => {
+            let of = match (parts.is_empty(), b % 3) {
+                (false, 0 | 1) => ComponentOf::Part(parts[pick(parts.len())]),
+                _ => ComponentOf::Assembly(assemblies[(b as usize) % assemblies.len()].id),
+            };
+            Command::AddComponent {
+                assembly: asm.id,
+                component: Box::new(component(of)),
+            }
+        }
+        4 if !components.is_empty() => {
+            let old = components[pick(components.len())];
+            Command::EditComponent {
+                assembly: asm.id,
+                component: Box::new(Component {
+                    id: old.id,
+                    name: if b.is_multiple_of(2) {
+                        old.name.clone()
+                    } else {
+                        named("e")
+                    },
+                    of: old.of,
+                    pose: if b.is_multiple_of(3) {
+                        None
+                    } else {
+                        Some(pose())
+                    },
+                }),
+            }
+        }
+        5 if components.len() >= 2 => {
+            let (p, c) = (
+                components[pick(components.len())],
+                components[(a as usize + 1) % components.len()],
+            );
+            let anchor = |k: &Component| Anchor {
+                path: vec![k.id],
+                axis: "face:import.0000000000007.42".parse().unwrap(),
+                origin: None,
+            };
+            Command::AddJoint {
+                assembly: asm.id,
+                joint: Box::new(Joint {
+                    id: JointId(Id(id)),
+                    name: named("j"),
+                    kind: JointKind::Revolute,
+                    parent: anchor(p),
+                    child: anchor(c),
+                    value: expr("p0"),
+                    offset: expr("0 deg"),
+                    limits: None,
+                    flip: b.is_multiple_of(2),
+                }),
+            }
+        }
+        6 if !joints.is_empty() => {
+            let old = joints[pick(joints.len())];
+            if b.is_multiple_of(2) {
+                Command::DeleteJoint {
+                    assembly: asm.id,
+                    joint: old.id,
+                }
+            } else {
+                Command::EditJoint {
+                    assembly: asm.id,
+                    joint: Box::new(Joint {
+                        flip: !old.flip,
+                        ..old.clone()
+                    }),
+                }
+            }
+        }
+        7 if !components.is_empty() && b.is_multiple_of(2) => Command::DeleteComponent {
+            assembly: asm.id,
+            component: components[pick(components.len())].id,
+        },
+        _ => Command::DeleteAssembly { assembly: asm.id },
     }
 }
 
@@ -651,5 +800,336 @@ proptest! {
             applied(auth.redo(ALICE));
             prop_assert_eq!(auth.document(), want);
         }
+    }
+}
+
+mod assemblies {
+    use super::*;
+    use crate::assembly::{Anchor, Assembly, Component, ComponentOf, Joint, JointKind, Pose};
+    use crate::document::ImportedFile;
+    use arrix_core::{AssemblyId, ComponentId, JointId};
+
+    fn component(id: u64, name: &str, of: ComponentOf, grounded: bool) -> Component {
+        Component {
+            id: ComponentId(Id(id)),
+            name: name.into(),
+            of,
+            pose: grounded.then(|| Pose {
+                position: [expr("0 mm"), expr("0 mm"), expr("5 mm")],
+                rpy: [expr("0 deg"), expr("0 deg"), expr("0 deg")],
+            }),
+        }
+    }
+
+    fn joint(id: u64, parent: u64, child: u64) -> Joint {
+        let anchor = |c: u64| Anchor {
+            path: vec![ComponentId(Id(c))],
+            axis: "face:import.0000000000007.42".parse().unwrap(),
+            origin: None,
+        };
+        Joint {
+            id: JointId(Id(id)),
+            name: "hinge".into(),
+            kind: JointKind::Revolute,
+            parent: anchor(parent),
+            child: anchor(child),
+            value: expr("30 deg"),
+            offset: expr("0 deg"),
+            limits: None,
+            flip: false,
+        }
+    }
+
+    fn asm(id: u64, name: &str) -> Assembly {
+        Assembly {
+            id: AssemblyId(Id(id)),
+            name: name.into(),
+            components: BTreeMap::new(),
+            joints: BTreeMap::new(),
+        }
+    }
+
+    fn run(doc: &Document, command: Command) -> Document {
+        let a = apply(doc, &command).unwrap_or_else(|e| panic!("{command:?}: {e}"));
+        let back = apply(&a.document, &a.inverse).unwrap();
+        assert_eq!(&back.document, doc, "{command:?}");
+        a.document
+    }
+
+    fn base() -> Document {
+        let mut doc = Document::default();
+        for c in [empty_part(10), empty_part(11)] {
+            doc = run(&doc, c);
+        }
+        doc = run(
+            &doc,
+            Command::AddAssembly {
+                assembly: asm(1, "arm"),
+            },
+        );
+        for (id, name, part, grounded) in [(2, "base", 10, true), (3, "servo", 11, false)] {
+            doc = run(
+                &doc,
+                Command::AddComponent {
+                    assembly: AssemblyId(Id(1)),
+                    component: Box::new(component(
+                        id,
+                        name,
+                        ComponentOf::Part(PartId(Id(part))),
+                        grounded,
+                    )),
+                },
+            );
+        }
+        run(
+            &doc,
+            Command::AddJoint {
+                assembly: AssemblyId(Id(1)),
+                joint: Box::new(joint(4, 2, 3)),
+            },
+        )
+    }
+
+    #[test]
+    fn every_assembly_command_applies_and_its_inverse_restores() {
+        let doc = base();
+        assert_eq!(doc.assemblies[&AssemblyId(Id(1))].joints.len(), 1);
+        let a = AssemblyId(Id(1));
+        let mut moved = component(3, "servo", ComponentOf::Part(PartId(Id(11))), true);
+        moved.name = "servo 2".into();
+        let doc2 = run(
+            &doc,
+            Command::EditComponent {
+                assembly: a,
+                component: Box::new(moved),
+            },
+        );
+        let flipped = Joint {
+            flip: true,
+            ..joint(4, 2, 3)
+        };
+        let doc3 = run(
+            &doc2,
+            Command::EditJoint {
+                assembly: a,
+                joint: Box::new(flipped),
+            },
+        );
+        let doc4 = run(
+            &doc3,
+            Command::DeleteJoint {
+                assembly: a,
+                joint: JointId(Id(4)),
+            },
+        );
+        let doc5 = run(
+            &doc4,
+            Command::DeleteComponent {
+                assembly: a,
+                component: ComponentId(Id(3)),
+            },
+        );
+        run(&doc5, Command::DeleteAssembly { assembly: a });
+    }
+
+    #[test]
+    fn what_is_still_named_is_refused_as_dangling_not_cascaded() {
+        let doc = base();
+        let a = AssemblyId(Id(1));
+        let code = |c: Command| match apply(&doc, &c) {
+            Err(e) => e.diagnostic().code.to_string(),
+            Ok(_) => panic!("{c:?} applied"),
+        };
+        assert_eq!(
+            code(Command::DeletePart {
+                part: PartId(Id(11))
+            }),
+            "assembly.dangling"
+        );
+        assert_eq!(
+            code(Command::DeleteComponent {
+                assembly: a,
+                component: ComponentId(Id(3))
+            }),
+            "assembly.dangling"
+        );
+        // A group may pass through the state, ending whole.
+        let both = Command::Group {
+            label: "remove the servo".into(),
+            commands: vec![
+                Command::DeleteJoint {
+                    assembly: a,
+                    joint: JointId(Id(4)),
+                },
+                Command::DeleteComponent {
+                    assembly: a,
+                    component: ComponentId(Id(3)),
+                },
+                Command::DeletePart {
+                    part: PartId(Id(11)),
+                },
+            ],
+        };
+        let done = run(&doc, both);
+        assert!(!done.parts.contains_key(&PartId(Id(11))));
+        // A nested assembly is held by the component that places it.
+        let nested = run(
+            &doc,
+            Command::AddAssembly {
+                assembly: asm(5, "outer"),
+            },
+        );
+        let nested = run(
+            &nested,
+            Command::AddComponent {
+                assembly: AssemblyId(Id(5)),
+                component: Box::new(component(6, "arm", ComponentOf::Assembly(a), true)),
+            },
+        );
+        let refused = apply(&nested, &Command::DeleteAssembly { assembly: a }).unwrap_err();
+        assert_eq!(refused.diagnostic().code.as_str(), "assembly.dangling");
+    }
+
+    #[test]
+    fn ids_are_not_reused_and_names_are_unique() {
+        let doc = base();
+        let a = AssemblyId(Id(1));
+        let again = Command::AddComponent {
+            assembly: a,
+            component: Box::new(component(
+                2,
+                "other",
+                ComponentOf::Part(PartId(Id(10))),
+                true,
+            )),
+        };
+        assert!(matches!(apply(&doc, &again), Err(CommandError::IdTaken(_))));
+        let joint_as_component = Command::AddComponent {
+            assembly: a,
+            component: Box::new(component(
+                4,
+                "other",
+                ComponentOf::Part(PartId(Id(10))),
+                true,
+            )),
+        };
+        assert!(matches!(
+            apply(&doc, &joint_as_component),
+            Err(CommandError::IdTaken(_))
+        ));
+        let same_name = Command::AddComponent {
+            assembly: a,
+            component: Box::new(component(
+                9,
+                "base",
+                ComponentOf::Part(PartId(Id(10))),
+                true,
+            )),
+        };
+        assert!(matches!(
+            apply(&doc, &same_name),
+            Err(CommandError::Invalid(Invalid::DuplicateAssemblyName { .. }))
+        ));
+        let missing = Command::DeleteJoint {
+            assembly: a,
+            joint: JointId(Id(99)),
+        };
+        assert!(matches!(
+            apply(&doc, &missing),
+            Err(CommandError::NoJoint { .. })
+        ));
+        let no_assembly = Command::DeleteAssembly {
+            assembly: AssemblyId(Id(99)),
+        };
+        assert!(matches!(
+            apply(&doc, &no_assembly),
+            Err(CommandError::NoAssembly(_))
+        ));
+    }
+
+    #[test]
+    fn a_file_is_held_by_its_hash_and_kept_while_a_record_names_it() {
+        let bytes = b"ISO-10303-21;".to_vec();
+        let blob = BlobRef::of(&bytes, "step");
+        let doc = run(
+            &base(),
+            Command::AddFile {
+                bytes: bytes.clone(),
+            },
+        );
+        assert_eq!(doc.blob(&blob), Some(&bytes[..]));
+        // The same bytes again change nothing, and undoing that keeps the file.
+        let twice = apply(
+            &doc,
+            &Command::AddFile {
+                bytes: bytes.clone(),
+            },
+        )
+        .unwrap();
+        assert_eq!(twice.document, doc);
+        assert_eq!(
+            apply(&twice.document, &twice.inverse).unwrap().document,
+            doc
+        );
+        // A record naming a file the document lacks is malformed.
+        let record = FeatureRecord {
+            type_id: FeatureTypeId::new("core.import-step").unwrap(),
+            params: BTreeMap::new(),
+            file: Some(ImportedFile {
+                name: "servo.step".into(),
+                blob: blob.clone(),
+            }),
+            ..plane(30, "servo", &[])
+        };
+        let lacking = add_feature(10, 0, record.clone());
+        assert!(matches!(
+            apply(&base(), &lacking),
+            Err(CommandError::Invalid(Invalid::FileMissing { .. }))
+        ));
+        let named = run(&doc, add_feature(10, 0, record));
+        let refused = apply(&named, &Command::RemoveFile { blob: blob.clone() }).unwrap_err();
+        assert!(
+            matches!(refused, CommandError::FileInUse { .. }),
+            "{refused}"
+        );
+        // An import is one gesture: the file, then the record.
+        let import = Command::Group {
+            label: "import servo.step".into(),
+            commands: vec![
+                Command::AddFile {
+                    bytes: bytes.clone(),
+                },
+                add_feature(
+                    10,
+                    0,
+                    FeatureRecord {
+                        file: Some(ImportedFile {
+                            name: "servo.step".into(),
+                            blob: blob.clone(),
+                        }),
+                        type_id: FeatureTypeId::new("core.import-step").unwrap(),
+                        params: BTreeMap::new(),
+                        ..plane(31, "servo", &[])
+                    },
+                ),
+            ],
+        };
+        let imported = run(&base(), import.clone());
+        assert!(imported.blob(&blob).is_some());
+        crate::session::crosses(&crate::Request::Submit(env(ALICE, 0, import)), "request");
+        let gone = Command::RemoveFile {
+            blob: BlobRef::of(b"nothing", "step"),
+        };
+        assert!(matches!(apply(&doc, &gone), Err(CommandError::NoFile(_))));
+    }
+
+    #[test]
+    fn the_file_crosses_as_base64() {
+        let c = Command::AddFile {
+            bytes: b"STEP".to_vec(),
+        };
+        let json = serde_json::to_string(&c).unwrap();
+        assert_eq!(json, r#"{"add_file":{"bytes":"U1RFUA=="}}"#);
+        assert_eq!(serde_json::from_str::<Command>(&json).unwrap(), c);
     }
 }

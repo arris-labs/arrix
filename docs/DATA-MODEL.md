@@ -792,6 +792,16 @@ pub enum Command {
     ReorderFeature { feature: FeatureId, to: usize },    // `to` counted after the move
     SetRollback { part: PartId, at: Option<usize> },
     SketchEdit { feature: FeatureId, edit: SketchEdit },  // §Sketches
+    AddFile { bytes: Vec<u8> },                           // named by its BLAKE3; base64 in JSON
+    RemoveFile { blob: BlobRef },                         // AddFile's inverse
+    AddAssembly { assembly: Assembly },                   // with its components and joints
+    DeleteAssembly { assembly: AssemblyId },
+    AddComponent { assembly: AssemblyId, component: Component },
+    EditComponent { assembly: AssemblyId, component: Component },  // replaces the same id
+    DeleteComponent { assembly: AssemblyId, component: ComponentId },
+    AddJoint { assembly: AssemblyId, joint: Joint },
+    EditJoint { assembly: AssemblyId, joint: Joint },     // replaces the same id
+    DeleteJoint { assembly: AssemblyId, joint: JointId },
     Group { label: String, commands: Vec<Command> },       // one undo entry
     // PluginData { plugin, edit } joins with plugin document data.
 }
@@ -811,6 +821,18 @@ pub struct FeatureEdit {        // what it leaves out is kept
     inputs: BTreeMap<String, Option<Input>>,  // a list input is set whole
 }
 ```
+
+The file and assembly commands (ADR-0029 §9): `AddFile` holds the bytes as
+the blob `<hash>.step` (STEP is the only imported kind so far) and adding
+bytes the document holds changes nothing; `RemoveFile` is refused while a
+record names the blob. An import is one gesture, a `Group` of `AddFile`
+and `AddFeature` (a record naming a file the document lacks is malformed,
+`doc.invalid`). A component of a deleted part or assembly, or a joint
+through a deleted component, is refused as `assembly.dangling` when the
+command or group ends, never cascaded, so a group may delete the joint,
+the component and the part in order. Component and joint ids are unique
+across the document. They touch the nodes `Assembly`, `Component` and
+`Joint`, which the DAG gains edges for later in M1.
 
 A plugin feature's frozen result is not a command: it is evaluation
 output the session writes on save (§Frozen results, ADR-0009), with no

@@ -200,6 +200,8 @@ pub enum Invalid {
     },
     #[error("part {part}: the rollback index {at} is past its {len} features")]
     Rollback { part: PartId, at: usize, len: usize },
+    #[error("feature {feature}'s file {blob} is not in the document")]
+    FileMissing { feature: FeatureId, blob: BlobRef },
     #[error("two assemblies are named {0:?}")]
     DuplicateAssembly(String),
     #[error("assembly {assembly}: two {what}s are named {name:?}")]
@@ -241,6 +243,12 @@ impl Invalid {
     pub fn diagnostic(&self) -> Diagnostic {
         match self {
             Invalid::Dag(e) => e.diagnostic(),
+            // A part, assembly, component or joint something still names:
+            // refused, never cascaded (ADR-0029 §9).
+            Invalid::MissingTarget { .. } | Invalid::MissingComponent { .. } => {
+                Diagnostic::new(Severity::Error, "assembly.dangling", self.to_string())
+                    .expect("a well-formed code")
+            }
             other => Diagnostic::new(Severity::Error, "doc.invalid", other.to_string())
                 .expect("a well-formed code"),
         }
@@ -311,6 +319,16 @@ impl Document {
         let mut seen = BTreeSet::new();
         for (key, part) in &self.parts {
             validate_part(*key, part, &mut seen)?;
+            for record in part.features.values() {
+                if let Some(file) = &record.file
+                    && !self.blobs.contains_key(&file.blob)
+                {
+                    return Err(Invalid::FileMissing {
+                        feature: record.id,
+                        blob: file.blob.clone(),
+                    });
+                }
+            }
         }
         validate_assemblies(self)?;
         Ok(Dag::build(self)?)

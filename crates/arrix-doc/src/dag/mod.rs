@@ -10,7 +10,10 @@ mod tests;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
-use arrix_core::{Diagnostic, FeatureId, NameStep, ParamId, PartId, PersistentName, Ref, Severity};
+use arrix_core::{
+    AssemblyId, ComponentId, Diagnostic, FeatureId, JointId, NameStep, ParamId, PartId,
+    PersistentName, Ref, Severity,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::bodies;
@@ -25,6 +28,9 @@ pub enum Node {
     Param(ParamId),
     Part(PartId),
     Feature(FeatureId),
+    Assembly(AssemblyId),
+    Component(ComponentId),
+    Joint(JointId),
 }
 
 impl Node {
@@ -33,7 +39,7 @@ impl Node {
         match *self {
             Node::Param(p) => Some(Ref::Param(p)),
             Node::Feature(f) => Some(Ref::Feature(f)),
-            Node::Part(_) => None,
+            Node::Part(_) | Node::Assembly(_) | Node::Component(_) | Node::Joint(_) => None,
         }
     }
 }
@@ -44,6 +50,9 @@ impl fmt::Display for Node {
             Node::Param(id) => write!(f, "parameter {id}"),
             Node::Part(id) => write!(f, "part {id}"),
             Node::Feature(id) => write!(f, "feature {id}"),
+            Node::Assembly(id) => write!(f, "assembly {id}"),
+            Node::Component(id) => write!(f, "component {id}"),
+            Node::Joint(id) => write!(f, "joint {id}"),
         }
     }
 }

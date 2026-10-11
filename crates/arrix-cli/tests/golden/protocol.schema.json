@@ -1,6 +1,77 @@
 {
   "event": {
     "$defs": {
+      "Anchor": {
+        "additionalProperties": false,
+        "description": "Where a joint attaches: a face or an edge of a part, by persistent name,\nreached through the components from the joint's assembly down.",
+        "properties": {
+          "axis": {
+            "$ref": "#/$defs/PersistentName"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PersistentName"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "path": {
+            "items": {
+              "$ref": "#/$defs/ComponentId"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "path",
+          "axis"
+        ],
+        "type": "object"
+      },
+      "Assembly": {
+        "additionalProperties": false,
+        "description": "An assembly: components, and the joints that place them.",
+        "properties": {
+          "components": {
+            "additionalProperties": false,
+            "patternProperties": {
+              "^[0-9A-F][0-9A-HJKMNP-TV-Z]{12}$": {
+                "$ref": "#/$defs/Component"
+              }
+            },
+            "type": "object"
+          },
+          "id": {
+            "$ref": "#/$defs/AssemblyId"
+          },
+          "joints": {
+            "additionalProperties": false,
+            "patternProperties": {
+              "^[0-9A-F][0-9A-HJKMNP-TV-Z]{12}$": {
+                "$ref": "#/$defs/Joint"
+              }
+            },
+            "type": "object"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "components",
+          "joints"
+        ],
+        "type": "object"
+      },
+      "AssemblyId": {
+        "$ref": "#/$defs/Id",
+        "description": "An assembly (docs/DATA-MODEL.md §Assemblies)."
+      },
       "AuthorId": {
         "$ref": "#/$defs/Id",
         "description": "Who issued a command: the local user in local mode."
@@ -409,6 +480,237 @@
           },
           {
             "additionalProperties": false,
+            "description": "Holds an imported file's bytes, named by their BLAKE3 (the blob\n`<hash>.step`: a STEP file is the only kind imported so far). Adding\nbytes the document holds changes nothing.",
+            "properties": {
+              "add_file": {
+                "properties": {
+                  "bytes": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "bytes"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "add_file"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The inverse of `AddFile`; refused while a record names the blob.",
+            "properties": {
+              "remove_file": {
+                "properties": {
+                  "blob": {
+                    "$ref": "#/$defs/BlobRef"
+                  }
+                },
+                "required": [
+                  "blob"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "remove_file"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "An assembly with its components and joints: the inverse of\n`DeleteAssembly`.",
+            "properties": {
+              "add_assembly": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/Assembly"
+                  }
+                },
+                "required": [
+                  "assembly"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "add_assembly"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Refused while a component places it (`assembly.dangling`).",
+            "properties": {
+              "delete_assembly": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/AssemblyId"
+                  }
+                },
+                "required": [
+                  "assembly"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "delete_assembly"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "add_component": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/AssemblyId"
+                  },
+                  "component": {
+                    "$ref": "#/$defs/Component"
+                  }
+                },
+                "required": [
+                  "assembly",
+                  "component"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "add_component"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Replaces the component of the same id.",
+            "properties": {
+              "edit_component": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/AssemblyId"
+                  },
+                  "component": {
+                    "$ref": "#/$defs/Component"
+                  }
+                },
+                "required": [
+                  "assembly",
+                  "component"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "edit_component"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Refused while a joint's anchor goes through it.",
+            "properties": {
+              "delete_component": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/AssemblyId"
+                  },
+                  "component": {
+                    "$ref": "#/$defs/ComponentId"
+                  }
+                },
+                "required": [
+                  "assembly",
+                  "component"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "delete_component"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "add_joint": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/AssemblyId"
+                  },
+                  "joint": {
+                    "$ref": "#/$defs/Joint"
+                  }
+                },
+                "required": [
+                  "assembly",
+                  "joint"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "add_joint"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Replaces the joint of the same id.",
+            "properties": {
+              "edit_joint": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/AssemblyId"
+                  },
+                  "joint": {
+                    "$ref": "#/$defs/Joint"
+                  }
+                },
+                "required": [
+                  "assembly",
+                  "joint"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "edit_joint"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "delete_joint": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/AssemblyId"
+                  },
+                  "joint": {
+                    "$ref": "#/$defs/JointId"
+                  }
+                },
+                "required": [
+                  "assembly",
+                  "joint"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "delete_joint"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
             "description": "One undo entry.",
             "properties": {
               "group": {
@@ -432,6 +734,72 @@
             },
             "required": [
               "group"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "Component": {
+        "additionalProperties": false,
+        "description": "One use of a part or of a nested assembly.",
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/ComponentId"
+          },
+          "name": {
+            "description": "Unique within the assembly.",
+            "type": "string"
+          },
+          "of": {
+            "$ref": "#/$defs/ComponentOf"
+          },
+          "pose": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Pose"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A pose grounds the component; a joint places it otherwise."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "of"
+        ],
+        "type": "object"
+      },
+      "ComponentId": {
+        "$ref": "#/$defs/Id",
+        "description": "A component of an assembly."
+      },
+      "ComponentOf": {
+        "description": "What a component places.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "part": {
+                "$ref": "#/$defs/PartId"
+              }
+            },
+            "required": [
+              "part"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "assembly": {
+                "$ref": "#/$defs/AssemblyId"
+              }
+            },
+            "required": [
+              "assembly"
             ],
             "type": "object"
           }
@@ -1985,6 +2353,72 @@
         ],
         "type": "object"
       },
+      "Joint": {
+        "additionalProperties": false,
+        "description": "A joint between two anchors: it places the child's component.",
+        "properties": {
+          "child": {
+            "$ref": "#/$defs/Anchor"
+          },
+          "flip": {
+            "description": "Turns the child's frame half a turn about its x.",
+            "type": "boolean"
+          },
+          "id": {
+            "$ref": "#/$defs/JointId"
+          },
+          "kind": {
+            "$ref": "#/$defs/JointKind"
+          },
+          "limits": {
+            "items": {
+              "$ref": "#/$defs/Expr"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "name": {
+            "description": "Unique within the assembly.",
+            "type": "string"
+          },
+          "offset": {
+            "$ref": "#/$defs/Expr"
+          },
+          "parent": {
+            "$ref": "#/$defs/Anchor"
+          },
+          "value": {
+            "$ref": "#/$defs/Expr",
+            "description": "An angle for a revolute joint, a length for a prismatic one."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "parent",
+          "child",
+          "value",
+          "offset"
+        ],
+        "type": "object"
+      },
+      "JointId": {
+        "$ref": "#/$defs/Id",
+        "description": "A joint of an assembly."
+      },
+      "JointKind": {
+        "enum": [
+          "fixed",
+          "revolute",
+          "prismatic"
+        ],
+        "type": "string"
+      },
       "MeshDetail": {
         "description": "How fine a mesh is asked for: a coarse one first so a body shows at\nonce, then a refined one (docs/CONCURRENCY-WASM.md §Tessellation).",
         "enum": [
@@ -2075,6 +2509,42 @@
             },
             "required": [
               "feature"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "assembly": {
+                "$ref": "#/$defs/AssemblyId"
+              }
+            },
+            "required": [
+              "assembly"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "component": {
+                "$ref": "#/$defs/ComponentId"
+              }
+            },
+            "required": [
+              "component"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "joint": {
+                "$ref": "#/$defs/JointId"
+              }
+            },
+            "required": [
+              "joint"
             ],
             "type": "object"
           }
@@ -2218,6 +2688,33 @@
         "required": [
           "x",
           "y"
+        ],
+        "type": "object"
+      },
+      "Pose": {
+        "additionalProperties": false,
+        "description": "A position (three lengths) and URDF's fixed-axis roll, pitch and yaw\n(three angles), each an expression.",
+        "properties": {
+          "position": {
+            "items": {
+              "$ref": "#/$defs/Expr"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          },
+          "rpy": {
+            "items": {
+              "$ref": "#/$defs/Expr"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          }
+        },
+        "required": [
+          "position",
+          "rpy"
         ],
         "type": "object"
       },
@@ -3405,6 +3902,77 @@
   },
   "outcome": {
     "$defs": {
+      "Anchor": {
+        "additionalProperties": false,
+        "description": "Where a joint attaches: a face or an edge of a part, by persistent name,\nreached through the components from the joint's assembly down.",
+        "properties": {
+          "axis": {
+            "$ref": "#/$defs/PersistentName"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PersistentName"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "path": {
+            "items": {
+              "$ref": "#/$defs/ComponentId"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "path",
+          "axis"
+        ],
+        "type": "object"
+      },
+      "Assembly": {
+        "additionalProperties": false,
+        "description": "An assembly: components, and the joints that place them.",
+        "properties": {
+          "components": {
+            "additionalProperties": false,
+            "patternProperties": {
+              "^[0-9A-F][0-9A-HJKMNP-TV-Z]{12}$": {
+                "$ref": "#/$defs/Component"
+              }
+            },
+            "type": "object"
+          },
+          "id": {
+            "$ref": "#/$defs/AssemblyId"
+          },
+          "joints": {
+            "additionalProperties": false,
+            "patternProperties": {
+              "^[0-9A-F][0-9A-HJKMNP-TV-Z]{12}$": {
+                "$ref": "#/$defs/Joint"
+              }
+            },
+            "type": "object"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "components",
+          "joints"
+        ],
+        "type": "object"
+      },
+      "AssemblyId": {
+        "$ref": "#/$defs/Id",
+        "description": "An assembly (docs/DATA-MODEL.md §Assemblies)."
+      },
       "AuthorId": {
         "$ref": "#/$defs/Id",
         "description": "Who issued a command: the local user in local mode."
@@ -3712,6 +4280,237 @@
           },
           {
             "additionalProperties": false,
+            "description": "Holds an imported file's bytes, named by their BLAKE3 (the blob\n`<hash>.step`: a STEP file is the only kind imported so far). Adding\nbytes the document holds changes nothing.",
+            "properties": {
+              "add_file": {
+                "properties": {
+                  "bytes": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "bytes"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "add_file"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The inverse of `AddFile`; refused while a record names the blob.",
+            "properties": {
+              "remove_file": {
+                "properties": {
+                  "blob": {
+                    "$ref": "#/$defs/BlobRef"
+                  }
+                },
+                "required": [
+                  "blob"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "remove_file"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "An assembly with its components and joints: the inverse of\n`DeleteAssembly`.",
+            "properties": {
+              "add_assembly": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/Assembly"
+                  }
+                },
+                "required": [
+                  "assembly"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "add_assembly"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Refused while a component places it (`assembly.dangling`).",
+            "properties": {
+              "delete_assembly": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/AssemblyId"
+                  }
+                },
+                "required": [
+                  "assembly"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "delete_assembly"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "add_component": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/AssemblyId"
+                  },
+                  "component": {
+                    "$ref": "#/$defs/Component"
+                  }
+                },
+                "required": [
+                  "assembly",
+                  "component"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "add_component"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Replaces the component of the same id.",
+            "properties": {
+              "edit_component": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/AssemblyId"
+                  },
+                  "component": {
+                    "$ref": "#/$defs/Component"
+                  }
+                },
+                "required": [
+                  "assembly",
+                  "component"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "edit_component"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Refused while a joint's anchor goes through it.",
+            "properties": {
+              "delete_component": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/AssemblyId"
+                  },
+                  "component": {
+                    "$ref": "#/$defs/ComponentId"
+                  }
+                },
+                "required": [
+                  "assembly",
+                  "component"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "delete_component"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "add_joint": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/AssemblyId"
+                  },
+                  "joint": {
+                    "$ref": "#/$defs/Joint"
+                  }
+                },
+                "required": [
+                  "assembly",
+                  "joint"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "add_joint"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Replaces the joint of the same id.",
+            "properties": {
+              "edit_joint": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/AssemblyId"
+                  },
+                  "joint": {
+                    "$ref": "#/$defs/Joint"
+                  }
+                },
+                "required": [
+                  "assembly",
+                  "joint"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "edit_joint"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "delete_joint": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/AssemblyId"
+                  },
+                  "joint": {
+                    "$ref": "#/$defs/JointId"
+                  }
+                },
+                "required": [
+                  "assembly",
+                  "joint"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "delete_joint"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
             "description": "One undo entry.",
             "properties": {
               "group": {
@@ -3735,6 +4534,72 @@
             },
             "required": [
               "group"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "Component": {
+        "additionalProperties": false,
+        "description": "One use of a part or of a nested assembly.",
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/ComponentId"
+          },
+          "name": {
+            "description": "Unique within the assembly.",
+            "type": "string"
+          },
+          "of": {
+            "$ref": "#/$defs/ComponentOf"
+          },
+          "pose": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Pose"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A pose grounds the component; a joint places it otherwise."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "of"
+        ],
+        "type": "object"
+      },
+      "ComponentId": {
+        "$ref": "#/$defs/Id",
+        "description": "A component of an assembly."
+      },
+      "ComponentOf": {
+        "description": "What a component places.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "part": {
+                "$ref": "#/$defs/PartId"
+              }
+            },
+            "required": [
+              "part"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "assembly": {
+                "$ref": "#/$defs/AssemblyId"
+              }
+            },
+            "required": [
+              "assembly"
             ],
             "type": "object"
           }
@@ -4905,6 +5770,72 @@
         "pattern": "^[0-9a-f]{64}$",
         "type": "string"
       },
+      "Joint": {
+        "additionalProperties": false,
+        "description": "A joint between two anchors: it places the child's component.",
+        "properties": {
+          "child": {
+            "$ref": "#/$defs/Anchor"
+          },
+          "flip": {
+            "description": "Turns the child's frame half a turn about its x.",
+            "type": "boolean"
+          },
+          "id": {
+            "$ref": "#/$defs/JointId"
+          },
+          "kind": {
+            "$ref": "#/$defs/JointKind"
+          },
+          "limits": {
+            "items": {
+              "$ref": "#/$defs/Expr"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "name": {
+            "description": "Unique within the assembly.",
+            "type": "string"
+          },
+          "offset": {
+            "$ref": "#/$defs/Expr"
+          },
+          "parent": {
+            "$ref": "#/$defs/Anchor"
+          },
+          "value": {
+            "$ref": "#/$defs/Expr",
+            "description": "An angle for a revolute joint, a length for a prismatic one."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "parent",
+          "child",
+          "value",
+          "offset"
+        ],
+        "type": "object"
+      },
+      "JointId": {
+        "$ref": "#/$defs/Id",
+        "description": "A joint of an assembly."
+      },
+      "JointKind": {
+        "enum": [
+          "fixed",
+          "revolute",
+          "prismatic"
+        ],
+        "type": "string"
+      },
       "Node": {
         "description": "A node of the DAG: what a command touches and the evaluator orders.",
         "oneOf": [
@@ -4941,6 +5872,42 @@
             },
             "required": [
               "feature"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "assembly": {
+                "$ref": "#/$defs/AssemblyId"
+              }
+            },
+            "required": [
+              "assembly"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "component": {
+                "$ref": "#/$defs/ComponentId"
+              }
+            },
+            "required": [
+              "component"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "joint": {
+                "$ref": "#/$defs/JointId"
+              }
+            },
+            "required": [
+              "joint"
             ],
             "type": "object"
           }
@@ -5048,6 +6015,33 @@
         "required": [
           "x",
           "y"
+        ],
+        "type": "object"
+      },
+      "Pose": {
+        "additionalProperties": false,
+        "description": "A position (three lengths) and URDF's fixed-axis roll, pitch and yaw\n(three angles), each an expression.",
+        "properties": {
+          "position": {
+            "items": {
+              "$ref": "#/$defs/Expr"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          },
+          "rpy": {
+            "items": {
+              "$ref": "#/$defs/Expr"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          }
+        },
+        "required": [
+          "position",
+          "rpy"
         ],
         "type": "object"
       },
@@ -5439,6 +6433,10 @@
         "$ref": "#/$defs/Id",
         "description": "An assembly (docs/DATA-MODEL.md §Assemblies)."
       },
+      "BlobRef": {
+        "description": "A blob's file name under `blobs/`: 64 lower-case hex digits of the\nBLAKE3 of its bytes, a dot, and an extension of lower-case letters\nand digits (`arrisbody`, `json`).",
+        "type": "string"
+      },
       "CommandError": {
         "description": "Why a command was refused. The document is unchanged.",
         "oneOf": [
@@ -5475,6 +6473,102 @@
             },
             "required": [
               "no_feature"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "no_assembly": {
+                "$ref": "#/$defs/AssemblyId"
+              }
+            },
+            "required": [
+              "no_assembly"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "no_component": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/AssemblyId"
+                  },
+                  "component": {
+                    "$ref": "#/$defs/ComponentId"
+                  }
+                },
+                "required": [
+                  "assembly",
+                  "component"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "no_component"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "no_joint": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/AssemblyId"
+                  },
+                  "joint": {
+                    "$ref": "#/$defs/JointId"
+                  }
+                },
+                "required": [
+                  "assembly",
+                  "joint"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "no_joint"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "no_file": {
+                "$ref": "#/$defs/BlobRef"
+              }
+            },
+            "required": [
+              "no_file"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "file_in_use": {
+                "properties": {
+                  "blob": {
+                    "$ref": "#/$defs/BlobRef"
+                  },
+                  "feature": {
+                    "$ref": "#/$defs/FeatureId"
+                  }
+                },
+                "required": [
+                  "blob",
+                  "feature"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "file_in_use"
             ],
             "type": "object"
           },
@@ -5823,6 +6917,30 @@
           {
             "additionalProperties": false,
             "properties": {
+              "file_missing": {
+                "properties": {
+                  "blob": {
+                    "$ref": "#/$defs/BlobRef"
+                  },
+                  "feature": {
+                    "$ref": "#/$defs/FeatureId"
+                  }
+                },
+                "required": [
+                  "feature",
+                  "blob"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "file_missing"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
               "duplicate_assembly": {
                 "type": "string"
               }
@@ -6018,6 +7136,42 @@
             },
             "required": [
               "feature"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "assembly": {
+                "$ref": "#/$defs/AssemblyId"
+              }
+            },
+            "required": [
+              "assembly"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "component": {
+                "$ref": "#/$defs/ComponentId"
+              }
+            },
+            "required": [
+              "component"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "joint": {
+                "$ref": "#/$defs/JointId"
+              }
+            },
+            "required": [
+              "joint"
             ],
             "type": "object"
           }
@@ -6430,6 +7584,77 @@
   },
   "request": {
     "$defs": {
+      "Anchor": {
+        "additionalProperties": false,
+        "description": "Where a joint attaches: a face or an edge of a part, by persistent name,\nreached through the components from the joint's assembly down.",
+        "properties": {
+          "axis": {
+            "$ref": "#/$defs/PersistentName"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PersistentName"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "path": {
+            "items": {
+              "$ref": "#/$defs/ComponentId"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "path",
+          "axis"
+        ],
+        "type": "object"
+      },
+      "Assembly": {
+        "additionalProperties": false,
+        "description": "An assembly: components, and the joints that place them.",
+        "properties": {
+          "components": {
+            "additionalProperties": false,
+            "patternProperties": {
+              "^[0-9A-F][0-9A-HJKMNP-TV-Z]{12}$": {
+                "$ref": "#/$defs/Component"
+              }
+            },
+            "type": "object"
+          },
+          "id": {
+            "$ref": "#/$defs/AssemblyId"
+          },
+          "joints": {
+            "additionalProperties": false,
+            "patternProperties": {
+              "^[0-9A-F][0-9A-HJKMNP-TV-Z]{12}$": {
+                "$ref": "#/$defs/Joint"
+              }
+            },
+            "type": "object"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "components",
+          "joints"
+        ],
+        "type": "object"
+      },
+      "AssemblyId": {
+        "$ref": "#/$defs/Id",
+        "description": "An assembly (docs/DATA-MODEL.md §Assemblies)."
+      },
       "AuthorId": {
         "$ref": "#/$defs/Id",
         "description": "Who issued a command: the local user in local mode."
@@ -6723,6 +7948,237 @@
           },
           {
             "additionalProperties": false,
+            "description": "Holds an imported file's bytes, named by their BLAKE3 (the blob\n`<hash>.step`: a STEP file is the only kind imported so far). Adding\nbytes the document holds changes nothing.",
+            "properties": {
+              "add_file": {
+                "properties": {
+                  "bytes": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "bytes"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "add_file"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The inverse of `AddFile`; refused while a record names the blob.",
+            "properties": {
+              "remove_file": {
+                "properties": {
+                  "blob": {
+                    "$ref": "#/$defs/BlobRef"
+                  }
+                },
+                "required": [
+                  "blob"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "remove_file"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "An assembly with its components and joints: the inverse of\n`DeleteAssembly`.",
+            "properties": {
+              "add_assembly": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/Assembly"
+                  }
+                },
+                "required": [
+                  "assembly"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "add_assembly"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Refused while a component places it (`assembly.dangling`).",
+            "properties": {
+              "delete_assembly": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/AssemblyId"
+                  }
+                },
+                "required": [
+                  "assembly"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "delete_assembly"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "add_component": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/AssemblyId"
+                  },
+                  "component": {
+                    "$ref": "#/$defs/Component"
+                  }
+                },
+                "required": [
+                  "assembly",
+                  "component"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "add_component"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Replaces the component of the same id.",
+            "properties": {
+              "edit_component": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/AssemblyId"
+                  },
+                  "component": {
+                    "$ref": "#/$defs/Component"
+                  }
+                },
+                "required": [
+                  "assembly",
+                  "component"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "edit_component"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Refused while a joint's anchor goes through it.",
+            "properties": {
+              "delete_component": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/AssemblyId"
+                  },
+                  "component": {
+                    "$ref": "#/$defs/ComponentId"
+                  }
+                },
+                "required": [
+                  "assembly",
+                  "component"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "delete_component"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "add_joint": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/AssemblyId"
+                  },
+                  "joint": {
+                    "$ref": "#/$defs/Joint"
+                  }
+                },
+                "required": [
+                  "assembly",
+                  "joint"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "add_joint"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Replaces the joint of the same id.",
+            "properties": {
+              "edit_joint": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/AssemblyId"
+                  },
+                  "joint": {
+                    "$ref": "#/$defs/Joint"
+                  }
+                },
+                "required": [
+                  "assembly",
+                  "joint"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "edit_joint"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "delete_joint": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/AssemblyId"
+                  },
+                  "joint": {
+                    "$ref": "#/$defs/JointId"
+                  }
+                },
+                "required": [
+                  "assembly",
+                  "joint"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "delete_joint"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
             "description": "One undo entry.",
             "properties": {
               "group": {
@@ -6770,6 +8226,72 @@
           "command"
         ],
         "type": "object"
+      },
+      "Component": {
+        "additionalProperties": false,
+        "description": "One use of a part or of a nested assembly.",
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/ComponentId"
+          },
+          "name": {
+            "description": "Unique within the assembly.",
+            "type": "string"
+          },
+          "of": {
+            "$ref": "#/$defs/ComponentOf"
+          },
+          "pose": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Pose"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A pose grounds the component; a joint places it otherwise."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "of"
+        ],
+        "type": "object"
+      },
+      "ComponentId": {
+        "$ref": "#/$defs/Id",
+        "description": "A component of an assembly."
+      },
+      "ComponentOf": {
+        "description": "What a component places.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "part": {
+                "$ref": "#/$defs/PartId"
+              }
+            },
+            "required": [
+              "part"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "assembly": {
+                "$ref": "#/$defs/AssemblyId"
+              }
+            },
+            "required": [
+              "assembly"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "Constraint": {
         "description": "One constraint in the residual system. Dimensional values are SI\n(meters / radians) — the UI converts from mm/deg on the way in.",
@@ -7956,6 +9478,72 @@
         "pattern": "^[0-9a-f]{64}$",
         "type": "string"
       },
+      "Joint": {
+        "additionalProperties": false,
+        "description": "A joint between two anchors: it places the child's component.",
+        "properties": {
+          "child": {
+            "$ref": "#/$defs/Anchor"
+          },
+          "flip": {
+            "description": "Turns the child's frame half a turn about its x.",
+            "type": "boolean"
+          },
+          "id": {
+            "$ref": "#/$defs/JointId"
+          },
+          "kind": {
+            "$ref": "#/$defs/JointKind"
+          },
+          "limits": {
+            "items": {
+              "$ref": "#/$defs/Expr"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "name": {
+            "description": "Unique within the assembly.",
+            "type": "string"
+          },
+          "offset": {
+            "$ref": "#/$defs/Expr"
+          },
+          "parent": {
+            "$ref": "#/$defs/Anchor"
+          },
+          "value": {
+            "$ref": "#/$defs/Expr",
+            "description": "An angle for a revolute joint, a length for a prismatic one."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "parent",
+          "child",
+          "value",
+          "offset"
+        ],
+        "type": "object"
+      },
+      "JointId": {
+        "$ref": "#/$defs/Id",
+        "description": "A joint of an assembly."
+      },
+      "JointKind": {
+        "enum": [
+          "fixed",
+          "revolute",
+          "prismatic"
+        ],
+        "type": "string"
+      },
       "Param": {
         "additionalProperties": false,
         "description": "A named, typed parameter.",
@@ -8057,6 +9645,33 @@
         "required": [
           "x",
           "y"
+        ],
+        "type": "object"
+      },
+      "Pose": {
+        "additionalProperties": false,
+        "description": "A position (three lengths) and URDF's fixed-axis roll, pitch and yaw\n(three angles), each an expression.",
+        "properties": {
+          "position": {
+            "items": {
+              "$ref": "#/$defs/Expr"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          },
+          "rpy": {
+            "items": {
+              "$ref": "#/$defs/Expr"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          }
+        },
+        "required": [
+          "position",
+          "rpy"
         ],
         "type": "object"
       },
