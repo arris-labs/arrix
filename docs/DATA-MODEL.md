@@ -52,9 +52,10 @@ their file form and `Document::validate` (ids match their keys, names are
 unique within their scope, a component's part or assembly exists, a joint's
 first path component is its assembly's). A `FeatureRecord` also holds
 `file: Option<ImportedFile { name, blob }>`, the imported file's base name
-for display (never a path) and its blob. Evaluation, the DAG nodes and the
-commands follow in C2 M1's later steps; the DAG already admits cross-part
-references, so they add node kinds, not a new mechanism.
+for display (never a path) and its blob. The commands (§Commands and
+undo), the DAG's nodes (§The dependency DAG) and the assembly pass
+(§Evaluation) are built; the surfaces that carry an assembly's outcome
+follow in C2 M1's later steps.
 
 **What is not in the document** (`SEED.md` §6.1 rule 4): selection, hover,
 the active sketch, the edit mode, the camera, panel layout, and every
@@ -559,6 +560,34 @@ keeps its `KernelCall` in the event. Each feature's outcome is an
 `EvalEvent { feature, outcome }`, the outcome tagged by `status` (`ok`
 with its hash, whether it was cached and its slots as plain data;
 `failed`; `suppressed`; `rolled-back`), and crosses as JSON.
+
+**The assembly pass** (ADR-0029 §3 to §5 and §11; as built,
+`Evaluation::assemblies`, an `AssemblyOutcome` per assembly). Once every
+feature has its state, each assembly is solved in the DAG's order, so a
+nested one before the assemblies that hold it. An anchor resolves against
+its part's *final bodies* (those a mesh is made of, §Bodies across
+features): its path must lead to a part (else `ref.lost`), its axis name
+must be a face or an edge and its origin a face (else `input.wrong-kind`),
+and exactly one final body must hold both names, else `ref.lost` with the
+part's nearest names of that kind as candidates; a part with no final body
+is `input.unavailable`. Its frame is a recorded `anchor_frame` call, cached
+by a key over the Arris version, the input hash of the feature that made
+the body's last version, the slot and the names, so a joint follows an
+upstream edit and no other change calls the kernel. The assembly's input
+hash covers each component's pose values in SI and nested assembly's hash,
+and each joint's kind, flip, values in SI and anchors (path and frame key,
+or the diagnostic); a hit is the stored outcome, `cached`. Joints that are
+loops by structure (anchors on one component, a child with a pose, a child
+an earlier joint by id places) are `assembly.loop`; forward kinematics
+then places the grounded components, each component with neither pose nor
+live joint at the identity (`assembly.unplaced`, a warning, also when its
+joint failed), and each joint's child once its parent is placed; joints
+left waiting on each other close a loop, and the last by id is
+`assembly.loop`, its child unplaced. A value outside its limits is
+`assembly.limit`, a warning, and applied. The outcome lists every
+component at every depth by its path from the assembly, with its pose as a
+`Frame` in the assembly's frame, and each joint `ok` (its value plus
+offset, both anchors' frames, any warning) or `failed` with a diagnostic.
 
 **Determinism.** Evaluating the same snapshot twice, on any machine,
 native or wasm, gives byte-identical outputs and names. Nothing in

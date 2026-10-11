@@ -205,7 +205,14 @@ impl InputHash {
     }
 
     fn canonical(canonical: &Canonical) -> Self {
-        let bytes = serde_json::to_vec(canonical).expect("the canonical form serialises");
+        Self::of_canonical(canonical)
+    }
+
+    /// BLAKE3 over `value`'s JSON, which the caller keeps canonical: fixed
+    /// field order, ordered maps, SI values (an assembly's or an anchor's
+    /// inputs, ADR-0029 §11).
+    pub(crate) fn of_canonical(value: &impl Serialize) -> Self {
+        let bytes = serde_json::to_vec(value).expect("the canonical form serialises");
         Self(*blake3::hash(&bytes).as_bytes())
     }
 

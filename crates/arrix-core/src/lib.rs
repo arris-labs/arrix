@@ -15,7 +15,7 @@ pub mod units;
 pub use diagnostic::{Diagnostic, DiagnosticCode, InvalidCode, Severity};
 pub use export::ExportFormat;
 pub use geom::{Axis, Frame, Motion, Profile, ProfileLoop, ProfileSegment};
-pub use glam::{DVec2, DVec3};
+pub use glam::{DMat3, DVec2, DVec3};
 pub use id::{
     AssemblyId, ComponentId, CurveKey, FeatureId, ID_LEN, Id, IdError, IdMinter, JointId, ParamId,
     PartId, RecordId, SketchEntityId,

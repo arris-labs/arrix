@@ -48,10 +48,11 @@ pub use document::{
 #[cfg(feature = "schema")]
 pub use eval::eval_line_schema;
 pub use eval::{
-    BodyLine, BodyMeasures, BodySlot, EVAL_FORMAT, EvalEvent, EvalLine, EvalStatus, Evaluation,
-    Evaluator, ExportError, ExportedFile, FailedCall, FeatureLine, FeatureOutcome, FinalBody,
-    FrozenInfo, FrozenReason, InputHash, ParamLine, RegionView, Run, SavedRecipe, SketchView,
-    SlotView, Sweep, SweepError, SweepPoint, eval, export, run, sweep,
+    AssemblyOutcome, BodyLine, BodyMeasures, BodySlot, EVAL_FORMAT, EvalEvent, EvalLine,
+    EvalStatus, Evaluation, Evaluator, ExportError, ExportedFile, FailedCall, FeatureLine,
+    FeatureOutcome, FinalBody, FrozenInfo, FrozenReason, InputHash, JointOutcome, ParamLine,
+    PlacedComponent, RegionView, Run, SavedRecipe, SketchView, SlotView, Sweep, SweepError,
+    SweepPoint, eval, export, run, sweep,
 };
 pub use frozen::{BlobRef, Frozen, FrozenResult, InvalidBlobRef};
 pub use open::{DOCUMENT_JSON, DocumentSource, MemorySource, OpenError, PARAMS_JSON, SCHEMA, open};

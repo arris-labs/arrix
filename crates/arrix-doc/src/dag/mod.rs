@@ -5,6 +5,8 @@
 //! it.
 
 mod assembly;
+
+pub(crate) use assembly::anchor_target;
 #[cfg(test)]
 mod tests;
 

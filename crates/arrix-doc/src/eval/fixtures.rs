@@ -147,6 +147,7 @@ mod tests {
         let evaluation = Evaluation {
             params: Default::default(),
             events: vec![failed(1, Some(1)), failed(2, None)],
+            assemblies: Default::default(),
         };
         let listed = failures(&evaluation, &records);
         let [one] = listed.as_slice() else {

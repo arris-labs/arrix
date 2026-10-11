@@ -3,6 +3,7 @@
 //! failing soft. `LocalSession` runs it on its worker, stopping between
 //! features for a newer snapshot (docs/CONCURRENCY-WASM.md §The evaluator).
 
+mod assembly;
 mod export;
 mod fixtures;
 mod frozen;
@@ -28,7 +29,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use arrix_core::{
-    Diagnostic, FeatureId, Frame, ParamId, Profile, Quantity, Ref, Severity, SlotName, TopoKind,
+    AssemblyId, Diagnostic, FeatureId, Frame, ParamId, Profile, Quantity, Ref, Severity, SlotName,
+    TopoKind,
 };
 use arrix_core::{MeshDetail, RegionKey, RenderMesh};
 use arrix_kernel::{CallIndex, Interrupt, Kernel, KernelBody, KernelCall, KernelError};
@@ -38,6 +40,7 @@ use arrix_plugin_api::{
 use arrix_sketch::{ConstraintId, Sketch};
 use serde::{Deserialize, Serialize};
 
+pub use assembly::{AssemblyOutcome, JointOutcome, PlacedComponent};
 pub use export::{ExportError, ExportedFile, export};
 pub use fixtures::{FailedCall, Run, SavedRecipe, run};
 pub use hash::InputHash;
@@ -185,12 +188,13 @@ pub struct EvalEvent {
     pub outcome: FeatureOutcome,
 }
 
-/// One snapshot's evaluation: every parameter's value, and an event per
-/// feature in the DAG's order.
+/// One snapshot's evaluation: every parameter's value, an event per
+/// feature in the DAG's order, and every assembly solved.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Evaluation {
     pub params: BTreeMap<ParamId, Result<Quantity, Diagnostic>>,
     pub events: Vec<EvalEvent>,
+    pub assemblies: BTreeMap<AssemblyId, AssemblyOutcome>,
 }
 
 impl Evaluation {
@@ -323,6 +327,10 @@ pub struct Evaluator {
     cache: BTreeMap<InputHash, CacheEntry>,
     /// The plugin features' results of the latest evaluation, by feature.
     frozen: BTreeMap<FeatureId, Arc<Frozen>>,
+    /// Anchor frames by their key, with the evaluation that last used
+    /// each, and assemblies' outcomes by input hash (ADR-0029 §11).
+    frames: BTreeMap<InputHash, (Frame, u64)>,
+    solved: BTreeMap<InputHash, assembly::Solved>,
     /// The bodies the latest finished evaluation ended with, and the
     /// meshes made of the versions the cache holds.
     finals: Vec<meshing::FinalBody>,
@@ -342,6 +350,8 @@ impl Evaluator {
             kernel: Kernel::new(),
             cache: BTreeMap::new(),
             frozen: BTreeMap::new(),
+            frames: BTreeMap::new(),
+            solved: BTreeMap::new(),
             finals: Vec::new(),
             meshes: BTreeMap::new(),
             run: 0,
@@ -389,7 +399,8 @@ impl Evaluator {
         &self.frozen
     }
 
-    /// Evaluates `doc`: parameters, then every feature in the DAG's order.
+    /// Evaluates `doc`: parameters, then every feature in the DAG's order,
+    /// then every assembly.
     pub fn evaluate(&mut self, doc: &Document) -> Evaluation {
         self.evaluate_while(doc, |_| true)
             .expect("an evaluation that is never stopped finishes")
@@ -438,11 +449,17 @@ impl Evaluator {
                 return None;
             }
         }
-        self.finals = self.find_finals(doc, &states);
+        let finals = self.find_finals(doc, &states);
+        let Ok(assemblies) = self.assemblies(doc, &dag, &params, &finals) else {
+            self.collect();
+            return None;
+        };
+        self.finals = finals;
         self.collect();
         Some(Evaluation {
             params: params.values,
             events,
+            assemblies,
         })
     }
 
@@ -923,6 +940,11 @@ impl Evaluator {
         for (_, h) in by_age.into_iter().take(excess) {
             self.cache.remove(&h);
         }
+        // An assembly's solve and an anchor's frame hold no body: kept to
+        // the same count, the oldest dropped first.
+        let (run, capacity) = (self.run, self.capacity);
+        retain_recent(&mut self.frames, run, capacity, |(_, used)| *used);
+        retain_recent(&mut self.solved, run, capacity, |s| s.used);
         let keep: BTreeSet<KernelBody> = self
             .cache
             .values()
@@ -936,5 +958,28 @@ impl Evaluator {
             .collect();
         self.kernel.retain(&keep);
         self.keep_meshes(&keep);
+    }
+}
+
+/// Drops the least recently used entries of `map` past `capacity`, never
+/// one the evaluation `run` used.
+fn retain_recent<V>(
+    map: &mut BTreeMap<InputHash, V>,
+    run: u64,
+    capacity: usize,
+    used: impl Fn(&V) -> u64,
+) {
+    let excess = map.len().saturating_sub(capacity);
+    if excess == 0 {
+        return;
+    }
+    let mut by_age: Vec<(u64, InputHash)> = map
+        .iter()
+        .map(|(h, v)| (used(v), *h))
+        .filter(|(u, _)| *u != run)
+        .collect();
+    by_age.sort();
+    for (_, h) in by_age.into_iter().take(excess) {
+        map.remove(&h);
     }
 }

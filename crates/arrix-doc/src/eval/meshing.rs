@@ -10,7 +10,7 @@ use arrix_kernel::KernelBody;
 use arrix_plugin_api::SlotKind;
 use serde::{Deserialize, Serialize};
 
-use super::{Evaluator, SlotOut, State, host};
+use super::{Evaluator, InputHash, SlotOut, State, host};
 use crate::bodies::{self, Effect, SlotKey};
 use crate::document::Document;
 
@@ -30,6 +30,9 @@ pub struct FinalBody {
     pub part: PartId,
     pub slot: BodySlot,
     pub(super) body: KernelBody,
+    /// The input hash of the feature that made the last version, which
+    /// identifies it (an anchor's input, ADR-0029 §2).
+    pub(super) hash: InputHash,
 }
 
 impl Evaluator {
@@ -86,7 +89,7 @@ impl Evaluator {
                         feature: *id,
                         slot: name.clone(),
                     };
-                    if let Some(body) = last_version(self, part, end, states, &key) {
+                    if let Some((body, hash)) = last_version(self, part, end, states, &key) {
                         out.push(FinalBody {
                             part: part.id,
                             slot: BodySlot {
@@ -94,6 +97,7 @@ impl Evaluator {
                                 slot: key.slot,
                             },
                             body,
+                            hash,
                         });
                     }
                 }
@@ -108,7 +112,8 @@ impl Evaluator {
     }
 }
 
-/// The body of `key`'s last version before `end`, or `None` when a later
+/// The body of `key`'s last version before `end` and the input hash of
+/// the feature that made it, or `None` when a later
 /// feature consumed it or the feature that made its last version has no
 /// outputs.
 fn last_version(
@@ -117,7 +122,7 @@ fn last_version(
     end: usize,
     states: &BTreeMap<FeatureId, State>,
     key: &SlotKey,
-) -> Option<KernelBody> {
+) -> Option<(KernelBody, InputHash)> {
     let mut current = key.clone();
     for (record, effect) in bodies::touching(&e.registry, part, end, key) {
         if record.suppressed {
@@ -134,8 +139,8 @@ fn last_version(
         }
     }
     match states.get(&current.feature)? {
-        State::Ok { slots, .. } => match slots.get(&current.slot)? {
-            SlotOut::Body { body, .. } => Some(*body),
+        State::Ok { slots, hash, .. } => match slots.get(&current.slot)? {
+            SlotOut::Body { body, .. } => Some((*body, *hash)),
             _ => None,
         },
         State::Unavailable(_) => None,
