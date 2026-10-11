@@ -21,6 +21,10 @@ pub const CONTEXTS: &[(&str, &str)] = &[
         "part",
         "the document is shown and no sketch is being edited",
     ),
+    (
+        "assembly",
+        "the tab looks at an assembly and no sketch is being edited",
+    ),
     ("sketch", "a sketch is being edited"),
     (
         "form",

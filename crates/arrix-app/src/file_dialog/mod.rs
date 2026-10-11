@@ -13,6 +13,12 @@ pub trait SaveDialog {
     fn choose(&mut self, name: &str) -> Option<PathBuf>;
 }
 
+/// Asks the user which file to import.
+pub trait OpenDialog {
+    /// The path chosen, or `None` when the user cancelled.
+    fn choose(&mut self) -> Option<PathBuf>;
+}
+
 /// The platform's save dialog, filtered to the exchange formats; none on
 /// wasm, where it answers cancelled.
 #[derive(Default)]
@@ -36,6 +42,28 @@ impl SaveDialog for NativeDialog {
     fn choose(&mut self, _name: &str) -> Option<PathBuf> {
         None
     }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl OpenDialog for NativeDialog {
+    fn choose(&mut self) -> Option<PathBuf> {
+        rfd::FileDialog::new()
+            .set_title("Import STEP")
+            .add_filter("STEP", &["step", "stp"])
+            .pick_file()
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+impl OpenDialog for NativeDialog {
+    fn choose(&mut self) -> Option<PathBuf> {
+        None
+    }
+}
+
+/// Reads the file at `path`; the error says where and why, for the user.
+pub fn read(path: &Path) -> Result<Vec<u8>, String> {
+    std::fs::read(path).map_err(|e| format!("{}: {e}", path.display()))
 }
 
 /// Writes `bytes` to `path`; the error says where and why, for the user.

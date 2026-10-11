@@ -1,6 +1,7 @@
 //! The visual scenarios (docs/UI-RENDERING.md §Visual debugging).
 
 mod accept;
+mod assembly_tab;
 mod assembly_view;
 mod camera;
 mod coarse;

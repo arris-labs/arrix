@@ -113,8 +113,10 @@ fn creations(h: &mut Harness<'_, ArrixApp>) -> Vec<(String, String, String)> {
         self::tab(h, &tab);
         let ribbon = h.state().debug_state().shell.unwrap().ribbon;
         for c in ribbon.groups.iter().flat_map(|g| &g.commands) {
+            // The Assembly tab's commands are not a feature type's.
             if let Some(ty) = c.id.strip_suffix(".create")
                 && ty != "core.sketch"
+                && tab != "Assembly"
             {
                 out.push((tab.clone(), c.title.clone(), ty.to_owned()));
             }

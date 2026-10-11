@@ -52,6 +52,8 @@ the command registry and the setting specs; a test holds it fresh. Do not edit.
 | `core.revolve.create` | New revolve |  |  | core.part / Features |
 | `core.sketch.create` | New sketch |  |  | core.sketch / Sketch |
 | `gears.spur.create` | New spur gear |  |  | gears / Features |
+| `core.import-step.create` | Import STEP… |  |  | core.assembly / Import |
+| `core.assembly.create` | New assembly |  |  | core.assembly / Assembly |
 | `core.sketch.edit` | Edit sketch |  |  | core.sketch / Sketch |
 | `core.sketch.finish` | Finish sketch | escape | sketch | core.sketch / Sketch |
 | `core.sketch.delete` | Delete | delete | sketch | core.sketch / Sketch |
@@ -88,17 +90,20 @@ the command registry and the setting specs; a test holds it fresh. Do not edit.
 | `core.form.cancel` | Cancel the form | escape | form |  |
 | `core.ribbon.sketch` | Show the Sketch tab |  |  |  |
 | `core.ribbon.part` | Show the Part tab |  |  |  |
+| `core.ribbon.assembly` | Show the Assembly tab |  |  |  |
 | `core.ribbon.gears` | Show the Gears tab |  |  |  |
 
 ## Ribbon tabs (`ui.ribbon.hidden-tabs`)
 
 - `core.sketch`: Sketch
 - `core.part`: Part
+- `core.assembly`: Assembly
 - `gears`: Gears
 
 ## Keymap contexts (`when`)
 
 - `part`: the document is shown and no sketch is being edited
+- `assembly`: the tab looks at an assembly and no sketch is being edited
 - `sketch`: a sketch is being edited
 - `form`: a property form is open and no text field has focus; its keys win over `sketch-tool`'s
 - `sketch-tool`: a sketch is being edited with a drawing tool; its keys win over `sketch`'s

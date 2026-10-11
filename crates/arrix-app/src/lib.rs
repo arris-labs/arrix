@@ -1,6 +1,7 @@
 //! The application: the shell, the command registry, and the translation
 //! between document and view types (docs/UI-RENDERING.md §The shell).
 
+mod assembly_commands;
 mod badges;
 mod commands;
 #[cfg(not(target_arch = "wasm32"))]
@@ -33,18 +34,19 @@ mod tree_assembly;
 mod viewport;
 
 pub use debug::DebugState;
-pub use file_dialog::{NativeDialog, SaveDialog};
+pub use file_dialog::{NativeDialog, OpenDialog, SaveDialog};
 pub use gestures::Gesture;
 
 use arrix_config::{
-    CONFIG_RELOAD, CommandRegistry, Config, ConfigDiagnostic, ConfigSource, DOCUMENT_CLOSE,
-    DOCUMENT_NEW, DOCUMENT_NEXT, DOCUMENT_PREVIOUS, EDIT_REDO, EDIT_UNDO, FILE_EXPORT, FORM_CANCEL,
-    FORM_OK, Keymap, MemorySource, PALETTE_CLOSE, PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS,
-    PALETTE_RUN, PANEL_PROPERTIES_TOGGLE, PANEL_TREE_TOGGLE, ParamDefaults, SELECTION_CLEAR,
-    SKETCH_ARC, SKETCH_CIRCLE, SKETCH_CONSTRUCTION, SKETCH_CREATE, SKETCH_DELETE, SKETCH_DIMENSION,
-    SKETCH_EDIT, SKETCH_EXTEND, SKETCH_FINISH, SKETCH_LINE, SKETCH_MIRROR, SKETCH_OFFSET,
-    SKETCH_RECTANGLE, SKETCH_SELECT, SKETCH_TOOL_CANCEL, SKETCH_TRIM, Settings, Theme, VIEW_FRONT,
-    VIEW_HOME, VIEW_ISO, VIEW_PROJECTION_TOGGLE, VIEW_RIGHT, VIEW_TOP,
+    ASSEMBLY_CREATE, CONFIG_RELOAD, CommandRegistry, Config, ConfigDiagnostic, ConfigSource,
+    DOCUMENT_CLOSE, DOCUMENT_NEW, DOCUMENT_NEXT, DOCUMENT_PREVIOUS, EDIT_REDO, EDIT_UNDO,
+    FILE_EXPORT, FORM_CANCEL, FORM_OK, IMPORT_STEP_CREATE, Keymap, MemorySource, PALETTE_CLOSE,
+    PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN, PANEL_PROPERTIES_TOGGLE,
+    PANEL_TREE_TOGGLE, ParamDefaults, SELECTION_CLEAR, SKETCH_ARC, SKETCH_CIRCLE,
+    SKETCH_CONSTRUCTION, SKETCH_CREATE, SKETCH_DELETE, SKETCH_DIMENSION, SKETCH_EDIT,
+    SKETCH_EXTEND, SKETCH_FINISH, SKETCH_LINE, SKETCH_MIRROR, SKETCH_OFFSET, SKETCH_RECTANGLE,
+    SKETCH_SELECT, SKETCH_TOOL_CANCEL, SKETCH_TRIM, Settings, Theme, VIEW_FRONT, VIEW_HOME,
+    VIEW_ISO, VIEW_PROJECTION_TOGGLE, VIEW_RIGHT, VIEW_TOP,
 };
 use arrix_core::{FeatureId, IdMinter, RenderMesh};
 use arrix_plugin_api::FeatureTypeSpec;
@@ -142,6 +144,8 @@ pub struct ArrixApp {
     ids: IdMinter,
     /// Asked where an export goes.
     dialog: Box<dyn SaveDialog>,
+    /// Asked which file an import reads.
+    open_dialog: Box<dyn OpenDialog>,
 }
 
 struct Drawn {
@@ -241,6 +245,7 @@ impl ArrixApp {
             active: 0,
             ids: IdMinter::new(entropy()),
             dialog: Box::new(NativeDialog),
+            open_dialog: Box::new(NativeDialog),
         }
     }
 
@@ -867,6 +872,8 @@ impl ArrixApp {
             DOCUMENT_CLOSE => self.close_document(self.active),
             DOCUMENT_NEW => self.new_document(),
             FILE_EXPORT => self.export_file(),
+            IMPORT_STEP_CREATE => self.import_step(),
+            ASSEMBLY_CREATE => self.create_assembly(),
             SKETCH_CREATE => self.create_sketch(),
             SKETCH_EDIT => self.edit_sketch(),
             SKETCH_FINISH => self.finish_sketch(),
@@ -993,7 +1000,13 @@ impl ArrixApp {
         match self.context().tool {
             Some(tool) if tool != SKETCH_SELECT => contexts.extend(["sketch-tool", "sketch"]),
             Some(_) => contexts.push("sketch"),
-            None => contexts.push("part"),
+            None => {
+                contexts.push("part");
+                let looking = self.active_document().and_then(|d| d.context());
+                if matches!(looking, Some(context::Context::Assembly(_))) {
+                    contexts.push("assembly");
+                }
+            }
         }
         contexts
     }

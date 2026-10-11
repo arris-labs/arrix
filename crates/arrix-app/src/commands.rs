@@ -156,7 +156,10 @@ mod tests {
     fn the_gears_plugin_adds_a_tab_with_its_creation_command() {
         let (registry, settings) = built();
         let view = ribbon(&registry, &settings, "gears", Context::default());
-        assert_eq!(tab_ids(&view), ["core.sketch", "core.part", "gears"]);
+        assert_eq!(
+            tab_ids(&view),
+            ["core.sketch", "core.part", "core.assembly", "gears"]
+        );
         assert_eq!(view.active, "gears");
         let ids: Vec<_> = view.groups[0].commands.iter().map(|c| &c.id[..]).collect();
         assert_eq!(ids, ["gears.spur.create"]);
@@ -184,7 +187,7 @@ mod tests {
         let (registry, mut settings) = built();
         let d = settings.apply(
             "settings.toml",
-            "[ui.ribbon]\nhidden-tabs = [\"core.part\", \"core.sketch\"]\n",
+            "[ui.ribbon]\nhidden-tabs = [\"core.part\", \"core.sketch\", \"core.assembly\"]\n",
         );
         assert!(d.is_empty(), "{d:?}");
         let view = ribbon(&registry, &settings, "core.sketch", Context::default());

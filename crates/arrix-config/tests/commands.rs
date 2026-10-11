@@ -62,6 +62,7 @@ fn a_plugin_adds_a_tab_after_the_core_ones() {
         [
             ("core.sketch".into(), "Sketch".into()),
             ("core.part".into(), "Part".into()),
+            ("core.assembly".into(), "Assembly".into()),
             ("gears".into(), "Gears".into()),
         ]
     );

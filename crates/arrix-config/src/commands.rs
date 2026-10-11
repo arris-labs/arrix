@@ -10,6 +10,7 @@ use serde::Serialize;
 /// The core tabs, in ribbon order.
 pub const CORE_SKETCH_TAB: &str = "core.sketch";
 pub const CORE_PART_TAB: &str = "core.part";
+pub const CORE_ASSEMBLY_TAB: &str = "core.assembly";
 
 /// Commands that are not tied to a feature type.
 pub const PALETTE_OPEN: &str = "core.palette.open";
@@ -99,6 +100,12 @@ pub const FILE_EXPORT: &str = "core.file.export";
 pub const EDIT_UNDO: &str = "core.edit.undo";
 pub const EDIT_REDO: &str = "core.edit.redo";
 
+/// The Assembly tab's commands (ADR-0030 §6): importing a STEP file as a
+/// new part, and making an assembly. Both are the Assembly tab's own, not
+/// generated from a feature type's spec.
+pub const IMPORT_STEP_CREATE: &str = "core.import-step.create";
+pub const ASSEMBLY_CREATE: &str = "core.assembly.create";
+
 /// Core feature types that are made in the Sketch tab; the rest of the core
 /// types are part features.
 const SKETCH_TYPES: &[&str] = &["core.sketch", "core.datum-plane"];
@@ -159,6 +166,10 @@ impl CommandRegistry {
                 id: CORE_PART_TAB.into(),
                 title: "Part".into(),
             },
+            TabSpec {
+                id: CORE_ASSEMBLY_TAB.into(),
+                title: "Assembly".into(),
+            },
         ];
         let mut commands = vec![
             command(PALETTE_OPEN, "Command palette", &["ctrl+k"]),
@@ -215,6 +226,18 @@ impl CommandRegistry {
                 group: "Sketch".into(),
             })
         };
+        for (id, title, group) in [
+            (IMPORT_STEP_CREATE, "Import STEP…", "Import"),
+            (ASSEMBLY_CREATE, "New assembly", "Assembly"),
+        ] {
+            commands.push(CommandSpec {
+                ribbon: Some(RibbonPlacement {
+                    tab: CORE_ASSEMBLY_TAB.into(),
+                    group: group.into(),
+                }),
+                ..document_command(id, title, &[])
+            });
+        }
         commands.push(CommandSpec {
             ribbon: sketch_group(),
             ..document_command(SKETCH_EDIT, "Edit sketch", &[])

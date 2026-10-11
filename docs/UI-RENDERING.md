@@ -28,7 +28,7 @@ headless harness. Where a section says "not built", it is later than C1.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│ ribbon: Sketch │ Part │ <plugin tabs> …                              │
+│ ribbon: Sketch │ Part │ Assembly │ <plugin tabs> …                              │
 ├──────────────────────────────────────────────────────────────────────┤
 │ ┌─────────────┐                                      ┌─────────────┐ │
 │ │ feature tree│              viewport      ViewCube  │ properties  │ │
@@ -108,7 +108,13 @@ else what to do next.
   `Request::Export` for the bodies the selection is in, every body with
   none selected; the file is written when the `Exported` event arrives, and
   the status line says so. It is a request, not a command: its gesture
-  counts zero. Each key or intent the app handles
+  counts zero. The **Assembly tab** (ADR-0030 §6) holds
+  `core.import-step.create` (an open dialog behind the `OpenDialog` trait,
+  beside the save dialog's; one `Group` of `AddFile`, `AddPart` and
+  `AddFeature`, so one gesture and one undo, and the tab then looks at the
+  new part) and `core.assembly.create` (`AddAssembly`, then looks at it);
+  the keymap context `assembly` is active while the tab looks at an
+  assembly and no sketch is edited. Each key or intent the app handles
   (a hover is none) is a **gesture**, opened and closed around its
   handling (a drag is one, closed by its release; a click on a finished
   sketch's item while a field asks for one is one too); the commands it
