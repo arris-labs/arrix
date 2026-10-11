@@ -430,16 +430,21 @@ impl Form {
     }
 
     /// The command OK submits on `doc`: one `AddFeature` at the end of the
-    /// first part, or, in a document with no part, a `Group` that adds one
-    /// with it. Or why the draft cannot be added.
+    /// part in view (`target`; else the first part), or, in a document with
+    /// no part, a `Group` that adds one with it. Or why the draft cannot be
+    /// added.
     pub(crate) fn command(
         &mut self,
         doc: &Document,
         ids: &mut IdMinter,
+        target: Option<PartId>,
     ) -> Result<Command, String> {
         let feature = FeatureId(crate::preview::minted(&mut self.feature, ids));
         let record = self.record(feature)?;
-        Ok(match doc.parts().values().next() {
+        let part = target
+            .and_then(|p| doc.parts().get(&p))
+            .or_else(|| doc.parts().values().next());
+        Ok(match part {
             Some(part) => Command::AddFeature {
                 part: part.id,
                 at: part.history.len(),
@@ -519,6 +524,7 @@ impl ArrixApp {
         form.active = first;
         if let Some(document) = self.documents.get_mut(self.active) {
             document.component_form = None;
+            document.joint_form = None;
             document.form = Some(form);
         }
         self.seed_form();
@@ -544,6 +550,7 @@ impl ArrixApp {
         };
         if let Some(document) = self.documents.get_mut(self.active) {
             document.component_form = None;
+            document.joint_form = None;
             document.form = Some(form);
         }
     }
@@ -552,6 +559,9 @@ impl ArrixApp {
     pub(crate) fn form_view(&self) -> Option<FormView> {
         if self.component_form_open() {
             return self.component_form_view();
+        }
+        if self.joint_form_open() {
+            return self.joint_form_view();
         }
         let document = self.active_document()?;
         let form = document.form.as_ref()?;
@@ -577,6 +587,7 @@ impl ArrixApp {
     /// record now says is dropped, so the record is what shows.
     pub(crate) fn follow_forms(&mut self) {
         self.follow_component_forms();
+        self.follow_joint_forms();
         for document in &mut self.documents {
             let Some(feature) = document.form.as_ref().and_then(|f| f.edit) else {
                 continue;
@@ -618,14 +629,18 @@ impl ArrixApp {
     }
 
     pub(crate) fn form_open(&self) -> bool {
-        self.active_document()
-            .is_some_and(|d| d.form.is_some() || d.component_form.is_some())
+        self.active_document().is_some_and(|d| {
+            d.form.is_some() || d.component_form.is_some() || d.joint_form.is_some()
+        })
     }
 
     /// What the user did in the open form.
     pub(crate) fn form_intent(&mut self, intent: UiIntent) {
         if self.component_form_open() {
             return self.component_form_intent(intent);
+        }
+        if self.joint_form_open() {
+            return self.joint_form_intent(intent);
         }
         // A form that shows a stored result takes no edit; it can be closed.
         if self.form_read_only() && !matches!(intent, UiIntent::FormOk | UiIntent::FormCancelled) {
@@ -813,6 +828,9 @@ impl ArrixApp {
         if self.component_form_open() {
             return self.component_form_ok();
         }
+        if self.joint_form_open() {
+            return self.joint_form_ok();
+        }
         // An edit form commits as it goes: Enter only closes it.
         if self
             .active_document()
@@ -824,10 +842,11 @@ impl ArrixApp {
         let Some(document) = self.documents.get_mut(self.active) else {
             return;
         };
+        let target = document.part_in_view();
         let Some(form) = document.form.as_mut() else {
             return;
         };
-        let command = match form.command(document.replica.document(), &mut self.ids) {
+        let command = match form.command(document.replica.document(), &mut self.ids, target) {
             Ok(command) => command,
             Err(reason) => {
                 self.session.notice = Some(reason);
@@ -849,6 +868,9 @@ impl ArrixApp {
     pub(crate) fn form_cancel(&mut self) {
         if self.component_form_open() {
             return self.component_form_cancel();
+        }
+        if self.joint_form_open() {
+            return self.joint_form_cancel();
         }
         if let Some(document) = self.documents.get_mut(self.active) {
             document.form = None;

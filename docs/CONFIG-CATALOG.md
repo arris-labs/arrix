@@ -55,6 +55,9 @@ the command registry and the setting specs; a test holds it fresh. Do not edit.
 | `core.import-step.create` | Import STEP… |  |  | core.assembly / Import |
 | `core.assembly.create` | New assembly |  |  | core.assembly / Assembly |
 | `core.assembly.component.create` | Insert component |  |  | core.assembly / Assembly |
+| `core.assembly.joint.fixed` | Fixed joint |  |  | core.assembly / Joint |
+| `core.assembly.joint.revolute` | Revolute joint |  |  | core.assembly / Joint |
+| `core.assembly.joint.prismatic` | Prismatic joint |  |  | core.assembly / Joint |
 | `core.sketch.edit` | Edit sketch |  |  | core.sketch / Sketch |
 | `core.sketch.finish` | Finish sketch | escape | sketch | core.sketch / Sketch |
 | `core.sketch.delete` | Delete | delete | sketch | core.sketch / Sketch |

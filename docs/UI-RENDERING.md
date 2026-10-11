@@ -124,8 +124,21 @@ else what to do next.
   the new row selected); an edit form is read from the record and commits
   one `EditComponent` per field, none for a value the record holds. The
   document's refusal of a command (`assembly.dangling` for a part it does
-  not hold) is the form's diagnostic. At most one of this and a feature's
-  form is open. Each key or intent the app handles
+  not hold) is the form's diagnostic. `core.assembly.joint.{fixed,
+  revolute,prismatic}` open the **joint form** the same way (a double-click
+  on a joint row opens it over the record): its kind, the parent and child
+  anchors (reference fields taking a face or an edge of a component, and
+  an optional origin face of the same one, picked with the component's
+  path), the value, offset and two limits in the kind's unit (none for a
+  fixed joint), and flip, a choice of two. What is selected in the scene
+  when the command runs is the parent, the next pick is the child. OK is
+  one `AddJoint`; an edit form commits one `EditJoint` per field, and
+  limits are given as a pair or not at all. A joint that lost an anchor
+  (`ref.lost`) shows it lost, asks for it to be picked again and lists the
+  evaluator's candidates; taking one, or a pick, replaces the anchor as
+  the user's one command, and nothing re-binds it by itself. At most one
+  of this, the component form and a feature's form is open; a feature's
+  create form adds to the part the tab looks at. Each key or intent the app handles
   (a hover is none) is a **gesture**, opened and closed around its
   handling (a drag is one, closed by its release; a click on a finished
   sketch's item while a field asks for one is one too); the commands it

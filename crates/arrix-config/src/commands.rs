@@ -108,6 +108,11 @@ pub const ASSEMBLY_CREATE: &str = "core.assembly.create";
 /// Inserting a component: a part or an assembly placed in the assembly in
 /// view; applies only there.
 pub const COMPONENT_CREATE: &str = "core.assembly.component.create";
+/// Adding a joint of a kind between two anchors; applies only in an
+/// assembly's view.
+pub const JOINT_FIXED: &str = "core.assembly.joint.fixed";
+pub const JOINT_REVOLUTE: &str = "core.assembly.joint.revolute";
+pub const JOINT_PRISMATIC: &str = "core.assembly.joint.prismatic";
 
 /// Core feature types that are made in the Sketch tab; the rest of the core
 /// types are part features.
@@ -233,6 +238,9 @@ impl CommandRegistry {
             (IMPORT_STEP_CREATE, "Import STEP…", "Import"),
             (ASSEMBLY_CREATE, "New assembly", "Assembly"),
             (COMPONENT_CREATE, "Insert component", "Assembly"),
+            (JOINT_FIXED, "Fixed joint", "Joint"),
+            (JOINT_REVOLUTE, "Revolute joint", "Joint"),
+            (JOINT_PRISMATIC, "Prismatic joint", "Joint"),
         ] {
             commands.push(CommandSpec {
                 ribbon: Some(RibbonPlacement {

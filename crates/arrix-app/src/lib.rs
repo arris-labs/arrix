@@ -17,6 +17,8 @@ mod file_export;
 mod form;
 mod form_pick;
 mod gestures;
+mod joint_form;
+mod joint_form_app;
 mod keys;
 mod palette;
 mod part_sketch;
@@ -41,13 +43,13 @@ pub use gestures::Gesture;
 use arrix_config::{
     ASSEMBLY_CREATE, COMPONENT_CREATE, CONFIG_RELOAD, CommandRegistry, Config, ConfigDiagnostic,
     ConfigSource, DOCUMENT_CLOSE, DOCUMENT_NEW, DOCUMENT_NEXT, DOCUMENT_PREVIOUS, EDIT_REDO,
-    EDIT_UNDO, FILE_EXPORT, FORM_CANCEL, FORM_OK, IMPORT_STEP_CREATE, Keymap, MemorySource,
-    PALETTE_CLOSE, PALETTE_NEXT, PALETTE_OPEN, PALETTE_PREVIOUS, PALETTE_RUN,
-    PANEL_PROPERTIES_TOGGLE, PANEL_TREE_TOGGLE, ParamDefaults, SELECTION_CLEAR, SKETCH_ARC,
-    SKETCH_CIRCLE, SKETCH_CONSTRUCTION, SKETCH_CREATE, SKETCH_DELETE, SKETCH_DIMENSION,
-    SKETCH_EDIT, SKETCH_EXTEND, SKETCH_FINISH, SKETCH_LINE, SKETCH_MIRROR, SKETCH_OFFSET,
-    SKETCH_RECTANGLE, SKETCH_SELECT, SKETCH_TOOL_CANCEL, SKETCH_TRIM, Settings, Theme, VIEW_FRONT,
-    VIEW_HOME, VIEW_ISO, VIEW_PROJECTION_TOGGLE, VIEW_RIGHT, VIEW_TOP,
+    EDIT_UNDO, FILE_EXPORT, FORM_CANCEL, FORM_OK, IMPORT_STEP_CREATE, JOINT_FIXED, JOINT_PRISMATIC,
+    JOINT_REVOLUTE, Keymap, MemorySource, PALETTE_CLOSE, PALETTE_NEXT, PALETTE_OPEN,
+    PALETTE_PREVIOUS, PALETTE_RUN, PANEL_PROPERTIES_TOGGLE, PANEL_TREE_TOGGLE, ParamDefaults,
+    SELECTION_CLEAR, SKETCH_ARC, SKETCH_CIRCLE, SKETCH_CONSTRUCTION, SKETCH_CREATE, SKETCH_DELETE,
+    SKETCH_DIMENSION, SKETCH_EDIT, SKETCH_EXTEND, SKETCH_FINISH, SKETCH_LINE, SKETCH_MIRROR,
+    SKETCH_OFFSET, SKETCH_RECTANGLE, SKETCH_SELECT, SKETCH_TOOL_CANCEL, SKETCH_TRIM, Settings,
+    Theme, VIEW_FRONT, VIEW_HOME, VIEW_ISO, VIEW_PROJECTION_TOGGLE, VIEW_RIGHT, VIEW_TOP,
 };
 use arrix_core::{FeatureId, IdMinter, RenderMesh};
 use arrix_plugin_api::FeatureTypeSpec;
@@ -805,10 +807,11 @@ impl ArrixApp {
             UiIntent::TreeComponentActivated { assembly, path } => {
                 self.open_component_edit(&assembly, &path);
             }
-            UiIntent::TreeJointActivated { assembly, .. } => {
-                if let Ok(assembly) = assembly.parse::<arrix_core::AssemblyId>() {
-                    self.look_at(context::Context::Assembly(assembly));
+            UiIntent::TreeJointActivated { assembly, joint } => {
+                if let Ok(id) = assembly.parse::<arrix_core::AssemblyId>() {
+                    self.look_at(context::Context::Assembly(id));
                 }
+                self.open_joint_edit(&assembly, &joint);
             }
             UiIntent::TreeFeatureSelected { feature } => {
                 if let Ok(feature) = feature.parse::<FeatureId>()
@@ -882,6 +885,9 @@ impl ArrixApp {
             IMPORT_STEP_CREATE => self.import_step(),
             ASSEMBLY_CREATE => self.create_assembly(),
             COMPONENT_CREATE => self.open_component_create(),
+            JOINT_FIXED => self.open_joint_create(arrix_doc::JointKind::Fixed),
+            JOINT_REVOLUTE => self.open_joint_create(arrix_doc::JointKind::Revolute),
+            JOINT_PRISMATIC => self.open_joint_create(arrix_doc::JointKind::Prismatic),
             SKETCH_CREATE => self.create_sketch(),
             SKETCH_EDIT => self.edit_sketch(),
             SKETCH_FINISH => self.finish_sketch(),

@@ -239,9 +239,10 @@ impl ArrixApp {
     pub(crate) fn follow_previews(&mut self) {
         for document in &mut self.documents {
             let doc = document.replica.document();
+            let target = document.part_in_view();
             let command = match document.form.as_mut() {
                 Some(form) if form.edit.is_none() && form.complete() => {
-                    form.command(doc, &mut self.ids).ok()
+                    form.command(doc, &mut self.ids, target).ok()
                 }
                 _ => None,
             };

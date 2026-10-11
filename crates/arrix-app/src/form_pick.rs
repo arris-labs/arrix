@@ -216,6 +216,9 @@ impl ArrixApp {
     /// the field, or says what the field takes. True when a field was
     /// asking, so the click selects nothing.
     pub(crate) fn form_pick_topo(&mut self, hit: Option<arrix_viewport::Hit>) -> bool {
+        if self.joint_field_asks() {
+            return self.joint_pick(hit);
+        }
         if !self.field_asks() {
             return false;
         }

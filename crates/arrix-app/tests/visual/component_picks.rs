@@ -14,13 +14,13 @@ type Harness<'a> = egui_kittest::Harness<'a, arrix_app::ArrixApp>;
 
 const SERVO: &str = "ESTFRCC4SPS9K";
 
-fn servo_2() -> ComponentId {
+pub(crate) fn servo_2() -> ComponentId {
     ComponentId(Id(99))
 }
 
 /// `tests/docs/assembly` with a second servo component grounded 80 mm
 /// along X from the origin, beside the bracket and the hinged servo.
-fn open_with_second_servo(h: &mut Harness<'_>) -> arrix_core::AssemblyId {
+pub(crate) fn open_with_second_servo(h: &mut Harness<'_>) -> arrix_core::AssemblyId {
     harness::open_settled(h, "tests/docs/assembly");
     let context = h
         .state()
@@ -55,7 +55,7 @@ fn open_with_second_servo(h: &mut Harness<'_>) -> arrix_core::AssemblyId {
 }
 
 /// Clicks around `centre` until a click lands on something of `path`.
-fn click_on(h: &mut Harness<'_>, centre: [f64; 3], path: &[ComponentId]) -> egui::Pos2 {
+pub(crate) fn click_on(h: &mut Harness<'_>, centre: [f64; 3], path: &[ComponentId]) -> egui::Pos2 {
     let at = h.state().screen_point(centre).expect("in front");
     for dy in [0.0f32, -6.0, 6.0, -12.0, 12.0, -20.0, 20.0, -30.0, 30.0] {
         for dx in [0.0f32, -8.0, 8.0, -16.0, 16.0, -30.0, 30.0] {

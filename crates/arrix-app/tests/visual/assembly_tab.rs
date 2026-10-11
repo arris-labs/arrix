@@ -25,7 +25,10 @@ fn the_assembly_tab_offers_the_import_an_assembly_and_a_component() {
                 [
                     ("Import STEP…", true),
                     ("New assembly", true),
-                    ("Insert component", true)
+                    ("Insert component", true),
+                    ("Fixed joint", true),
+                    ("Revolute joint", true),
+                    ("Prismatic joint", true)
                 ]
             );
             snapshot::check(h, "assembly_tab");

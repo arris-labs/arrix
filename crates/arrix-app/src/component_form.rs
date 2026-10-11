@@ -351,6 +351,7 @@ impl ArrixApp {
         let id = format!("new:component:{}", self.session.forms_opened);
         if let Some(document) = self.documents.get_mut(self.active) {
             document.form = None;
+            document.joint_form = None;
             document.clear_preview();
             document.component_form = Some(ComponentForm::create(id, assembly, name, of));
         }
@@ -374,6 +375,7 @@ impl ArrixApp {
             return;
         };
         document.form = None;
+        document.joint_form = None;
         document.clear_preview();
         document.component_form = Some(ComponentForm::edit(owner, component));
     }

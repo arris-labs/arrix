@@ -234,6 +234,9 @@ pub struct OpenDocument {
     /// A component's form in the property card, while there is one
     /// (ADR-0030 §5); never open together with `form`.
     pub component_form: Option<crate::component_form::ComponentForm>,
+    /// A joint's form in the property card, while there is one; never open
+    /// together with `form` or `component_form`.
+    pub joint_form: Option<crate::joint_form::JointForm>,
     /// Why the last command was refused by the document, as the form shows
     /// it; cleared by the next that applies.
     pub refusal: Option<Diagnostic>,
@@ -323,6 +326,7 @@ impl OpenDocument {
             sketch: None,
             form: None,
             component_form: None,
+            joint_form: None,
             refusal: None,
             part_sketches: std::collections::BTreeMap::new(),
             preview: crate::preview::FormPreview::default(),
@@ -535,6 +539,15 @@ impl OpenDocument {
             .or_else(|| Context::opening(doc))
     }
 
+    /// The part this tab looks at, as a new feature goes into; none in an
+    /// assembly's view.
+    pub fn part_in_view(&self) -> Option<PartId> {
+        match self.context() {
+            Some(Context::Part(part)) => Some(part),
+            _ => None,
+        }
+    }
+
     /// Looks at `context` from now on: the instances change, and the
     /// camera is fitted to them.
     pub fn set_context(&mut self, context: Context) {
@@ -546,6 +559,13 @@ impl OpenDocument {
             .is_some_and(|f| context != Context::Assembly(f.assembly()))
         {
             self.component_form = None;
+        }
+        if self
+            .joint_form
+            .as_ref()
+            .is_some_and(|f| context != Context::Assembly(f.assembly))
+        {
+            self.joint_form = None;
         }
         // What was picked or hovered is of the other context.
         self.view.selection = None;
