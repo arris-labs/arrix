@@ -50,7 +50,12 @@ impl Client {
 
     /// A client of a session whose registry is `registry`.
     pub fn with_registry(author: AuthorId, registry: Registry) -> Self {
-        let session = LocalSession::open(Document::default(), registry).unwrap();
+        Self::of_document(author, Document::default(), registry)
+    }
+
+    /// A client of a session that opened `doc`.
+    pub fn of_document(author: AuthorId, doc: Document, registry: Registry) -> Self {
+        let session = LocalSession::open(doc, registry).unwrap();
         let events = session.subscribe();
         let mut c = Client {
             session,

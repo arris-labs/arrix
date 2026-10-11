@@ -8,14 +8,15 @@
 use std::collections::BTreeMap;
 
 use arrix_core::{
-    AssemblyId, ComponentId, DMat3, DVec3, Diagnostic, Frame, JointId, PersistentName,
-    QuantityKind, Ref, Severity, TopoKind,
+    AssemblyId, ComponentId, Diagnostic, Frame, JointId, PersistentName, QuantityKind, Ref,
+    Severity, TopoKind,
 };
 use arrix_kernel::ARRIS_VERSION;
 use serde::{Deserialize, Serialize};
 
 use super::hash::InputHash;
 use super::host::kernel_diagnostic;
+use super::kinematics::{Rigid, Solvable, solve};
 use super::meshing::FinalBody;
 use super::resolve::{Params, candidates};
 use super::{Evaluator, interrupted};
@@ -85,70 +86,12 @@ pub enum JointOutcome {
     Failed { diagnostic: Diagnostic },
 }
 
-fn diagnostic(severity: Severity, code: &str, message: impl Into<String>) -> Diagnostic {
+pub(super) fn diagnostic(severity: Severity, code: &str, message: impl Into<String>) -> Diagnostic {
     Diagnostic::new(severity, code, message).expect("a literal code is well-formed")
 }
 
-fn error(code: &str, message: impl Into<String>) -> Diagnostic {
+pub(super) fn error(code: &str, message: impl Into<String>) -> Diagnostic {
     diagnostic(Severity::Error, code, message)
-}
-
-/// A proper rigid motion as a rotation and a translation: `x ↦ r·x + t`.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub(super) struct Rigid {
-    r: DMat3,
-    t: DVec3,
-}
-
-impl Rigid {
-    pub(super) const IDENTITY: Rigid = Rigid {
-        r: DMat3::IDENTITY,
-        t: DVec3::ZERO,
-    };
-
-    /// The motion taking the world's frame onto `frame`.
-    pub(super) fn of(frame: &Frame) -> Self {
-        Self {
-            r: DMat3::from_cols(frame.x_axis(), frame.y_axis(), frame.z_axis()),
-            t: frame.origin(),
-        }
-    }
-
-    pub(super) fn frame(self) -> Frame {
-        Frame::new(self.t, self.r.x_axis, self.r.z_axis)
-            .expect("a rigid motion's axes make a frame")
-    }
-
-    /// `self` after `then`: `then` applied first.
-    pub(super) fn then(self, then: Rigid) -> Rigid {
-        Rigid {
-            r: self.r * then.r,
-            t: self.r * then.t + self.t,
-        }
-    }
-
-    pub(super) fn inverse(self) -> Rigid {
-        let r = self.r.transpose();
-        Rigid {
-            r,
-            t: -(r * self.t),
-        }
-    }
-
-    fn rotation(r: DMat3) -> Rigid {
-        Rigid { r, t: DVec3::ZERO }
-    }
-
-    /// A pose: the position, then URDF's fixed-axis roll, pitch and yaw,
-    /// `Rz(yaw)·Ry(pitch)·Rx(roll)`.
-    pub(super) fn pose([x, y, z, roll, pitch, yaw]: [f64; 6]) -> Rigid {
-        Rigid {
-            r: DMat3::from_rotation_z(yaw)
-                * DMat3::from_rotation_y(pitch)
-                * DMat3::from_rotation_x(roll),
-            t: DVec3::new(x, y, z),
-        }
-    }
 }
 
 /// An anchor found on its part's final body, ready for its frame.
@@ -205,19 +148,6 @@ struct Inputs<'a> {
     components: Vec<(ComponentId, ComponentInput<'a>)>,
     /// A joint that is a loop by its structure alone is its diagnostic.
     joints: Vec<(JointId, &'a Result<Prepared<'a>, Diagnostic>)>,
-}
-
-/// A joint whose frames are known: what forward kinematics needs of it.
-struct Solvable {
-    value: f64,
-    parent_top: ComponentId,
-    /// The parent anchor's frame in its top component.
-    parent_local: Rigid,
-    child_top: ComponentId,
-    /// The child anchor's frame in its top component, flipped if asked.
-    child_local: Rigid,
-    motion: Rigid,
-    diagnostics: Vec<Diagnostic>,
 }
 
 /// What the cache keeps of one solve.
@@ -300,6 +230,10 @@ impl Evaluator {
             outcome.cached = true;
             return Ok(outcome);
         }
+        let grounded: BTreeMap<ComponentId, Result<Rigid, Diagnostic>> = poses
+            .iter()
+            .map(|(id, p)| (*id, p.clone().map(Rigid::pose)))
+            .collect();
         let mut outcomes = BTreeMap::new();
         let mut solvable = BTreeMap::new();
         for (id, prepared) in joints {
@@ -315,7 +249,7 @@ impl Evaluator {
         let outcome = AssemblyOutcome {
             hash,
             cached: false,
-            components: solve(assembly, &poses, solvable, &mut outcomes, nested),
+            components: solve(assembly, &grounded, solvable, &mut outcomes, nested),
             joints: outcomes,
         };
         self.solved.insert(
@@ -485,22 +419,15 @@ impl Evaluator {
         };
         let mut child_local = child.inner.then(Rigid::of(&child_frame));
         if prepared.flip {
-            child_local = child_local.then(Rigid::rotation(DMat3::from_rotation_x(
-                std::f64::consts::PI,
-            )));
+            child_local = child_local.then(Rigid::half_turn());
         }
         let q = values.value + values.offset;
-        let (value, motion) = match prepared.kind {
-            JointKind::Fixed => (0.0, Rigid::IDENTITY),
-            JointKind::Revolute => (q, Rigid::rotation(DMat3::from_rotation_z(q))),
-            JointKind::Prismatic => (
-                q,
-                Rigid {
-                    r: DMat3::IDENTITY,
-                    t: DVec3::Z * q,
-                },
-            ),
+        let value = if prepared.kind == JointKind::Fixed {
+            0.0
+        } else {
+            q
         };
+        let motion = Rigid::motion(prepared.kind, q);
         let mut diagnostics = Vec::new();
         if let Some([lo, hi]) = values.limits
             && !(lo..=hi).contains(&values.value)
@@ -630,122 +557,6 @@ fn loops(assembly: &Assembly) -> BTreeMap<JointId, Diagnostic> {
                 format!("joint {} closes a loop: {why}; it is ignored", joint.name),
             ),
         );
-    }
-    out
-}
-
-/// Forward kinematics (ADR-0029 §4): grounded components at their pose,
-/// each joint's child at `parent · F_parent · motion · F_child⁻¹`, a
-/// component with neither at the identity. Joints whose parents never
-/// get placed close a loop through each other: the last by id is
-/// `assembly.loop`, ignored, until the rest are placed.
-fn solve(
-    assembly: &Assembly,
-    poses: &BTreeMap<ComponentId, Result<[f64; 6], Diagnostic>>,
-    mut pending: BTreeMap<JointId, Solvable>,
-    outcomes: &mut BTreeMap<JointId, JointOutcome>,
-    nested: &BTreeMap<AssemblyId, AssemblyOutcome>,
-) -> Vec<PlacedComponent> {
-    let mut world: BTreeMap<ComponentId, Rigid> = BTreeMap::new();
-    let mut notes: BTreeMap<ComponentId, Vec<Diagnostic>> = BTreeMap::new();
-    let unplaced = |name: &str, why: &str| {
-        diagnostic(
-            Severity::Warning,
-            "assembly.unplaced",
-            format!("component {name} {why}; it sits at the assembly's origin"),
-        )
-    };
-    for (id, pose) in poses {
-        match pose {
-            Ok(values) => {
-                world.insert(*id, Rigid::pose(*values));
-            }
-            Err(d) => {
-                world.insert(*id, Rigid::IDENTITY);
-                notes.entry(*id).or_default().push(d.clone());
-            }
-        }
-    }
-    for c in assembly.components.values() {
-        if c.pose.is_some() || pending.values().any(|s| s.child_top == c.id) {
-            continue;
-        }
-        let failed = assembly.joints.values().find(|j| {
-            j.child.path.first() == Some(&c.id)
-                && matches!(outcomes.get(&j.id), Some(JointOutcome::Failed { .. }))
-        });
-        let why = match failed {
-            Some(j) => format!("is placed by joint {}, which failed", j.name),
-            None => "is neither grounded by a pose nor placed by a joint".to_owned(),
-        };
-        world.insert(c.id, Rigid::IDENTITY);
-        notes.entry(c.id).or_default().push(unplaced(&c.name, &why));
-    }
-    while !pending.is_empty() {
-        let ready: Vec<JointId> = pending
-            .iter()
-            .filter(|(_, s)| world.contains_key(&s.parent_top))
-            .map(|(id, _)| *id)
-            .collect();
-        if ready.is_empty() {
-            let (id, s) = pending.pop_last().expect("pending is not empty");
-            let name = &assembly.joints[&id].name;
-            let child = &assembly.components[&s.child_top].name;
-            outcomes.insert(
-                id,
-                JointOutcome::Failed {
-                    diagnostic: error(
-                        "assembly.loop",
-                        format!(
-                            "joint {name} closes a loop: its parent is placed through its own child; it is ignored"
-                        ),
-                    ),
-                },
-            );
-            world.insert(s.child_top, Rigid::IDENTITY);
-            notes.entry(s.child_top).or_default().push(unplaced(
-                child,
-                &format!("is placed by joint {name}, which closes a loop"),
-            ));
-            continue;
-        }
-        for id in ready {
-            let s = pending.remove(&id).expect("listed above");
-            let parent = world[&s.parent_top].then(s.parent_local);
-            let placed = parent.then(s.motion).then(s.child_local.inverse());
-            world.insert(s.child_top, placed);
-            outcomes.insert(
-                id,
-                JointOutcome::Ok {
-                    value: s.value,
-                    parent: parent.frame(),
-                    child: placed.then(s.child_local).frame(),
-                    diagnostics: s.diagnostics,
-                },
-            );
-        }
-    }
-    let mut out = Vec::new();
-    for c in assembly.components.values() {
-        let at = world[&c.id];
-        out.push(PlacedComponent {
-            path: vec![c.id],
-            pose: at.frame(),
-            diagnostics: notes.remove(&c.id).unwrap_or_default(),
-        });
-        if let ComponentOf::Assembly(a) = c.of
-            && let Some(inner) = nested.get(&a)
-        {
-            out.extend(inner.components.iter().map(|p| {
-                PlacedComponent {
-                    path: std::iter::once(c.id)
-                        .chain(p.path.iter().copied())
-                        .collect(),
-                    pose: at.then(Rigid::of(&p.pose)).frame(),
-                    diagnostics: Vec::new(),
-                }
-            }));
-        }
     }
     out
 }

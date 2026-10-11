@@ -20,6 +20,8 @@ arrix-config.workspace = true
 base64.workspace = true
 clap.workspace = true
 serde.workspace = true
+# The forward-kinematics property test (tests/c2_m2_fk.rs).
+proptest.workspace = true
 serde_json.workspace = true
 web-time.workspace = true
 
@@ -27,6 +29,8 @@ web-time.workspace = true
 # The wire spike (tests/wire_spike.rs, ADR-0022).
 ciborium.workspace = true
 serde.workspace = true
+# The forward-kinematics property test (tests/c2_m2_fk.rs).
+proptest.workspace = true
 # The serve tests check the wire against its schemas (tests/serve.rs).
 jsonschema.workspace = true
 # The scenario tests draw sketches (tests/slice.rs, tests/gears.rs).

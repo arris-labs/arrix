@@ -444,6 +444,7 @@ dependencies = [
  "ciborium",
  "clap",
  "jsonschema",
+ "proptest",
  "serde",
  "serde_json",
  "web-time",

@@ -13,6 +13,7 @@ mod hash;
 mod host;
 #[cfg(test)]
 mod input_tests;
+mod kinematics;
 mod line;
 mod meshing;
 mod project;
@@ -44,6 +45,7 @@ pub use assembly::{AssemblyOutcome, JointOutcome, PlacedComponent};
 pub use export::{ExportError, ExportedFile, export};
 pub use fixtures::{FailedCall, Run, SavedRecipe, run};
 pub use hash::InputHash;
+pub use kinematics::place;
 #[cfg(feature = "schema")]
 pub use line::eval_line_schema;
 pub use line::{
