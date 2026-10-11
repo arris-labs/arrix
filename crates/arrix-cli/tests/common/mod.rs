@@ -4,6 +4,7 @@
 
 #![allow(dead_code)]
 
+pub mod build;
 pub mod serve_client;
 
 use std::collections::BTreeMap;
@@ -263,5 +264,53 @@ pub fn assert_closed_mesh(triangles: &[Triangle], want: f64) {
     assert!(
         (volume - want).abs() <= 0.01 * want,
         "{volume} against {want}"
+    );
+}
+
+/// `arrix eval` of `files` written to a scratch directory, as `name`
+/// relative to the scratch space (so the line's `doc` is machine-free),
+/// with `args` before it. Returns the exit code and stdout.
+pub fn arrix_eval(
+    name: &str,
+    files: &arrix_doc::MemorySource,
+    args: &[&str],
+) -> (Option<i32>, String) {
+    let scratch = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join("eval-scratch");
+    let dir = scratch.join(name);
+    let _ = std::fs::remove_dir_all(&dir);
+    for (path, bytes) in &files.0 {
+        let to = dir.join(path);
+        std::fs::create_dir_all(to.parent().unwrap()).unwrap();
+        std::fs::write(to, bytes).unwrap();
+    }
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_arrix"))
+        .current_dir(&scratch)
+        .arg("eval")
+        .args(args)
+        .arg(name)
+        .output()
+        .expect("run arrix");
+    assert!(
+        out.stderr.is_empty(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    (out.status.code(), String::from_utf8(out.stdout).unwrap())
+}
+
+/// `stdout` is the golden's, or the golden is rewritten to it. The frozen
+/// bytes themselves are never committed (ADR-0001): a golden is the line
+/// `arrix eval` prints for them.
+pub fn golden(file: &str, stdout: &str) {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/golden")
+        .join(file);
+    if std::env::var_os("UPDATE_SNAPSHOTS").is_some() {
+        std::fs::write(&path, stdout).unwrap();
+    }
+    let want = std::fs::read_to_string(&path).expect("read the golden");
+    assert_eq!(
+        stdout, want,
+        "{file}: rerun with UPDATE_SNAPSHOTS=1 and read the diff"
     );
 }

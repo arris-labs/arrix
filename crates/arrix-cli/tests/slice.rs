@@ -11,14 +11,14 @@ use std::collections::BTreeMap;
 
 use arrix_core::{
     DVec3, FeatureId, IdMinter, NameRoot, ParamId, PartId, PersistentName, QuantityKind, Ref,
-    RegionKey, SlotName, SweepPartName, TopoKind,
+    SlotName, SweepPartName, TopoKind,
 };
 use arrix_doc::{
-    AuthorId, Command, Document, FeatureOutcome, FeatureRecord, FeatureTypeId, Param, Part,
-    Registry, Request, Session, SketchView, SlotView, apply, expr::Expr, open, save,
+    AuthorId, Command, Document, FeatureOutcome, Param, Part, Registry, Request, Session, apply,
+    expr::Expr, open, save,
 };
-use arrix_sketch::{Constraint, Draft, Entity, EntityId, Point, SketchEdit};
-use common::{Client, scenario_directory};
+use common::build::{extrude, near, record, rectangle_sketch, slot, view, volume, with};
+use common::{Client, arrix_eval, golden, scenario_directory};
 
 const MM: f64 = 1e-3;
 
@@ -80,148 +80,6 @@ impl Ids {
             .parse()
             .unwrap()
     }
-}
-
-fn slot(feature: FeatureId, name: &str) -> Ref {
-    Ref::Slot {
-        feature,
-        slot: SlotName::new(name).unwrap(),
-    }
-}
-
-fn record(id: FeatureId, ty: &str, name: &str) -> FeatureRecord {
-    FeatureRecord {
-        id,
-        type_id: FeatureTypeId::new(ty).unwrap(),
-        type_version: 1,
-        name: name.into(),
-        params: BTreeMap::new(),
-        choices: BTreeMap::new(),
-        inputs: BTreeMap::new(),
-        suppressed: false,
-        sketch: None,
-        frozen: None,
-        file: None,
-    }
-}
-
-fn with(mut r: FeatureRecord, params: &[(&str, &str)], inputs: &[(&str, Ref)]) -> FeatureRecord {
-    r.params = params
-        .iter()
-        .map(|(k, v)| (k.to_string(), Expr::parse(v).unwrap()))
-        .collect();
-    r.inputs = inputs
-        .iter()
-        .map(|(k, v)| (k.to_string(), v.clone().into()))
-        .collect();
-    r
-}
-
-fn view(c: &Client, sketch: FeatureId) -> &SketchView {
-    match c.outcome(sketch) {
-        FeatureOutcome::Ok { slots, .. } => match slots.values().next() {
-            Some(SlotView::Sketch(v)) => v,
-            other => panic!("feature {sketch}: {other:?}"),
-        },
-        other => panic!("feature {sketch}: {other:?}"),
-    }
-}
-
-/// A body slot's volume in cubic millimetres.
-fn volume(c: &Client, feature: FeatureId) -> f64 {
-    match c.outcome(feature) {
-        FeatureOutcome::Ok { slots, .. } => match slots.get(&SlotName::new("body").unwrap()) {
-            Some(SlotView::Body(m)) => m.volume * 1e9,
-            other => panic!("feature {feature}: {other:?}"),
-        },
-        other => panic!("feature {feature}: {other:?}"),
-    }
-}
-
-fn near(a: f64, b: f64) -> bool {
-    (a - b).abs() <= 1e-9 * b.abs().max(1.0)
-}
-
-/// A sketch feature on `plane` (the world XY without one), with a
-/// rectangle of `w` × `h` whose corner `(x, y)` is fixed, all in the
-/// sketch's own millimetres; `w_expr` and `h_expr` are its dimensions'
-/// expressions, if any. Returns the key of its one region.
-fn rectangle_sketch(
-    c: &mut Client,
-    (feature, at): (FeatureId, usize),
-    part: PartId,
-    plane: Option<Ref>,
-    (x, y, w, h): (f64, f64, f64, f64),
-    exprs: (Option<&str>, Option<&str>),
-) -> RegionKey {
-    let mut r = record(feature, "core.sketch", &format!("Sketch {at}"));
-    r.sketch = Some(Box::default());
-    r.inputs
-        .extend(plane.map(|p| ("plane".to_string(), p.into())));
-    c.submit(Command::AddFeature {
-        part,
-        at,
-        record: r,
-    });
-    let mut draft = Draft::seeded(7);
-    let corners = [(x, y), (x + w, y), (x + w, y + h), (x, y + h)];
-    let p = corners.map(|(cx, cy)| draft.add_point(Point::new(cx * MM, cy * MM)));
-    let sides: Vec<EntityId> = (0..4)
-        .map(|i| {
-            draft.add_entity(Entity::Line {
-                start: p[i],
-                end: p[(i + 1) % 4],
-            })
-        })
-        .collect();
-    draft.point_mut(p[0]).unwrap().fixed = true;
-    for (i, line) in sides.iter().enumerate() {
-        draft.add_constraint(if i % 2 == 0 {
-            Constraint::Horizontal { line: *line }
-        } else {
-            Constraint::Vertical { line: *line }
-        });
-    }
-    for (a, b, value, expr) in [(0, 1, w, exprs.0), (1, 2, h, exprs.1)] {
-        let id = draft.add_constraint(Constraint::Distance {
-            a: p[a],
-            b: p[b],
-            value: value * MM,
-        });
-        draft.set_constraint_expr(id, expr.map(String::from));
-    }
-    assert!(draft.solve().converged);
-    let stored = {
-        let (_, _, record) = c.replica.document().feature(feature).unwrap();
-        record.sketch.as_deref().unwrap().clone()
-    };
-    let edit = SketchEdit::diff(&stored, &draft);
-    c.submit(Command::SketchEdit { feature, edit });
-    let v = view(c, feature);
-    assert_eq!((v.dof, v.regions.len()), (0, 1));
-    v.regions[0].key.clone()
-}
-
-fn extrude(
-    id: FeatureId,
-    name: &str,
-    sketch: FeatureId,
-    key: RegionKey,
-    mode: &str,
-) -> FeatureRecord {
-    let mut r = with(
-        record(id, "core.extrude", name),
-        &[],
-        &[(
-            "region",
-            Ref::Region {
-                feature: sketch,
-                key,
-            },
-        )],
-    );
-    r.choices.insert("mode".into(), mode.into());
-    r
 }
 
 /// Criterion 1: parameters, the plate, the datum plane on its top face,
@@ -577,50 +435,6 @@ fn the_saved_slice_zips_deterministically_with_its_blobs() {
     assert_eq!(arrix_doc::save_zip(&reopened).unwrap(), zip);
     assert_eq!(arrix_doc::from_zip(&zip).unwrap().0, save(&doc).0);
     assert_eq!(blobs(&save(&reopened)).len(), 2);
-}
-
-/// `arrix eval` of `files` written to a scratch directory, as `name`
-/// relative to the scratch space (so the line's `doc` is machine-free),
-/// with `args` before it. Returns the exit code and stdout.
-fn arrix_eval(name: &str, files: &arrix_doc::MemorySource, args: &[&str]) -> (Option<i32>, String) {
-    let scratch = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join("slice-frozen");
-    let dir = scratch.join(name);
-    let _ = std::fs::remove_dir_all(&dir);
-    for (path, bytes) in &files.0 {
-        let to = dir.join(path);
-        std::fs::create_dir_all(to.parent().unwrap()).unwrap();
-        std::fs::write(to, bytes).unwrap();
-    }
-    let out = std::process::Command::new(env!("CARGO_BIN_EXE_arrix"))
-        .current_dir(&scratch)
-        .arg("eval")
-        .args(args)
-        .arg(name)
-        .output()
-        .expect("run arrix");
-    assert!(
-        out.stderr.is_empty(),
-        "{}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    (out.status.code(), String::from_utf8(out.stdout).unwrap())
-}
-
-/// `stdout` is the golden's, or the golden is rewritten to it. The frozen
-/// bytes themselves are never committed (ADR-0001): a golden is the line
-/// `arrix eval` prints for them.
-fn golden(file: &str, stdout: &str) {
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/golden")
-        .join(file);
-    if std::env::var_os("UPDATE_SNAPSHOTS").is_some() {
-        std::fs::write(&path, stdout).unwrap();
-    }
-    let want = std::fs::read_to_string(&path).expect("read the golden");
-    assert_eq!(
-        stdout, want,
-        "{file}: rerun with UPDATE_SNAPSHOTS=1 and read the diff"
-    );
 }
 
 #[test]
