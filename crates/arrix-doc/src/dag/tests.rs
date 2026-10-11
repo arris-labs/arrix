@@ -5,7 +5,7 @@ use arrix_sketch::{Constraint, Draft};
 use proptest::prelude::*;
 
 use super::*;
-use crate::document::{Document, FeatureRecord, FeatureTypeId, Param, Part};
+use crate::document::{Document, FeatureRecord, FeatureTypeId, Invalid, Param, Part};
 use crate::expr::Expr;
 
 fn fid(n: u64) -> FeatureId {
@@ -474,5 +474,283 @@ proptest! {
             apply(&mut doc, n as u64 + 1, edit);
             check(&doc, &touched)?;
         }
+    }
+}
+
+mod assemblies {
+    use arrix_core::{AssemblyId, ComponentId, JointId, SlotName};
+
+    use super::*;
+    use crate::assembly::{Anchor, Assembly, Component, ComponentOf, Joint, JointKind, Pose};
+    use crate::registry::Registry;
+
+    fn e(text: &str) -> Expr {
+        Expr::parse(text).unwrap()
+    }
+
+    fn typed(
+        id: u64,
+        type_id: &str,
+        params: &[(&str, &str)],
+        inputs: Vec<(&str, Ref)>,
+    ) -> FeatureRecord {
+        FeatureRecord {
+            type_id: FeatureTypeId::new(type_id).unwrap(),
+            params: params.iter().map(|(k, v)| (k.to_string(), e(v))).collect(),
+            inputs: inputs
+                .into_iter()
+                .map(|(k, r)| (k.to_string(), r.into()))
+                .collect(),
+            ..record(fid(id), vec![], &[])
+        }
+    }
+
+    fn body_of(feature: u64) -> Ref {
+        Ref::Slot {
+            feature: fid(feature),
+            slot: SlotName::new("body").unwrap(),
+        }
+    }
+
+    fn component(id: u64, of: ComponentOf, pose: Option<&str>) -> Component {
+        Component {
+            id: ComponentId(Id(id)),
+            name: format!("c{id}"),
+            of,
+            pose: pose.map(|z| Pose {
+                position: [e("0 mm"), e("0 mm"), e(z)],
+                rpy: [e("0 deg"), e("0 deg"), e("0 deg")],
+            }),
+        }
+    }
+
+    fn anchor(path: &[u64], axis: Ref) -> Anchor {
+        let Ref::Topo(axis) = axis else { panic!() };
+        Anchor {
+            path: path.iter().map(|c| ComponentId(Id(*c))).collect(),
+            axis,
+            origin: None,
+        }
+    }
+
+    fn assembly(id: u64, components: Vec<Component>, joints: Vec<Joint>) -> Assembly {
+        Assembly {
+            id: AssemblyId(Id(id)),
+            name: format!("a{id}"),
+            components: components.into_iter().map(|c| (c.id, c)).collect(),
+            joints: joints.into_iter().map(|j| (j.id, j)).collect(),
+        }
+    }
+
+    const BRACKET: PartId = PartId(Id(10));
+    const OTHER: PartId = PartId(Id(11));
+    const SERVO: PartId = PartId(Id(12));
+    const ASM: u64 = 50;
+    const C_BRACKET: u64 = 51;
+    const C_SERVO: u64 = 52;
+    const C_OTHER: u64 = 53;
+    const JOINT: u64 = 60;
+
+    /// A bracket (a plate, two fillets of it by `r` and `s`, then a datum
+    /// plane by `d`), an unrelated part with a sketch-like feature, a servo
+    /// part, and an assembly whose joint goes from a face of the plate to a
+    /// face of the servo, its value `angle`.
+    fn scene() -> Document {
+        let mut doc = Document::default();
+        for (id, name, expr) in [
+            (1, "w", "20 mm"),
+            (2, "r", "1 mm"),
+            (3, "s", "2 mm"),
+            (4, "d", "5 mm"),
+            (5, "angle", "30 deg"),
+            (6, "z", "3 mm"),
+            (7, "zo", "4 mm"),
+        ] {
+            param(&mut doc, id, name, expr);
+        }
+        push_feature(
+            &mut doc,
+            BRACKET,
+            typed(20, "core.extrude", &[("distance", "w")], vec![]),
+        );
+        push_feature(
+            &mut doc,
+            BRACKET,
+            typed(
+                21,
+                "core.fillet",
+                &[("radius", "r")],
+                vec![("target", body_of(20))],
+            ),
+        );
+        push_feature(
+            &mut doc,
+            BRACKET,
+            typed(
+                22,
+                "core.fillet",
+                &[("radius", "s")],
+                vec![("target", body_of(20))],
+            ),
+        );
+        push_feature(
+            &mut doc,
+            BRACKET,
+            typed(23, "core.datum-plane", &[("offset", "d")], vec![]),
+        );
+        push_feature(
+            &mut doc,
+            OTHER,
+            typed(30, "core.extrude", &[("distance", "20 mm")], vec![]),
+        );
+        push_feature(&mut doc, SERVO, typed(40, "core.import-step", &[], vec![]));
+        let joint = Joint {
+            id: JointId(Id(JOINT)),
+            name: "hinge".into(),
+            kind: JointKind::Revolute,
+            parent: anchor(&[C_BRACKET], topo(20)),
+            child: anchor(&[C_SERVO], topo(40)),
+            value: e("angle"),
+            offset: e("0 deg"),
+            limits: None,
+            flip: false,
+        };
+        let a = assembly(
+            ASM,
+            vec![
+                component(C_BRACKET, ComponentOf::Part(BRACKET), Some("z")),
+                component(C_SERVO, ComponentOf::Part(SERVO), None),
+                component(C_OTHER, ComponentOf::Part(OTHER), Some("zo")),
+            ],
+            vec![joint],
+        );
+        doc.assemblies.insert(a.id, a);
+        doc
+    }
+
+    fn dag(doc: &Document) -> Dag {
+        doc.validate().unwrap();
+        Dag::build_with(doc, &Registry::with_core_types()).unwrap()
+    }
+
+    fn dirty(dag: &Dag, touched: &[Node]) -> Vec<Node> {
+        dag.dirty(&touched.iter().copied().collect())
+    }
+
+    const JOINT_NODE: Node = Node::Joint(JointId(Id(JOINT)));
+    const ASSEMBLY_NODE: Node = Node::Assembly(AssemblyId(Id(ASM)));
+
+    #[test]
+    fn a_joint_reads_its_anchors_and_its_parameters() {
+        let d = dag(&scene());
+        let reads: BTreeSet<Node> = d.reads(JOINT_NODE).collect();
+        let want = [
+            Node::Param(ParamId(Id(5))),
+            Node::Component(ComponentId(Id(C_BRACKET))),
+            Node::Component(ComponentId(Id(C_SERVO))),
+            Node::Part(BRACKET),
+            Node::Part(SERVO),
+            Node::Feature(fid(40)),
+            // The plate, and every feature that modifies its body: not the
+            // datum plane after them.
+            Node::Feature(fid(20)),
+            Node::Feature(fid(21)),
+            Node::Feature(fid(22)),
+        ];
+        assert_eq!(reads, want.into_iter().collect::<BTreeSet<_>>());
+        let assembly: BTreeSet<Node> = d.reads(ASSEMBLY_NODE).collect();
+        assert!(assembly.contains(&JOINT_NODE));
+        assert!(assembly.contains(&Node::Component(ComponentId(Id(C_OTHER)))));
+        // The ordering puts the joint after what it reads and before its
+        // assembly.
+        let at = |n: Node| d.order().iter().position(|m| *m == n).unwrap();
+        assert!(at(Node::Feature(fid(22))) < at(JOINT_NODE));
+        assert!(at(JOINT_NODE) < at(ASSEMBLY_NODE));
+    }
+
+    #[test]
+    fn a_width_edit_dirties_the_joint_and_an_unanchored_edit_does_not() {
+        let d = dag(&scene());
+        let w = dirty(&d, &[Node::Param(ParamId(Id(1)))]);
+        assert!(
+            w.contains(&JOINT_NODE) && w.contains(&ASSEMBLY_NODE),
+            "{w:?}"
+        );
+        // A modifier of the anchored body, late in the history.
+        let s = dirty(&d, &[Node::Param(ParamId(Id(3)))]);
+        assert!(s.contains(&JOINT_NODE), "{s:?}");
+        // The joint's own value, and the pose of the bracket's component.
+        assert!(dirty(&d, &[Node::Param(ParamId(Id(5)))]).contains(&JOINT_NODE));
+        // The pose of the bracket's component places the joint's parent.
+        let z = dirty(&d, &[Node::Param(ParamId(Id(6)))]);
+        assert!(z.contains(&JOINT_NODE), "{z:?}");
+        // The pose of a component no joint goes through does not.
+        let zo = dirty(&d, &[Node::Param(ParamId(Id(7)))]);
+        assert!(!zo.contains(&JOINT_NODE), "{zo:?}");
+        assert!(zo.contains(&ASSEMBLY_NODE));
+        // A feature after the anchored body's last, one in an unanchored
+        // part, and a part nothing anchors to leave the joint alone.
+        for untouched in [
+            Node::Param(ParamId(Id(4))),
+            Node::Feature(fid(23)),
+            Node::Feature(fid(30)),
+            Node::Part(OTHER),
+        ] {
+            let dirt = dirty(&d, &[untouched]);
+            assert!(!dirt.contains(&JOINT_NODE), "{untouched:?}: {dirt:?}");
+        }
+        // Rolling the anchored part back, or adding to it, can change what
+        // the names resolve against.
+        assert!(dirty(&d, &[Node::Part(BRACKET)]).contains(&JOINT_NODE));
+        // Editing the component the joint places does too.
+        assert!(dirty(&d, &[Node::Component(ComponentId(Id(C_SERVO)))]).contains(&JOINT_NODE));
+    }
+
+    #[test]
+    fn an_assembly_in_itself_is_a_cycle_at_any_depth() {
+        let mut doc = scene();
+        let (outer, inner) = (AssemblyId(Id(70)), AssemblyId(Id(71)));
+        let nest = |id: u64, of: AssemblyId| {
+            assembly(
+                id,
+                vec![component(id + 10, ComponentOf::Assembly(of), None)],
+                vec![],
+            )
+        };
+        doc.assemblies.insert(outer, nest(70, inner));
+        doc.assemblies.insert(inner, nest(71, outer));
+        let err = doc.validate().unwrap_err();
+        let Invalid::Dag(DagError::Cycle(nodes)) = &err else {
+            panic!("{err}")
+        };
+        assert!(nodes.contains(&Node::Assembly(outer)) && nodes.contains(&Node::Assembly(inner)));
+        assert_eq!(err.diagnostic().code.as_str(), "dag.cycle");
+        // Itself, directly.
+        let mut doc = scene();
+        doc.assemblies.insert(outer, nest(70, outer));
+        assert!(matches!(
+            doc.validate().unwrap_err(),
+            Invalid::Dag(DagError::Cycle(_))
+        ));
+        // Nesting without a loop is fine, and reads the nested assembly.
+        let mut doc = scene();
+        doc.assemblies.insert(outer, nest(70, AssemblyId(Id(ASM))));
+        let d = doc.validate().unwrap();
+        assert!(
+            d.reads(Node::Component(ComponentId(Id(80))))
+                .any(|n| n == ASSEMBLY_NODE)
+        );
+    }
+
+    #[test]
+    fn a_lost_path_is_no_edge_but_its_first_component_is_read() {
+        let mut doc = scene();
+        let a = doc.assemblies.get_mut(&AssemblyId(Id(ASM))).unwrap();
+        a.joints.get_mut(&JointId(Id(JOINT))).unwrap().child.path =
+            vec![ComponentId(Id(C_SERVO)), ComponentId(Id(99))];
+        let d = dag(&doc);
+        let reads: BTreeSet<Node> = d.reads(JOINT_NODE).collect();
+        assert!(reads.contains(&Node::Component(ComponentId(Id(C_SERVO)))));
+        assert!(!reads.contains(&Node::Part(SERVO)) && !reads.contains(&Node::Feature(fid(40))));
     }
 }

@@ -467,13 +467,31 @@ types modify what, so `Dag::build_with(doc, registry)` adds them and the
 evaluator uses it; `Dag::build` and `Document::validate` stay
 registry-free and hold the explicit edges alone.
 
+**Assembly nodes** (ADR-0029 §10; `arrix_doc::Node::{Assembly, Component,
+Joint}`): a component reads its part or nested assembly and the
+parameters of its pose; a joint reads the parameters of its `value`,
+`offset` and `limits`, the components each anchor's path goes through
+(`dag::anchor_target`), the anchored part (its order and rollback place
+what a name resolves against), and the features a name resolves against:
+those its root and steps name, and, with the registry, every feature
+before the rollback that modifies or consumes the body slot its root made
+(the part's final state of it, which the last of them reads through the
+versions above). A feature after them, and any feature of a part nothing
+anchors to, is no edge. A path that leads nowhere is no edge but its first
+component, which a repair edits (the evaluator's `ref.lost`). An assembly
+reads its components and joints. An assembly containing itself, at any
+depth, is a `dag.cycle`, refused as a command's result like any other.
+The assembly commands touch these nodes, ranked after the features
+(components, then joints, then assemblies, each by id).
+
 - **Within a part**, a feature references only features before it in
   `history`. Reordering is a command that is refused when it would break
   that.
 - **Across parts**, a feature may reference another part's feature output
   (a sketch projected from another part's face, a body used as a tool).
   Such an edge makes the whole referenced prefix of the other part an
-  input.
+  input. (As built, a feature naming another part's body is still
+  `input.cross-part`; a joint's anchor is the one cross-part reference.)
 - **A cycle is refused** at command application, with the cycle's nodes in
   the diagnostic. The document never holds a cyclic graph.
 - **Dirty propagation**: a command marks the nodes it touched; the

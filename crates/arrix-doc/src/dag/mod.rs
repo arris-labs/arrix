@@ -4,6 +4,7 @@
 //! included; a feature also reads its part, whose order and rollback place
 //! it.
 
+mod assembly;
 #[cfg(test)]
 mod tests;
 
@@ -253,6 +254,7 @@ impl Dag {
                 reads.insert(node, set);
             }
         }
+        assembly::add(doc, registry, &mut reads, &mut rank);
         let mut readers: BTreeMap<Node, BTreeSet<Node>> =
             reads.keys().map(|n| (*n, BTreeSet::new())).collect();
         for (n, rs) in &reads {
