@@ -7,8 +7,8 @@ before its plan starts. One section per cycle; a finished cycle compresses
 to its status line (`/close-cycle`), and the next is detailed below it.
 
 Spine: **C1** (the vertical slice with a plugin feature in it; done), then
-**the boundary opened** (the agent's way in; ADR-0016; done), **C2** (the
-mechanical core; next), **C3** (the boundary crossed), **C4** (the web). Beyond
+**the boundary opened** (the agent's way in; ADR-0016; done), **C2** (assemblies
+and exchange; next), **C3** (the boundary crossed), **C4** (the web). Beyond
 C4, the named cycles are unordered.
 
 ---
@@ -107,16 +107,43 @@ document opens on a machine without the plugin with the feature frozen and
 its reason given; the packaged test kit passes the plugin; the whole gate
 stays green.
 
-## C2 — the mechanical core
+## C2 — assemblies and exchange
 
-Assemblies (components, instances, joints, FK), materials, mass
-properties, measure, section view, STEP import as a feature with assembly
-structure (A4), 3MF, DXF/SVG sketch exchange. First, the exchange unit:
-Arris's STEP writer declares millimetres for ArriX's metres, so a length
-unit on the writer (an Arris ask) and an ADR fixing ArriX's exchange unit
-come before import. Each capability says core or plugin when it is
-planned (`SEED.md` §6.2). Accept: a real multi-part assembly round-trips
-through STEP against another CAD's reading of it.
+*Goal: a document holds assemblies of parts, imported vendor parts among
+them, placed by joints whose values are expressions, and an assembly leaves
+and returns through STEP with its structure, in metres.*
+
+**Status: open.** Split from the mechanical core by ADR-0027; M1 is
+planned (`docs/plans/c2-m1.md`). The risk to retire: a persistent name
+across parts and instances, into imported and frozen geometry.
+
+**In:**
+- The exchange unit (ADR-0028): metres in, metres out; STEP export stays
+  refused (`kernel.export.unit`) until Arris ships the writer's length unit
+  (A12).
+- `core.import-step`: a feature whose file is a blob in the document and
+  whose faces are named from the file's entities.
+- Assemblies (ADR-0029): components, nested assemblies, fixed, revolute and
+  prismatic joints, tree forward kinematics, schema 4.
+- Materials (density, appearance) and mass properties per body, part and
+  assembly.
+- STEP with product structure both ways (A4).
+
+**Out:** measure, section view, 3MF and DXF/SVG exchange (the named cycle
+"the mechanical core completed", after Arris's query cycle, A6); a general
+mate solver and closed loops; interference checks; in-context design (a
+feature naming another part's geometry); references to other `.arrx` files;
+healing a vendor file (A7).
+
+**Milestones:** M1 assemblies in the document, headless (import, model,
+commands, FK, `arrix eval` and the protocol); M2 the app (instanced meshes,
+picking by component path, tree, joint form and tool, drag); M3 exchange
+and the accept (structure both ways, materials, mass).
+
+**Accept:** a real multi-part assembly round-trips through STEP against
+another CAD's reading of it: Open CASCADE through a script, never in CI,
+into a committed text golden, on an assembly ArriX builds (bracket, servo,
+horn) and one vendor STEP Arris reads cleanly.
 
 ## C3 — the boundary crossed
 
@@ -141,6 +168,8 @@ None is scheduled. Each earns a section when `/close-cycle` opens it.
 - Interference checks (on Arris's query cycle).
 - A drawings plugin.
 - Sheet metal.
+- The mechanical core completed: measure, section view, 3MF, DXF/SVG
+  sketch exchange (after Arris's query cycle, ADR-0027).
 - A general assembly mate solver.
 - Configurations.
 - A plugin index.
