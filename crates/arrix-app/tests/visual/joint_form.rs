@@ -119,6 +119,10 @@ fn a_joint_is_a_draft_filled_by_two_picks_until_ok() {
         let made = joints(h);
         assert_eq!(made.len(), 2);
         let new = made.iter().find(|j| j["name"] == "revolute").unwrap();
+        // The fields left alone are zeros in their units, not bare numbers
+        // (which the evaluator refuses as an angle).
+        assert_eq!(new["value"], "0 deg");
+        assert_eq!(new["offset"], "0 deg");
         assert_eq!(new["parent"]["path"], serde_json::json!([BRACKET]));
         assert_eq!(
             new["child"]["path"],

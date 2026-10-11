@@ -422,8 +422,18 @@ impl JointForm {
             true => Self::stored(Some(&held), field),
             false => self.text(Some(&held), field),
         };
-        let parse =
-            |field: &str| Expr::parse(&text(field)).map_err(|e| format!("Joint: {field}: {e}"));
+        // The fields show their unit beside the text, so a bare number (the
+        // untouched zeros among them) is in it.
+        let unit = quantity(joint.kind).map_or("", |(_, unit)| unit);
+        let parse = |field: &str| {
+            let text = text(field);
+            let text = if text.trim().parse::<f64>().is_ok() {
+                format!("{} {unit}", text.trim())
+            } else {
+                text
+            };
+            Expr::parse(&text).map_err(|e| format!("Joint: {field}: {e}"))
+        };
         joint.value = parse("value")?;
         joint.offset = parse("offset")?;
         let given = |field: &str| !text(field).trim().is_empty();
