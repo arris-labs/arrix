@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
-  "description": "What `arrix-app render --json` writes. Only the fields marked `x-arrix-promised` are kept across a format; the rest of `debug_state` is informational (ADR-0026).",
+  "description": "What `arrix-app render --json` writes. Only the fields marked `x-arrix-promised` (always present) or `x-arrix-promised-when` (present under the condition it names) are kept across a format; the rest of `debug_state` is informational (ADR-0026).",
   "properties": {
     "adapter": {
       "description": "The wgpu adapter drawn on: name, backend and driver.",
@@ -167,6 +167,28 @@
           "type": "array",
           "x-arrix-promised": true
         },
+        "context": {
+          "description": "What the active tab looks at, a part or an assembly. Present once the document has an assembly.",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "kind": {
+              "description": "`part` or `assembly`.",
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "name"
+          ],
+          "type": "object",
+          "x-arrix-promised-when": "the active document has an assembly"
+        },
         "evaluation": {
           "description": "Where the active document's evaluation is. Absent without a document.",
           "properties": {
@@ -199,6 +221,65 @@
           ],
           "type": "object",
           "x-arrix-promised": true
+        },
+        "instances": {
+          "description": "In an assembly's context, each placed component's body at its world pose, in metres. Absent in a part's.",
+          "items": {
+            "properties": {
+              "feature": {
+                "type": "string"
+              },
+              "origin": {
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 3,
+                "minItems": 3,
+                "type": "array"
+              },
+              "part": {
+                "type": "string"
+              },
+              "path": {
+                "description": "The component ids from the assembly down to the part.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "slot": {
+                "type": "string"
+              },
+              "x_axis": {
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 3,
+                "minItems": 3,
+                "type": "array"
+              },
+              "z_axis": {
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 3,
+                "minItems": 3,
+                "type": "array"
+              }
+            },
+            "required": [
+              "path",
+              "part",
+              "feature",
+              "slot",
+              "origin",
+              "x_axis",
+              "z_axis"
+            ],
+            "type": "object"
+          },
+          "type": "array",
+          "x-arrix-promised-when": "the active document has an assembly"
         }
       },
       "type": "object"

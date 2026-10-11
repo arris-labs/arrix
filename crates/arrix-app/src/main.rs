@@ -54,6 +54,10 @@ struct RenderArgs {
     /// The view to draw from, once the document has settled.
     #[arg(long, value_enum)]
     view: Option<arrix_app::render::View>,
+    /// The part or assembly to look at, by id or name; else where the
+    /// document opens (its first root assembly, else its first part).
+    #[arg(long, value_name = "ID|NAME")]
+    context: Option<String>,
     /// The window, in pixels.
     #[arg(long, value_name = "WxH", default_value = "1440x900", value_parser = parse_size)]
     size: (u32, u32),
@@ -112,6 +116,7 @@ fn render(args: &RenderArgs) -> std::process::ExitCode {
         plugins: args.plugins.clone(),
         without: args.without.clone(),
         view: args.view,
+        context: args.context.clone(),
     };
     let done = render_document(document, &options).and_then(|r| {
         if let Some(json) = &args.json {

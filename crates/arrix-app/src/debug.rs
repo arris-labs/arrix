@@ -23,9 +23,17 @@ pub struct DebugState {
     /// The active document's evaluation, once one is open.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub evaluation: Option<EvaluationDebug>,
+    /// What the active tab looks at (ADR-0030 §1); present once the
+    /// document has an assembly, since a part's is then the only choice.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context: Option<ContextDebug>,
     /// The active document's bodies as the scene holds them.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub bodies: Vec<BodyDebug>,
+    /// In an assembly's context, what is drawn: each placed component's
+    /// body at its world pose, one upload per body however many there are.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub instances: Vec<InstanceDebug>,
     /// The create form's preview in the active document, while one is
     /// asked for (ADR-0019).
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -138,6 +146,29 @@ pub struct EvaluationDebug {
     pub problems: Vec<String>,
 }
 
+/// What a tab looks at.
+#[derive(Debug, Serialize)]
+pub struct ContextDebug {
+    /// `part` or `assembly`.
+    pub kind: String,
+    pub id: String,
+    pub name: String,
+}
+
+/// One instance of a body: where a component's part is drawn.
+#[derive(Debug, Serialize)]
+pub struct InstanceDebug {
+    /// The component ids from the assembly down to the part.
+    pub path: Vec<String>,
+    pub part: String,
+    pub feature: String,
+    pub slot: String,
+    /// Where the part's origin and axes land in the world, in metres.
+    pub origin: [f64; 3],
+    pub x_axis: [f64; 3],
+    pub z_axis: [f64; 3],
+}
+
 /// One body in the scene.
 #[derive(Debug, Serialize)]
 pub struct BodyDebug {
@@ -189,6 +220,29 @@ fn body_debug(e: &BodyEntry<GpuMesh>) -> BodyDebug {
     }
 }
 
+/// Poses are compared to a nanometre: six places would hide a drift.
+fn round9(x: f64) -> f64 {
+    (x * 1e9).round() / 1e9
+}
+
+fn context_debug(d: &crate::documents::OpenDocument) -> Option<ContextDebug> {
+    let doc = d.replica.document();
+    if doc.assemblies().is_empty() {
+        return None;
+    }
+    let context = d.context()?;
+    let (name, id) = context.names(doc)?;
+    let kind = match context {
+        crate::context::Context::Part(_) => "part",
+        crate::context::Context::Assembly(_) => "assembly",
+    };
+    Some(ContextDebug {
+        kind: kind.to_owned(),
+        id,
+        name,
+    })
+}
+
 fn round6(x: f32) -> f64 {
     (f64::from(x) * 1e6).round() / 1e6
 }
@@ -216,7 +270,9 @@ impl ArrixApp {
                 theme: self.theme.name.clone(),
                 shell: None,
                 evaluation: None,
+                context: None,
                 bodies: Vec::new(),
+                instances: Vec::new(),
                 preview: None,
                 camera: None,
                 selection: None,
@@ -254,8 +310,27 @@ impl ArrixApp {
                 settled: d.settled(),
                 problems: d.problems.clone(),
             }),
+            context: self.active_document().and_then(context_debug),
             bodies: self.active_document().map_or_else(Vec::new, |d| {
                 d.view.scene.entries().map(body_debug).collect()
+            }),
+            instances: self.active_document().map_or_else(Vec::new, |d| {
+                let round = |v: arrix_core::DVec3| [v.x, v.y, v.z].map(round9);
+                d.view
+                    .scene
+                    .instances()
+                    .unwrap_or_default()
+                    .iter()
+                    .map(|i| InstanceDebug {
+                        path: i.path.iter().map(|c| c.0.to_string()).collect(),
+                        part: i.key.part.0.to_string(),
+                        feature: i.key.feature.0.to_string(),
+                        slot: i.key.slot.to_string(),
+                        origin: round(i.pose.origin()),
+                        x_axis: round(i.pose.x_axis()),
+                        z_axis: round(i.pose.z_axis()),
+                    })
+                    .collect()
             }),
             preview: self
                 .active_document()

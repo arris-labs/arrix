@@ -867,12 +867,14 @@ the way in.
   draws a state to `target/visual-scratch/scratch.{png,json}` and compares
   against nothing: the agent's way to look before it pins a scenario.
 - **The product render** (`arrix-app render <doc> -o <png> [--json
-  <file>] [--view home|top|front|right|iso] [--size WxH] [--plugin <dir>]…
-  [--without-plugin <id>]…`, ADR-0025) is the same drawing outside the test
+  <file>] [--view home|top|front|right|iso] [--context <id|name>] [--size WxH]
+  [--plugin <dir>]… [--without-plugin <id>]…`, ADR-0025) is the same drawing outside the test
   harness: the real app on its own `egui::Context` (`ArrixApp::headless`),
   stepped as the harness steps it, painted through `egui_wgpu` into a
   texture and read back, after the document has settled. `--view` runs the
-  app's view command once it has; `--size` is the window in pixels
+  app's view command once it has; `--context` looks at a part or an
+  assembly by id or name instead of where the document opens (its first
+  root assembly, else its first part); `--size` is the window in pixels
   (1440×900 by default); `--plugin` starts a Tier 2 plugin for the
   document and `--without-plugin` leaves one out, so a frozen feature draws
   with its badge, as `arrix eval`'s flags do. The JSON is `{format, adapter,
@@ -887,7 +889,10 @@ the way in.
   --schema` prints its schema, `render::schema()`, held by a golden that
   `render_cli` validates every render against. The schema marks the
   promised fields of `debug_state()` `x-arrix-promised`: `bodies`,
-  `camera`, `badges`, `evaluation` and `diagnostics`. Everything else in
+  `camera`, `badges`, `evaluation` and `diagnostics`; and, marked
+  `x-arrix-promised-when` (present only under the condition it names),
+  `context` and `instances` of an assembly (C2, additive, `Harness: render
+  1, additive`). Everything else in
   it is informational and may change without a version bump, so a scenario
   golden may pin it and an agent should not. Changes inside `format` 1 are
   additive only.

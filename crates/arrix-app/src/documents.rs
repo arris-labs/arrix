@@ -6,6 +6,7 @@
 use std::collections::BTreeSet;
 use std::time::Duration;
 
+use crate::context::{self, Context};
 use crate::sketch_mode::SketchMode;
 use arrix_core::{Diagnostic, FeatureId, Id, MeshDetail, PersistentName};
 use arrix_doc::{
@@ -220,10 +221,16 @@ pub struct OpenDocument {
     pub part_sketches: std::collections::BTreeMap<FeatureId, crate::part_sketch::PartSketch>,
     /// The create form's preview, while one is asked for (ADR-0019).
     pub preview: crate::preview::FormPreview,
+    /// What the user switched this tab to; else it looks where the
+    /// document opens (ADR-0030 §1).
+    chosen: Option<Context>,
     /// Whether the camera has been fitted to the bodies: it is once, on
     /// the first mesh, and never again, so a later edit does not take the
     /// view away from the user.
     framed: bool,
+    /// An assembly's first fit is redone as each coarse mesh lands, since
+    /// the first body to arrive is not the whole: until a refined one does.
+    fitting: bool,
     mesh: MeshProgress,
     /// When `Finished` of the current generation was heard.
     finished_at: Option<(Generation, Instant)>,
@@ -297,7 +304,9 @@ impl OpenDocument {
             form: None,
             part_sketches: std::collections::BTreeMap::new(),
             preview: crate::preview::FormPreview::default(),
+            chosen: None,
             framed: false,
+            fitting: false,
             mesh: MeshProgress::default(),
             finished_at: None,
             settled: false,
@@ -453,11 +462,16 @@ impl OpenDocument {
                         if let Some(renderer) = renderer {
                             self.view.scene.set_body(renderer.device(), &key, mesh);
                         }
+                        self.refresh_view();
                         self.frame_once();
+                        if *detail == MeshDetail::Refined {
+                            self.fitting = false;
+                        }
                     }
                     Err(diagnostic) => self.problems.push(diagnostic.message.clone()),
                 }
             }
+            SessionEvent::Assembled { .. } => self.refresh_view(),
             SessionEvent::Opened { types, .. } => self.type_changes.added.extend(types.clone()),
             SessionEvent::Registry { added, removed, .. } => {
                 self.type_changes.added.extend(added.clone());
@@ -473,13 +487,60 @@ impl OpenDocument {
         }
     }
 
-    /// Fits the camera to the bodies, the first time there are any.
+    /// What this tab looks at: the user's choice while the document still
+    /// has it, else where the document opens. `None` for an empty one.
+    pub fn context(&self) -> Option<Context> {
+        let doc = self.replica.document();
+        self.chosen
+            .filter(|c| c.exists(doc))
+            .or_else(|| Context::opening(doc))
+    }
+
+    /// Looks at `context` from now on: the instances change, and the
+    /// camera is fitted to them.
+    pub fn set_context(&mut self, context: Context) {
+        self.chosen = Some(context);
+        self.framed = false;
+        self.fitting = false;
+        self.refresh_view();
+        self.frame_once();
+    }
+
+    /// Makes the scene draw the context: a part's bodies alone at their
+    /// origin, or an assembly's components at the poses last heard.
+    fn refresh_view(&mut self) {
+        let context = self.context();
+        let scene = &mut self.view.scene;
+        match context {
+            Some(Context::Assembly(id)) => {
+                let keys: Vec<BodyKey> = scene.keys().cloned().collect();
+                let list = context::instances(&self.replica, id, &keys);
+                scene.set_instances(Some(list));
+            }
+            context => {
+                scene.set_instances(None);
+                let keys: Vec<BodyKey> = scene.keys().cloned().collect();
+                for key in keys {
+                    let shown = match context {
+                        Some(Context::Part(part)) => key.part == part,
+                        _ => true,
+                    };
+                    scene.set_body_visible(&key, shown);
+                }
+            }
+        }
+    }
+
+    /// Fits the camera to the bodies, the first time there are any (an
+    /// assembly's, until the first refined mesh: see `fitting`).
     fn frame_once(&mut self) {
-        if self.framed {
+        if self.framed && !self.fitting {
             return;
         }
         if let Some((centre, radius)) = self.view.scene.bounding_sphere() {
             self.view.camera.frame_bounds(centre, radius);
+            self.fitting = matches!(self.context(), Some(Context::Assembly(_)))
+                && (self.fitting || self.mesh.refined == 0);
             self.framed = true;
         }
     }

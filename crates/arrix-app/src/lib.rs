@@ -5,6 +5,7 @@ mod badges;
 mod commands;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod config_files;
+mod context;
 mod debug;
 #[cfg(not(target_arch = "wasm32"))]
 mod document_files;
@@ -468,6 +469,18 @@ impl ArrixApp {
     pub fn last_click(&self) -> Option<arrix_viewport::Hit> {
         let view = self.active_document().map_or(&self.idle_view, |d| &d.view);
         view.last_click.clone()
+    }
+
+    /// Switches the active tab to the part or assembly `spec` names, by id
+    /// or by name (`arrix-app render --context`).
+    pub fn set_context(&mut self, spec: &str) -> Result<(), String> {
+        let document = self
+            .documents
+            .get_mut(self.active)
+            .ok_or("no document is open")?;
+        let context = context::Context::parse(document.replica.document(), spec)?;
+        document.set_context(context);
+        Ok(())
     }
 
     /// The active view, a document's or the empty start's.

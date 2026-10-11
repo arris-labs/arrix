@@ -32,6 +32,9 @@ pub struct RenderOptions {
     /// The view the camera turns to once the document has settled; `None`
     /// keeps the one it opens with (home).
     pub view: Option<View>,
+    /// The part or assembly to look at, by id or name, instead of where
+    /// the document opens.
+    pub context: Option<String>,
 }
 
 impl Default for RenderOptions {
@@ -41,6 +44,7 @@ impl Default for RenderOptions {
             plugins: Vec::new(),
             without: Vec::new(),
             view: None,
+            context: None,
         }
     }
 }
@@ -121,7 +125,7 @@ pub fn schema() -> serde_json::Value {
     serde_json::json!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "title": "arrix-app render JSON",
-        "description": "What `arrix-app render --json` writes. Only the fields marked `x-arrix-promised` are kept across a format; the rest of `debug_state` is informational (ADR-0026).",
+        "description": "What `arrix-app render --json` writes. Only the fields marked `x-arrix-promised` (always present) or `x-arrix-promised-when` (present under the condition it names) are kept across a format; the rest of `debug_state` is informational (ADR-0026).",
         "type": "object",
         "properties": {
             "format": {"description": "This schema's version.", "const": FORMAT},
@@ -134,6 +138,35 @@ pub fn schema() -> serde_json::Value {
                         "x-arrix-promised": true,
                         "type": "array",
                         "items": body
+                    },
+                    "context": {
+                        "description": "What the active tab looks at, a part or an assembly. Present once the document has an assembly.",
+                        "x-arrix-promised-when": "the active document has an assembly",
+                        "type": "object",
+                        "properties": {
+                            "kind": {"description": "`part` or `assembly`.", "type": "string"},
+                            "id": string(),
+                            "name": string()
+                        },
+                        "required": ["kind", "id", "name"]
+                    },
+                    "instances": {
+                        "description": "In an assembly's context, each placed component's body at its world pose, in metres. Absent in a part's.",
+                        "x-arrix-promised-when": "the active document has an assembly",
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "path": {"description": "The component ids from the assembly down to the part.", "type": "array", "items": string()},
+                                "part": string(),
+                                "feature": string(),
+                                "slot": string(),
+                                "origin": numbers(3),
+                                "x_axis": numbers(3),
+                                "z_axis": numbers(3)
+                            },
+                            "required": ["path", "part", "feature", "slot", "origin", "x_axis", "z_axis"]
+                        }
                     },
                     "camera": {
                         "description": "The camera the active view looks through. Absent without a document.",
@@ -256,6 +289,9 @@ pub fn render_with(
             ));
         }
         std::thread::sleep(Duration::from_millis(5));
+    }
+    if let Some(context) = &options.context {
+        app.set_context(context)?;
     }
     app.skip_animations();
     if let Some(view) = options.view {

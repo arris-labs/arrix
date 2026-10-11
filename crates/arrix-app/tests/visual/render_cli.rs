@@ -306,5 +306,30 @@ fn renders_validate_and_carry_every_promised_field() {
                 "promised field `{field}` is missing from the render"
             );
         }
+
+        let mut cmd = render(&["tests/docs/assembly", "--size", "320x200"]);
+        cmd.args(["-o", path(&png), "--json", path(&json)]);
+        let assembly = rendered(cmd, &json);
+        assert_valid(&validator, &assembly, "the assembly");
+        let state = &assembly["debug_state"];
+        assert_eq!(state["context"]["kind"], "assembly");
+        assert_eq!(state["instances"].as_array().map(Vec::len), Some(2));
+
+        // `--context` looks at a part by name, and refuses an unknown one.
+        let mut cmd = render(&[
+            "tests/docs/assembly",
+            "--context",
+            "Bracket",
+            "--size",
+            "320x200",
+        ]);
+        cmd.args(["-o", path(&png), "--json", path(&json)]);
+        let part = rendered(cmd, &json);
+        assert_valid(&validator, &part, "the bracket");
+        assert_eq!(part["debug_state"]["context"]["kind"], "part");
+        assert!(part["debug_state"]["instances"].is_null());
+        let mut cmd = render(&["tests/docs/assembly", "--context", "nothing"]);
+        cmd.args(["-o", path(&png)]);
+        assert_eq!(cmd.output().expect("it runs").status.code(), Some(1));
     });
 }
