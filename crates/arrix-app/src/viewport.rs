@@ -149,13 +149,12 @@ pub fn show(
         hover_left = true;
     }
     if let Some(renderer) = renderer {
-        // A part's context, so every name is of no component.
-        let hover = view.hover.clone().map(Hit::bare);
-        let selection = view.selection.clone().map(Hit::bare);
+        // The form's marks are of no component until its fields pick with
+        // their path (plans/c2-m2 step 9).
         let marked: Vec<Hit> = view.marked.iter().cloned().map(Hit::bare).collect();
         let highlights = Highlights {
-            hover: hover.as_ref(),
-            selection: selection.as_ref(),
+            hover: view.hover.as_ref(),
+            selection: view.selection.as_ref(),
             marked: &marked,
             components: &view.component_marks,
         };

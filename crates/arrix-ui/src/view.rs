@@ -328,6 +328,10 @@ pub enum UiIntent {
     /// nothing.
     Picked {
         name: Option<arrix_core::PersistentName>,
+        /// The component ids from the assembly the entity is of; empty in
+        /// a part's context.
+        #[serde(default)]
+        path: Vec<String>,
     },
     /// A part's name in the tree was clicked: the tab looks at it.
     TreePartActivated { part: String },
@@ -419,5 +423,8 @@ pub enum UiIntent {
     /// hover becomes it. Session state, no command.
     Hovered {
         name: Option<arrix_core::PersistentName>,
+        /// As for `Picked`.
+        #[serde(default)]
+        path: Vec<String>,
     },
 }

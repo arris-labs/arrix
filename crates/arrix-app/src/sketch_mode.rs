@@ -130,11 +130,14 @@ impl ArrixApp {
             return;
         };
         let doc = document.replica.document();
+        // A face of a component is at its pose in the assembly, not the
+        // part's own: a sketch goes on a face seen in the part's context.
         let face = document
             .view
             .selection
             .as_ref()
-            .filter(|n| n.kind == TopoKind::Face);
+            .filter(|h| h.path.is_empty() && h.name.kind == TopoKind::Face)
+            .map(|h| &h.name);
         let datum = document.view.feature_selection.filter(|id| {
             doc.parts()
                 .values()

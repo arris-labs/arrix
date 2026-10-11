@@ -89,6 +89,19 @@ struct Session {
 
 /// A seed for the id minter: the clock, which a session's ids need only to
 /// differ from the last session's, whose ids a document may hold.
+/// The entity a pick names, of the component at `path` (the ids as the
+/// intent carries them); a path that does not parse is no hit.
+fn hit_of(
+    name: Option<arrix_core::PersistentName>,
+    path: &[String],
+) -> Option<arrix_viewport::Hit> {
+    let path: Result<Vec<arrix_core::ComponentId>, _> = path.iter().map(|c| c.parse()).collect();
+    Some(arrix_viewport::Hit {
+        path: path.ok()?,
+        name: name?,
+    })
+}
+
 fn entropy() -> u64 {
     web_time::SystemTime::now()
         .duration_since(web_time::UNIX_EPOCH)
@@ -514,9 +527,18 @@ impl ArrixApp {
         // The answer is drawn next frame; nothing else may wake the app for
         // it, nor for a read-back still on its way.
         ctx.request_repaint();
-        answer.map(|(purpose, name)| match purpose {
-            PickFor::Click => UiIntent::Picked { name },
-            PickFor::Hover => UiIntent::Hovered { name },
+        answer.map(|(purpose, hit)| {
+            let (name, path) = match hit {
+                Some(hit) => (
+                    Some(hit.name),
+                    hit.path.iter().map(|c| c.0.to_string()).collect(),
+                ),
+                None => (None, Vec::new()),
+            };
+            match purpose {
+                PickFor::Click => UiIntent::Picked { name, path },
+                PickFor::Hover => UiIntent::Hovered { name, path },
+            }
         })
     }
 
@@ -657,8 +679,12 @@ impl ArrixApp {
                 if let Some(mode) = &document.sketch {
                     return self.sketch_hint(document, mode);
                 }
-                if let Some(name) = &document.view.hover {
-                    return match document.view.selection.as_ref() == Some(name) {
+                if let Some(hit) = &document.view.hover {
+                    let name = match document.component_label(&hit.path) {
+                        Some(label) => format!("{} in {label}", hit.name),
+                        None => hit.name.to_string(),
+                    };
+                    return match document.view.selection.as_ref() == Some(hit) {
                         true => format!("{name}: selected. Escape clears the selection."),
                         false => format!("{name}: click to select it."),
                     };
@@ -725,9 +751,10 @@ impl ArrixApp {
                 }
             }
             UiIntent::DocumentTabClosed { index } => self.close_document(index),
-            UiIntent::Picked { name } => {
-                if !self.form_pick_topo(name.clone()) {
-                    self.view_mut().selection = name;
+            UiIntent::Picked { name, path } => {
+                let hit = hit_of(name, &path);
+                if !self.form_pick_topo(hit.clone()) {
+                    self.view_mut().selection = hit;
                 }
             }
             UiIntent::SketchHovered { hit } => self.hover_sketch(hit),
@@ -783,7 +810,7 @@ impl ArrixApp {
                     self.activate_feature(feature);
                 }
             }
-            UiIntent::Hovered { name } => self.view_mut().hover = name,
+            UiIntent::Hovered { name, path } => self.view_mut().hover = hit_of(name, &path),
             intent @ (UiIntent::FieldEdited { .. }
             | UiIntent::FieldCommitted { .. }
             | UiIntent::NameCommitted { .. }
@@ -824,7 +851,11 @@ impl ArrixApp {
                 let shown = self.cards().properties;
                 self.toggles_mut().properties = Some(!shown);
             }
-            SELECTION_CLEAR => self.view_mut().selection = None,
+            SELECTION_CLEAR => {
+                let view = self.view_mut();
+                view.selection = None;
+                view.component_selection = None;
+            }
             VIEW_HOME => self.view_mut().home(),
             VIEW_TOP => self.view_mut().turn_to(StandardView::Top),
             VIEW_FRONT => self.view_mut().turn_to(StandardView::Front),
@@ -1083,7 +1114,10 @@ impl ArrixApp {
             self.apply(intent);
         }
         if hover_left {
-            self.apply(UiIntent::Hovered { name: None });
+            self.apply(UiIntent::Hovered {
+                name: None,
+                path: Vec::new(),
+            });
             ui.ctx().request_repaint();
         }
         if let Some(pointer) = part_pointer {

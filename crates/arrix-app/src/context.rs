@@ -91,6 +91,27 @@ fn leaf_part(doc: &Document, root: AssemblyId, path: &[ComponentId]) -> Option<P
     leaf
 }
 
+/// The names of the components along `path`, following nested assemblies
+/// from `root`; it stops where the path leads nowhere.
+pub fn component_names(doc: &Document, root: AssemblyId, path: &[ComponentId]) -> Vec<String> {
+    let mut assembly = root;
+    let mut names = Vec::new();
+    for id in path {
+        let Some(component) = doc
+            .assemblies()
+            .get(&assembly)
+            .and_then(|a| a.components.get(id))
+        else {
+            break;
+        };
+        names.push(component.name.clone());
+        if let ComponentOf::Assembly(a) = component.of {
+            assembly = a;
+        }
+    }
+    names
+}
+
 /// Every placed component of `root` that places a part, once per body of
 /// that part the scene holds, at the pose the last `Assembled` gave it
 /// (nested ones composed, `assembly.unplaced` ones at the identity).

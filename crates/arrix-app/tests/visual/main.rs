@@ -4,6 +4,7 @@ mod accept;
 mod assembly_view;
 mod camera;
 mod coarse;
+mod component_picks;
 mod export;
 mod fixture;
 mod form_diagnostics;

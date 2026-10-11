@@ -215,17 +215,17 @@ impl ArrixApp {
     /// A click in the scene while a field asks: puts the entity under it in
     /// the field, or says what the field takes. True when a field was
     /// asking, so the click selects nothing.
-    pub(crate) fn form_pick_topo(&mut self, name: Option<PersistentName>) -> bool {
+    pub(crate) fn form_pick_topo(&mut self, hit: Option<arrix_viewport::Hit>) -> bool {
         if !self.field_asks() {
             return false;
         }
-        let Some(name) = name else {
+        let Some(hit) = hit else {
             return true;
         };
         let view = &self.active_document().expect("a form is open").view;
         let extend = view.click_extend;
-        let body = view.scene.body_of(&[], &name).cloned();
-        self.form_pick(&Pick::Topo(name, body), extend);
+        let body = view.scene.body_of(&hit.path, &hit.name).cloned();
+        self.form_pick(&Pick::Topo(hit.name, body), extend);
         true
     }
 
@@ -412,9 +412,9 @@ impl ArrixApp {
             return;
         };
         let mut picks = Vec::new();
-        if let Some(name) = &document.view.selection {
-            let body = document.view.scene.body_of(&[], name).cloned();
-            picks.push(Pick::Topo(name.clone(), body));
+        if let Some(hit) = &document.view.selection {
+            let body = document.view.scene.body_of(&hit.path, &hit.name).cloned();
+            picks.push(Pick::Topo(hit.name.clone(), body));
         }
         if let Some(feature) = document.view.feature_selection {
             picks.push(Pick::Feature(feature));

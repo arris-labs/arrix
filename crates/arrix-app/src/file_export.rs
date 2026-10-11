@@ -9,6 +9,8 @@ use std::path::PathBuf;
 use arrix_core::{Diagnostic, ExportFormat};
 use arrix_doc::{BodySlot, Session};
 
+use arrix_viewport::Hit;
+
 use crate::ArrixApp;
 use crate::documents::OpenDocument;
 
@@ -37,7 +39,7 @@ impl OpenDocument {
     /// The bodies the selection is in, as the export names them; empty when
     /// nothing is selected, which exports every body.
     fn selected_bodies(&self) -> Vec<BodySlot> {
-        let Some(name) = &self.view.selection else {
+        let Some(Hit { name, .. }) = &self.view.selection else {
             return Vec::new();
         };
         self.view

@@ -44,6 +44,13 @@ pub struct DebugState {
     /// What is selected in the active view, by persistent name.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub selection: Option<PersistentName>,
+    /// The component ids from the assembly the selection is of; absent in
+    /// a part's context.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub selection_path: Vec<String>,
+    /// As `selection_path`, for the hover.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hover_path: Vec<String>,
     /// What the open form marks in the scene, drawn as the selection is:
     /// its fields' references, and an edit form's diagnostic's references
     /// and candidates.
@@ -276,6 +283,8 @@ impl ArrixApp {
                 preview: None,
                 camera: None,
                 selection: None,
+                selection_path: Vec::new(),
+                hover_path: Vec::new(),
                 marked: Vec::new(),
                 hover: None,
                 picking: false,
@@ -361,9 +370,19 @@ impl ArrixApp {
             }),
             selection: self
                 .active_document()
-                .and_then(|d| d.view.selection.clone()),
+                .and_then(|d| d.view.selection.as_ref().map(|h| h.name.clone())),
             marked: self.form_marks(),
-            hover: self.active_document().and_then(|d| d.view.hover.clone()),
+            hover: self
+                .active_document()
+                .and_then(|d| d.view.hover.as_ref().map(|h| h.name.clone())),
+            selection_path: self
+                .active_document()
+                .and_then(|d| d.view.selection.as_ref())
+                .map_or_else(Vec::new, |h| path_ids(&h.path)),
+            hover_path: self
+                .active_document()
+                .and_then(|d| d.view.hover.as_ref())
+                .map_or_else(Vec::new, |h| path_ids(&h.path)),
             picking: self
                 .active_document()
                 .is_some_and(|d| d.view.pick.is_some()),
@@ -407,4 +426,8 @@ impl ArrixApp {
         serde_json::to_string_pretty(&self.debug_state())
             .unwrap_or_else(|err| format!("{{\"error\": \"{err}\"}}"))
     }
+}
+
+fn path_ids(path: &[arrix_core::ComponentId]) -> Vec<String> {
+    path.iter().map(|c| c.0.to_string()).collect()
 }

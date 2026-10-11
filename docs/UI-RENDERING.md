@@ -215,7 +215,7 @@ rule).
   `CommandInvoked { command }` (a ribbon button, a palette row or a key),
   `RibbonTabSelected { tab }`, `PaletteQuery { text }`, `PaletteClosed`,
   `DocumentTabSelected { index }`, `DocumentTabClosed { index }`,
-  `Picked { name }`, `Hovered { name }`, `TreeFeatureSelected { feature }`,
+  `Picked { name, path }`, `Hovered { name, path }`, `TreeFeatureSelected { feature }`,
   `TreeFeatureActivated { feature }`, `TreePartActivated { part }`,
   `TreeAssemblyActivated { assembly }`, `TreeComponentSelected { assembly,
   path }`, `TreeJointActivated { assembly, joint }`, `SketchHovered { hit }`,
@@ -678,8 +678,16 @@ draws). Ported, reviewed on the way in (`SEED.md` §8.1).
   scene keeps per body, only if the body still holds the mesh the pass
   drew (a refined mesh may land in between). A click on a card
   never reaches the viewport (a layer above). The result is
-  `UiIntent::Picked { name }`, `None` for empty space, and the selection is
-  session state per tab. The path is the same on native and wasm, and
+  `UiIntent::Picked { name, path }`, `None` for empty space, `path` the
+  component ids from the assembly (empty in a part's context), and the
+  selection and the hover are session state per tab, each a `Hit`: a
+  context change drops both. In an assembly the status line names the
+  component the hovered entity is of (`face:… in servo 2`, nested ones
+  joined by `/`), Escape clears the selection and the tree's component, and
+  `debug_state()` adds `selection_path` and `hover_path` (informational). A
+  face of a component is at its pose, so a sketch is not created on it: that
+  is done in the part's context. A frozen badge sits on each instance of its
+  feature's faces. The path is the same on native and wasm, and
   needs nothing from the document, so it stays client-side in remote mode.
 - **Hover and selection** restyle index ranges, over the finished scene
   and under no screen-space pass. A mesh keeps, beside its buffers, where

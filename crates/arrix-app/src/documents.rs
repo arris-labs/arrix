@@ -36,11 +36,12 @@ pub(crate) const LOCAL_AUTHOR: AuthorId = AuthorId(Id(1));
 pub struct ViewState {
     pub scene: Scene<GpuMesh>,
     pub camera: OrbitCamera,
-    pub selection: Option<PersistentName>,
+    /// The entity picked, with the component path it is of.
+    pub selection: Option<Hit>,
     /// The feature selected in the tree.
     pub feature_selection: Option<FeatureId>,
     /// What the pointer is over, as of the last hover pick that came back.
-    pub hover: Option<PersistentName>,
+    pub hover: Option<Hit>,
     /// Where the pointer was when a hover pick was last asked for; a pick
     /// is asked for again only once it has moved.
     pub hover_at: Option<egui::Pos2>,
@@ -56,9 +57,8 @@ pub struct ViewState {
     /// What the open form's reference fields hold, drawn as the selection
     /// is. Set every frame from the form.
     pub marked: Vec<PersistentName>,
-    /// What the last click's pick landed on, its component path included;
-    /// the selection keeps the name alone until picks carry the path
-    /// (plans/c2-m2 step 6).
+    /// What the last click's pick landed on, even when a form took it
+    /// rather than the selection.
     pub last_click: Option<Hit>,
     /// The component selected in the tree: its assembly and its path.
     pub component_selection: Option<(AssemblyId, Vec<ComponentId>)>,
@@ -76,9 +76,10 @@ pub enum PickFor {
 
 impl ViewState {
     /// What the pick on its way resolved to, once its read-back has
-    /// arrived: what it was for, and the entity's name or `None` for empty
-    /// space. Polled once a frame, after [`Renderer::poll`].
-    pub fn take_pick(&mut self) -> Option<(PickFor, Option<PersistentName>)> {
+    /// arrived: what it was for, and the entity (its name and component
+    /// path) or `None` for empty space. Polled once a frame, after
+    /// [`Renderer::poll`].
+    pub fn take_pick(&mut self) -> Option<(PickFor, Option<Hit>)> {
         let (pending, purpose) = self.pick.as_ref()?;
         let hit = pending.poll()?;
         let hit = hit.and_then(|h| self.scene.resolve(&pending.bodies, h));
@@ -87,7 +88,7 @@ impl ViewState {
         if purpose == PickFor::Click {
             self.last_click = hit.clone();
         }
-        Some((purpose, hit.map(|h| h.name)))
+        Some((purpose, hit))
     }
 }
 
@@ -523,6 +524,9 @@ impl OpenDocument {
     /// camera is fitted to them.
     pub fn set_context(&mut self, context: Context) {
         self.chosen = Some(context);
+        // What was picked or hovered is of the other context.
+        self.view.selection = None;
+        self.view.hover = None;
         self.framed = false;
         self.fitting = false;
         self.refresh_view();
@@ -538,6 +542,17 @@ impl OpenDocument {
             }
             _ => Vec::new(),
         }
+    }
+
+    /// The names of the components along `path` from the assembly this tab
+    /// looks at, as a status line says where an entity is: `None` for a
+    /// part's context or an empty path.
+    pub fn component_label(&self, path: &[ComponentId]) -> Option<String> {
+        let Some(Context::Assembly(root)) = self.context() else {
+            return None;
+        };
+        let names = context::component_names(self.replica.document(), root, path);
+        (!names.is_empty()).then(|| names.join(" / "))
     }
 
     /// The part holding `feature`.
