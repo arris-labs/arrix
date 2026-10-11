@@ -243,3 +243,106 @@ fn a_document_that_fails_at_no_kernel_call_writes_no_recipe() {
     assert_eq!(out.status.code(), Some(0));
     assert!(!dir.exists() || recipes(&dir).is_empty());
 }
+
+/// An imported solid with a fillet far too big for its edge: the recipe of
+/// the failed call reads the file, which is written beside `fixture.json`
+/// under the name the recipe gives it.
+#[test]
+fn a_recipe_that_reads_an_imported_file_is_written_with_it() {
+    use arrix_doc::{Command, ImportedFile};
+
+    let bytes = std::fs::read(workspace().join("tests/fixtures/step/servo.step")).unwrap();
+    let mut ids = IdMinter::new(77);
+    let (part, import, fillet): (PartId, FeatureId, FeatureId) =
+        (ids.mint(), ids.mint(), ids.mint());
+    let record = |id, type_id: &str, name: &str| FeatureRecord {
+        id,
+        type_id: FeatureTypeId::new(type_id).unwrap(),
+        type_version: 1,
+        name: name.into(),
+        params: BTreeMap::new(),
+        choices: BTreeMap::new(),
+        inputs: BTreeMap::new(),
+        suppressed: false,
+        sketch: None,
+        frozen: None,
+        file: None,
+    };
+    let mut imported = record(import, "core.import-step", "Servo");
+    imported.file = Some(ImportedFile {
+        name: "servo.step".into(),
+        blob: arrix_doc::BlobRef::of(&bytes, "step"),
+    });
+    let mut kernel = arrix_kernel::Kernel::new();
+    let body = kernel.import_step(import, &bytes, 1).unwrap();
+    let edge = kernel
+        .names(body)
+        .unwrap()
+        .of_kind(TopoKind::Edge)
+        .next()
+        .cloned()
+        .unwrap();
+    let mut big = record(fillet, "core.fillet", "Fillet");
+    big.params
+        .insert("radius".into(), Expr::parse("1 m").unwrap());
+    big.inputs.insert(
+        "target".into(),
+        Ref::Slot {
+            feature: import,
+            slot: SlotName::new("body").unwrap(),
+        }
+        .into(),
+    );
+    big.inputs
+        .insert("edges".into(), vec![Ref::Topo(edge)].into());
+    let mut doc = Document::default();
+    let commands = [
+        Command::AddPart {
+            part: Part {
+                id: part,
+                name: "Servo".into(),
+                history: vec![],
+                features: BTreeMap::new(),
+                rollback: None,
+            },
+        },
+        Command::AddFile {
+            bytes: bytes.clone(),
+        },
+        Command::AddFeature {
+            part,
+            at: 0,
+            record: imported,
+        },
+        Command::AddFeature {
+            part,
+            at: 1,
+            record: big,
+        },
+    ];
+    for command in commands {
+        doc = apply(&doc, &command).unwrap().document;
+    }
+    let source = scratch("imported-servo-doc");
+    for (path, file) in &save(&doc).0 {
+        let at = source.join(path);
+        std::fs::create_dir_all(at.parent().unwrap()).unwrap();
+        std::fs::write(at, file).unwrap();
+    }
+
+    let dir = scratch("imported-servo-recipes");
+    let out = arrix_eval(source.to_str().unwrap(), &[&dir]);
+    assert_eq!(out.status.code(), Some(1), "{:?}", out);
+    let names = recipes(&dir);
+    let [name] = names.as_slice() else {
+        panic!("{names:?}")
+    };
+    let recipe: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(dir.join(name).join("fixture.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(recipe["steps"][0]["op"], "step");
+    let file = recipe["steps"][0]["file"].as_str().unwrap();
+    assert!(file.ends_with(".step"), "{file}");
+    assert_eq!(std::fs::read(dir.join(name).join(file)).unwrap(), bytes);
+}

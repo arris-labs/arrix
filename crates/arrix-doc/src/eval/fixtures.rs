@@ -17,6 +17,9 @@ pub struct SavedRecipe {
     /// digits of the BLAKE3 of `json`, so equal recipes share one.
     pub name: String,
     pub json: String,
+    /// The files its `step` steps read, each by the name the recipe gives
+    /// it, written beside `fixture.json`.
+    pub files: Vec<(String, Vec<u8>)>,
 }
 
 /// One feature that failed at a kernel call, and what became of its record.
@@ -84,6 +87,10 @@ pub(crate) fn failures(evaluation: &Evaluation, records: &[KernelCall]) -> Vec<F
                 SavedRecipe {
                     name: format!("{}-{}", diagnostic.code, &hash.as_str()[..12]),
                     json,
+                    files: r
+                        .files()
+                        .map(|(name, bytes)| (name.to_owned(), bytes.to_vec()))
+                        .collect(),
                 }
             });
             Some(FailedCall {

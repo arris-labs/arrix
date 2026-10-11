@@ -50,13 +50,9 @@ pub fn manifests() -> Vec<Manifest> {
         .collect()
 }
 
-/// The spec of every registered feature type, in registration order.
+/// The spec of every feature type a command creates, in id order.
 pub fn feature_types(registry: &Registry) -> Vec<FeatureTypeSpec> {
-    registry
-        .ids()
-        .filter_map(|id| registry.get(id))
-        .map(|ty| ty.spec().clone())
-        .collect()
+    registry.creatable_specs()
 }
 
 #[cfg(test)]

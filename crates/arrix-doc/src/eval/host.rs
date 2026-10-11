@@ -102,6 +102,14 @@ impl<'k> FeatureKernel<'k> {
     }
 }
 
+impl crate::registry::FileKernel for FeatureKernel<'_> {
+    fn import_step(&mut self, file: &[u8], solid: u32) -> Result<Body, Diagnostic> {
+        let r = self.kernel.import_step(self.feature, file, solid);
+        let body = self.take(r)?;
+        Ok(self.hand_out(body))
+    }
+}
+
 impl arrix_plugin_api::Kernel for FeatureKernel<'_> {
     fn extrude(&mut self, profile: &Profile, distance: f64) -> Result<Body, Diagnostic> {
         let index = self.sweeps;

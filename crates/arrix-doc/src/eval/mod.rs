@@ -53,7 +53,7 @@ use crate::dag::{Dag, Node};
 use crate::document::{Document, FeatureRecord, FeatureTypeId, Part};
 use crate::expr::Expr;
 use crate::frozen::{BlobRef, Frozen, FrozenResult};
-use crate::registry::{FeatureArgs, FeatureType, Registry, SketchArgs};
+use crate::registry::{FeatureArgs, FeatureType, FileArg, Registry, SketchArgs};
 use crate::save::to_json;
 use host::FeatureKernel;
 use resolve::{Params, Scope};
@@ -569,7 +569,11 @@ impl Evaluator {
             entry.used = self.run;
             (true, entry.slots.clone(), entry.tool)
         } else {
-            let (slots, tool) = self.run_type(&*ty, record.id, &args, &reads)?;
+            let file = record
+                .file
+                .as_ref()
+                .and_then(|f| Some((f.name.as_str(), doc.blob(&f.blob)?)));
+            let (slots, tool) = self.run_type(&*ty, record.id, &args, &reads, file)?;
             self.cache.insert(
                 hash,
                 CacheEntry {
@@ -813,11 +817,18 @@ impl Evaluator {
         feature: FeatureId,
         args: &FeatureArgs,
         reads: &[BodyRead],
+        file: Option<(&str, &[u8])>,
     ) -> Result<(Slots, Option<KeptTool>), Failure> {
         let spec = ty.spec();
         let inputs = reads.iter().map(|r| r.body).collect();
         let mut k = FeatureKernel::new(&mut self.kernel, feature, inputs);
-        let output = ty.evaluate(&mut k, args).map_err(|diagnostic| Failure {
+        let output = if ty.reads_file() {
+            let file = file.map(|(name, bytes)| FileArg { name, bytes });
+            ty.evaluate_file(&mut k, args, file)
+        } else {
+            ty.evaluate(&mut k, args)
+        }
+        .map_err(|diagnostic| Failure {
             diagnostic,
             call: k.failed,
         })?;

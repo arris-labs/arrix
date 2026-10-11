@@ -356,7 +356,9 @@ geometry from provenance, and to make every kernel call a record.
   the recipe's BLAKE3>/fixture.json` (equal recipes share a directory). A
   failure with no recipe (`NoStep`) is said on stderr and skipped, the
   rest are still written; the stdout line and the exit status do not
-  change.
+  change. A recipe that reads an imported file has its `step` step's file
+  written beside `fixture.json`, under the name the recipe gives it
+  (`SavedRecipe::files`, `FixtureRecipe::files`).
 - **Failure categories.** Every failure maps to a stable, countable key:
   the kernel's typed error with its reason (`OpError::Degenerate(
   TangentContact)`), the feature type, and the plugin id when a plugin

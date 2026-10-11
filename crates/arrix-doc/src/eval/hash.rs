@@ -44,6 +44,10 @@ struct Canonical<'a> {
     /// dimensions. Left out when there is none, so no other hash moves.
     #[serde(skip_serializing_if = "Option::is_none")]
     sketch: Option<&'a arrix_sketch::Sketch>,
+    /// The imported file's blob, which names it by its bytes. Left out
+    /// when there is none, so no other hash moves.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    file: Option<&'a str>,
 }
 
 /// An input's geometry, written bare: a plane as its frame, as before
@@ -146,6 +150,7 @@ impl InputHash {
             choices: &record.choices,
             inputs,
             sketch: args.sketch.as_ref().map(|s| &s.sketch),
+            file: record.file.as_ref().map(|f| f.blob.as_str()),
         })
     }
 
@@ -195,6 +200,7 @@ impl InputHash {
             choices: &record.choices,
             inputs,
             sketch: None,
+            file: None,
         })
     }
 

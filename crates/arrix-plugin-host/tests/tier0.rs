@@ -202,6 +202,7 @@ fn every_type_registers_under_the_plugins_namespace() {
             "core.extrude",
             "core.fillet",
             "core.hole",
+            "core.import-step",
             "core.mirror",
             "core.pattern-circular",
             "core.pattern-linear",

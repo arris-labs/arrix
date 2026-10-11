@@ -10,6 +10,7 @@ mod core_boolean;
 mod core_choice;
 mod core_extrude;
 mod core_hole;
+mod core_import;
 mod core_mirror;
 mod core_pattern;
 mod core_revolve;
@@ -34,6 +35,7 @@ pub use core_blend::CoreBlend;
 pub use core_boolean::CoreBoolean;
 pub use core_extrude::CoreExtrude;
 pub use core_hole::CoreHole;
+pub use core_import::CoreImportStep;
 pub use core_mirror::CoreMirror;
 pub use core_pattern::CorePattern;
 pub use core_revolve::CoreRevolve;
@@ -53,7 +55,9 @@ pub use eval::{
 };
 pub use frozen::{BlobRef, Frozen, FrozenResult, InvalidBlobRef};
 pub use open::{DOCUMENT_JSON, DocumentSource, MemorySource, OpenError, PARAMS_JSON, SCHEMA, open};
-pub use registry::{FeatureArgs, FeatureType, Registry, RegistryError, SketchArgs, TypeOutput};
+pub use registry::{
+    FeatureArgs, FeatureType, FileArg, FileKernel, Registry, RegistryError, SketchArgs, TypeOutput,
+};
 pub use save::{save, to_json};
 #[cfg(feature = "schema")]
 pub use session::protocol_schemas;

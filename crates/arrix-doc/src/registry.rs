@@ -16,6 +16,7 @@ use crate::core_blend::CoreBlend;
 use crate::core_boolean::CoreBoolean;
 use crate::core_extrude::CoreExtrude;
 use crate::core_hole::CoreHole;
+use crate::core_import::CoreImportStep;
 use crate::core_mirror::CoreMirror;
 use crate::core_pattern::CorePattern;
 use crate::core_revolve::CoreRevolve;
@@ -40,6 +41,30 @@ pub trait FeatureType: Send + Sync {
         args: &FeatureArgs,
     ) -> Result<TypeOutput, Diagnostic>;
 
+    /// Whether the feature reads its record's file: the evaluator then
+    /// calls [`evaluate_file`](Self::evaluate_file) in place of `evaluate`,
+    /// and its input hash holds the file (ADR-0029). Only a built-in does.
+    fn reads_file(&self) -> bool {
+        false
+    }
+
+    /// The outputs of a feature that reads the file its record keeps, which
+    /// is `None` when the record has none. `kernel` is the plugin API's
+    /// with the one call a file needs, which is the core's alone.
+    fn evaluate_file(
+        &self,
+        _kernel: &mut dyn FileKernel,
+        _args: &FeatureArgs,
+        _file: Option<FileArg<'_>>,
+    ) -> Result<TypeOutput, Diagnostic> {
+        Err(Diagnostic::new(
+            arrix_core::Severity::Error,
+            "feature.output",
+            format!("{} reads no file", self.spec().id),
+        )
+        .expect("a literal code is well-formed"))
+    }
+
     /// Slots of a kind the plugin API has no word for, which only a
     /// built-in declares and fills: a sketch's. Its spec's `outputs` are
     /// the rest.
@@ -53,6 +78,25 @@ pub trait FeatureType: Send + Sync {
     fn plugin_version(&self) -> Option<&str> {
         None
     }
+}
+
+/// A record's file as the feature reads it: the base name for messages
+/// and the bytes.
+#[derive(Clone, Copy, Debug)]
+pub struct FileArg<'a> {
+    pub name: &'a str,
+    pub bytes: &'a [u8],
+}
+
+/// The plugin API's `Kernel` with the call that reads a file in.
+pub trait FileKernel: Kernel {
+    /// Solid number `solid` (from 1) of the STEP file `file`, in metres,
+    /// its entities named from the file's (`Kernel::import_step`).
+    fn import_step(
+        &mut self,
+        file: &[u8],
+        solid: u32,
+    ) -> Result<arrix_plugin_api::Body, Diagnostic>;
 }
 
 /// What the evaluator resolved for one feature: every parameter of the
@@ -153,6 +197,7 @@ impl Registry {
             Arc::new(CoreExtrude::new()),
             Arc::new(CoreBlend::fillet()),
             Arc::new(CoreHole::new()),
+            Arc::new(CoreImportStep::new()),
             Arc::new(CoreMirror::new()),
             Arc::new(CorePattern::linear()),
             Arc::new(CorePattern::circular()),
@@ -205,6 +250,17 @@ impl Registry {
 
     pub fn get(&self, id: &FeatureTypeId) -> Option<&Arc<dyn FeatureType>> {
         self.types.get(id)
+    }
+
+    /// The specs of the types a create command makes, in id order: every
+    /// one but those that read a record's file (`FeatureType::reads_file`),
+    /// which only an import creates, with its file (M2's, ADR-0029).
+    pub fn creatable_specs(&self) -> Vec<FeatureTypeSpec> {
+        self.types
+            .values()
+            .filter(|ty| !ty.reads_file())
+            .map(|ty| ty.spec().clone())
+            .collect()
     }
 
     /// The registered ids, sorted.
@@ -325,6 +381,7 @@ mod tests {
                 "core.extrude",
                 "core.fillet",
                 "core.hole",
+                "core.import-step",
                 "core.mirror",
                 "core.pattern-circular",
                 "core.pattern-linear",

@@ -370,6 +370,9 @@ fn save_recipes(dir: &Path, failures: &[arrix_doc::FailedCall]) -> std::io::Resu
                 let at = dir.join(&recipe.name);
                 std::fs::create_dir_all(&at)?;
                 std::fs::write(at.join("fixture.json"), &recipe.json)?;
+                for (name, bytes) in &recipe.files {
+                    std::fs::write(at.join(name), bytes)?;
+                }
                 eprintln!("arrix eval: saved {}", at.display());
             }
             Err(err) => eprintln!(

@@ -202,6 +202,7 @@ target's slot (§Bodies across features).
 | `core.pattern-linear`, `core.pattern-circular` | features or a body, count, spacing | `ops::transform` of the tool or body, then `fuse`/`cut` | C1 |
 | `core.boolean` | a target body, tool bodies, an operation | `fuse`, `common`, `cut` | C1 |
 | `core.mirror` | features or a body, a plane | `ops::mirror`, then `fuse`/`cut` | C1 |
+| `core.import-step` | none; the record's file | `Kernel::import_step` (`step::read`, metres) | C2 |
 
 `core.extrude` is built: a `region` input (a sketch's region by key), a
 signed `distance` (default 10 mm, along the profile plane's normal), a
@@ -285,6 +286,21 @@ each tool's reflection is applied to the target with the tool's own
 operation, or, with no tools, the target's reflection is fused into it.
 The codes are `mirror.no-target`, `mirror.no-plane` and `mirror.misses`
 (a reflection that cuts nothing, or fuses to nothing it touches).
+
+`core.import-step` is built (ADR-0029): no inputs, a `solid` count
+parameter (which solid of the file, from 1 in the reader's order, default
+1) and one output slot `body`, of its own. The file is the record's
+`file`, a blob in the document that the input hash holds by name, so a
+different file is a different result. It reads through `Kernel::import_step`
+(not the plugin API's `Kernel`: the built-in is handed a `FileKernel`, so
+`arrix-plugin-api` is unchanged), in metres whatever the file declares, and
+every face, edge and vertex is named `import.<feature>.<entity>[.<instance>]`
+from the file's own entity (§Persistent naming). The codes are
+`import.no-file` (the record keeps none), `import.no-solid` (a `solid`
+that is not a whole number from 1, or past the file's count) and
+`kernel.import.<kind>` (the file or solid is refused, its message naming
+the file entity). It is built in, so never frozen. No create command
+lists it yet: only an import creates it, with its file (M2).
 
 `core.boolean` is built (type version 2): a `target` body input, a `tools`
 list of body inputs and an `op` choice, `fuse` (the default), `cut` or

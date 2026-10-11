@@ -26,13 +26,9 @@ pub fn feature_types() -> Registry {
     r
 }
 
-/// The spec of every registered feature type, in registration order.
+/// The spec of every feature type a command creates, in id order.
 pub fn feature_type_specs(types: &Registry) -> Vec<FeatureTypeSpec> {
-    types
-        .ids()
-        .filter_map(|id| types.get(id))
-        .map(|ty| ty.spec().clone())
-        .collect()
+    types.creatable_specs()
 }
 
 /// The registry of commands for every registered feature type.
