@@ -68,3 +68,4 @@ Each rejected option and the one-line reason it lost.
 - [ADR-0027](0027-c2-is-assemblies-and-exchange.md): C2 is assemblies and exchange in three milestones; measure, section view, 3MF and DXF/SVG move to the named cycle "the mechanical core completed"; `SEED.md` §7 amended
 - [ADR-0028](0028-the-exchange-unit.md): the exchange unit is metres, written as metres; the reader passes `Metre` explicitly; STEP export refused as `kernel.export.unit` until Arris's writer takes a unit (A12)
 - [ADR-0029](0029-assemblies-in-the-document.md): assemblies in the document: components, joints with anchors by persistent name, tree FK with soft diagnostics, imported names, `core.import-step`, schema 4
+- [ADR-0030](0030-assemblies-in-the-app.md): assemblies in the app: a tab looks at one part or assembly, an instanced scene picked by component path, the joint drag solved by FK on the client (ADR-0029 §13), a parameter-driven drag edits the parameter
