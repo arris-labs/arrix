@@ -120,6 +120,7 @@ fn record(
         suppressed: false,
         sketch: None,
         frozen: None,
+        file: None,
     }
 }
 

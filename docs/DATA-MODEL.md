@@ -40,9 +40,21 @@ document equals the one before it. Built so far (`arrix_doc::Document`):
 parameters and parts; `schema` is the build's constant, and plugin data
 and `meta` join with their first use.
 
-Assemblies (components, instances, joints) are C2's and extend this type
-with an `assemblies` map; the DAG already admits cross-part references, so
-they add node kinds, not a new mechanism.
+Assemblies (ADR-0029) extend this type with `assemblies: BTreeMap<AssemblyId,
+Assembly>`: `Assembly { id, name, components, joints }`; `Component { id,
+name, of: Part | Assembly, pose: Option<Pose> }` (a pose grounds it);
+`Joint { id, name, kind: Fixed | Revolute | Prismatic, parent, child:
+Anchor, value, offset: Expr, limits: Option<[Expr; 2]>, flip }`; `Anchor {
+path: Vec<ComponentId>, axis, origin: Option<PersistentName> }`; `Pose` a
+position and URDF's roll, pitch, yaw, all expressions. Built so far
+(`arrix_doc::Assembly` and kin, `Document::assemblies`): the stored types,
+their file form and `Document::validate` (ids match their keys, names are
+unique within their scope, a component's part or assembly exists, a joint's
+first path component is its assembly's). A `FeatureRecord` also holds
+`file: Option<ImportedFile { name, blob }>`, the imported file's base name
+for display (never a path) and its blob. Evaluation, the DAG nodes and the
+commands follow in C2 M1's later steps; the DAG already admits cross-part
+references, so they add node kinds, not a new mechanism.
 
 **What is not in the document** (`SEED.md` §6.1 rule 4): selection, hover,
 the active sketch, the edit mode, the camera, panel layout, and every
@@ -934,6 +946,7 @@ valid document directory (`SEED.md` §6.5). Both forms open.
 document.json          schema version, ArriX version that wrote it, meta, plugins used
 params.json            the parameters
 parts/<part-id>.json   one part: history order, feature records, sketches
+assemblies/<assembly-id>.json   one assembly: its components and joints
 plugins/<plugin-id>/   one plugin's section: its own schema version and its records
 blobs/<blake3>.<ext>   frozen results (.arrisbody), name tables, imported files, thumbnails
 ```
@@ -947,21 +960,21 @@ blobs/<blake3>.<ext>   frozen results (.arrisbody), name tables, imported files,
   blobs stored. The same document gives the same `.arrx`. As built
   (`arrix_doc::to_zip`, `save_zip`; `from_zip`, `open_zip`): the reader
   refuses the whole zip for a path outside the tree (not `document.json`,
-  `params.json` or a file under `parts/`, `plugins/` or `blobs/`, or with
+  `params.json` or a file under `parts/`, `assemblies/`, `plugins/` or `blobs/`, or with
   an empty, `.`, `..` or backslash component), a path twice, a method
   other than stored and deflate, or a size or CRC-32 that fails; a
   directory entry of an ordinary zip tool is skipped. No zip64.
 - **Blobs are content-addressed**: the name is the BLAKE3 of the bytes, so
   identical results are stored once and a changed result is a new file.
   Blobs no record points at are dropped on save.
-- **Versioning.** `document.json` carries `schema` (an integer, 3 since C1 M2).
+- **Versioning.** `document.json` carries `schema` (an integer, 4 since C2 M1).
   Opening an older schema runs forward migrations in order, each a pure
   function over the JSON tree with its own fixture document. A newer
   schema than the build knows is refused with a message naming both. A
   feature record's `type_version` is migrated by its feature type (a
   plugin's own migration, or kept frozen if the plugin is absent).
 - **What opens and saves today** (`arrix_doc::open`, `arrix_doc::save`):
-  the directory form, as `document.json` (`schema` 3; nothing else in the
+  the directory form, as `document.json` (`schema` 4; nothing else in the
   header is interpreted yet), `params.json` (the parameters by id; absent
   reads as none), `parts/<part-id>.json` (one part, its id matching the
   file's name) and `blobs/<blake3>.<ext>`. `arrix_doc::to_json` is the
@@ -969,8 +982,8 @@ blobs/<blake3>.<ext>   frozen results (.arrisbody), name tables, imported files,
   sorted keys. A record with a field this build does not know is refused,
   never dropped on the next save. The opened document is checked as a
   command's result is (`Document::validate`). A newer schema is refused
-  with a message naming both (`the document's schema is 4, newer than this
-  build's 3`), a schema below 1 as one no ArriX wrote. `save` returns the
+  with a message naming both (`the document's schema is 5, newer than this
+  build's 4`), a schema below 1 as one no ArriX wrote. `save` returns the
   files by path; the caller writes them and removes what an earlier save
   left.
   Every command undone restores the earlier save's bytes, and redone the
@@ -1001,6 +1014,13 @@ blobs/<blake3>.<ext>   frozen results (.arrisbody), name tables, imported files,
   points at it: a missing one is `blob.missing`, one whose bytes do not
   hash to its name `blob.corrupt`, and one nothing points at is dropped on
   the next save.
+- **Schema 4** (ADR-0029) adds `FeatureRecord.file` (omitted when absent;
+  its blob is read and kept like a frozen result's, `blob.missing` and
+  `blob.corrupt` alike) and `assemblies/<assembly-id>.json`, the id
+  matching the file's name. Neither is in a schema-3 document, so 3 → 4 is
+  the identity bar the header; its fixture is
+  `tests/docs/migrations/schema-3/`, a copy of `tests/docs/slice/` as it
+  was saved at schema 3, re-saved to the slice's bytes by the same test.
 - **Plugin sections** carry their plugin's schema version and are opaque
   to the core (§Frozen results).
 - **Units** in the file are SI; `meta` records the display units.

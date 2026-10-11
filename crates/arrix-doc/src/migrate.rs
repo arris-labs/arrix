@@ -9,7 +9,8 @@ use serde_json::Value;
 use crate::open::DOCUMENT_JSON;
 
 /// The document's JSON files parsed, by path: `document.json`,
-/// `params.json` when present, and `parts/<id>.json`.
+/// `params.json` when present, and `parts/<id>.json` and
+/// `assemblies/<id>.json`.
 pub(crate) type Tree = BTreeMap<String, Value>;
 
 /// One link: schema `n` to `n + 1`, where `n` is its index plus one. It
@@ -17,7 +18,7 @@ pub(crate) type Tree = BTreeMap<String, Value>;
 pub(crate) type Migration = fn(&mut Tree) -> Result<(), String>;
 
 /// The chain this build ships: entry `i` reads schema `i + 1`.
-pub(crate) const CHAIN: &[Migration] = &[schema_1_to_2, schema_2_to_3];
+pub(crate) const CHAIN: &[Migration] = &[schema_1_to_2, schema_2_to_3, schema_3_to_4];
 
 /// Schema 2 added `FeatureRecord.frozen` and `blobs/`, both optional, so a
 /// schema-1 tree is a schema-2 tree bar its header.
@@ -30,6 +31,13 @@ fn schema_1_to_2(_: &mut Tree) -> Result<(), String> {
 /// schema-2 reader cannot parse and a schema-2 document never holds, so a
 /// schema-2 tree is a schema-3 tree bar its header.
 fn schema_2_to_3(_: &mut Tree) -> Result<(), String> {
+    Ok(())
+}
+
+/// Schema 4 added `FeatureRecord.file` (omitted when absent) and
+/// `assemblies/`, both new to a schema-3 document, so a schema-3 tree is a
+/// schema-4 tree bar its header.
+fn schema_3_to_4(_: &mut Tree) -> Result<(), String> {
     Ok(())
 }
 

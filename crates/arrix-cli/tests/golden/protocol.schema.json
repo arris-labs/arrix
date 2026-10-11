@@ -1630,6 +1630,17 @@
             "description": "The form's plain values: a word from a list the feature type\nnames, such as a datum plane's world plane (`xy`).",
             "type": "object"
           },
+          "file": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ImportedFile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A `core.import-step` feature's file, kept as a blob (ADR-0029)."
+          },
           "frozen": {
             "anyOf": [
               {
@@ -1863,6 +1874,23 @@
         "description": "64 bits as 13 Crockford base32 characters",
         "pattern": "^[0-9A-F][0-9A-HJKMNP-TV-Z]{12}$",
         "type": "string"
+      },
+      "ImportedFile": {
+        "additionalProperties": false,
+        "description": "An imported file: its base name for display, never a path, and the\nblob that holds its bytes.",
+        "properties": {
+          "blob": {
+            "$ref": "#/$defs/BlobRef"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "blob"
+        ],
+        "type": "object"
       },
       "Input": {
         "anyOf": [
@@ -4718,6 +4746,17 @@
             "description": "The form's plain values: a word from a list the feature type\nnames, such as a datum plane's world plane (`xy`).",
             "type": "object"
           },
+          "file": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ImportedFile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A `core.import-step` feature's file, kept as a blob (ADR-0029)."
+          },
           "frozen": {
             "anyOf": [
               {
@@ -4830,6 +4869,23 @@
         "description": "64 bits as 13 Crockford base32 characters",
         "pattern": "^[0-9A-F][0-9A-HJKMNP-TV-Z]{12}$",
         "type": "string"
+      },
+      "ImportedFile": {
+        "additionalProperties": false,
+        "description": "An imported file: its base name for display, never a path, and the\nblob that holds its bytes.",
+        "properties": {
+          "blob": {
+            "$ref": "#/$defs/BlobRef"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "blob"
+        ],
+        "type": "object"
       },
       "Input": {
         "anyOf": [
@@ -5379,6 +5435,10 @@
   "protocol": 1,
   "rejected": {
     "$defs": {
+      "AssemblyId": {
+        "$ref": "#/$defs/Id",
+        "description": "An assembly (docs/DATA-MODEL.md §Assemblies)."
+      },
       "CommandError": {
         "description": "Why a command was refused. The document is unchanged.",
         "oneOf": [
@@ -5507,6 +5567,10 @@
             "type": "object"
           }
         ]
+      },
+      "ComponentId": {
+        "$ref": "#/$defs/Id",
+        "description": "A component of an assembly."
       },
       "DagError": {
         "description": "Why a document's references cannot form a DAG.",
@@ -5759,6 +5823,130 @@
           {
             "additionalProperties": false,
             "properties": {
+              "duplicate_assembly": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "duplicate_assembly"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "duplicate_assembly_name": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/AssemblyId"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "what": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "assembly",
+                  "what",
+                  "name"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "duplicate_assembly_name"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "assembly_id_mismatch": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/AssemblyId"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "key": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "assembly",
+                  "key",
+                  "id"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "assembly_id_mismatch"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "missing_target": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/AssemblyId"
+                  },
+                  "component": {
+                    "$ref": "#/$defs/ComponentId"
+                  },
+                  "target": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "assembly",
+                  "component",
+                  "target"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "missing_target"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "missing_component": {
+                "properties": {
+                  "assembly": {
+                    "$ref": "#/$defs/AssemblyId"
+                  },
+                  "component": {
+                    "$ref": "#/$defs/ComponentId"
+                  },
+                  "joint": {
+                    "$ref": "#/$defs/JointId"
+                  }
+                },
+                "required": [
+                  "assembly",
+                  "joint",
+                  "component"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "missing_component"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
               "sketch_expr": {
                 "properties": {
                   "constraint": {
@@ -5789,6 +5977,10 @@
             "type": "object"
           }
         ]
+      },
+      "JointId": {
+        "$ref": "#/$defs/Id",
+        "description": "A joint of an assembly."
       },
       "Node": {
         "description": "A node of the DAG: what a command touches and the evaluator orders.",
@@ -7605,6 +7797,17 @@
             "description": "The form's plain values: a word from a list the feature type\nnames, such as a datum plane's world plane (`xy`).",
             "type": "object"
           },
+          "file": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ImportedFile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A `core.import-step` feature's file, kept as a blob (ADR-0029)."
+          },
           "frozen": {
             "anyOf": [
               {
@@ -7717,6 +7920,23 @@
         "description": "64 bits as 13 Crockford base32 characters",
         "pattern": "^[0-9A-F][0-9A-HJKMNP-TV-Z]{12}$",
         "type": "string"
+      },
+      "ImportedFile": {
+        "additionalProperties": false,
+        "description": "An imported file: its base name for display, never a path, and the\nblob that holds its bytes.",
+        "properties": {
+          "blob": {
+            "$ref": "#/$defs/BlobRef"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "blob"
+        ],
+        "type": "object"
       },
       "Input": {
         "anyOf": [

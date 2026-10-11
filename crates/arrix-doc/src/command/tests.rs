@@ -53,6 +53,7 @@ fn plane(id: u64, name: &str, inputs: &[(&str, Ref)]) -> FeatureRecord {
         suppressed: false,
         sketch: None,
         frozen: None,
+        file: None,
     }
 }
 
@@ -62,6 +63,7 @@ fn sketch_feature(id: u64, name: &str) -> FeatureRecord {
         params: BTreeMap::new(),
         sketch: Some(Box::default()),
         frozen: None,
+        file: None,
         ..plane(id, name, &[])
     }
 }

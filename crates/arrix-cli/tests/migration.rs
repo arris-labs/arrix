@@ -1,6 +1,7 @@
 //! `tests/docs/migrations/schema-1/` is a schema-1 document, the
 //! `gear-on-plane` scenario as it was saved before schema 2, and
-//! `schema-2/` is `slice` as it was saved before schema 3. Opening either
+//! `schema-2/` is `slice` as it was saved before schema 3, and `schema-3/` as it
+//! was saved before schema 4. Opening any
 //! runs the migration chain, and saving it gives exactly the current
 //! scenario's bytes (docs/DATA-MODEL.md §File format).
 
@@ -39,4 +40,9 @@ fn schema_1_opens_and_saves_as_the_current_scenario() {
 #[test]
 fn schema_2_opens_and_saves_as_the_current_slice() {
     migrates_to("tests/docs/migrations/schema-2", 2, "tests/docs/slice");
+}
+
+#[test]
+fn schema_3_opens_and_saves_as_the_current_slice() {
+    migrates_to("tests/docs/migrations/schema-3", 3, "tests/docs/slice");
 }

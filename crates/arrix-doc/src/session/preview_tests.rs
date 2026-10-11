@@ -34,6 +34,7 @@ fn record(id: FeatureId, type_id: &str) -> FeatureRecord {
         suppressed: false,
         sketch: None,
         frozen: None,
+        file: None,
     }
 }
 

@@ -67,6 +67,7 @@ fn feature(
         suppressed: false,
         sketch: None,
         frozen: None,
+        file: None,
     }
 }
 
@@ -221,7 +222,7 @@ fn writes_the_documented_layout() {
             format!("parts/{part}.json")
         ]
     );
-    assert_eq!(text(&files, DOCUMENT_JSON), "{\n  \"schema\": 3\n}\n");
+    assert_eq!(text(&files, DOCUMENT_JSON), "{\n  \"schema\": 4\n}\n");
     let params = text(&files, PARAMS_JSON);
     assert!(
         params.contains("\"expr\": \"1 mm\",\n    \"kind\": \"length\",\n    \"name\": \"m\""),
@@ -322,6 +323,7 @@ fn sketch_scenario() -> Vec<Command> {
             record: FeatureRecord {
                 sketch: Some(Box::default()),
                 frozen: None,
+                file: None,
                 ..feature(sketch, "core.sketch", "Sketch", &[], vec![])
             },
         },

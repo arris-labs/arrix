@@ -87,6 +87,7 @@ fn oversize_fillet() -> arrix_doc::MemorySource {
         suppressed: false,
         sketch: None,
         frozen: None,
+        file: None,
     };
     let mut sketch_record = record(sketch_id, "core.sketch", "Sketch");
     sketch_record.sketch = Some(Box::new(sketch));

@@ -146,6 +146,7 @@ fn record(id: FeatureId, ty: &str, name: &str) -> FeatureRecord {
         suppressed: false,
         sketch: None,
         frozen: None,
+        file: None,
     }
 }
 

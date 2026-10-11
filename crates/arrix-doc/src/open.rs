@@ -4,16 +4,17 @@
 
 use std::collections::BTreeMap;
 
-use arrix_core::{FeatureId, PartId};
+use arrix_core::{AssemblyId, FeatureId, PartId};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
+use crate::assembly::Assembly;
 use crate::document::{Document, Invalid, Part};
 use crate::frozen::BlobRef;
 use crate::migrate::{self, Tree};
 
 /// The schema this build reads and writes.
-pub const SCHEMA: u64 = 3;
+pub const SCHEMA: u64 = 4;
 
 /// The header every document has.
 pub const DOCUMENT_JSON: &str = "document.json";
@@ -171,6 +172,26 @@ fn open_with(
         );
         files.push((path, id));
     }
+    let listed = source.list("assemblies").map_err(|source| OpenError::Io {
+        path: "assemblies".into(),
+        source,
+    })?;
+    let mut assembly_files = Vec::new();
+    for file in listed {
+        let path = format!("assemblies/{file}");
+        let id: AssemblyId = file
+            .strip_suffix(".json")
+            .and_then(|stem| stem.parse().ok())
+            .ok_or_else(|| OpenError::Unexpected {
+                path: path.clone(),
+                message: "an assembly is `assemblies/<assembly-id>.json`".into(),
+            })?;
+        tree.insert(
+            path.clone(),
+            read_json(source, &path)?.expect("listed, so present"),
+        );
+        assembly_files.push((path, id));
+    }
     migrate::run(&mut tree, schema, chain).map_err(|e| OpenError::Migration {
         from: e.from,
         message: e.message,
@@ -193,18 +214,29 @@ fn open_with(
         }
         doc.parts.insert(id, part);
     }
+    for (path, id) in assembly_files {
+        let assembly: Assembly = from_tree(&path, tree.remove(&path).expect("read above"))?;
+        if assembly.id != id {
+            return Err(OpenError::Unexpected {
+                message: format!("it holds assembly {}", assembly.id),
+                path,
+            });
+        }
+        doc.assemblies.insert(id, assembly);
+    }
     load_blobs(source, &mut doc)?;
     doc.validate()?;
     Ok(doc)
 }
 
-/// Reads the blobs the frozen results point at, and only those: a blob no
-/// record points at is dropped, as the next save would.
+/// Reads the blobs the frozen results and imported files point at, and
+/// only those: a blob no record points at is dropped, as the next save
+/// would.
 fn load_blobs(source: &impl DocumentSource, doc: &mut Document) -> Result<(), OpenError> {
     let mut blobs = BTreeMap::new();
     for part in doc.parts.values() {
         for record in part.features.values() {
-            for blob in record.frozen.iter().flat_map(|f| f.blobs()) {
+            for blob in record.blobs() {
                 if blobs.contains_key(blob) {
                     continue;
                 }
@@ -248,11 +280,11 @@ mod tests {
 
     #[test]
     fn refuses_a_newer_schema_naming_both() {
-        let err = open(&doc(&[(DOCUMENT_JSON, r#"{"schema": 4}"#)])).unwrap_err();
-        assert!(matches!(err, OpenError::NewerSchema { found: 4 }));
+        let err = open(&doc(&[(DOCUMENT_JSON, r#"{"schema": 5}"#)])).unwrap_err();
+        assert!(matches!(err, OpenError::NewerSchema { found: 5 }));
         let message = err.to_string();
         assert!(
-            message.contains("is 4") && message.contains("build's 3"),
+            message.contains("is 5") && message.contains("build's 4"),
             "{message}"
         );
     }
@@ -398,10 +430,10 @@ mod tests {
     }
 
     #[test]
-    fn a_schema_1_document_opens_as_schema_3() {
+    fn a_schema_1_document_opens_as_schema_4() {
         let d = open(&doc(&[(DOCUMENT_JSON, r#"{"schema": 1}"#)])).unwrap();
         let saved = crate::save(&d);
-        assert_eq!(saved.0[DOCUMENT_JSON], b"{\n  \"schema\": 3\n}\n");
+        assert_eq!(saved.0[DOCUMENT_JSON], b"{\n  \"schema\": 4\n}\n");
     }
 
     #[test]

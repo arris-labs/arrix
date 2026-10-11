@@ -106,6 +106,7 @@ fn record(id: FeatureId, type_id: &str, params: &[(&str, &str)]) -> FeatureRecor
         suppressed: false,
         sketch: None,
         frozen: None,
+        file: None,
     }
 }
 

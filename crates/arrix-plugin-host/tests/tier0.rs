@@ -146,6 +146,7 @@ fn record(id: u64, type_id: &str, inputs: &[(&str, Ref)]) -> FeatureRecord {
         suppressed: false,
         sketch: None,
         frozen: None,
+        file: None,
     }
 }
 

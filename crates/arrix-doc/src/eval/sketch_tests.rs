@@ -128,6 +128,7 @@ fn document(sketch: Sketch) -> Document {
         suppressed: false,
         sketch: None,
         frozen: None,
+        file: None,
     };
     let on = Ref::Slot {
         feature: PLANE,
@@ -141,6 +142,7 @@ fn document(sketch: Sketch) -> Document {
         inputs: BTreeMap::from([("plane".into(), on.into())]),
         sketch: Some(Box::new(sketch)),
         frozen: None,
+        file: None,
         ..plane.clone()
     };
     Document {
@@ -383,6 +385,7 @@ fn padded(sketch: Sketch, key: &RegionKey) -> Document {
         )]),
         sketch: None,
         frozen: None,
+        file: None,
         ..part.features[&SKETCH].clone()
     };
     part.history.push(PAD);

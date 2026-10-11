@@ -141,6 +141,12 @@ typed_ids! {
     PartId,
     /// A feature record in a part's history.
     FeatureId,
+    /// An assembly (docs/DATA-MODEL.md §Assemblies).
+    AssemblyId,
+    /// A component of an assembly.
+    ComponentId,
+    /// A joint of an assembly.
+    JointId,
     /// A parameter.
     ParamId,
     /// A point, curve or constraint in a sketch.

@@ -32,6 +32,7 @@ fn record(id: FeatureId, inputs: Vec<Ref>, exprs: &[&str]) -> FeatureRecord {
         suppressed: false,
         sketch: None,
         frozen: None,
+        file: None,
     }
 }
 

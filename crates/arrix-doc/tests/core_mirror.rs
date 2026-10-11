@@ -60,6 +60,7 @@ fn record(id: u64, type_id: &str, name: &str) -> FeatureRecord {
         suppressed: false,
         sketch: None,
         frozen: None,
+        file: None,
     }
 }
 

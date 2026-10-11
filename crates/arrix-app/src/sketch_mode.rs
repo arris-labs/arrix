@@ -182,6 +182,7 @@ impl ArrixApp {
             suppressed: false,
             sketch: Some(Box::new(arrix_sketch::Sketch::new())),
             frozen: None,
+            file: None,
         };
         let command = match part {
             Some(part) => Command::AddFeature {

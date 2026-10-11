@@ -7,11 +7,13 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use arrix_core::{
-    Diagnostic, FeatureId, Input, ParamId, PartId, PluginId, QuantityKind, Severity, SketchEntityId,
+    AssemblyId, ComponentId, Diagnostic, FeatureId, Input, JointId, ParamId, PartId, PluginId,
+    QuantityKind, Severity, SketchEntityId,
 };
 use arrix_sketch::Sketch;
 use serde::{Deserialize, Serialize};
 
+use crate::assembly::{Assembly, ComponentOf};
 use crate::dag::{Dag, DagError};
 use crate::expr::Expr;
 use crate::frozen::{BlobRef, Frozen, FrozenResult};
@@ -23,6 +25,7 @@ use crate::frozen::{BlobRef, Frozen, FrozenResult};
 pub struct Document {
     pub(crate) params: BTreeMap<ParamId, Param>,
     pub(crate) parts: BTreeMap<PartId, Part>,
+    pub(crate) assemblies: BTreeMap<AssemblyId, Assembly>,
     /// The bytes of every blob a feature's frozen result points at, by
     /// name (docs/DATA-MODEL.md §File format).
     pub(crate) blobs: BTreeMap<BlobRef, Vec<u8>>,
@@ -83,6 +86,28 @@ pub struct FeatureRecord {
     /// results); omitted when there is none. Boxed, as `sketch` is.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub frozen: Option<Box<FrozenResult>>,
+    /// A `core.import-step` feature's file, kept as a blob (ADR-0029).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub file: Option<ImportedFile>,
+}
+
+impl FeatureRecord {
+    /// The blobs this record points at: a frozen result's and an imported
+    /// file's.
+    pub(crate) fn blobs(&self) -> impl Iterator<Item = &BlobRef> {
+        let frozen = self.frozen.iter().flat_map(|f| f.blobs());
+        frozen.chain(self.file.iter().map(|f| &f.blob))
+    }
+}
+
+/// An imported file: its base name for display, never a path, and the
+/// blob that holds its bytes.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(deny_unknown_fields)]
+pub struct ImportedFile {
+    pub name: String,
+    pub blob: BlobRef,
 }
 
 /// `core.<name>` for a built-in, `<plugin>.<name>` for a plugin's; the
@@ -175,6 +200,32 @@ pub enum Invalid {
     },
     #[error("part {part}: the rollback index {at} is past its {len} features")]
     Rollback { part: PartId, at: usize, len: usize },
+    #[error("two assemblies are named {0:?}")]
+    DuplicateAssembly(String),
+    #[error("assembly {assembly}: two {what}s are named {name:?}")]
+    DuplicateAssemblyName {
+        assembly: AssemblyId,
+        what: String,
+        name: String,
+    },
+    #[error("assembly {assembly}: a record is filed under {key} but its id is {id}")]
+    AssemblyIdMismatch {
+        assembly: AssemblyId,
+        key: String,
+        id: String,
+    },
+    #[error("assembly {assembly}: component {component} places {target}, which the document lacks")]
+    MissingTarget {
+        assembly: AssemblyId,
+        component: ComponentId,
+        target: String,
+    },
+    #[error("assembly {assembly}: joint {joint} names component {component}, which it lacks")]
+    MissingComponent {
+        assembly: AssemblyId,
+        joint: JointId,
+        component: ComponentId,
+    },
     #[error(
         "feature {feature}: dimension {constraint}'s expression {text:?} does not parse: {error}"
     )]
@@ -203,6 +254,10 @@ impl Document {
 
     pub fn parts(&self) -> &BTreeMap<PartId, Part> {
         &self.parts
+    }
+
+    pub fn assemblies(&self) -> &BTreeMap<AssemblyId, Assembly> {
+        &self.assemblies
     }
 
     /// Sets `feature`'s frozen result and holds its blobs. `false` when no
@@ -257,8 +312,79 @@ impl Document {
         for (key, part) in &self.parts {
             validate_part(*key, part, &mut seen)?;
         }
+        validate_assemblies(self)?;
         Ok(Dag::build(self)?)
     }
+}
+
+/// Ids match their keys, names are unique, and every component and joint
+/// names what exists. An anchor's first component is one of the joint's
+/// assembly; deeper ones belong to nested assemblies, which the evaluator
+/// follows (a path that no longer leads anywhere is `ref.lost`, not malformed).
+fn validate_assemblies(doc: &Document) -> Result<(), Invalid> {
+    let mut names = BTreeSet::new();
+    for (key, assembly) in &doc.assemblies {
+        let mismatch = |key: String, id: String| Invalid::AssemblyIdMismatch {
+            assembly: assembly.id,
+            key,
+            id,
+        };
+        if *key != assembly.id {
+            return Err(mismatch(key.to_string(), assembly.id.to_string()));
+        }
+        if !names.insert(&assembly.name) {
+            return Err(Invalid::DuplicateAssembly(assembly.name.clone()));
+        }
+        let dup = |what: &str, name: &String| Invalid::DuplicateAssemblyName {
+            assembly: assembly.id,
+            what: what.into(),
+            name: name.clone(),
+        };
+        let mut seen = BTreeSet::new();
+        for (cid, c) in &assembly.components {
+            if *cid != c.id {
+                return Err(mismatch(cid.to_string(), c.id.to_string()));
+            }
+            if !seen.insert(&c.name) {
+                return Err(dup("component", &c.name));
+            }
+            let target = match c.of {
+                ComponentOf::Part(p) if !doc.parts.contains_key(&p) => Some(format!("part {p}")),
+                ComponentOf::Assembly(a) if !doc.assemblies.contains_key(&a) => {
+                    Some(format!("assembly {a}"))
+                }
+                _ => None,
+            };
+            if let Some(target) = target {
+                return Err(Invalid::MissingTarget {
+                    assembly: assembly.id,
+                    component: c.id,
+                    target,
+                });
+            }
+        }
+        let mut seen = BTreeSet::new();
+        for (jid, j) in &assembly.joints {
+            if *jid != j.id {
+                return Err(mismatch(jid.to_string(), j.id.to_string()));
+            }
+            if !seen.insert(&j.name) {
+                return Err(dup("joint", &j.name));
+            }
+            for anchor in [&j.parent, &j.child] {
+                if let Some(first) = anchor.path.first()
+                    && !assembly.components.contains_key(first)
+                {
+                    return Err(Invalid::MissingComponent {
+                        assembly: assembly.id,
+                        joint: j.id,
+                        component: *first,
+                    });
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 fn validate_part(key: PartId, part: &Part, seen: &mut BTreeSet<FeatureId>) -> Result<(), Invalid> {

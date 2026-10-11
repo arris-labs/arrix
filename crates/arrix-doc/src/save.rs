@@ -28,18 +28,18 @@ pub fn save(doc: &Document) -> MemorySource {
     for (id, part) in &doc.parts {
         files.0.insert(format!("parts/{id}.json"), to_json(part));
         // Only the blobs a record points at: the rest are dropped.
-        for blob in part
-            .features
-            .values()
-            .filter_map(|r| r.frozen.as_ref())
-            .flat_map(|f| f.blobs())
-        {
+        for blob in part.features.values().flat_map(|r| r.blobs()) {
             let bytes = doc
                 .blobs
                 .get(blob)
                 .expect("open and commands keep every referenced blob");
             files.0.insert(blob.path(), bytes.clone());
         }
+    }
+    for (id, assembly) in &doc.assemblies {
+        files
+            .0
+            .insert(format!("assemblies/{id}.json"), to_json(assembly));
     }
     files
 }

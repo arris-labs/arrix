@@ -418,6 +418,7 @@ impl Form {
             suppressed: false,
             sketch: None,
             frozen: None,
+            file: None,
         })
     }
 }

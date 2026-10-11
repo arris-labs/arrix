@@ -50,6 +50,7 @@ fn plane(id: FeatureId, offset: &str, on: Option<FeatureId>) -> FeatureRecord {
         suppressed: false,
         sketch: None,
         frozen: None,
+        file: None,
     }
 }
 

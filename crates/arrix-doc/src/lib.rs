@@ -1,6 +1,7 @@
 //! The document: parameters, the DAG, features, commands, undo, the
 //! evaluator and the `.arrx` format (docs/DATA-MODEL.md).
 
+mod assembly;
 mod authority;
 mod bodies;
 mod command;
@@ -26,6 +27,7 @@ mod save;
 mod session;
 mod zip;
 
+pub use assembly::{Anchor, Assembly, Component, ComponentOf, Joint, JointKind, Pose};
 pub use authority::{AuthorId, Authority, Change, CommandEnvelope, Generation, Outcome, Rejected};
 pub use command::{Applied, Command, CommandError, FeatureEdit, apply};
 pub use core_blend::CoreBlend;
@@ -38,8 +40,8 @@ pub use core_revolve::CoreRevolve;
 pub use core_types::{CoreSketch, DatumPlane, WORLD_PLANES};
 pub use dag::{Dag, DagError, Node};
 pub use document::{
-    Document, FeatureRecord, FeatureTypeId, Invalid, InvalidFeatureTypeId, Param, Part,
-    is_param_name,
+    Document, FeatureRecord, FeatureTypeId, ImportedFile, Invalid, InvalidFeatureTypeId, Param,
+    Part, is_param_name,
 };
 #[cfg(feature = "schema")]
 pub use eval::eval_line_schema;

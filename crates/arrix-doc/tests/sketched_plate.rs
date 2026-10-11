@@ -175,6 +175,7 @@ fn a_sketched_plate() {
         suppressed: false,
         sketch: Some(Box::default()),
         frozen: None,
+        file: None,
     };
     s.submit(Command::AddFeature {
         part,
@@ -302,6 +303,7 @@ fn a_sketched_plate() {
             .into(),
             sketch: None,
             frozen: None,
+            file: None,
             ..sketch_record
         },
     });

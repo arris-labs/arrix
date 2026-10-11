@@ -88,6 +88,7 @@ fn fillet(edge: PersistentName, radius: &str) -> FeatureRecord {
         suppressed: false,
         sketch: None,
         frozen: None,
+        file: None,
     }
 }
 

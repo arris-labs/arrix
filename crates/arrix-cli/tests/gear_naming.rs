@@ -66,6 +66,7 @@ fn record(id: FeatureId, ty: &str, params: &[(&str, &str)], input: Option<Ref>) 
         suppressed: false,
         sketch: None,
         frozen: None,
+        file: None,
     }
 }
 
