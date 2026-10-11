@@ -32,13 +32,7 @@ fn feature_name(doc: &Document, id: FeatureId) -> String {
 
 /// The feature a topological name is rooted at.
 fn root(name: &PersistentName) -> FeatureId {
-    use arrix_core::NameRoot::{Frozen, Plugin, Revolve, Sweep};
-    match &name.root {
-        Sweep { feature, .. }
-        | Revolve { feature, .. }
-        | Plugin { feature, .. }
-        | Frozen { feature, .. } => *feature,
-    }
+    name.root.feature()
 }
 
 /// A reference in words, for the field that holds it.

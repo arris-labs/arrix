@@ -561,11 +561,12 @@ world's `persistent-ref`):
 name  := kind ':' root ('/' step)*
 kind  := 'face' | 'edge' | 'vertex'
 root  := ('sweep.' | 'revolve.') ID ('.' N)? '.' part | 'plugin.' ID '.' ID | 'frozen.' ID '.' N
+      | 'import.' ID '.' N64 ('.' N)?
 part  := 'start-cap' | 'end-cap' | curve-part '.' ID
 step  := 'mod.' ID ('.' N)? '.' N | 'inst.' ID '.' N | 'gen.' ID ('.' N)? '[' name (',' name)* ']'
 ```
 
-`ID` is an id's 13 characters, `N` a decimal `u32` without leading zeros,
+`ID` is an id's 13 characters, `N` a decimal `u32` and `N64` a `u64`, both without leading zeros,
 `curve-part` one of `side`, `start-edge`, `end-edge`, `rise`,
 `start-vertex`, `end-vertex`, `cavity`: `face:sweep.<feature>.side.<curve>`.
 The optional `N` is the sweep's index among those one feature's evaluation
@@ -580,6 +581,13 @@ feature made, from 0 in call order, not written when 0 and an error when
 written (ADR-0014): `mod.<F>.<k>` is boolean 0's piece `k`, `mod.<F>.<n>.<k>`
 boolean `n`'s, so one feature may cut twice. A parse error names the byte
 it stopped at; `gen` nests at most 32 deep.
+
+An `import.<F>.<entity>[.<instance>]` root names an entity of the file an
+import feature read: `entity` is the file's own entity number (a `u64`,
+Arris's `Role::File`), `instance` which of the instances of that entity the
+reader made, from 0; 0 is not written and a written 0 is an error, as for a
+sweep's index (ADR-0029). It is stable for one file; a vendor's next
+revision can lose a name, which is `ref.lost`, never a re-bind.
 
 - **Roots** come from what made an entity from nothing. A sweep's side
   face is rooted at the **key of the curve** that swept it, not at its

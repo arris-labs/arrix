@@ -116,7 +116,8 @@ fn root_feature(name: &arrix_core::PersistentName) -> FeatureId {
         NameRoot::Sweep { feature, .. }
         | NameRoot::Revolve { feature, .. }
         | NameRoot::Plugin { feature, .. }
-        | NameRoot::Frozen { feature, .. } => *feature,
+        | NameRoot::Frozen { feature, .. }
+        | NameRoot::Imported { feature, .. } => *feature,
     }
 }
 

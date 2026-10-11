@@ -70,6 +70,15 @@ pub enum NameRoot {
     Plugin { feature: FeatureId, key: Id },
     /// An entity of a frozen result, by its index in the stored name table.
     Frozen { feature: FeatureId, index: u32 },
+    /// An entity of the file an import feature read: the file's own entity
+    /// number (Arris's `Role::File`), and which of the instances of that
+    /// entity the reader made, from 0; 0 is not written (ADR-0029). Stable
+    /// for one file; a vendor's next revision can lose a name.
+    Imported {
+        feature: FeatureId,
+        entity: u64,
+        instance: u32,
+    },
 }
 
 impl NameRoot {
@@ -80,7 +89,8 @@ impl NameRoot {
             NameRoot::Sweep { feature, .. }
             | NameRoot::Revolve { feature, .. }
             | NameRoot::Plugin { feature, .. }
-            | NameRoot::Frozen { feature, .. } => feature,
+            | NameRoot::Frozen { feature, .. }
+            | NameRoot::Imported { feature, .. } => feature,
         }
     }
 }
@@ -204,6 +214,16 @@ impl fmt::Display for PersistentName {
             } => write_sweep(f, "revolve", *feature, *index, part)?,
             NameRoot::Plugin { feature, key } => write!(f, "plugin.{feature}.{key}")?,
             NameRoot::Frozen { feature, index } => write!(f, "frozen.{feature}.{index}")?,
+            NameRoot::Imported {
+                feature,
+                entity,
+                instance,
+            } => {
+                write!(f, "import.{feature}.{entity}")?;
+                if *instance > 0 {
+                    write!(f, ".{instance}")?;
+                }
+            }
         }
         for step in &self.chain {
             match step {
@@ -299,6 +319,10 @@ impl<'a> Reader<'a> {
     }
 
     fn number(&mut self) -> Read<u32> {
+        self.decimal("number past u32")
+    }
+
+    fn decimal<T: std::str::FromStr>(&mut self, past: &'static str) -> Read<T> {
         let rest = self.rest();
         let n = rest
             .find(|c: char| !c.is_ascii_digit())
@@ -307,7 +331,7 @@ impl<'a> Reader<'a> {
         if digits.is_empty() || (digits.len() > 1 && digits.starts_with('0')) {
             return self.fail("expected a decimal number without leading zeros");
         }
-        let value = digits.parse().or_else(|_| self.fail("number past u32"))?;
+        let value = digits.parse().or_else(|_| self.fail(past))?;
         self.at += n;
         Ok(value)
     }
@@ -335,8 +359,8 @@ impl<'a> Reader<'a> {
     fn root(&mut self) -> Read<NameRoot> {
         let start = self.at;
         let word = self.word();
-        if !["sweep", "revolve", "plugin", "frozen"].contains(&word) {
-            return Err((start, "expected sweep, revolve, plugin or frozen"));
+        if !["sweep", "revolve", "plugin", "frozen", "import"].contains(&word) {
+            return Err((start, "expected sweep, revolve, plugin, frozen or import"));
         }
         self.expect(".", "expected '.' after the root's kind")?;
         let feature = FeatureId(self.id()?);
@@ -388,6 +412,23 @@ impl<'a> Reader<'a> {
                 feature,
                 index: self.number()?,
             }),
+            "import" => {
+                let entity = self.decimal("number past u64")?;
+                let mut instance = 0;
+                if self.rest().starts_with('.') {
+                    self.expect(".", "expected '.' before the instance")?;
+                    let at = self.at;
+                    instance = self.number()?;
+                    if instance == 0 {
+                        return Err((at, "an instance of 0 is not written"));
+                    }
+                }
+                Ok(NameRoot::Imported {
+                    feature,
+                    entity,
+                    instance,
+                })
+            }
             _ => unreachable!("the root's kind was checked"),
         }
     }
@@ -704,6 +745,65 @@ mod tests {
     }
 
     #[test]
+    fn an_imported_name_writes_its_instance_only_past_0() {
+        let name = |entity, instance| PersistentName {
+            kind: TopoKind::Face,
+            root: NameRoot::Imported {
+                feature: fid(7),
+                entity,
+                instance,
+            },
+            chain: vec![],
+        };
+        for (text, want) in [
+            ("face:import.0000000000007.42", name(42, 0)),
+            ("face:import.0000000000007.42.3", name(42, 3)),
+            (
+                "face:import.0000000000007.18446744073709551615",
+                name(u64::MAX, 0),
+            ),
+        ] {
+            assert_eq!(want.to_string(), text);
+            assert_eq!(text.parse::<PersistentName>(), Ok(want));
+        }
+        for (bad, at, reason) in [
+            (
+                "face:import.0000000000007.42.0",
+                29,
+                "an instance of 0 is not written",
+            ),
+            (
+                "face:import.0000000000007.042",
+                26,
+                "expected a decimal number without leading zeros",
+            ),
+            (
+                "face:import.0000000000007.",
+                26,
+                "expected a decimal number without leading zeros",
+            ),
+            (
+                "face:import.0000000000007.18446744073709551616",
+                26,
+                "number past u64",
+            ),
+            (
+                "face:import.0000000000007.42.4294967296",
+                29,
+                "number past u32",
+            ),
+            (
+                "face:import.0000000000007.42.",
+                29,
+                "expected a decimal number without leading zeros",
+            ),
+        ] {
+            let err = bad.parse::<PersistentName>().unwrap_err();
+            assert_eq!((err.at, err.reason), (at, reason), "{bad}");
+        }
+    }
+
+    #[test]
     fn refuses_names_nested_past_the_bound() {
         let mut text = String::from("face:sweep.0000000000001.end-cap");
         for _ in 0..=MAX_NAME_DEPTH {
@@ -751,8 +851,15 @@ mod tests {
             }),
             (feature.clone(), arb_id())
                 .prop_map(|(feature, key)| NameRoot::Plugin { feature, key }),
-            (feature, any::<u32>())
+            (feature.clone(), any::<u32>())
                 .prop_map(|(feature, index)| NameRoot::Frozen { feature, index }),
+            (feature, any::<u64>(), any::<u32>()).prop_map(|(feature, entity, instance)| {
+                NameRoot::Imported {
+                    feature,
+                    entity,
+                    instance,
+                }
+            }),
         ]
     }
 
