@@ -72,6 +72,42 @@
         "$ref": "#/$defs/Id",
         "description": "An assembly (docs/DATA-MODEL.md §Assemblies)."
       },
+      "AssemblyOutcome": {
+        "description": "An assembly as the evaluator solved it.",
+        "properties": {
+          "cached": {
+            "description": "Reused from the cache: nothing it reads changed.",
+            "type": "boolean"
+          },
+          "components": {
+            "description": "Every component at every depth, by its path from this assembly, in\nid order, each nested assembly's after its own component.",
+            "items": {
+              "$ref": "#/$defs/PlacedComponent"
+            },
+            "type": "array"
+          },
+          "hash": {
+            "$ref": "#/$defs/InputHash",
+            "description": "Over everything the poses are a function of: the components' poses\nand nested assemblies, and each joint's values and anchors (the\nversion of the body each names, ADR-0029 §2)."
+          },
+          "joints": {
+            "additionalProperties": false,
+            "patternProperties": {
+              "^[0-9A-F][0-9A-HJKMNP-TV-Z]{12}$": {
+                "$ref": "#/$defs/JointOutcome"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "hash",
+          "cached",
+          "components",
+          "joints"
+        ],
+        "type": "object"
+      },
       "AuthorId": {
         "$ref": "#/$defs/Id",
         "description": "Who issued a command: the local user in local mode."
@@ -2419,6 +2455,62 @@
         ],
         "type": "string"
       },
+      "JointOutcome": {
+        "description": "How one joint's solve ended.",
+        "oneOf": [
+          {
+            "properties": {
+              "child": {
+                "$ref": "#/$defs/Frame"
+              },
+              "diagnostics": {
+                "description": "`assembly.limit`, when the value is outside its limits.",
+                "items": {
+                  "$ref": "#/$defs/Diagnostic"
+                },
+                "type": "array"
+              },
+              "parent": {
+                "$ref": "#/$defs/Frame",
+                "description": "The anchors' frames in the assembly: the motion carries the\nparent's into the child's."
+              },
+              "status": {
+                "const": "ok",
+                "type": "string"
+              },
+              "value": {
+                "description": "`value + offset` in SI, radians or metres; 0 for a fixed joint.",
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "required": [
+              "status",
+              "value",
+              "parent",
+              "child"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The joint places nothing; the child it would have placed is\n`assembly.unplaced`.",
+            "properties": {
+              "diagnostic": {
+                "$ref": "#/$defs/Diagnostic"
+              },
+              "status": {
+                "const": "failed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "status",
+              "diagnostic"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "MeshDetail": {
         "description": "How fine a mesh is asked for: a coarse one first so a body shows at\nonce, then a refined one (docs/CONCURRENCY-WASM.md §Tessellation).",
         "enum": [
@@ -2663,6 +2755,33 @@
       "PersistentName": {
         "description": "A face, edge or vertex: a root and what happened to it since.",
         "type": "string"
+      },
+      "PlacedComponent": {
+        "description": "A component where the assembly places it.",
+        "properties": {
+          "diagnostics": {
+            "description": "Why one of this assembly's own components is not where it was\nauthored to be: `assembly.unplaced`, or its pose's expression. A\nnested component's are its own assembly's.",
+            "items": {
+              "$ref": "#/$defs/Diagnostic"
+            },
+            "type": "array"
+          },
+          "path": {
+            "items": {
+              "$ref": "#/$defs/ComponentId"
+            },
+            "type": "array"
+          },
+          "pose": {
+            "$ref": "#/$defs/Frame",
+            "description": "Where the origin and axes of its part or nested assembly land, in\nthe frame of the assembly the path starts at."
+          }
+        },
+        "required": [
+          "path",
+          "pose"
+        ],
+        "type": "object"
       },
       "PluginId": {
         "description": "`[a-z][a-z0-9-]*`, and never `core`, which the built-ins own.",
@@ -3702,6 +3821,31 @@
           "kind",
           "generation",
           "event"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "One assembly's solve in the evaluation of `generation`: where each\ncomponent is and how each joint ended (docs/DATA-MODEL.md\n§Evaluation), sent for every assembly before `Finished`.",
+        "properties": {
+          "assembly": {
+            "$ref": "#/$defs/AssemblyId"
+          },
+          "generation": {
+            "$ref": "#/$defs/Generation"
+          },
+          "kind": {
+            "const": "assembled",
+            "type": "string"
+          },
+          "outcome": {
+            "$ref": "#/$defs/AssemblyOutcome"
+          }
+        },
+        "required": [
+          "kind",
+          "generation",
+          "assembly",
+          "outcome"
         ],
         "type": "object"
       },

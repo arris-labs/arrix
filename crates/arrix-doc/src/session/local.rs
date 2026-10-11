@@ -52,6 +52,7 @@ struct Replay {
 impl Replay {
     fn record(&mut self, event: &SessionEvent) {
         let (SessionEvent::Evaluated { generation, .. }
+        | SessionEvent::Assembled { generation, .. }
         | SessionEvent::Finished { generation, .. }
         | SessionEvent::Meshed { generation, .. }) = event
         else {
@@ -70,6 +71,10 @@ impl Replay {
                 SessionEvent::Evaluated { event: a, .. },
                 SessionEvent::Evaluated { event: b, .. },
             ) => a.feature == b.feature,
+            (
+                SessionEvent::Assembled { assembly: a, .. },
+                SessionEvent::Assembled { assembly: b, .. },
+            ) => a == b,
             (SessionEvent::Finished { .. }, SessionEvent::Finished { .. }) => true,
             (
                 SessionEvent::Meshed { part, slot, .. },
@@ -403,6 +408,14 @@ fn evaluate(mut evaluator: Evaluator, jobs: &Receiver<Job>, publish: &Sender<Msg
             if let Some(evaluation) = done {
                 finished = Some((generation, doc));
                 committed = evaluator.final_bodies().to_vec();
+                for (assembly, outcome) in evaluation.assemblies {
+                    let assembled = SessionEvent::Assembled {
+                        generation,
+                        assembly,
+                        outcome,
+                    };
+                    let _ = publish.send(Msg::Publish(assembled));
+                }
                 let finished = SessionEvent::Finished {
                     generation,
                     params: evaluation.params,

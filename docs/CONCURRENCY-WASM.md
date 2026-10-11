@@ -151,8 +151,14 @@ arrix eval <docs or dirs>… [--sweep <feature>.<param>=<from>..<to>:<n>]
                 "category":"kernel.degenerate.blend-too-large",
                 "diagnostic":{"code":"…","message":"…","refs":["…"]}}],
    "bodies":[{"part":"…","feature":"…","slot":"body","volume":1.2e-5,"area":4.1e-3,
-              "faces":14,"edges":36,"vertices":24}]}
+              "faces":14,"edges":36,"vertices":24}],
+   "assemblies":[{"id":"…","name":"…","components":[{"path":["…"],"pose":{"origin":[…],
+                  "x_axis":[…],"z_axis":[…]}}],"joints":{"<id>":{"status":"ok","value":1.57,…}}}]}
   ```
+
+  `assemblies` (in SI, a pose a frame) is absent when the document has none,
+  so a line of a document without them is unchanged (ADR-0026, additive); a
+  joint that failed (`ref.lost` and the rest) makes the line `failed`.
 
 - `--summary` ends with the failure histogram: one row per category with
   its count, the documents that hit it and the plugins that called it.

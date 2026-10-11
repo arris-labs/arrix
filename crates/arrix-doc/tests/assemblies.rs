@@ -561,3 +561,93 @@ fn the_outcome_is_cached_and_a_new_value_calls_no_kernel() {
         "the frames are cached"
     );
 }
+
+#[test]
+fn the_eval_line_carries_the_assemblies_and_is_failed_by_a_lost_joint() {
+    let n = names();
+    let doc = hinged("90 deg", hinge(&n, HINGE, JointKind::Revolute, "angle"));
+    let evaluation = eval(&doc);
+    let line = evaluation.line("hinged", &doc);
+    assert_eq!(line.status, arrix_doc::EvalStatus::Ok);
+    let [a] = &line.assemblies[..] else {
+        panic!("one assembly: {:?}", line.assemblies)
+    };
+    assert_eq!((a.id, a.name.as_str()), (ASM, "a20"));
+    assert_eq!(a.components, outcome(&evaluation, ASM).components);
+    assert_eq!(a.joints, outcome(&evaluation, ASM).joints);
+    let json = serde_json::to_value(&line).unwrap();
+    assert_eq!(
+        json["assemblies"][0]["joints"].as_object().unwrap().len(),
+        1
+    );
+
+    // A document without assemblies prints no key (ADR-0026, additive).
+    let plain = servo_doc("0 deg");
+    let json = serde_json::to_value(eval(&plain).line("plain", &plain)).unwrap();
+    assert!(json.get("assemblies").is_none());
+
+    // An anchor lost to an unknown name fails the joint, and the line.
+    let mut lost = hinge(&n, HINGE, JointKind::Revolute, "angle");
+    lost.child.axis = n.vertex.clone();
+    let doc = hinged("0 deg", lost);
+    let line = eval(&doc).line("lost", &doc);
+    assert_eq!(line.status, arrix_doc::EvalStatus::Failed);
+}
+
+#[test]
+fn the_session_announces_each_assembly_before_finished_and_a_late_subscriber_hears_it() {
+    use std::time::Duration;
+
+    use arrix_doc::{LocalSession, Session, SessionEvent};
+
+    let n = names();
+    let doc = hinged("90 deg", hinge(&n, HINGE, JointKind::Revolute, "angle"));
+    let expected = eval(&doc);
+    let session = LocalSession::open(doc, Registry::with_core_types()).unwrap();
+
+    let drain = |events: &std::sync::mpsc::Receiver<SessionEvent>| {
+        let mut heard = Vec::new();
+        loop {
+            let event = events
+                .recv_timeout(Duration::from_secs(60))
+                .expect("the evaluation finishes");
+            let done = matches!(event, SessionEvent::Finished { .. });
+            heard.push(event);
+            if done {
+                return heard;
+            }
+        }
+    };
+    let events = session.subscribe();
+    let heard = drain(&events);
+    let assembled: Vec<&SessionEvent> = heard
+        .iter()
+        .filter(|e| matches!(e, SessionEvent::Assembled { .. }))
+        .collect();
+    let [
+        SessionEvent::Assembled {
+            assembly, outcome, ..
+        },
+    ] = assembled[..]
+    else {
+        panic!("one Assembled: {assembled:?}")
+    };
+    assert_eq!(*assembly, ASM);
+    assert_eq!(outcome.components, self::outcome(&expected, ASM).components);
+    assert_eq!(outcome.joints, self::outcome(&expected, ASM).joints);
+
+    let late = session.subscribe();
+    let heard = drain(&late);
+    assert!(
+        heard
+            .iter()
+            .any(|e| matches!(e, SessionEvent::Assembled { assembly, .. } if *assembly == ASM)),
+        "the replay carries the assembly: {heard:?}"
+    );
+    let mut replica = arrix_doc::Replica::default();
+    for event in &heard {
+        replica.receive(event).unwrap();
+    }
+    let (_, held) = replica.assembly(ASM).unwrap();
+    assert_eq!(held.joints, self::outcome(&expected, ASM).joints);
+}

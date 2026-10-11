@@ -29,8 +29,8 @@ use std::fmt;
 use std::sync::mpsc::Receiver;
 
 use arrix_core::{
-    Diagnostic, ExportFormat, FeatureId, MeshDetail, ParamId, PartId, PluginId, Quantity,
-    RenderMesh,
+    AssemblyId, Diagnostic, ExportFormat, FeatureId, MeshDetail, ParamId, PartId, PluginId,
+    Quantity, RenderMesh,
 };
 use arrix_plugin_api::FeatureTypeSpec;
 use serde::{Deserialize, Serialize};
@@ -41,7 +41,7 @@ pub use plugins::PluginLoader;
 use crate::authority::{AuthorId, Change, CommandEnvelope, Generation, Outcome, Rejected};
 use crate::command::{CommandError, apply};
 use crate::document::{Document, FeatureTypeId};
-use crate::eval::{BodySlot, EvalEvent, FeatureOutcome};
+use crate::eval::{AssemblyOutcome, BodySlot, EvalEvent, FeatureOutcome};
 use crate::open::{MemorySource, open};
 use crate::save::save;
 pub use preview::{PreviewBody, PreviewId, PreviewTag};
@@ -189,6 +189,14 @@ pub enum SessionEvent {
         generation: Generation,
         event: EvalEvent,
     },
+    /// One assembly's solve in the evaluation of `generation`: where each
+    /// component is and how each joint ended (docs/DATA-MODEL.md
+    /// §Evaluation), sent for every assembly before `Finished`.
+    Assembled {
+        generation: Generation,
+        assembly: AssemblyId,
+        outcome: AssemblyOutcome,
+    },
     /// The evaluation of `generation` finished, with every parameter's
     /// value. An evaluation a newer generation stopped has no `Finished`.
     Finished {
@@ -312,6 +320,7 @@ pub struct Replica {
     generation: Generation,
     outcomes: BTreeMap<FeatureId, (Generation, FeatureOutcome)>,
     finished: Option<(Generation, ParamValues)>,
+    assemblies: BTreeMap<AssemblyId, (Generation, AssemblyOutcome)>,
 }
 
 impl Replica {
@@ -326,6 +335,11 @@ impl Replica {
     /// The feature's newest outcome and the generation it is of.
     pub fn outcome(&self, feature: FeatureId) -> Option<(Generation, &FeatureOutcome)> {
         self.outcomes.get(&feature).map(|(g, o)| (*g, o))
+    }
+
+    /// The assembly's newest solve and the generation it is of.
+    pub fn assembly(&self, assembly: AssemblyId) -> Option<(Generation, &AssemblyOutcome)> {
+        self.assemblies.get(&assembly).map(|(g, o)| (*g, o))
     }
 
     /// The newest finished evaluation's generation and parameter values.
@@ -396,8 +410,23 @@ impl Replica {
                         .insert(event.feature, (*generation, event.outcome.clone()));
                 }
             }
+            SessionEvent::Assembled {
+                generation,
+                assembly,
+                outcome,
+            } => {
+                let newer = self
+                    .assemblies
+                    .get(assembly)
+                    .is_none_or(|(g, _)| g <= generation);
+                if newer {
+                    self.assemblies
+                        .insert(*assembly, (*generation, outcome.clone()));
+                }
+            }
             SessionEvent::Finished { generation, params } => {
                 if self.finished.as_ref().is_none_or(|(g, _)| g <= generation) {
+                    self.assemblies.retain(|_, (g, _)| *g >= *generation);
                     // Every feature of that generation has reported; an
                     // older outcome is of a feature no longer there.
                     self.outcomes.retain(|_, (g, _)| *g >= *generation);

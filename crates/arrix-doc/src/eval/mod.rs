@@ -47,7 +47,8 @@ pub use hash::InputHash;
 #[cfg(feature = "schema")]
 pub use line::eval_line_schema;
 pub use line::{
-    BodyLine, EVAL_FORMAT, EvalLine, EvalStatus, FeatureLine, ParamLine, SweepPoint, eval,
+    AssemblyLine, BodyLine, EVAL_FORMAT, EvalLine, EvalStatus, FeatureLine, ParamLine, SweepPoint,
+    eval,
 };
 pub use meshing::{BodySlot, FinalBody};
 pub use sweep::{Sweep, SweepError, sweep};

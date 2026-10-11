@@ -2,10 +2,12 @@
 //! (docs/CONCURRENCY-WASM.md §Batch evaluation). Here, beside the document,
 //! so `arrix eval` and the tests share one code path.
 
-use arrix_core::{Diagnostic, FeatureId, ParamId, PartId};
+use arrix_core::{AssemblyId, Diagnostic, FeatureId, JointId, ParamId, PartId};
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
-use super::{Evaluation, Evaluator, FeatureOutcome, SlotView};
+use super::{Evaluation, Evaluator, FeatureOutcome, JointOutcome, PlacedComponent, SlotView};
 use crate::document::Document;
 use crate::open::{DocumentSource, OpenError, open};
 use crate::registry::Registry;
@@ -33,6 +35,20 @@ pub struct EvalLine {
     pub params: Vec<ParamLine>,
     pub features: Vec<FeatureLine>,
     pub bodies: Vec<BodyLine>,
+    /// Every assembly as solved, in id order; absent when there are none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub assemblies: Vec<AssemblyLine>,
+}
+
+/// One assembly's solve: where each component is, in SI, and how each
+/// joint ended.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub struct AssemblyLine {
+    pub id: AssemblyId,
+    pub name: String,
+    pub components: Vec<PlacedComponent>,
+    pub joints: BTreeMap<JointId, JointOutcome>,
 }
 
 /// A point of `--sweep`: what was swept as the flag named it, the point's
@@ -191,8 +207,23 @@ impl Evaluation {
                 diagnostics: notes,
             });
         }
+        let assemblies: Vec<AssemblyLine> = self
+            .assemblies
+            .iter()
+            .map(|(id, outcome)| AssemblyLine {
+                id: *id,
+                name: doc.assemblies()[id].name.clone(),
+                components: outcome.components.clone(),
+                joints: outcome.joints.clone(),
+            })
+            .collect();
         let failed = params.iter().any(|p| p.diagnostic.is_some())
-            || features.iter().any(|f| f.status == "failed");
+            || features.iter().any(|f| f.status == "failed")
+            || assemblies.iter().any(|a| {
+                a.joints
+                    .values()
+                    .any(|j| matches!(j, JointOutcome::Failed { .. }))
+            });
         EvalLine {
             format: EVAL_FORMAT,
             doc: name.into(),
@@ -205,6 +236,7 @@ impl Evaluation {
             params,
             features,
             bodies,
+            assemblies,
         }
     }
 }
