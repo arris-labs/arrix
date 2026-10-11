@@ -8,7 +8,7 @@ to its status line (`/close-cycle`), and the next is detailed below it.
 
 Spine: **C1** (the vertical slice with a plugin feature in it; done), then
 **the boundary opened** (the agent's way in; ADR-0016; done), **C2** (assemblies
-and exchange; next), **C3** (the boundary crossed), **C4** (the web). Beyond
+and exchange; M1 done), **C3** (the boundary crossed), **C4** (the web). Beyond
 C4, the named cycles are unordered.
 
 ---
@@ -113,8 +113,11 @@ stays green.
 them, placed by joints whose values are expressions, and an assembly leaves
 and returns through STEP with its structure, in metres.*
 
-**Status: open.** Split from the mechanical core by ADR-0027; M1 is
-planned (`docs/plans/c2-m1.md`). The risk to retire: a persistent name
+**Status: open.** Split from the mechanical core by ADR-0027; M1 done
+2026-10-11 (assemblies in the document, headless: `core.import-step`,
+schema 4, the commands, forward kinematics, the eval line and `Assembled`;
+`cargo test -p arrix-cli --test c2_m1`; ADR-0028, ADR-0029); M2 and M3 are
+unplanned. The risk to retire: a persistent name
 across parts and instances, into imported and frozen geometry.
 
 **In:**

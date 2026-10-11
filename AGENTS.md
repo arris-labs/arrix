@@ -39,8 +39,10 @@ a plugin by a request, `arrix-app render` renders headless (`--test
 boundary_m2`), `arrix test` checks any plugin, the harness is versioned, and
 an agent with only the binaries and the SDK does ADR-0016's scenario (`--test
 boundary_m3`).
-**Next:** C2, assemblies and exchange (`docs/ROADMAP.md`, ADR-0027); M1 is
-planned (`docs/plans/c2-m1.md`), work it with `/work`.
+**C2 M1 done 2026-10-11** (assemblies in the document, headless;
+ADR-0027 to ADR-0029): `core.import-step`, schema 4, joints and forward
+kinematics, `Assembled` on the eval line and the protocol (`--test c2_m1`).
+**Next:** C2 M2, the app (`docs/ROADMAP.md`); plan it.
 
 ## Rules that are not derivable from the code
 
@@ -136,6 +138,8 @@ it before ticking a step:
   `cargo test -p arrix-cli --test boundary_m2` is M2's accept. The SDK's
   `arrix.session` drives `serve`, `arrix.eval` runs `eval`, and
   `cargo test -p arrix-cli --test boundary_m3` is M3's accept.
+  `cargo test -p arrix-cli --test c2_m1` is C2 M1's (`tests/docs/assembly`,
+  written with `UPDATE_SNAPSHOTS=1`).
   `cargo run -p arrix-app -- render <doc> -o <png> [--json <file>] [--view …]
   [--size WxH] [--plugin <dir>]…` renders a document headless (needs lavapipe).
 - Either hook runs by hand as `.githooks/pre-commit` or

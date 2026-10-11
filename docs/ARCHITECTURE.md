@@ -378,8 +378,13 @@ geometry from provenance, and to make every kernel call a record.
   `kernel.export.<error>` (`unit` for STEP until A12,
   `too-many-triangles`) for a format that could not be written, and
   `kernel.import.<error>` (`parse`, or the reader's refusal kind) for a
-  file or solid that could not be read, `import.no-solid` for a solid the
-  file lacks, and
+  file or solid that could not be read, `import.no-file` for an import
+  record with no file, `import.no-solid` for a solid the file lacks,
+  `assembly.dangling` for a command that would orphan a component or
+  joint (refused), `assembly.loop`, `assembly.unplaced` and
+  `assembly.limit` for a joint structure or value the solver could not
+  take as given (the last two warnings; the document keeps them mid-edit),
+  and
   `kernel.naming`,
   `kernel.unknown-body`, `kernel.unknown-name`, `kernel.wrong-kind` for
   ArriX's own refusals. The same failure across a thousand documents is one row with
@@ -538,7 +543,7 @@ A step blocked on an ask names it and waits.
 | A2 | body bytes with a compatibility policy | C1: frozen results (fixture recipes replay the calls: Arris's recipe has no body-bytes operand); C3: the Tier 2 boundary | released in 0.4.0, taken in C1 M1 |
 | A3 | cancellation: an interrupt token, optionally a step budget | C1: superseded evaluations; C4: the browser | released in 0.4.0 (`Control`), taken in C1 M4 |
 | A11 | `ops::mirror` | C1: the mirror feature | released in 0.4.0, taken in C1 M2 |
-| A4 | STEP product structure | C2 | released in 0.4.0 (`Read::products`, `step::write_products`), not taken |
+| A4 | STEP product structure | C2 | released in 0.4.0 (`Read::products`, `step::write_products`), not taken; M1 reads one solid per import feature, M3 takes the product tree |
 | A12 | the STEP writer declares the caller's length unit (the reader's `LengthUnit`) | STEP export, refused as `kernel.export.unit` until then; C2's round trip | asked 2026-10-11 |
 | A8 | multi-tool booleans (`cut_many`, `fuse_many`) | a pattern's holes in one boolean | released in 0.6.0, not used yet (`docs/BACKLOG.md`) |
 | A9 | per-face tessellation (`tessellate_faces`, `TriMesh::weld`) | per-face mesh caching | released in 0.6.0, not taken |

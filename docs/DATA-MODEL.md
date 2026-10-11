@@ -54,8 +54,8 @@ first path component is its assembly's). A `FeatureRecord` also holds
 `file: Option<ImportedFile { name, blob }>`, the imported file's base name
 for display (never a path) and its blob. The commands (§Commands and
 undo), the DAG's nodes (§The dependency DAG) and the assembly pass
-(§Evaluation) are built; the surfaces that carry an assembly's outcome
-follow in C2 M1's later steps.
+(§Evaluation) are built, and the eval line and the protocol carry an
+assembly's outcome (`Assembled`).
 
 **What is not in the document** (`SEED.md` §6.1 rule 4): selection, hover,
 the active sketch, the edit mode, the camera, panel layout, and every
@@ -388,7 +388,8 @@ extrude in cut mode, the body it cut is a new version of the same slot.
   there; one that failed leaves the reader unavailable
   (`input.unavailable` naming it), never on an earlier version. A body is
   read within its part: naming one of another part is `input.cross-part`
-  until assemblies say what a version across parts is.
+  except through a joint's anchor, which reads the final state of the
+  part it names (ADR-0029).
 
 - **The tool a feature keeps** (ADR-0013, as built): a feature that joins
   or cuts hands back the tool it applied, and the evaluator holds it beside
@@ -434,6 +435,11 @@ the rest are by id. A `SlotName` is one lower-kebab word (`body`,
 `plane`), the grammar of a diagnostic code's segment. In JSON a `Ref` is
 an object with one key, the variant in snake case: `{"topo":"face:…"}`,
 `{"slot":{"feature":"…","slot":"body"}}`.
+
+A joint's `Anchor` (ADR-0029) is the one reference that crosses parts: a
+path of components down to a part, and the `PersistentName` of an axis face
+or edge (and optionally an origin face) in that part's final bodies. It
+resolves or is `ref.lost` with candidates on the joint, never re-bound.
 
 A record holds an `Input` under each input name: one `Ref`, or a list of
 them (`Input::One`, `Input::Many`, an object or an array in JSON, so a
@@ -614,7 +620,8 @@ pub enum NameRoot {
     Sweep { feature: FeatureId, part: SweepPartName },   // a cap, or a part of curve k
     Plugin { feature: FeatureId, key: Id },              // Arris ask A1, consumer roles
     Frozen { feature: FeatureId, index: u32 },           // a frozen result's stored name table
-    // Primitive and Imported (C2) join with primitives and import.
+    Imported { feature: FeatureId, entity: u64, instance: u32 }, // a STEP file's entity (ADR-0029)
+    // Primitive (C2) joins with primitives.
 }
 
 pub enum SweepPartName {      // curve-keyed parts name the profile curve by its CurveKey

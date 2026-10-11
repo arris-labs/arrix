@@ -47,6 +47,7 @@ idea is not brainstormed twice.
 - Plugin document data: `PluginData` edits and plugin-record nodes in the DAG (`docs/DATA-MODEL.md` §Commands and undo), which no plugin needs yet; the first plugin that stores data of its own asks for them (close of the boundary opened)
 - `arrix run script.py doc.arrx`, a Tier 2 script that runs once (`SEED.md` §4): not built; the boundary opened gave an agent `arrix.session` instead (close of the boundary opened)
 - Using `arris` 0.6's new operations: `cut_many` for a pattern's holes in one boolean, `tessellate_faces` for per-face mesh caching, `split`, `shell`; none is needed yet
+- One STEP file read once across several import features: a cache keyed by the blob's BLAKE3, when a budget asks (plans/c2-m1, non-goals)
 
 ## Rejected
 
