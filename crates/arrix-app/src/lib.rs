@@ -17,6 +17,8 @@ mod file_export;
 mod form;
 mod form_pick;
 mod gestures;
+mod joint_drag;
+mod joint_drag_app;
 mod joint_form;
 mod joint_form_app;
 mod keys;
@@ -538,18 +540,21 @@ impl ArrixApp {
         // The answer is drawn next frame; nothing else may wake the app for
         // it, nor for a read-back still on its way.
         ctx.request_repaint();
-        answer.map(|(purpose, hit)| {
-            let (name, path) = match hit {
-                Some(hit) => (
-                    Some(hit.name),
-                    hit.path.iter().map(|c| c.0.to_string()).collect(),
-                ),
-                None => (None, Vec::new()),
-            };
-            match purpose {
-                PickFor::Click => UiIntent::Picked { name, path },
-                PickFor::Hover => UiIntent::Hovered { name, path },
-            }
+        let (purpose, hit) = answer?;
+        if purpose == PickFor::Drag {
+            self.begin_joint_drag(hit);
+            return None;
+        }
+        let (name, path) = match hit {
+            Some(hit) => (
+                Some(hit.name),
+                hit.path.iter().map(|c| c.0.to_string()).collect(),
+            ),
+            None => (None, Vec::new()),
+        };
+        Some(match purpose {
+            PickFor::Click => UiIntent::Picked { name, path },
+            PickFor::Hover | PickFor::Drag => UiIntent::Hovered { name, path },
         })
     }
 
@@ -682,6 +687,9 @@ impl ArrixApp {
         let Some(spec) = hovered else {
             if let Some(notice) = &self.session.notice {
                 return notice.clone();
+            }
+            if let Some(hint) = self.joint_drag_hint() {
+                return hint;
             }
             if let Some(reason) = &self.session.badge_hover {
                 return format!("{reason}.");
@@ -1091,6 +1099,9 @@ impl ArrixApp {
         let anchors = self
             .active_document()
             .map_or_else(Vec::new, OpenDocument::badge_anchors);
+        let drags = self
+            .active_document()
+            .is_some_and(OpenDocument::drags_joints);
         let view_state = match self.documents.get_mut(self.active) {
             Some(d) => &mut d.view,
             None => &mut self.idle_view,
@@ -1110,6 +1121,7 @@ impl ArrixApp {
                 viewport::Overlays {
                     part: &part,
                     anchors: &anchors,
+                    drags,
                 },
             ));
         });
@@ -1119,6 +1131,10 @@ impl ArrixApp {
         let (badges, badge_hover) = frame
             .as_mut()
             .map(|f| (std::mem::take(&mut f.badges), f.badge_hover.take()))
+            .unwrap_or_default();
+        let scene_drag = frame
+            .as_mut()
+            .map(|f| std::mem::take(&mut f.drag))
             .unwrap_or_default();
         let sketch_pointer = frame.and_then(|f| f.sketch);
         self.drawn = Some(Drawn {
@@ -1145,6 +1161,10 @@ impl ArrixApp {
                 name: None,
                 path: Vec::new(),
             });
+            ui.ctx().request_repaint();
+        }
+        for step in scene_drag {
+            self.joint_drag_step(step);
             ui.ctx().request_repaint();
         }
         if let Some(pointer) = part_pointer {

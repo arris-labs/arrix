@@ -242,6 +242,7 @@ written here; a missed one stays a target and a backlog line.
 | A UI frame with the C1 acceptance part on screen | ≤ 16 ms; measured 0.09 ms median |
 | Applying a command (authority and replica) | ≤ 1 ms; gated, measured 0.1 ms median |
 | One sketch-drag solve on a 200-entity sketch | ≤ 4 ms, on the UI thread; gated, measured 0.38 ms median |
+| A UI frame dragging a joint, the accept's assembly on screen | ≤ 16 ms, on the UI thread; gated, measured 0.22 ms median |
 | One inference verdict (`check_candidate`) on a drawn part's sketch | inside the frame, on the UI thread; measured 0.1–0.6 ms median |
 | First coarse mesh after a parameter edit of the acceptance part | ≤ 150 ms; missed, measured 324 ms median |
 | Cancellation latency | ≤ 50 ms; gated, measured 10 ms median |
@@ -280,6 +281,15 @@ a length and perpendicular to the last, drags at 300 ms median per frame
 (7.2 s before; reported, not gated), a dense 400-variable basis of about
 30 ms per follow iteration and about 13 iterations a frame on a chain that
 cannot reach the cursor (`docs/BACKLOG.md`).
+
+The joint-drag frame is the app's frame (as the UI frame above, without
+the GPU) while a left drag turns the hinged servo of `tests/docs/assembly`
+with a second servo grounded beside it, the pointer walked in a circle:
+forward kinematics over the last solve's frames and the instances moved,
+nothing uploaded. Median 0.22 ms, p95 0.28 ms, in the dev profile on a
+Ryzen 9 7950X; the test asserts the 16 ms median
+(`cargo test -p arrix-app --test visual -- joint_drag_frame_budget
+--nocapture`).
 
 An inference verdict is what the draw preview pays when its candidate set
 changes (`Sketch::check_candidate`, one per candidate): on a fully

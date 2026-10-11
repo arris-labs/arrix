@@ -685,6 +685,32 @@ draws). Ported, reviewed on the way in (`SEED.md` §8.1).
   visible body draws once at its own origin, with an empty path; both are
   `Scene::visible`'s `Drawn` instances, so the draw, pick, highlight,
   bounds and badge paths are one. Moving an instance re-uploads nothing.
+- **The joint drag** (ADR-0030 §3 and §4, `joint_drag.rs` and
+  `joint_drag_app.rs`). In an assembly's context, outside sketch mode, a
+  left drag asks for a pick where the button went down; the joint it moves
+  places the deepest component of the hit's path that a joint places. A
+  grounded or unplaced component, a fixed or failed joint, and a value
+  that is an expression other than one parameter's name do not drag: the
+  status line says why, and the release is no gesture. The pointer reads
+  against the joint's parent anchor frame, in the world: a revolute's angle
+  about its z in that frame's plane, turned through since the press (a
+  plane seen within about 11° of edge-on reads the pointer's travel across
+  the axis's image instead, 100 points a radian); a prismatic's distance
+  along its z, in the plane through the axis that best faces the eye
+  (refused when the axis is within about 14° of the line of sight). The
+  trial value is the start's plus that, clamped to the limits, rounded to
+  0.1° or 0.01 mm, and is the text the release would commit, whose own
+  value forward kinematics is given: `arrix_doc::place` over the last
+  solve's frames, the joint's assembly placed again and each one above it
+  from that. Only the instances move; nothing is uploaded and nothing is
+  asked of the session. The status line shows the joint and its trial
+  value, and `debug_state().joint_drag` the joint, the text and the
+  coordinate. The release is one gesture (`joint drag`): `EditJoint` with
+  the literal, or `SetParam` of the parameter the value names, or nothing
+  for a value where it started; the preview is held until the assembly's
+  solve of a later generation arrives, so nothing jumps back. A joint of an
+  assembly above, anchored on the moved subtree, keeps its last frame in
+  the preview until that solve.
 - **Meshes** arrive in `EvalEvent`s as `RenderMesh`: f32 positions
   relative to the body's local origin (the kernel works in f64; the cast
   happens where the buffer layout is known), normals, face ranges and edge
@@ -745,7 +771,8 @@ draws). Ported, reviewed on the way in (`SEED.md` §8.1).
   **Z-up, right-handed** (`SEED.md` §8.2). The camera is session state per
   tab, so it issues no command. Gestures are fixed for now (bindings in the
   keymap are a backlog line): middle drag (or right drag) orbits, shift and
-  middle drag pans, the wheel zooms toward the cursor, left click picks. The
+  middle drag pans, the wheel zooms toward the cursor, left click picks, and
+  in an assembly's context a left drag moves a joint (below). The
   view commands are `core.view.{home,top,front,right,iso,projection.toggle}`
   (`home`, `ctrl+7`, `ctrl+1`, `ctrl+3`, `ctrl+0`, `ctrl+5`); each flies
   the camera, and `ArrixApp::skip_animations` finishes a flight at once for

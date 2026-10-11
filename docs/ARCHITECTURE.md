@@ -72,7 +72,9 @@ lint (§Gates):
    undo). No crate outside `arrix-doc` holds a `&mut Document`.
 6. The kernel never runs on the UI thread. `arrix-app` never calls
    `arrix-kernel`; it talks to the evaluator. The sketch solver is the one
-   sanctioned exception (`SEED.md` §6.1).
+   sanctioned exception (`SEED.md` §6.1); forward kinematics during a
+   joint drag runs there too, being no kernel call but matrix products over
+   frames the worker published (ADR-0030 §3).
 
 The dependency graph enforces most of these by construction; the lint
 catches the rest (a UI crate that pulls a doc type through a re-export, a
@@ -193,7 +195,7 @@ file, with the evaluation's line beside it.
 
 | Thread | Role | Runs | Never runs |
 |---|---|---|---|
-| UI (main) | client | egui, the viewport's frame, input, the sketch solver during sketch edits, the document replica, command submission | kernel calls, file I/O beyond a picked file's bytes |
+| UI (main) | client | egui, the viewport's frame, input, the sketch solver during sketch edits, forward kinematics during a joint drag, the document replica, command submission | kernel calls, file I/O beyond a picked file's bytes |
 | Session | authority | the document: applies or rejects commands, publishes the applied stream, hands snapshots to the evaluator | kernel calls, anything egui |
 | Evaluator | authority | evaluates snapshots, calls the kernel, tessellates | anything egui |
 | `serve` reader and writer | transport | `arrix serve --stdio` (native only): the reader turns stdin lines into requests; the one writer owns stdout, so a response precedes the events it caused | kernel calls |

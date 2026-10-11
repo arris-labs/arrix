@@ -65,13 +65,18 @@ pub struct ViewState {
     /// The paths whose instances the viewport tints, set every frame from
     /// the selection and the context.
     pub component_marks: Vec<Vec<ComponentId>>,
+    /// A left drag moving a joint, from the press to the release's
+    /// evaluation (ADR-0030 §3).
+    pub joint_drag: Option<crate::joint_drag_app::JointDrag>,
 }
 
-/// What a pick is for: a click selects, the pointer resting hovers.
+/// What a pick is for: a click selects, the pointer resting hovers, a
+/// left drag's press finds what it moves.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PickFor {
     Click,
     Hover,
+    Drag,
 }
 
 impl ViewState {
@@ -514,7 +519,14 @@ impl OpenDocument {
                     Err(diagnostic) => self.problems.push(diagnostic.message.clone()),
                 }
             }
-            SessionEvent::Assembled { .. } => self.refresh_view(),
+            SessionEvent::Assembled {
+                assembly,
+                generation,
+                ..
+            } => {
+                self.heard_assembled(*assembly, *generation);
+                self.refresh_view();
+            }
             SessionEvent::Opened { types, .. } => self.type_changes.added.extend(types.clone()),
             SessionEvent::Registry { added, removed, .. } => {
                 self.type_changes.added.extend(added.clone());
@@ -610,13 +622,14 @@ impl OpenDocument {
 
     /// Makes the scene draw the context: a part's bodies alone at their
     /// origin, or an assembly's components at the poses last heard.
-    fn refresh_view(&mut self) {
+    pub(crate) fn refresh_view(&mut self) {
         let context = self.context();
         let scene = &mut self.view.scene;
         match context {
             Some(Context::Assembly(id)) => {
                 let keys: Vec<BodyKey> = scene.keys().cloned().collect();
-                let list = context::instances(&self.replica, id, &keys);
+                let dragged = self.view.joint_drag.as_ref().and_then(|d| d.shown(id));
+                let list = context::instances(&self.replica, id, &keys, dragged);
                 scene.set_instances(Some(list));
             }
             context => {

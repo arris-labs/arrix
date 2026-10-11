@@ -21,6 +21,8 @@ use crate::sketch_view::{SketchOverlay, plane_transform};
 pub struct Overlays<'a> {
     pub part: &'a PartSketches,
     pub anchors: &'a [BadgeAnchor],
+    /// A left drag moves a joint: the view is an assembly's.
+    pub drags: bool,
 }
 
 /// What a frame of the viewport left for the app to do.
@@ -36,6 +38,20 @@ pub struct Frame {
     /// is over is frozen.
     pub badges: Vec<arrix_ui::BadgeView>,
     pub badge_hover: Option<String>,
+    /// What the left button's drag did in the scene this frame, when it
+    /// moves joints.
+    pub drag: Vec<SceneDrag>,
+}
+
+/// One step of a drag with the left button in an assembly's scene.
+#[derive(Clone, Copy, Debug)]
+pub enum SceneDrag {
+    /// It began where the button went down.
+    Started(egui::Pos2),
+    /// The pointer, this frame.
+    Moved(egui::Pos2),
+    /// The button went up.
+    Ended,
 }
 
 /// The pointer in the open sketch's plane, for what changed this frame.
@@ -93,7 +109,11 @@ pub fn show(
     sketch: Option<&SketchOverlay>,
     over: Overlays<'_>,
 ) -> Frame {
-    let Overlays { part, anchors } = over;
+    let Overlays {
+        part,
+        anchors,
+        drags,
+    } = over;
     let rect = ui.max_rect();
     // The viewport's own response: a card over it is a layer above and
     // takes its clicks, so a click on a card picks nothing; the cube,
@@ -137,11 +157,15 @@ pub fn show(
     let moved = hover
         .filter(|p| view.hover_at != Some(*p))
         .filter(|_| !pressed && view.pick.is_none() && part_over.is_none());
+    // A left drag in an assembly's scene asks what is under the press.
+    let (drag, press) = scene_drag(ui, &response, drags && sketch.is_none());
     // In sketch mode the pointer is the sketch's: nothing in the scene is
     // picked or hovered.
-    let wanted = click
-        .filter(|_| part_click.is_none())
-        .map(|at| (at, PickFor::Click))
+    let wanted = press
+        .map(|at| (at, PickFor::Drag))
+        .or(click
+            .filter(|_| part_click.is_none())
+            .map(|at| (at, PickFor::Click)))
         .or(moved.map(|at| (at, PickFor::Hover)))
         .filter(|_| sketch.is_none());
     let mut hover_left = false;
@@ -267,7 +291,34 @@ pub fn show(
         part: part_pointer,
         badges,
         badge_hover,
+        drag,
     }
+}
+
+/// What the left button's drag did in the scene this frame, when `drags`,
+/// and where it was pressed if it began.
+fn scene_drag(
+    ui: &egui::Ui,
+    response: &egui::Response,
+    drags: bool,
+) -> (Vec<SceneDrag>, Option<egui::Pos2>) {
+    let mut drag = Vec::new();
+    if !drags {
+        return (drag, None);
+    }
+    let left = egui::PointerButton::Primary;
+    let press = response
+        .drag_started_by(left)
+        .then(|| ui.input(|i| i.pointer.press_origin()))
+        .flatten();
+    drag.extend(press.map(SceneDrag::Started));
+    if response.dragged_by(left) {
+        drag.extend(response.interact_pointer_pos().map(SceneDrag::Moved));
+    }
+    if response.drag_stopped_by(left) {
+        drag.push(SceneDrag::Ended);
+    }
+    (drag, press)
 }
 
 /// The screen point `at` in the plane, with the hit tolerance there in

@@ -38,6 +38,9 @@ pub struct DebugState {
     /// asked for (ADR-0019).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub preview: Option<PreviewDebug>,
+    /// The joint a left drag is moving, and its trial value (ADR-0030 §3).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub joint_drag: Option<crate::joint_drag_app::JointDragDebug>,
     /// The camera the active view looks through.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub camera: Option<CameraDebug>,
@@ -281,6 +284,7 @@ impl ArrixApp {
                 bodies: Vec::new(),
                 instances: Vec::new(),
                 preview: None,
+                joint_drag: None,
                 camera: None,
                 selection: None,
                 selection_path: Vec::new(),
@@ -323,6 +327,9 @@ impl ArrixApp {
             bodies: self.active_document().map_or_else(Vec::new, |d| {
                 d.view.scene.entries().map(body_debug).collect()
             }),
+            joint_drag: self
+                .active_document()
+                .and_then(crate::OpenDocument::joint_drag_debug),
             instances: self.active_document().map_or_else(Vec::new, |d| {
                 let round = |v: arrix_core::DVec3| [v.x, v.y, v.z].map(round9);
                 d.view

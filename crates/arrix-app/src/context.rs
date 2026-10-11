@@ -3,7 +3,7 @@
 //! the document's.
 
 use arrix_core::{AssemblyId, ComponentId, PartId};
-use arrix_doc::{ComponentOf, Document, Replica};
+use arrix_doc::{ComponentOf, Document, PlacedComponent, Replica};
 use arrix_viewport::{BodyKey, Instance};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -114,14 +114,20 @@ pub fn component_names(doc: &Document, root: AssemblyId, path: &[ComponentId]) -
 
 /// Every placed component of `root` that places a part, once per body of
 /// that part the scene holds, at the pose the last `Assembled` gave it
-/// (nested ones composed, `assembly.unplaced` ones at the identity).
-pub fn instances(replica: &Replica, root: AssemblyId, keys: &[BodyKey]) -> Vec<Instance> {
+/// (nested ones composed, `assembly.unplaced` ones at the identity), or at
+/// `dragged`'s poses while a joint drag previews them.
+pub fn instances(
+    replica: &Replica,
+    root: AssemblyId,
+    keys: &[BodyKey],
+    dragged: Option<&[PlacedComponent]>,
+) -> Vec<Instance> {
     let Some((_, outcome)) = replica.assembly(root) else {
         return Vec::new();
     };
     let doc = replica.document();
     let mut out = Vec::new();
-    for placed in &outcome.components {
+    for placed in dragged.unwrap_or(&outcome.components) {
         let Some(part) = leaf_part(doc, root, &placed.path) else {
             continue;
         };

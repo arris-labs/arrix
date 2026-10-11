@@ -16,6 +16,7 @@ mod frozen_badge;
 mod harness;
 mod highlight;
 mod instances;
+mod joint_drag;
 mod joint_form;
 mod m3_accept;
 mod preview;
