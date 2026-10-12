@@ -32,7 +32,7 @@ type Harness<'a> = egui_kittest::Harness<'a, arrix_app::ArrixApp>;
 /// on the bore, upside down.
 const HINGED: [[f64; 3]; 3] = [[0.004, 0.01, 0.041], [1.0, 0.0, 0.0], [0.0, 0.0, -1.0]];
 
-struct Answer(Rc<RefCell<Option<PathBuf>>>);
+pub(crate) struct Answer(pub(crate) Rc<RefCell<Option<PathBuf>>>);
 
 impl OpenDialog for Answer {
     fn choose(&mut self) -> Option<PathBuf> {
@@ -40,7 +40,7 @@ impl OpenDialog for Answer {
     }
 }
 
-fn run_command(h: &mut Harness<'_>, title: &str) {
+pub(crate) fn run_command(h: &mut Harness<'_>, title: &str) {
     h.key_press_modifiers(egui::Modifiers::CTRL, egui::Key::K);
     h.run_steps(2);
     h.event(egui::Event::Text(title.to_owned()));
@@ -51,7 +51,7 @@ fn run_command(h: &mut Harness<'_>, title: &str) {
 
 /// Steps until `done`, half a minute at most: the session answers on its
 /// own threads.
-fn wait_for(h: &mut Harness<'_>, what: &str, done: impl Fn(&Harness<'_>) -> bool) {
+pub(crate) fn wait_for(h: &mut Harness<'_>, what: &str, done: impl Fn(&Harness<'_>) -> bool) {
     let started = web_time::Instant::now();
     while !done(h) {
         h.step();
@@ -63,7 +63,7 @@ fn wait_for(h: &mut Harness<'_>, what: &str, done: impl Fn(&Harness<'_>) -> bool
 /// Steps until the document has evaluated the `n`th command it was given
 /// and everything it says is heard, then a few frames more (a camera fit
 /// may keep asking for repaints, which `Harness::run` refuses).
-fn settled_at(h: &mut Harness<'_>, n: u64) {
+pub(crate) fn settled_at(h: &mut Harness<'_>, n: u64) {
     wait_for(h, "the command's evaluation", |h| {
         h.state()
             .debug_state()
@@ -74,7 +74,7 @@ fn settled_at(h: &mut Harness<'_>, n: u64) {
 }
 
 /// Opens the form's nth choice and takes `option`.
-fn choose(h: &mut Harness<'_>, combo: usize, option: &str) {
+pub(crate) fn choose(h: &mut Harness<'_>, combo: usize, option: &str) {
     h.get_all_by_role(Role::ComboBox)
         .nth(combo)
         .unwrap()
@@ -85,7 +85,7 @@ fn choose(h: &mut Harness<'_>, combo: usize, option: &str) {
 }
 
 /// Replaces the text of the nth text input and commits it.
-fn type_into(h: &mut Harness<'_>, n: usize, text: &str) {
+pub(crate) fn type_into(h: &mut Harness<'_>, n: usize, text: &str) {
     h.get_all_by_role(Role::TextInput).nth(n).unwrap().focus();
     h.run_steps(2);
     h.key_press_modifiers(
@@ -102,7 +102,7 @@ fn type_into(h: &mut Harness<'_>, n: usize, text: &str) {
     h.run_steps(3);
 }
 
-fn ok(h: &mut Harness<'_>) {
+pub(crate) fn ok(h: &mut Harness<'_>) {
     h.get_by_label("OK").click();
     h.run_steps(4);
 }
@@ -188,7 +188,7 @@ fn near(got: [[f64; 3]; 3], want: [[f64; 3]; 3], tolerance: f64) -> bool {
 }
 
 /// The gestures that applied a command, as their counts.
-fn applied(h: &Harness<'_>) -> Vec<usize> {
+pub(crate) fn applied(h: &Harness<'_>) -> Vec<usize> {
     let log = h.state().debug_state().gestures;
     log.iter().map(|g| g.commands).filter(|n| *n > 0).collect()
 }
@@ -212,6 +212,9 @@ fn c2_m2_accept() {
         ))));
         h.state_mut().set_open_dialog(Box::new(Answer(answer)));
         run_command(h, "Import STEP");
+        // The session reads the file's tree on its worker; the one command
+        // follows when it comes back.
+        wait_for(h, "the import's tree", |h| applied(h) == [1, 1]);
         assert_eq!(applied(h), [1, 1], "the deletion, then the whole import");
         run_command(h, "New assembly");
         assert_eq!(applied(h), [1, 1, 1]);
@@ -234,8 +237,10 @@ fn c2_m2_accept() {
             h.state().debug_state().instances.len() == 3
         });
         settled_at(h, 6);
-        let servo = component(h, "servo");
-        let servo_2 = component(h, "servo 2");
+        // The scenario's own servo part is already called Servo, so the
+        // import's is Servo 2 and its components are named after it.
+        let servo = component(h, "servo 2");
+        let servo_2 = component(h, "servo 2 2");
         let state = h.state().debug_state();
         let servo_part = &state
             .instances

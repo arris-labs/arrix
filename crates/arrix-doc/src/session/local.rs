@@ -9,7 +9,7 @@ use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender, channel};
 
 use super::plugins::{PluginLoader, Plugins, RegistryChange};
-use super::preview::{self, ExportJob, Job, PreviewJob, Queue};
+use super::preview::{self, ExportJob, Job, PreviewJob, Queue, StructureJob};
 use super::{DocHash, EventStream, PreviewTag, Request, Session, SessionEvent, files};
 use crate::authority::{Authority, Generation, Outcome, Rejected};
 use crate::eval::{EvalEvent, interrupted};
@@ -248,6 +248,10 @@ fn serve(
                         let _ = jobs.send(Job::Export(ExportJob { bodies, format }));
                         Ok(Outcome::Exporting)
                     }
+                    Request::ReadStepTree { tag, bytes } => {
+                        let _ = jobs.send(Job::Structure(StructureJob { tag, bytes }));
+                        Ok(Outcome::Reading)
+                    }
                     Request::LoadPlugin { dir } => plugins.load(&dir).map(|change| {
                         let out = announce(change, &mut authority, &plugins, &jobs);
                         previewing = None;
@@ -387,6 +391,11 @@ fn evaluate(mut evaluator: Evaluator, jobs: &Receiver<Job>, publish: &Sender<Msg
     while queue.wait(finished.is_some()) {
         // Whatever raised the flag is the job taken now, or an older one.
         interrupt.lower();
+        // A file's tree is a read of its own, wanted at once.
+        while let Some(job) = queue.structures.pop_front() {
+            let tree = crate::step_tree::read_step_tree(&job.bytes);
+            let _ = publish.send(Msg::Publish(SessionEvent::StepTree { tag: job.tag, tree }));
+        }
         if let Some((registry, stale)) = queue.registry.take() {
             evaluator.set_registry(*registry, &stale);
             // What the evaluator held was of the old registry.

@@ -27,7 +27,7 @@ fn e(text: &str) -> Expr {
 
 fn import_into(doc: &Document, seed: u64) -> (Imported, Document) {
     let bytes = bytes();
-    let structure = Kernel::new().read_step_structure(&bytes).unwrap();
+    let structure = arrix_doc::read_step_tree(&bytes).unwrap();
     let imported =
         import_products(doc, "arm.step", bytes, &structure, &mut IdMinter::new(seed)).unwrap();
     let applied = apply(doc, &imported.command).unwrap();
@@ -172,10 +172,10 @@ fn a_joint_anchors_on_a_face_of_the_second_instance() {
     let screw_part = doc.parts().values().find(|p| p.name == "screw").unwrap();
     let feature = |p: &arrix_doc::Part| p.history[0];
     let bytes = bytes();
-    let structure = Kernel::new().read_step_structure(&bytes).unwrap();
+    let structure = arrix_doc::read_step_tree(&bytes).unwrap();
     // The servo's top, z = 36 mm facing up; the screw's top, z = 10 mm.
     let solid_of = |name: &str| {
-        fn find(o: &arrix_kernel::StepOccurrence, name: &str) -> Option<u32> {
+        fn find(o: &arrix_doc::StepNode, name: &str) -> Option<u32> {
             if o.name == name && !o.solids.is_empty() {
                 return Some(o.solids[0]);
             }

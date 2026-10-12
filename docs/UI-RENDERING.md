@@ -184,6 +184,17 @@ else what to do next.
   or assembly the tab looks at is accented. A click on a name looks at it
   (session state), a click on a component selects it and tints its
   instances in the viewport, and activating a feature looks at its part.
+- **Import and materials** (C2 M3, ADR-0032, ADR-0031): `Import…` asks for
+  a file, has the session read its product tree (a request, not a command,
+  and not on the UI thread), and when the tree comes back one command adds
+  the file's parts, assemblies and materials; a file of one part is that
+  part, named for the file, an assembly file looks at its first root
+  assembly. A double-click on a part opens its **material form** in the
+  property card: which material it is made of (the document's, none, or a
+  new one), and the picked one's name, density (`kg/m3` by default) and
+  colour (`#rrggbb` beside a swatch), each change one command. A
+  per-body override is in the document and the commands but has no form
+  yet (backlog).
 - **The property panel** is the form of the feature or record being
   edited, rendered from its `Form` (§Declarative plugin UI). Built-in
   features use the same renderer, so the renderer is proven on every
@@ -679,7 +690,13 @@ draws). Ported, reviewed on the way in (`SEED.md` §8.1).
   to lines, so its points are moved toward the eye along their own view
   ray by 5e-4 of their depth; a fixed offset in clip depth is decimetres a
   few metres out and lets hidden edges show past the corners that hide
-  them. Faces are lit by a light fixed in the world, Z-up.
+  them. Faces are lit by a light fixed in the world, Z-up. A body whose
+  part's material (or the body's own override) has an appearance colour is
+  drawn in it, lit the same way, through the `tint` of its model uniform
+  (alpha 1 when set); a body with none keeps the viewport's grey-blue, so a
+  document without materials looks as it always did. The colour is set on
+  the scene's body (`Scene::set_body_colour`), by the app, whenever a mesh
+  arrives or a material changes.
 
 - **Scene per body.** A `SceneView` is a list of bodies, each keyed by its
   slot, with its mesh, transform, visibility and bounds. Updating one body

@@ -191,6 +191,10 @@ pub struct BodyDebug {
     pub triangles: u32,
     /// `[min_x, min_y, min_z, max_x, max_y, max_z]` in the world, metres.
     pub bounds: Option<[f64; 6]>,
+    /// The colour its material gives it, red, green and blue in 0 to 1;
+    /// absent for the viewport's own.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub colour: Option<[f32; 3]>,
 }
 
 #[derive(Debug, Serialize)]
@@ -227,6 +231,7 @@ fn body_debug(e: &BodyEntry<GpuMesh>) -> BodyDebug {
         bounds: e
             .world_bounds()
             .map(|b| [b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z].map(round6)),
+        colour: e.colour,
     }
 }
 

@@ -61,6 +61,12 @@ pub(super) struct ExportJob {
     pub format: ExportFormat,
 }
 
+/// A STEP file's tree to read, as the worker takes it.
+pub(super) struct StructureJob {
+    pub tag: u64,
+    pub bytes: Vec<u8>,
+}
+
 /// What the session thread hands its worker.
 pub(super) enum Job {
     Commit(Snapshot),
@@ -71,6 +77,7 @@ pub(super) enum Job {
     Preview(PreviewJob),
     ClearPreview,
     Export(ExportJob),
+    Structure(StructureJob),
 }
 
 /// The worker's queue: the newest commit and the newest preview not yet
@@ -88,6 +95,8 @@ pub(super) struct Queue<'a> {
     /// The exports asked for, oldest first: every one is answered, so a
     /// commit drops none.
     pub exports: VecDeque<ExportJob>,
+    /// The files whose structure is asked for, oldest first.
+    pub structures: VecDeque<StructureJob>,
     pub gone: bool,
 }
 
@@ -100,6 +109,7 @@ impl<'a> Queue<'a> {
             preview: None,
             preview_moved: false,
             exports: VecDeque::new(),
+            structures: VecDeque::new(),
             gone: false,
         }
     }
@@ -124,6 +134,7 @@ impl<'a> Queue<'a> {
                 self.preview_moved = true;
             }
             Job::Export(job) => self.exports.push_back(job),
+            Job::Structure(job) => self.structures.push_back(job),
         }
     }
 
@@ -146,7 +157,8 @@ impl<'a> Queue<'a> {
     /// `exports_ready`: a commit has been evaluated for them to write.
     pub fn wait(&mut self, exports_ready: bool) -> bool {
         let exports = exports_ready && !self.exports.is_empty();
-        if self.commit.is_none() && self.preview.is_none() && !exports {
+        if self.commit.is_none() && self.preview.is_none() && !exports && self.structures.is_empty()
+        {
             match self.rx.recv() {
                 Ok(job) => self.take(job),
                 Err(_) => self.gone = true,

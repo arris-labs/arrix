@@ -11,6 +11,7 @@ mod frozen;
 mod frozen_tests;
 mod hash;
 mod host;
+pub(crate) use host::kernel_diagnostic;
 #[cfg(test)]
 mod input_tests;
 mod kinematics;

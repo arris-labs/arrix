@@ -55,6 +55,8 @@ idea is not brainstormed twice.
 - `ArrixApp::last_click` still keeps the click's `Hit` beside the selection, which step 6 said would go: the scenarios read it, so the selection should carry the scenarios' pick instead (plans/c2-m2 step 6)
 - A joint drag's preview under a nested assembly, where a joint of the assembly above is anchored on the moved subtree, keeps that joint's last frame until the solve; no scenario nests a jointed assembly yet (plans/c2-m2 step 10)
 - The harness's frame step (0.25 s) is longer than a double click's gap, so a scenario cannot open a form by a double click: the accept sets the first servo's placement by `EditComponent` (plans/c2-m2 step 11)
+- A per-body material in the app: the document and `AssignMaterial` hold it, but the material form assigns the part's material only (plans/c2-m3 step 8)
+- A material in the tree beside each part, and a material list or library editor: the form picks, makes and edits from the part only (plans/c2-m3 step 8)
 
 ## Rejected
 

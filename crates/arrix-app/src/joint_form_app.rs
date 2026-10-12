@@ -77,6 +77,7 @@ impl ArrixApp {
         if let Some(document) = self.documents.get_mut(self.active) {
             document.form = None;
             document.component_form = None;
+            document.material_form = None;
             document.clear_preview();
             document.joint_form = Some(form);
         }
@@ -100,6 +101,7 @@ impl ArrixApp {
         if known {
             document.form = None;
             document.component_form = None;
+            document.material_form = None;
             document.clear_preview();
             document.joint_form = Some(JointForm::edit(assembly, joint));
         }

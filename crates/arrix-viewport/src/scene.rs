@@ -261,6 +261,9 @@ pub struct BodyEntry<M> {
     /// model of a part's context.
     pub model: Mat4,
     pub visible: bool,
+    /// What its material looks like, red, green and blue in 0 to 1; none
+    /// draws the viewport's own grey-blue.
+    pub colour: Option<[f32; 3]>,
     /// In the mesh's own coordinates.
     pub bounds: Option<Aabb>,
     /// The chord of the mesh uploaded.
@@ -373,6 +376,7 @@ fn upload<M: BodyPayload>(
         origin: mesh.origin,
         model: model(mesh.origin),
         visible: true,
+        colour: None,
         bounds: Aabb::of_mesh(mesh),
         chord: mesh.chord,
         names: EntityNames::of_mesh(mesh),
@@ -421,6 +425,18 @@ impl<M> Scene<M> {
     /// evaluation no longer ends with.
     pub fn retain(&mut self, mut keep: impl FnMut(&BodyKey) -> bool) {
         self.bodies.retain(|b| keep(&b.key));
+    }
+
+    /// Sets the colour a body draws in (`None`: the viewport's own),
+    /// without touching its buffers. `true` if the body is there.
+    pub fn set_body_colour(&mut self, key: &BodyKey, colour: Option<[f32; 3]>) -> bool {
+        match self.bodies.iter_mut().find(|b| &b.key == key) {
+            Some(entry) => {
+                entry.colour = colour;
+                true
+            }
+            None => false,
+        }
     }
 
     /// Shows or hides a body without touching its buffers.

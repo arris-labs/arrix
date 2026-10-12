@@ -154,7 +154,7 @@ pub enum Command {
 }
 
 /// A file's bytes as base64 in JSON.
-mod bytes {
+pub(crate) mod bytes {
     use base64::Engine as _;
     use base64::engine::general_purpose::STANDARD;
     use serde::{Deserialize, Deserializer, Serializer};

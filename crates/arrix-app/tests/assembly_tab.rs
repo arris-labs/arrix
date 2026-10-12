@@ -60,6 +60,15 @@ fn importing_and_making_an_assembly() {
     // assembly, so the entry is the assembly's below).
     *answer.borrow_mut() = Some(PathBuf::from("../../tests/fixtures/step/servo.step"));
     palette(&mut h, "Import STEP");
+    // The session reads the file's tree on its worker, and the one command
+    // follows when it comes back.
+    let started = web_time::Instant::now();
+    while parts(&h).is_empty() {
+        h.step();
+        assert!(started.elapsed().as_secs() < 30, "the import's tree");
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    h.run_steps(3);
     assert_eq!(parts(&h), ["Servo"]);
     assert_eq!(applied(&h), [1]);
 

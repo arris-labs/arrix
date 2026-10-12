@@ -267,6 +267,10 @@ pub struct OpenDocument {
     broken: bool,
     /// The exports asked for and the files that came back.
     pub(crate) exports: crate::file_export::Exports,
+    /// A part's material form, when one is open.
+    pub(crate) material_form: Option<crate::material_form::MaterialForm>,
+    /// The imports asked for and the trees that came back.
+    pub(crate) imports: crate::file_import::Imports,
     /// What went wrong that is not the document's own: a body that did not
     /// mesh, a stream the replica could not follow.
     pub problems: Vec<String>,
@@ -343,6 +347,8 @@ impl OpenDocument {
             settled: false,
             broken: false,
             exports: Default::default(),
+            material_form: None,
+            imports: Default::default(),
             problems: Vec::new(),
             applied: 0,
             serial: SERIALS.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
@@ -391,7 +397,11 @@ impl OpenDocument {
             }
             // A preview is not counted: it applies nothing (ADR-0019).
             Ok(
-                Outcome::NoOp | Outcome::Previewing | Outcome::Exporting | Outcome::Loaded { .. },
+                Outcome::NoOp
+                | Outcome::Previewing
+                | Outcome::Exporting
+                | Outcome::Reading
+                | Outcome::Loaded { .. },
             ) => Ok(false),
             Err(rejected) => {
                 self.refusal = match &rejected {
@@ -473,6 +483,8 @@ impl OpenDocument {
             SessionEvent::Finished { generation, .. } => {
                 self.finished_at = Some((*generation, Instant::now()));
             }
+            // A material assigned or edited moves a colour, not a mesh.
+            SessionEvent::Applied { .. } => self.apply_colours(),
             SessionEvent::Meshed {
                 generation,
                 part,
@@ -535,6 +547,7 @@ impl OpenDocument {
                     .extend(removed.iter().map(|id| id.as_str().to_owned()));
             }
             SessionEvent::Exported { bytes, .. } => self.exports.heard(bytes),
+            SessionEvent::StepTree { tag, tree } => self.imports.heard(*tag, tree),
             SessionEvent::Previewed { .. } | SessionEvent::PreviewMeshed { .. } => {
                 self.receive_preview(event, renderer);
             }
@@ -579,6 +592,14 @@ impl OpenDocument {
         {
             self.joint_form = None;
         }
+        // A material form is of a part, which the context may leave.
+        if self
+            .material_form
+            .as_ref()
+            .is_some_and(|f| context != Context::Part(f.part()))
+        {
+            self.material_form = None;
+        }
         // What was picked or hovered is of the other context.
         self.view.selection = None;
         self.view.hover = None;
@@ -622,7 +643,29 @@ impl OpenDocument {
 
     /// Makes the scene draw the context: a part's bodies alone at their
     /// origin, or an assembly's components at the poses last heard.
+    /// Gives each body of the scene the colour of its material (the
+    /// part's, or the body's own override); a body with none keeps the
+    /// viewport's.
+    pub(crate) fn apply_colours(&mut self) {
+        let doc = self.replica.document();
+        let keys: Vec<BodyKey> = self.view.scene.keys().cloned().collect();
+        for key in keys {
+            let colour = doc.parts().get(&key.part).and_then(|part| {
+                let slot = arrix_doc::SlotRef {
+                    feature: key.feature,
+                    slot: key.slot.clone(),
+                };
+                let id = part.body_materials.get(&slot).or(part.material.as_ref())?;
+                doc.materials()
+                    .get(id)
+                    .map(|m| m.appearance.0.map(|c| c as f32))
+            });
+            self.view.scene.set_body_colour(&key, colour);
+        }
+    }
+
     pub(crate) fn refresh_view(&mut self) {
+        self.apply_colours();
         let context = self.context();
         let scene = &mut self.view.scene;
         match context {

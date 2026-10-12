@@ -19,6 +19,7 @@ struct Camera {
 struct Body {
     model: mat4x4<f32>,
     pick: vec4<u32>,
+    tint: vec4<f32>, // (rgb, 1 when the body has a colour of its own)
 };
 @group(1) @binding(0) var<uniform> body: Body;
 

@@ -193,6 +193,17 @@ many previews or edits came before it; the bodies go in the document's
 order. Headless, `arrix_doc::export` opens, evaluates and writes the same
 file, with the evaluation's line beside it.
 
+A **STEP tree read** is a request and no command too: `Request::ReadStepTree
+{ tag, bytes }` is answered `Reading` and `SessionEvent::StepTree { tag,
+tree }` follows with the file's product tree (`StepTree`: occurrences with
+product, name, placement in the parent, colour and solid numbers, and why
+any solid was refused) or the diagnostic that says why there is none
+(`kernel.import.parse` and the rest). The worker reads it on a kernel of
+its own, so the kernel is never on the client's thread, and the client
+turns the tree into its one command with `arrix_doc::import_products`
+(ADR-0032 §2). Headless, `arrix_doc::read_step_tree` does the same read,
+which `arrix import` uses.
+
 ## Threads
 
 | Thread | Role | Runs | Never runs |

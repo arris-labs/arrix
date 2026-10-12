@@ -64,13 +64,15 @@ impl CameraUniforms {
     }
 }
 
-/// What each body's draw reads (group 1): its model matrix, and its pick
-/// bits (`crate::pick`) in `pick[0]`.
+/// What each body's draw reads (group 1): its model matrix, its pick
+/// bits (`crate::pick`) in `pick[0]`, and its own colour in `tint` (alpha 1)
+/// when a material gives it one.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
 struct BodyUniforms {
     model: [[f32; 4]; 4],
     pick: [u32; 4],
+    tint: [f32; 4],
 }
 
 /// A body's uniforms, before alignment.
@@ -94,7 +96,8 @@ impl ModelUniforms {
             label: Some("arrix-viewport model"),
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX,
+                // The fragment stage reads the body's own colour.
+                visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: true,
@@ -308,6 +311,7 @@ impl Renderer {
             let uniforms = BodyUniforms {
                 model: model.to_cols_array_2d(),
                 pick: [if preview { 0 } else { body_bits(i) }, 0, 0, 0],
+                tint: entry.colour.map_or([0.0; 4], |[r, g, b]| [r, g, b, 1.0]),
             };
             model_data[at..at + MODEL_SIZE as usize].copy_from_slice(bytemuck::bytes_of(&uniforms));
             let mesh = &entry.mesh;
@@ -485,7 +489,7 @@ mod tests {
     fn the_uniform_layout_is_what_the_shaders_declare() {
         // Two mat4x4 and five vec4, no padding: WGSL's uniform layout.
         assert_eq!(std::mem::size_of::<CameraUniforms>(), 2 * 64 + 5 * 16);
-        // A mat4x4 and a vec4<u32>: the shaders' `Body`.
-        assert_eq!(MODEL_SIZE, 64 + 16);
+        // A mat4x4, a vec4<u32> and a vec4<f32>: the shaders' `Body`.
+        assert_eq!(MODEL_SIZE, 64 + 16 + 16);
     }
 }

@@ -19,6 +19,7 @@ struct Camera {
 struct Body {
     model: mat4x4<f32>,
     pick: vec4<u32>,
+    tint: vec4<f32>, // (rgb, 1 when the body has a colour of its own)
 };
 @group(1) @binding(0) var<uniform> body: Body;
 
@@ -46,6 +47,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let n = normalize(in.normal);
     let diffuse = max(dot(n, light_dir), 0.0);
     let ambient = 0.3;
-    let base_color = vec3<f32>(0.55, 0.65, 0.78);
+    var base_color = vec3<f32>(0.55, 0.65, 0.78);
+    if body.tint.a > 0.5 {
+        base_color = body.tint.rgb;
+    }
     return vec4<f32>(base_color * (ambient + diffuse * 0.7), 1.0);
 }

@@ -7,7 +7,6 @@ use std::process::ExitCode;
 
 use arrix_core::IdMinter;
 use arrix_doc::{Document, Imported};
-use arrix_kernel::Kernel;
 
 pub struct Args<'a> {
     pub step: &'a Path,
@@ -33,9 +32,8 @@ fn import(args: &Args) -> Result<ExitCode, String> {
             args.out.display()
         ));
     }
-    let structure = Kernel::new()
-        .read_step_structure(&bytes)
-        .map_err(|e| format!("{name}: {} ({})", e, e.code()))?;
+    let structure = arrix_doc::read_step_tree(&bytes)
+        .map_err(|d| format!("{name}: {} ({})", d.message, d.code))?;
     let file_name = args
         .step
         .file_name()

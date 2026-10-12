@@ -122,7 +122,9 @@ it before ticking a step:
 - `cargo run -p arrix-cli -- import <step> -o <dir>` reads a STEP file's
   product tree into a new document directory (parts, assemblies,
   components at the file's placements, colours as materials;
-  `tests/fixtures/step/arm.step`, `cargo test -p arrix-cli --test import`).
+  `tests/fixtures/step/arm.step`, `cargo test -p arrix-cli --test import`;
+  the app's `Import…` is the same through the session, and
+  `cargo test -p arrix-app --test visual import_structure` is its scenario).
 - `cargo run -p arrix-cli -- describe [--json]` lists everything there is to
   configure; `config check [--dir]` validates the files (exit 1 on any
   diagnostic); `config schema [kind]` prints their JSON Schemas; `config

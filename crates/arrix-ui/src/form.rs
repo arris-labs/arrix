@@ -79,6 +79,13 @@ pub enum FieldValue {
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         clearable: bool,
     },
+    /// A colour: its hex text (`#rrggbb`), typed and committed like a
+    /// quantity, with a swatch of what it is.
+    Colour {
+        hex: String,
+        /// Red, green and blue in 0 to 1: the swatch.
+        rgb: [f32; 3],
+    },
     /// A reference or a list of them, picked in the scene or the tree.
     Reference {
         /// What it takes, in words: `plane`, `sketch region`.
@@ -187,6 +194,26 @@ fn field_ui(ui: &mut egui::Ui, form: &FormView, field: &FormField, intents: &mut
                     }
                     if !unit.is_empty() {
                         ui.weak(unit);
+                    }
+                });
+                message(ui, field);
+            });
+        }
+        FieldValue::Colour { hex, rgb } => {
+            ui.label(&field.title);
+            ui.vertical(|ui| {
+                ui.horizontal(|ui| {
+                    let to_byte = |c: f32| (c.clamp(0.0, 1.0) * 255.0).round() as u8;
+                    let swatch =
+                        Color32::from_rgb(to_byte(rgb[0]), to_byte(rgb[1]), to_byte(rgb[2]));
+                    let (rect, _) =
+                        ui.allocate_exact_size(egui::vec2(16.0, 16.0), egui::Sense::hover());
+                    ui.painter().rect_filled(rect, 3.0, swatch);
+                    if let Some(committed) = text_field(ui, form, &field.name, hex, intents) {
+                        intents.push(UiIntent::FieldCommitted {
+                            field: field.name.clone(),
+                            text: committed,
+                        });
                     }
                 });
                 message(ui, field);

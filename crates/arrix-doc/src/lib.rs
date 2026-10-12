@@ -29,6 +29,7 @@ mod open;
 mod registry;
 mod save;
 mod session;
+mod step_tree;
 mod zip;
 
 pub use assembly::{Anchor, Assembly, Component, ComponentOf, Joint, JointKind, Pose};
@@ -73,4 +74,5 @@ pub use session::{
     DocHash, EventStream, LocalSession, PROTOCOL_VERSION, ParamValues, PluginLoader, PreviewBody,
     PreviewId, PreviewTag, Replica, ReplicaError, Request, Session, SessionEvent,
 };
+pub use step_tree::{Placement, StepNode, StepTree, read_step_tree};
 pub use zip::{ZipError, from_zip, open_zip, save_zip, to_zip};

@@ -257,7 +257,13 @@ fn tree_card(
             ui.weak("No parts");
         }
         for part in &tree.parts {
-            if name_row(ui, &part.name, part.current) {
+            let row = name_row(ui, &part.name, part.current);
+            if row.double_clicked() {
+                intents.push(UiIntent::TreePartEdited {
+                    part: part.id.clone(),
+                });
+            }
+            if row.clicked() {
                 intents.push(UiIntent::TreePartActivated {
                     part: part.id.clone(),
                 });
@@ -270,8 +276,8 @@ fn tree_card(
 }
 
 /// A part's or an assembly's name, strong, accented while the tab looks
-/// at it; whether it was clicked.
-fn name_row(ui: &mut egui::Ui, name: &str, current: bool) -> bool {
+/// at it; the response says whether it was clicked.
+fn name_row(ui: &mut egui::Ui, name: &str, current: bool) -> egui::Response {
     let text = egui::RichText::new(name).strong();
     let text = if current {
         text.color(ui.visuals().selection.stroke.color)
@@ -282,11 +288,10 @@ fn name_row(ui: &mut egui::Ui, name: &str, current: bool) -> bool {
     // hidden with its card leaves the accessibility tree holding a node
     // that is gone.
     ui.add(egui::Label::new(text).sense(egui::Sense::CLICK))
-        .clicked()
 }
 
 fn assembly_rows(ui: &mut egui::Ui, assembly: &TreeAssembly, intents: &mut Vec<UiIntent>) {
-    if name_row(ui, &assembly.name, assembly.current) {
+    if name_row(ui, &assembly.name, assembly.current).clicked() {
         intents.push(UiIntent::TreeAssemblyActivated {
             assembly: assembly.id.clone(),
         });

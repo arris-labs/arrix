@@ -22,6 +22,8 @@ mod preview_tests;
 #[cfg(feature = "schema")]
 mod schema;
 #[cfg(test)]
+mod step_tree_tests;
+#[cfg(test)]
 mod tests;
 
 use std::collections::BTreeMap;
@@ -44,6 +46,7 @@ use crate::document::{Document, FeatureTypeId};
 use crate::eval::{AssemblyOutcome, BodySlot, EvalEvent, FeatureOutcome, Masses};
 use crate::open::{MemorySource, open};
 use crate::save::save;
+use crate::step_tree::StepTree;
 pub use preview::{PreviewBody, PreviewId, PreviewTag};
 #[cfg(feature = "schema")]
 pub use schema::protocol_schemas;
@@ -106,6 +109,16 @@ pub enum Request {
     Export {
         bodies: Vec<BodySlot>,
         format: ExportFormat,
+    },
+    /// Reads the product tree of the STEP file `bytes` on the worker
+    /// (ADR-0032), answered `Reading`, the tree following as
+    /// `StepTree` under `tag`. Not a command: the document does not
+    /// change; the client turns the tree into one with `import_products`.
+    ReadStepTree {
+        tag: u64,
+        #[serde(with = "crate::command::bytes")]
+        #[cfg_attr(feature = "schema", schemars(with = "String"))]
+        bytes: Vec<u8>,
     },
     /// Loads the plugin directory `dir` on the authority's machine
     /// (ADR-0024): its feature types join the registry in a generation of
@@ -242,6 +255,13 @@ pub enum SessionEvent {
         format: ExportFormat,
         bytes: Result<Vec<u8>, Diagnostic>,
     },
+    /// The product tree a `Request::ReadStepTree` asked for, or why the
+    /// file could not be read. Not part of the document: a replica
+    /// ignores it.
+    StepTree {
+        tag: u64,
+        tree: Result<StepTree, Diagnostic>,
+    },
     /// A body a preview changed, meshed: every one coarse first, then every
     /// one refined, as `Meshed` does for a generation.
     PreviewMeshed {
@@ -287,6 +307,10 @@ pub trait Session {
 
     fn export(&self, bodies: Vec<BodySlot>, format: ExportFormat) -> Result<Outcome, Rejected> {
         self.request(Request::Export { bodies, format })
+    }
+
+    fn read_step_tree(&self, tag: u64, bytes: Vec<u8>) -> Result<Outcome, Rejected> {
+        self.request(Request::ReadStepTree { tag, bytes })
     }
 
     fn clear_preview(&self, author: AuthorId) -> Result<Outcome, Rejected> {
@@ -441,6 +465,7 @@ impl Replica {
                 }
             }
             SessionEvent::Massed { .. }
+            | SessionEvent::StepTree { .. }
             | SessionEvent::Meshed { .. }
             | SessionEvent::Previewed { .. }
             | SessionEvent::PreviewMeshed { .. }

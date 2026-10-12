@@ -335,6 +335,9 @@ pub enum UiIntent {
     },
     /// A part's name in the tree was clicked: the tab looks at it.
     TreePartActivated { part: String },
+    /// A part's name in the tree was double-clicked: its material form
+    /// opens in the property card. Session state, no command.
+    TreePartEdited { part: String },
     /// An assembly's name in the tree was clicked: the tab looks at it.
     TreeAssemblyActivated { assembly: String },
     /// A component's row in the tree was clicked: it becomes the tree's

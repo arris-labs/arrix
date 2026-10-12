@@ -14,6 +14,7 @@ mod document_files;
 mod documents;
 mod file_dialog;
 mod file_export;
+mod file_import;
 mod form;
 mod form_pick;
 mod gestures;
@@ -22,6 +23,7 @@ mod joint_drag_app;
 mod joint_form;
 mod joint_form_app;
 mod keys;
+mod material_form;
 mod palette;
 mod part_sketch;
 mod preview;
@@ -460,6 +462,7 @@ impl ArrixApp {
         }
         self.follow_registry();
         self.write_exports();
+        self.finish_imports();
         self.follow_sketches();
         self.follow_forms();
         self.follow_previews();
@@ -798,6 +801,12 @@ impl ArrixApp {
                 if let Ok(part) = part.parse::<arrix_core::PartId>() {
                     self.look_at(context::Context::Part(part));
                 }
+            }
+            UiIntent::TreePartEdited { part } => {
+                if let Ok(id) = part.parse::<arrix_core::PartId>() {
+                    self.look_at(context::Context::Part(id));
+                }
+                self.open_material_form(&part);
             }
             UiIntent::TreeAssemblyActivated { assembly } => {
                 if let Ok(assembly) = assembly.parse::<arrix_core::AssemblyId>() {

@@ -62,6 +62,9 @@ pub enum Outcome {
     /// An export was queued (`Request::Export`): nothing applied, and the
     /// file follows on the subscription.
     Exporting,
+    /// A STEP file's structure is being read (`Request::ReadStepTree`):
+    /// nothing applied, and `SessionEvent::StepTree` follows.
+    Reading,
     /// A plugin was loaded or reloaded (ADR-0024): the registry made this
     /// generation, announced by `SessionEvent::Registry`, and nothing was
     /// applied.

@@ -3138,6 +3138,44 @@
         ],
         "type": "object"
       },
+      "Placement": {
+        "description": "A frame as the file gives it: an origin and two axes, exactly the\nnumbers the reader made (a `Frame` would normalise them again on every\ncrossing).",
+        "properties": {
+          "origin": {
+            "items": {
+              "format": "double",
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          },
+          "x_axis": {
+            "items": {
+              "format": "double",
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          },
+          "z_axis": {
+            "items": {
+              "format": "double",
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          }
+        },
+        "required": [
+          "origin",
+          "x_axis",
+          "z_axis"
+        ],
+        "type": "object"
+      },
       "PluginId": {
         "description": "`[a-z][a-z0-9-]*`, and never `core`, which the built-ins own.",
         "type": "string"
@@ -3724,6 +3762,32 @@
           }
         ]
       },
+      "Result_of_Placement_or_string": {
+        "oneOf": [
+          {
+            "properties": {
+              "Ok": {
+                "$ref": "#/$defs/Placement"
+              }
+            },
+            "required": [
+              "Ok"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "Err": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "Err"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "Result_of_Quantity_or_Diagnostic": {
         "oneOf": [
           {
@@ -3756,6 +3820,32 @@
             "properties": {
               "Ok": {
                 "$ref": "#/$defs/RenderMesh"
+              }
+            },
+            "required": [
+              "Ok"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "Err": {
+                "$ref": "#/$defs/Diagnostic"
+              }
+            },
+            "required": [
+              "Err"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "Result_of_StepTree_or_Diagnostic": {
+        "oneOf": [
+          {
+            "properties": {
+              "Ok": {
+                "$ref": "#/$defs/StepTree"
               }
             },
             "required": [
@@ -4071,6 +4161,89 @@
             "type": "object"
           }
         ]
+      },
+      "StepNode": {
+        "description": "One use of a product in the file's tree.",
+        "properties": {
+          "children": {
+            "items": {
+              "$ref": "#/$defs/StepNode"
+            },
+            "type": "array"
+          },
+          "colour": {
+            "description": "The colour of its solids, red, green and blue in 0 to 1.",
+            "items": {
+              "format": "double",
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "placement": {
+            "$ref": "#/$defs/Result_of_Placement_or_string",
+            "description": "Where it sits in its parent's frame, in metres, or why the file's\ntransformation is not one ArriX reads."
+          },
+          "product": {
+            "description": "The file's product; occurrences of one product are one part.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "solids": {
+            "description": "The solids it holds itself, as `core.import-step`'s `solid` counts\nthem (from 1).",
+            "items": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "placement",
+          "solids",
+          "children"
+        ],
+        "type": "object"
+      },
+      "StepTree": {
+        "description": "What a STEP file holds.",
+        "properties": {
+          "roots": {
+            "description": "The file's assemblies: usually one root; a file of one part is a\nroot with solids and no children.",
+            "items": {
+              "$ref": "#/$defs/StepNode"
+            },
+            "type": "array"
+          },
+          "solids": {
+            "description": "Every solid, by its number (from 1) minus one: why the reader\nrefused it, if it did.",
+            "items": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "roots",
+          "solids"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -4367,6 +4540,29 @@
           "generation",
           "format",
           "bytes"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "The product tree a `Request::ReadStepTree` asked for, or why the\nfile could not be read. Not part of the document: a replica\nignores it.",
+        "properties": {
+          "kind": {
+            "const": "step_tree",
+            "type": "string"
+          },
+          "tag": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tree": {
+            "$ref": "#/$defs/Result_of_StepTree_or_Diagnostic"
+          }
+        },
+        "required": [
+          "kind",
+          "tag",
+          "tree"
         ],
         "type": "object"
       },
@@ -7120,6 +7316,11 @@
       {
         "const": "exporting",
         "description": "An export was queued (`Request::Export`): nothing applied, and the\nfile follows on the subscription.",
+        "type": "string"
+      },
+      {
+        "const": "reading",
+        "description": "A STEP file's structure is being read (`Request::ReadStepTree`):\nnothing applied, and `SessionEvent::StepTree` follows.",
         "type": "string"
       },
       {
@@ -11229,6 +11430,33 @@
         },
         "required": [
           "export"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "description": "Reads the product tree of the STEP file `bytes` on the worker\n(ADR-0032), answered `Reading`, the tree following as\n`StepTree` under `tag`. Not a command: the document does not\nchange; the client turns the tree into one with `import_products`.",
+        "properties": {
+          "read_step_tree": {
+            "properties": {
+              "bytes": {
+                "type": "string"
+              },
+              "tag": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "tag",
+              "bytes"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "read_step_tree"
         ],
         "type": "object"
       },

@@ -16,6 +16,7 @@ mod forms_accept;
 mod frozen_badge;
 mod harness;
 mod highlight;
+mod import_structure;
 mod instances;
 mod joint_drag;
 mod joint_form;
