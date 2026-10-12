@@ -59,6 +59,8 @@ fn imported(bytes: &[u8]) -> Document {
                 history: vec![],
                 features: BTreeMap::new(),
                 rollback: None,
+                material: None,
+                body_materials: Default::default(),
             },
         },
     );
@@ -243,6 +245,8 @@ fn a_file_changes_the_result_and_a_missing_one_or_solid_is_named() {
                     history: vec![],
                     features: BTreeMap::new(),
                     rollback: None,
+                    material: None,
+                    body_materials: Default::default(),
                 },
             },
         ),

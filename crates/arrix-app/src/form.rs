@@ -463,6 +463,8 @@ impl Form {
                                 history: Vec::new(),
                                 features: BTreeMap::new(),
                                 rollback: None,
+                                material: None,
+                                body_materials: Default::default(),
                             },
                         },
                         Command::AddFeature {

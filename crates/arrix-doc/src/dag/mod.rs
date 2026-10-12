@@ -14,7 +14,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use arrix_core::{
-    AssemblyId, ComponentId, Diagnostic, FeatureId, JointId, NameStep, ParamId, PartId,
+    AssemblyId, ComponentId, Diagnostic, FeatureId, JointId, MaterialId, NameStep, ParamId, PartId,
     PersistentName, Ref, Severity,
 };
 use serde::{Deserialize, Serialize};
@@ -29,6 +29,7 @@ use crate::registry::Registry;
 #[serde(rename_all = "snake_case")]
 pub enum Node {
     Param(ParamId),
+    Material(MaterialId),
     Part(PartId),
     Feature(FeatureId),
     Assembly(AssemblyId),
@@ -42,7 +43,11 @@ impl Node {
         match *self {
             Node::Param(p) => Some(Ref::Param(p)),
             Node::Feature(f) => Some(Ref::Feature(f)),
-            Node::Part(_) | Node::Assembly(_) | Node::Component(_) | Node::Joint(_) => None,
+            Node::Material(_)
+            | Node::Part(_)
+            | Node::Assembly(_)
+            | Node::Component(_)
+            | Node::Joint(_) => None,
         }
     }
 }
@@ -51,6 +56,7 @@ impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Node::Param(id) => write!(f, "parameter {id}"),
+            Node::Material(id) => write!(f, "material {id}"),
             Node::Part(id) => write!(f, "part {id}"),
             Node::Feature(id) => write!(f, "feature {id}"),
             Node::Assembly(id) => write!(f, "assembly {id}"),
@@ -229,9 +235,23 @@ impl Dag {
             let edges = names.iter().filter_map(|n| doc.param_by_name(n));
             reads.insert(node, edges.map(|(id, _)| Node::Param(id)).collect());
         }
+        for (id, m) in &doc.materials {
+            let node = Node::Material(*id);
+            rank.insert(node, (0, id.0.0, 1));
+            let names = m.density.iter().flat_map(|e| e.names());
+            let edges = names.filter_map(|n| doc.param_by_name(n));
+            reads.insert(node, edges.map(|(id, _)| Node::Param(id)).collect());
+        }
         for (pid, part) in &doc.parts {
             rank.insert(Node::Part(*pid), (1, pid.0.0, 0));
-            reads.insert(Node::Part(*pid), BTreeSet::new());
+            // A part reads the materials it is made of (ADR-0031); a
+            // material the document lacks is no edge, `validate` refuses it.
+            let made_of = part.material.iter().chain(part.body_materials.values());
+            let made_of = made_of.filter(|m| doc.materials.contains_key(m));
+            reads.insert(
+                Node::Part(*pid),
+                made_of.map(|m| Node::Material(*m)).collect(),
+            );
             for (at, fid) in part.history.iter().enumerate() {
                 let node = Node::Feature(*fid);
                 rank.insert(node, (2, pid.0.0, at));

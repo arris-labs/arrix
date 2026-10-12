@@ -5,13 +5,15 @@
 
 mod apply;
 mod assemblies;
+mod materials;
 #[cfg(test)]
 mod tests;
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use arrix_core::{
-    AssemblyId, ComponentId, Diagnostic, FeatureId, Id, Input, JointId, ParamId, PartId, Severity,
+    AssemblyId, ComponentId, Diagnostic, FeatureId, Id, Input, JointId, MaterialId, ParamId,
+    PartId, Severity,
 };
 use arrix_sketch::{SketchEdit, SketchError};
 use serde::{Deserialize, Serialize};
@@ -21,6 +23,7 @@ use crate::dag::Node;
 use crate::document::{Document, FeatureRecord, Invalid, Param, Part};
 use crate::expr::Expr;
 use crate::frozen::BlobRef;
+use crate::material::{Material, SlotRef};
 
 /// One edit of the document. One gesture is one command; a multi-step
 /// gesture is a `Group`.
@@ -124,6 +127,25 @@ pub enum Command {
         assembly: AssemblyId,
         joint: JointId,
     },
+    AddMaterial {
+        material: Material,
+    },
+    /// Replaces the material of the same id.
+    EditMaterial {
+        material: Material,
+    },
+    /// Refused while a part is made of it (`material.in-use`).
+    DeleteMaterial {
+        material: MaterialId,
+    },
+    /// Sets what a part (`body: null`) or one of its final bodies is made
+    /// of; `material: null` clears it.
+    AssignMaterial {
+        part: PartId,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        body: Option<SlotRef>,
+        material: Option<MaterialId>,
+    },
     /// One undo entry.
     Group {
         label: String,
@@ -189,6 +211,10 @@ pub enum CommandError {
         assembly: AssemblyId,
         joint: JointId,
     },
+    #[error("no material {0}")]
+    NoMaterial(MaterialId),
+    #[error("material {material} is what part {part} is made of")]
+    MaterialInUse { material: MaterialId, part: PartId },
     #[error("the document holds no file {0}")]
     NoFile(BlobRef),
     #[error("{blob} is named by feature {feature}")]
@@ -212,6 +238,10 @@ impl CommandError {
     pub fn diagnostic(&self) -> Diagnostic {
         match self {
             CommandError::Invalid(i) => i.diagnostic(),
+            CommandError::MaterialInUse { .. } => {
+                Diagnostic::new(Severity::Error, "material.in-use", self.to_string())
+                    .expect("a well-formed code")
+            }
             other => Diagnostic::new(Severity::Error, "command.refused", other.to_string())
                 .expect("a well-formed code"),
         }

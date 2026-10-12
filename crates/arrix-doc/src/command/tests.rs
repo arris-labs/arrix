@@ -38,6 +38,8 @@ fn empty_part(id: u64) -> Command {
             history: vec![],
             features: BTreeMap::new(),
             rollback: None,
+            material: None,
+            body_materials: Default::default(),
         },
     }
 }

@@ -118,6 +118,8 @@ fn servo_doc(angle: &str) -> Document {
                 history: vec![],
                 features: BTreeMap::new(),
                 rollback: None,
+                material: None,
+                body_materials: Default::default(),
             },
         },
     );

@@ -7,8 +7,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use arrix_core::{
-    AssemblyId, ComponentId, Diagnostic, FeatureId, Input, JointId, ParamId, PartId, PluginId,
-    QuantityKind, Severity, SketchEntityId,
+    AssemblyId, ComponentId, Diagnostic, FeatureId, Input, JointId, MaterialId, ParamId, PartId,
+    PluginId, QuantityKind, Severity, SketchEntityId,
 };
 use arrix_sketch::Sketch;
 use serde::{Deserialize, Serialize};
@@ -17,6 +17,7 @@ use crate::assembly::{Assembly, ComponentOf};
 use crate::dag::{Dag, DagError};
 use crate::expr::Expr;
 use crate::frozen::{BlobRef, Frozen, FrozenResult};
+use crate::material::{Material, SlotRef};
 
 /// A document: everything needed to regenerate its geometry, and nothing
 /// that can be regenerated. Generations are the authority's, not the
@@ -26,6 +27,7 @@ pub struct Document {
     pub(crate) params: BTreeMap<ParamId, Param>,
     pub(crate) parts: BTreeMap<PartId, Part>,
     pub(crate) assemblies: BTreeMap<AssemblyId, Assembly>,
+    pub(crate) materials: BTreeMap<MaterialId, Material>,
     /// The bytes of every blob a feature's frozen result points at, by
     /// name (docs/DATA-MODEL.md §File format).
     pub(crate) blobs: BTreeMap<BlobRef, Vec<u8>>,
@@ -53,6 +55,12 @@ pub struct Part {
     pub features: BTreeMap<FeatureId, FeatureRecord>,
     /// Features at and after this index are not evaluated.
     pub rollback: Option<usize>,
+    /// What the part is made of (ADR-0031).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub material: Option<MaterialId>,
+    /// A final body that is made of something else.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub body_materials: BTreeMap<SlotRef, MaterialId>,
 }
 
 /// One history entry. Built-in and plugin features have this one shape.
@@ -202,6 +210,25 @@ pub enum Invalid {
     Rollback { part: PartId, at: usize, len: usize },
     #[error("feature {feature}'s file {blob} is not in the document")]
     FileMissing { feature: FeatureId, blob: BlobRef },
+    #[error("two materials are named {0:?}")]
+    DuplicateMaterial(String),
+    #[error("a material is filed under {key} but its id is {id}")]
+    MaterialIdMismatch { key: String, id: String },
+    #[error("material {material}: the colour {0:?} has a channel outside 0 to 1", .colour)]
+    MaterialColour {
+        material: MaterialId,
+        colour: [f64; 3],
+    },
+    #[error("material {material}'s density {text:?} does not parse: {error}")]
+    MaterialExpr {
+        material: MaterialId,
+        text: String,
+        error: String,
+    },
+    #[error("part {part} is made of material {material}, which the document lacks")]
+    MissingMaterial { part: PartId, material: MaterialId },
+    #[error("part {part}: body {body} is not a body of one of its features")]
+    BodyMaterial { part: PartId, body: SlotRef },
     #[error("two assemblies are named {0:?}")]
     DuplicateAssembly(String),
     #[error("assembly {assembly}: two {what}s are named {name:?}")]
@@ -268,6 +295,10 @@ impl Document {
         &self.assemblies
     }
 
+    pub fn materials(&self) -> &BTreeMap<MaterialId, Material> {
+        &self.materials
+    }
+
     /// Sets `feature`'s frozen result and holds its blobs. `false` when no
     /// feature has that id. Not a command: a frozen result is evaluation
     /// output (ADR-0009), so this is for a save to merge one in, never for
@@ -331,8 +362,62 @@ impl Document {
             }
         }
         validate_assemblies(self)?;
+        validate_materials(self)?;
         Ok(Dag::build(self)?)
     }
+}
+
+/// Materials: ids match their keys, names are unique, a colour is in range,
+/// a density parses, and every assignment names a material the document
+/// holds (a command that would delete an assigned one is refused first,
+/// `material.in-use`). A body override names a feature of its part; whether
+/// the feature still makes that slot is the evaluator's to say.
+fn validate_materials(doc: &Document) -> Result<(), Invalid> {
+    let mut names = BTreeSet::new();
+    for (key, m) in &doc.materials {
+        if *key != m.id {
+            return Err(Invalid::MaterialIdMismatch {
+                key: key.to_string(),
+                id: m.id.to_string(),
+            });
+        }
+        if !names.insert(&m.name) {
+            return Err(Invalid::DuplicateMaterial(m.name.clone()));
+        }
+        if !m.appearance.is_valid() {
+            return Err(Invalid::MaterialColour {
+                material: m.id,
+                colour: m.appearance.0,
+            });
+        }
+        if let Some(density) = &m.density {
+            Expr::parse(density.text()).map_err(|e| Invalid::MaterialExpr {
+                material: m.id,
+                text: density.text().into(),
+                error: e.to_string(),
+            })?;
+        }
+    }
+    for part in doc.parts.values() {
+        let assigned = part.material.iter().chain(part.body_materials.values());
+        for material in assigned {
+            if !doc.materials.contains_key(material) {
+                return Err(Invalid::MissingMaterial {
+                    part: part.id,
+                    material: *material,
+                });
+            }
+        }
+        for body in part.body_materials.keys() {
+            if !part.features.contains_key(&body.feature) {
+                return Err(Invalid::BodyMaterial {
+                    part: part.id,
+                    body: body.clone(),
+                });
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Ids match their keys, names are unique, and every component and joint

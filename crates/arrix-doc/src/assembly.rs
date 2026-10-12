@@ -145,6 +145,8 @@ mod tests {
             history: vec![feature],
             features: BTreeMap::from([(feature, record)]),
             rollback: None,
+            material: None,
+            body_materials: Default::default(),
         }
     }
 

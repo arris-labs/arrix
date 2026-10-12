@@ -95,6 +95,8 @@ fn only_region(sketch: &Sketch) -> RegionKey {
                 history: vec![fid(1)],
                 features: [(fid(1), self::sketch(1, None, sketch.clone()))].into(),
                 rollback: None,
+                material: None,
+                body_materials: Default::default(),
             },
         },
     );
@@ -234,6 +236,8 @@ fn part(after: Vec<FeatureRecord>) -> Document {
         history: features.iter().map(|f| f.id).collect(),
         features: features.into_iter().map(|f| (f.id, f)).collect(),
         rollback: None,
+        material: None,
+        body_materials: Default::default(),
     };
     with(&doc, Command::AddPart { part })
 }

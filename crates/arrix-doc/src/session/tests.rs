@@ -76,6 +76,8 @@ fn build() -> Vec<Command> {
         history: vec![],
         features: BTreeMap::new(),
         rollback: None,
+        material: None,
+        body_materials: Default::default(),
     };
     vec![
         Command::AddParam { param: i.h, record },

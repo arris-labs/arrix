@@ -148,6 +148,8 @@ fn a_newer_edit_stops_the_feature_running_and_hears_only_its_own_events() {
         ]
         .into(),
         rollback: None,
+        material: None,
+        body_materials: Default::default(),
     };
     submit(&s, 0, Command::AddPart { part });
     super::tests::until_finished(&events, &mut replica, 1);

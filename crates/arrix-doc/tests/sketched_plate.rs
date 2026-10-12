@@ -162,6 +162,8 @@ fn a_sketched_plate() {
             history: vec![],
             features: Default::default(),
             rollback: None,
+            material: None,
+            body_materials: Default::default(),
         },
     });
     let sketch_record = FeatureRecord {

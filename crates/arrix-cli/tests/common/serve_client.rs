@@ -185,6 +185,8 @@ pub fn standoff_commands(features: usize) -> Vec<Command> {
             history: vec![],
             features: BTreeMap::new(),
             rollback: None,
+            material: None,
+            body_materials: Default::default(),
             ..part.clone()
         },
     });

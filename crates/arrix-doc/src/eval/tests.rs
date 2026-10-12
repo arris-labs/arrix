@@ -186,6 +186,8 @@ pub(crate) fn doc(params: &[(u64, &str, &str)], features: Vec<FeatureRecord>) ->
                 history: features.iter().map(|f| f.id).collect(),
                 features: features.into_iter().map(|f| (f.id, f)).collect(),
                 rollback: None,
+                material: None,
+                body_materials: Default::default(),
             },
         )]),
         ..Document::default()

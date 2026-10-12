@@ -150,6 +150,8 @@ fn plate() -> (Document, [EntityId; 4]) {
                 history: vec![fid(BASE)],
                 features: [(fid(BASE), sketch_on(BASE, None, sketch))].into(),
                 rollback: None,
+                material: None,
+                body_materials: Default::default(),
             },
         },
     );

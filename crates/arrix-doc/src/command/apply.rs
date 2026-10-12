@@ -115,6 +115,10 @@ pub(super) fn apply_mut(
         | Command::AddJoint { .. }
         | Command::EditJoint { .. }
         | Command::DeleteJoint { .. } => super::assemblies::apply(doc, command, touched)?,
+        Command::AddMaterial { .. }
+        | Command::EditMaterial { .. }
+        | Command::DeleteMaterial { .. }
+        | Command::AssignMaterial { .. } => super::materials::apply(doc, command, touched)?,
         Command::Group { label, commands } => {
             let mut inverses = Vec::with_capacity(commands.len());
             for c in commands {

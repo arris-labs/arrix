@@ -1,7 +1,8 @@
 //! `tests/docs/migrations/schema-1/` is a schema-1 document, the
 //! `gear-on-plane` scenario as it was saved before schema 2, and
 //! `schema-2/` is `slice` as it was saved before schema 3, and `schema-3/` as it
-//! was saved before schema 4. Opening any
+//! was saved before schema 4, and `schema-4/` `assembly` as it was saved before
+//! schema 5. Opening any
 //! runs the migration chain, and saving it gives exactly the current
 //! scenario's bytes (docs/DATA-MODEL.md §File format).
 
@@ -45,4 +46,12 @@ fn schema_2_opens_and_saves_as_the_current_slice() {
 #[test]
 fn schema_3_opens_and_saves_as_the_current_slice() {
     migrates_to("tests/docs/migrations/schema-3", 3, "tests/docs/slice");
+}
+
+/// Schema 4 added assemblies (ADR-0029); 5 added materials (ADR-0031), so
+/// the assembly document as it was saved at 4 is the current one bar its
+/// header.
+#[test]
+fn schema_4_opens_and_saves_as_the_current_assembly() {
+    migrates_to("tests/docs/migrations/schema-4", 4, "tests/docs/assembly");
 }

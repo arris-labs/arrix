@@ -499,6 +499,8 @@ fn a_modifiers_own_slot_names_nothing_and_another_part_is_out_of_reach() {
             history: vec![fid(3)],
             features: [(fid(3), reader(3))].into(),
             rollback: None,
+            material: None,
+            body_materials: Default::default(),
         },
     );
     let e = eval(&d);

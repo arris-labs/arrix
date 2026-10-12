@@ -4,17 +4,18 @@
 
 use std::collections::BTreeMap;
 
-use arrix_core::{AssemblyId, FeatureId, PartId};
+use arrix_core::{AssemblyId, FeatureId, MaterialId, PartId};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
 use crate::assembly::Assembly;
 use crate::document::{Document, Invalid, Part};
 use crate::frozen::BlobRef;
+use crate::material::Material;
 use crate::migrate::{self, Tree};
 
 /// The schema this build reads and writes.
-pub const SCHEMA: u64 = 4;
+pub const SCHEMA: u64 = 5;
 
 /// The header every document has.
 pub const DOCUMENT_JSON: &str = "document.json";
@@ -192,6 +193,26 @@ fn open_with(
         );
         assembly_files.push((path, id));
     }
+    let listed = source.list("materials").map_err(|source| OpenError::Io {
+        path: "materials".into(),
+        source,
+    })?;
+    let mut material_files = Vec::new();
+    for file in listed {
+        let path = format!("materials/{file}");
+        let id: MaterialId = file
+            .strip_suffix(".json")
+            .and_then(|stem| stem.parse().ok())
+            .ok_or_else(|| OpenError::Unexpected {
+                path: path.clone(),
+                message: "a material is `materials/<material-id>.json`".into(),
+            })?;
+        tree.insert(
+            path.clone(),
+            read_json(source, &path)?.expect("listed, so present"),
+        );
+        material_files.push((path, id));
+    }
     migrate::run(&mut tree, schema, chain).map_err(|e| OpenError::Migration {
         from: e.from,
         message: e.message,
@@ -223,6 +244,16 @@ fn open_with(
             });
         }
         doc.assemblies.insert(id, assembly);
+    }
+    for (path, id) in material_files {
+        let material: Material = from_tree(&path, tree.remove(&path).expect("read above"))?;
+        if material.id != id {
+            return Err(OpenError::Unexpected {
+                message: format!("it holds material {}", material.id),
+                path,
+            });
+        }
+        doc.materials.insert(id, material);
     }
     load_blobs(source, &mut doc)?;
     doc.validate()?;
@@ -280,11 +311,11 @@ mod tests {
 
     #[test]
     fn refuses_a_newer_schema_naming_both() {
-        let err = open(&doc(&[(DOCUMENT_JSON, r#"{"schema": 5}"#)])).unwrap_err();
-        assert!(matches!(err, OpenError::NewerSchema { found: 5 }));
+        let err = open(&doc(&[(DOCUMENT_JSON, r#"{"schema": 6}"#)])).unwrap_err();
+        assert!(matches!(err, OpenError::NewerSchema { found: 6 }));
         let message = err.to_string();
         assert!(
-            message.contains("is 5") && message.contains("build's 4"),
+            message.contains("is 6") && message.contains("build's 5"),
             "{message}"
         );
     }
@@ -430,10 +461,10 @@ mod tests {
     }
 
     #[test]
-    fn a_schema_1_document_opens_as_schema_4() {
+    fn a_schema_1_document_opens_as_schema_5() {
         let d = open(&doc(&[(DOCUMENT_JSON, r#"{"schema": 1}"#)])).unwrap();
         let saved = crate::save(&d);
-        assert_eq!(saved.0[DOCUMENT_JSON], b"{\n  \"schema\": 4\n}\n");
+        assert_eq!(saved.0[DOCUMENT_JSON], b"{\n  \"schema\": 5\n}\n");
     }
 
     #[test]

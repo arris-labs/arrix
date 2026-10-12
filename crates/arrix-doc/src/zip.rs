@@ -31,7 +31,7 @@ pub enum ZipError {
     #[error("the zip holds {0:?} twice")]
     Duplicate(String),
     #[error(
-        "{0:?} is not part of a document: it is not `document.json`, `params.json`, or under `parts/`, `assemblies/`, `plugins/` or `blobs/`"
+        "{0:?} is not part of a document: it is not `document.json`, `params.json`, or under `parts/`, `assemblies/`, `materials/`, `plugins/` or `blobs/`"
     )]
     OutsideTree(String),
     #[error("{0:?}: a compression method other than stored and deflate, or encryption")]
@@ -53,7 +53,7 @@ fn in_tree(path: &str) -> bool {
     clean
         && match top {
             DOCUMENT_JSON | PARAMS_JSON => !path.contains('/'),
-            "parts" | "assemblies" | "plugins" | "blobs" => path.contains('/'),
+            "parts" | "assemblies" | "materials" | "plugins" | "blobs" => path.contains('/'),
             _ => false,
         }
 }

@@ -21,6 +21,7 @@ mod eval;
 mod executor;
 pub mod expr;
 mod frozen;
+mod material;
 mod migrate;
 mod open;
 mod registry;
@@ -55,6 +56,7 @@ pub use eval::{
     SweepError, SweepPoint, eval, export, place, run, sweep,
 };
 pub use frozen::{BlobRef, Frozen, FrozenResult, InvalidBlobRef};
+pub use material::{InvalidSlotRef, Material, Rgb, SlotRef};
 pub use open::{DOCUMENT_JSON, DocumentSource, MemorySource, OpenError, PARAMS_JSON, SCHEMA, open};
 pub use registry::{
     FeatureArgs, FeatureType, FileArg, FileKernel, Registry, RegistryError, SketchArgs, TypeOutput,

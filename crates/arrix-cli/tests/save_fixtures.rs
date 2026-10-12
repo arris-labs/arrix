@@ -100,6 +100,8 @@ fn oversize_fillet() -> arrix_doc::MemorySource {
             .map(|f| (f.id, f))
             .collect(),
         rollback: None,
+        material: None,
+        body_materials: Default::default(),
     };
     let mut plate = record(plate_id, "core.extrude", "Plate");
     plate
@@ -304,6 +306,8 @@ fn a_recipe_that_reads_an_imported_file_is_written_with_it() {
                 history: vec![],
                 features: BTreeMap::new(),
                 rollback: None,
+                material: None,
+                body_materials: Default::default(),
             },
         },
         Command::AddFile {

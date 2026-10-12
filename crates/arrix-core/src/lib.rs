@@ -17,8 +17,8 @@ pub use export::ExportFormat;
 pub use geom::{Axis, Frame, Motion, Profile, ProfileLoop, ProfileSegment};
 pub use glam::{DMat3, DVec2, DVec3};
 pub use id::{
-    AssemblyId, ComponentId, CurveKey, FeatureId, ID_LEN, Id, IdError, IdMinter, JointId, ParamId,
-    PartId, RecordId, SketchEntityId,
+    AssemblyId, ComponentId, CurveKey, FeatureId, ID_LEN, Id, IdError, IdMinter, JointId,
+    MaterialId, ParamId, PartId, RecordId, SketchEntityId,
 };
 pub use mesh::{MeshDetail, MeshPoint, MeshRange, RenderMesh};
 pub use naming::{

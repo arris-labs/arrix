@@ -149,6 +149,8 @@ typed_ids! {
     JointId,
     /// A parameter.
     ParamId,
+    /// A material (docs/DATA-MODEL.md §The document).
+    MaterialId,
     /// A point, curve or constraint in a sketch.
     SketchEntityId,
     /// A plugin's record in its own section.

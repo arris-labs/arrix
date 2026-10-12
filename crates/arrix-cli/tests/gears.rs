@@ -331,6 +331,8 @@ fn the_registered_plugin_evaluates_on_a_datum_plane() {
         history: features.iter().map(|f| f.id).collect(),
         features: features.into_iter().map(|f| (f.id, f)).collect(),
         rollback: None,
+        material: None,
+        body_materials: Default::default(),
     };
     let doc: Document = apply(&Document::default(), &Command::AddPart { part })
         .unwrap()

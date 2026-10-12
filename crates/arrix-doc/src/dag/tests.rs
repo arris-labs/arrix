@@ -43,6 +43,8 @@ fn push_feature(doc: &mut Document, part: PartId, rec: FeatureRecord) {
         history: vec![],
         features: BTreeMap::new(),
         rollback: None,
+        material: None,
+        body_materials: Default::default(),
     });
     p.history.push(rec.id);
     p.features.insert(rec.id, rec);

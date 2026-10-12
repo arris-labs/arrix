@@ -158,6 +158,8 @@ fn doc(size: &str) -> Document {
         history: features.iter().map(|f| f.id).collect(),
         features: features.into_iter().map(|f| (f.id, f)).collect(),
         rollback: None,
+        material: None,
+        body_materials: Default::default(),
     };
     apply(&Document::default(), &Command::AddPart { part })
         .unwrap()

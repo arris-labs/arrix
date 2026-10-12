@@ -41,6 +41,11 @@ pub fn save(doc: &Document) -> MemorySource {
             .0
             .insert(format!("assemblies/{id}.json"), to_json(assembly));
     }
+    for (id, material) in &doc.materials {
+        files
+            .0
+            .insert(format!("materials/{id}.json"), to_json(material));
+    }
     files
 }
 

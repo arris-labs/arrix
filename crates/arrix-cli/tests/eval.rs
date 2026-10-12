@@ -93,8 +93,8 @@ fn malformed_json_exits_2() {
 
 #[test]
 fn a_newer_schema_exits_2() {
-    let doc = scratch_doc("newer", "{\"schema\": 5}\n");
-    assert_refused(&arrix_eval(&doc), "schema is 5, newer than this build's 4");
+    let doc = scratch_doc("newer", "{\"schema\": 6}\n");
+    assert_refused(&arrix_eval(&doc), "schema is 6, newer than this build's 5");
 }
 
 /// The scenario directory `dir` as an `.arrx` written to the scratch space.
@@ -226,6 +226,7 @@ fn paths_are_printed_in_the_order_given() {
             "tests/docs/migrations/schema-1",
             "tests/docs/migrations/schema-2",
             "tests/docs/migrations/schema-3",
+            "tests/docs/migrations/schema-4",
             "tests/docs/empty",
         ]
     );

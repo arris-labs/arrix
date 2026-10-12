@@ -106,6 +106,8 @@ fn build(c: &mut Client, i: &Ids) {
         history: vec![],
         features: BTreeMap::new(),
         rollback: None,
+        material: None,
+        body_materials: Default::default(),
     };
     c.submit(Command::AddPart { part });
 

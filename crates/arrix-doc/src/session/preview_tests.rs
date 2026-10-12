@@ -58,6 +58,8 @@ fn sketched() -> Command {
             history: vec![SKETCH],
             features: [(SKETCH, sketch)].into(),
             rollback: None,
+            material: None,
+            body_materials: Default::default(),
         },
     }
 }

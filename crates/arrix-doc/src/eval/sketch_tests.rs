@@ -158,6 +158,8 @@ fn document(sketch: Sketch) -> Document {
                 history: vec![PLANE, SKETCH],
                 features: [plane, sketch].into_iter().map(|f| (f.id, f)).collect(),
                 rollback: None,
+                material: None,
+                body_materials: Default::default(),
             },
         )]),
         ..Document::default()

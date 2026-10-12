@@ -60,10 +60,18 @@ assembly's outcome (`Assembled`).
 Materials (ADR-0031) add `materials: BTreeMap<MaterialId, Material>` to the
 document (`Material { id, name, density: Expr, appearance: Rgb }`) and
 `material: Option<MaterialId>` and `body_materials: BTreeMap<SlotRef,
-MaterialId>` to a `Part`; mass is evaluated from them, never stored. A
-STEP's product structure imports as parts, an assembly and grounded
-components in one `Group` (ADR-0032). Both are specified by those ADRs and
-not yet built.
+MaterialId>` to a `Part` (`SlotRef` is a feature and a body slot, written
+`<feature>.<slot>`); mass is evaluated from them, never stored. Built so
+far (`arrix_doc::Material`, `Document::materials`): the stored types, their
+file form (schema 5, `materials/<id>.json`), `Document::validate` (ids
+match their keys, names are unique, a colour is in 0 to 1, a density
+parses, an assignment names a material and a feature of the part), the
+four commands (`AddMaterial`, `EditMaterial`, `DeleteMaterial`, refused
+while a part is made of it as `material.in-use`, `AssignMaterial`, each
+with its inverse) and a part's DAG edge to its materials, a material's to
+the parameters its density reads. The mass pass is not built yet. A STEP's
+product structure imports as parts, an assembly and grounded components in
+one `Group` (ADR-0032), not built yet.
 
 **What is not in the document** (`SEED.md` §6.1 rule 4): selection, hover,
 the active sketch, the edit mode, the camera, panel layout, and every
@@ -1053,6 +1061,7 @@ document.json          schema version, ArriX version that wrote it, meta, plugin
 params.json            the parameters
 parts/<part-id>.json   one part: history order, feature records, sketches
 assemblies/<assembly-id>.json   one assembly: its components and joints
+materials/<material-id>.json    one material: its density and appearance
 plugins/<plugin-id>/   one plugin's section: its own schema version and its records
 blobs/<blake3>.<ext>   frozen results (.arrisbody), name tables, imported files, thumbnails
 ```
@@ -1066,7 +1075,7 @@ blobs/<blake3>.<ext>   frozen results (.arrisbody), name tables, imported files,
   blobs stored. The same document gives the same `.arrx`. As built
   (`arrix_doc::to_zip`, `save_zip`; `from_zip`, `open_zip`): the reader
   refuses the whole zip for a path outside the tree (not `document.json`,
-  `params.json` or a file under `parts/`, `assemblies/`, `plugins/` or `blobs/`, or with
+  `params.json` or a file under `parts/`, `assemblies/`, `materials/`, `plugins/` or `blobs/`, or with
   an empty, `.`, `..` or backslash component), a path twice, a method
   other than stored and deflate, or a size or CRC-32 that fails; a
   directory entry of an ordinary zip tool is skipped. No zip64.
@@ -1127,6 +1136,12 @@ blobs/<blake3>.<ext>   frozen results (.arrisbody), name tables, imported files,
   the identity bar the header; its fixture is
   `tests/docs/migrations/schema-3/`, a copy of `tests/docs/slice/` as it
   was saved at schema 3, re-saved to the slice's bytes by the same test.
+- **Schema 5** (ADR-0031) adds `materials/<material-id>.json`, the id
+  matching the file's name, and a part's `material` and `body_materials`
+  (each omitted when empty). None is in a schema-4 document, so 4 → 5 is
+  the identity bar the header; its fixture is
+  `tests/docs/migrations/schema-4/`, a copy of `tests/docs/assembly/` as it
+  was saved at schema 4, re-saved to the assembly's bytes by the same test.
 - **Plugin sections** carry their plugin's schema version and are opaque
   to the core (§Frozen results).
 - **Units** in the file are SI; `meta` records the display units.

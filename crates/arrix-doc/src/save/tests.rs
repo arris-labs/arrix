@@ -103,6 +103,8 @@ fn scenario() -> Vec<Command> {
                 history: vec![],
                 features: BTreeMap::new(),
                 rollback: None,
+                material: None,
+                body_materials: Default::default(),
             },
         },
         Command::AddFeature {
@@ -223,7 +225,7 @@ fn writes_the_documented_layout() {
             format!("parts/{part}.json")
         ]
     );
-    assert_eq!(text(&files, DOCUMENT_JSON), "{\n  \"schema\": 4\n}\n");
+    assert_eq!(text(&files, DOCUMENT_JSON), "{\n  \"schema\": 5\n}\n");
     let params = text(&files, PARAMS_JSON);
     assert!(
         params.contains("\"expr\": \"1 mm\",\n    \"kind\": \"length\",\n    \"name\": \"m\""),
@@ -316,6 +318,8 @@ fn sketch_scenario() -> Vec<Command> {
                 history: vec![],
                 features: BTreeMap::new(),
                 rollback: None,
+                material: None,
+                body_materials: Default::default(),
             },
         },
         Command::AddFeature {
@@ -399,6 +403,8 @@ fn assembly_scenario() -> Vec<Command> {
         history: vec![],
         features: BTreeMap::new(),
         rollback: None,
+        material: None,
+        body_materials: Default::default(),
     };
     let e = |t: &str| Expr::parse(t).unwrap();
     let component = |id: ComponentId, name: &str, of: ComponentOf, grounded: bool| Component {

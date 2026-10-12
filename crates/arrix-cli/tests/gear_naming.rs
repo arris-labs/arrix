@@ -109,6 +109,8 @@ fn build() -> Authority {
         history: vec![],
         features: BTreeMap::new(),
         rollback: None,
+        material: None,
+        body_materials: Default::default(),
     };
     submit(&mut a, Command::AddPart { part: empty });
     let on_base = Ref::Slot {
