@@ -50,8 +50,8 @@ pub use kinematics::place;
 #[cfg(feature = "schema")]
 pub use line::eval_line_schema;
 pub use line::{
-    AssemblyLine, BodyLine, EVAL_FORMAT, EvalLine, EvalStatus, FeatureLine, ParamLine, SweepPoint,
-    eval,
+    AssemblyLine, AssemblyMassLine, BodyLine, EVAL_FORMAT, EvalLine, EvalStatus, FeatureLine,
+    MassLine, MaterialLine, ParamLine, PartMassLine, SweepPoint, eval,
 };
 pub use mass::Masses;
 pub use meshing::{BodySlot, FinalBody};

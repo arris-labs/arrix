@@ -31,6 +31,9 @@ pub struct Masses {
     pub bodies: Vec<BodyMass>,
     pub parts: BTreeMap<PartId, MassOutcome>,
     pub assemblies: BTreeMap<AssemblyId, MassOutcome>,
+    /// Each material's density in kg/m³, where it has a valid one.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub densities: BTreeMap<MaterialId, f64>,
 }
 
 fn diag(code: &str, message: String) -> Diagnostic {
@@ -59,10 +62,16 @@ impl Evaluator {
         for (id, outcome) in assemblies {
             out.insert(*id, assembly_outcome(doc, *id, outcome, &parts));
         }
+        let densities = doc
+            .materials
+            .keys()
+            .filter_map(|m| density(doc, params, *m).ok().map(|d| (*m, d)))
+            .collect();
         Ok(Masses {
             bodies,
             parts,
             assemblies: out,
+            densities,
         })
     }
 

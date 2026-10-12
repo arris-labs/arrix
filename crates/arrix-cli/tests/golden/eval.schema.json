@@ -37,6 +37,46 @@
       ],
       "type": "object"
     },
+    "AssemblyMassLine": {
+      "description": "A part's or an assembly's total: what could be summed, and whether\nsomething could not (a body without a material, a component unplaced).",
+      "properties": {
+        "diagnostics": {
+          "items": {
+            "$ref": "#/$defs/Diagnostic"
+          },
+          "type": "array"
+        },
+        "id": {
+          "$ref": "#/$defs/AssemblyId"
+        },
+        "mass": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Inertial"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "In the part's or assembly's frame; none when nothing has a mass."
+        },
+        "partial": {
+          "description": "Something is left out of `mass`: it is a lower bound.",
+          "type": "boolean"
+        },
+        "volume": {
+          "description": "Cubic metres, of every body, whether or not it has a mass.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "volume",
+        "partial"
+      ],
+      "type": "object"
+    },
     "BodyLine": {
       "description": "One body's measures, in SI.",
       "properties": {
@@ -82,6 +122,86 @@
         "faces",
         "edges",
         "vertices"
+      ],
+      "type": "object"
+    },
+    "BodyMass": {
+      "description": "One final body's mass.",
+      "properties": {
+        "centroid": {
+          "description": "The centre of the volume in the part's frame, which is the centre of\nmass for a uniform body; known without a material.",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "diagnostic": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Diagnostic"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mass": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Inertial"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "In the part's frame; none when the body has no density\n(`diagnostic` says why)."
+        },
+        "material": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MaterialId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "part": {
+          "$ref": "#/$defs/PartId"
+        },
+        "slot": {
+          "$ref": "#/$defs/BodySlot"
+        },
+        "volume": {
+          "description": "Cubic metres.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "part",
+        "slot",
+        "volume",
+        "centroid"
+      ],
+      "type": "object"
+    },
+    "BodySlot": {
+      "description": "A body slot, named by the feature that made it: the name a mesh of its\nfinal version goes by, whatever feature made that version.",
+      "properties": {
+        "feature": {
+          "$ref": "#/$defs/FeatureId"
+        },
+        "slot": {
+          "$ref": "#/$defs/SlotName"
+        }
+      },
+      "required": [
+        "feature",
+        "slot"
       ],
       "type": "object"
     },
@@ -159,6 +279,24 @@
           "format": "uint32",
           "minimum": 0,
           "type": "integer"
+        },
+        "mass": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MassLine"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Mass, centroid and inertia per body, part and assembly (ADR-0031);\nabsent when there is no body."
+        },
+        "materials": {
+          "description": "The document's materials, in id order; absent when there are none.",
+          "items": {
+            "$ref": "#/$defs/MaterialLine"
+          },
+          "type": "array"
         },
         "params": {
           "items": {
@@ -317,6 +455,44 @@
       "pattern": "^[0-9A-F][0-9A-HJKMNP-TV-Z]{12}$",
       "type": "string"
     },
+    "Inertial": {
+      "description": "Mass, centre of mass and inertia of something, in SI and in the frame\nit is given in: kilograms, metres, kg m². The inertia is about the\ncentre of mass, with the frame's axes, in the physical convention (the\ndiagonal holds the moments, the off-diagonal the negated products).",
+      "properties": {
+        "centroid": {
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "inertia": {
+          "items": {
+            "items": {
+              "format": "double",
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "mass": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "mass",
+        "centroid",
+        "inertia"
+      ],
+      "type": "object"
+    },
     "JointOutcome": {
       "description": "How one joint's solve ended.",
       "oneOf": [
@@ -373,6 +549,73 @@
         }
       ]
     },
+    "MassLine": {
+      "description": "The mass results, in SI: kilograms, metres, kg m² (about the centre of\nmass).",
+      "properties": {
+        "assemblies": {
+          "items": {
+            "$ref": "#/$defs/AssemblyMassLine"
+          },
+          "type": "array"
+        },
+        "bodies": {
+          "description": "Every final body, in the part's frame.",
+          "items": {
+            "$ref": "#/$defs/BodyMass"
+          },
+          "type": "array"
+        },
+        "parts": {
+          "items": {
+            "$ref": "#/$defs/PartMassLine"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "bodies",
+        "parts"
+      ],
+      "type": "object"
+    },
+    "MaterialId": {
+      "$ref": "#/$defs/Id",
+      "description": "A material (docs/DATA-MODEL.md §The document)."
+    },
+    "MaterialLine": {
+      "description": "One material: its density in kg/m³ (none when unset or invalid, which\nthe bodies of it say) and its colour.",
+      "properties": {
+        "appearance": {
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "density": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "id": {
+          "$ref": "#/$defs/MaterialId"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "density",
+        "appearance"
+      ],
+      "type": "object"
+    },
     "ParamId": {
       "$ref": "#/$defs/Id",
       "description": "A parameter."
@@ -415,6 +658,46 @@
     "PartId": {
       "$ref": "#/$defs/Id",
       "description": "A part."
+    },
+    "PartMassLine": {
+      "description": "A part's or an assembly's total: what could be summed, and whether\nsomething could not (a body without a material, a component unplaced).",
+      "properties": {
+        "diagnostics": {
+          "items": {
+            "$ref": "#/$defs/Diagnostic"
+          },
+          "type": "array"
+        },
+        "id": {
+          "$ref": "#/$defs/PartId"
+        },
+        "mass": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Inertial"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "In the part's or assembly's frame; none when nothing has a mass."
+        },
+        "partial": {
+          "description": "Something is left out of `mass`: it is a lower bound.",
+          "type": "boolean"
+        },
+        "volume": {
+          "description": "Cubic metres, of every body, whether or not it has a mass.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "volume",
+        "partial"
+      ],
+      "type": "object"
     },
     "PersistentName": {
       "description": "A face, edge or vertex: a root and what happened to it since.",

@@ -53,6 +53,7 @@ impl Replay {
     fn record(&mut self, event: &SessionEvent) {
         let (SessionEvent::Evaluated { generation, .. }
         | SessionEvent::Assembled { generation, .. }
+        | SessionEvent::Massed { generation, .. }
         | SessionEvent::Finished { generation, .. }
         | SessionEvent::Meshed { generation, .. }) = event
         else {
@@ -75,6 +76,7 @@ impl Replay {
                 SessionEvent::Assembled { assembly: a, .. },
                 SessionEvent::Assembled { assembly: b, .. },
             ) => a == b,
+            (SessionEvent::Massed { .. }, SessionEvent::Massed { .. }) => true,
             (SessionEvent::Finished { .. }, SessionEvent::Finished { .. }) => true,
             (
                 SessionEvent::Meshed { part, slot, .. },
@@ -416,6 +418,11 @@ fn evaluate(mut evaluator: Evaluator, jobs: &Receiver<Job>, publish: &Sender<Msg
                     };
                     let _ = publish.send(Msg::Publish(assembled));
                 }
+                let massed = SessionEvent::Massed {
+                    generation,
+                    masses: evaluation.masses,
+                };
+                let _ = publish.send(Msg::Publish(massed));
                 let finished = SessionEvent::Finished {
                     generation,
                     params: evaluation.params,

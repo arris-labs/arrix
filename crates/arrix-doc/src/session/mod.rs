@@ -41,7 +41,7 @@ pub use plugins::PluginLoader;
 use crate::authority::{AuthorId, Change, CommandEnvelope, Generation, Outcome, Rejected};
 use crate::command::{CommandError, apply};
 use crate::document::{Document, FeatureTypeId};
-use crate::eval::{AssemblyOutcome, BodySlot, EvalEvent, FeatureOutcome};
+use crate::eval::{AssemblyOutcome, BodySlot, EvalEvent, FeatureOutcome, Masses};
 use crate::open::{MemorySource, open};
 use crate::save::save;
 pub use preview::{PreviewBody, PreviewId, PreviewTag};
@@ -196,6 +196,13 @@ pub enum SessionEvent {
         generation: Generation,
         assembly: AssemblyId,
         outcome: AssemblyOutcome,
+    },
+    /// The mass, centroid and inertia of every body, part and assembly in
+    /// the evaluation of `generation` (ADR-0031), sent after the
+    /// `Assembled` events and before `Finished`.
+    Massed {
+        generation: Generation,
+        masses: Masses,
     },
     /// The evaluation of `generation` finished, with every parameter's
     /// value. An evaluation a newer generation stopped has no `Finished`.
@@ -433,7 +440,8 @@ impl Replica {
                     self.finished = Some((*generation, params.clone()));
                 }
             }
-            SessionEvent::Meshed { .. }
+            SessionEvent::Massed { .. }
+            | SessionEvent::Meshed { .. }
             | SessionEvent::Previewed { .. }
             | SessionEvent::PreviewMeshed { .. }
             | SessionEvent::Exported { .. } => {}

@@ -2,13 +2,14 @@
 //! (docs/CONCURRENCY-WASM.md §Batch evaluation). Here, beside the document,
 //! so `arrix eval` and the tests share one code path.
 
-use arrix_core::{AssemblyId, Diagnostic, FeatureId, JointId, ParamId, PartId};
+use arrix_core::{AssemblyId, Diagnostic, FeatureId, JointId, MaterialId, ParamId, PartId};
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
 use super::{Evaluation, Evaluator, FeatureOutcome, JointOutcome, PlacedComponent, SlotView};
 use crate::document::Document;
+use crate::mass::{BodyMass, MassOutcome};
 use crate::open::{DocumentSource, OpenError, open};
 use crate::registry::Registry;
 
@@ -38,6 +39,52 @@ pub struct EvalLine {
     /// Every assembly as solved, in id order; absent when there are none.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub assemblies: Vec<AssemblyLine>,
+    /// The document's materials, in id order; absent when there are none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub materials: Vec<MaterialLine>,
+    /// Mass, centroid and inertia per body, part and assembly (ADR-0031);
+    /// absent when there is no body.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mass: Option<MassLine>,
+}
+
+/// One material: its density in kg/m³ (none when unset or invalid, which
+/// the bodies of it say) and its colour.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub struct MaterialLine {
+    pub id: MaterialId,
+    pub name: String,
+    pub density: Option<f64>,
+    pub appearance: [f64; 3],
+}
+
+/// The mass results, in SI: kilograms, metres, kg m² (about the centre of
+/// mass).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub struct MassLine {
+    /// Every final body, in the part's frame.
+    pub bodies: Vec<BodyMass>,
+    pub parts: Vec<PartMassLine>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub assemblies: Vec<AssemblyMassLine>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub struct PartMassLine {
+    pub id: PartId,
+    #[serde(flatten)]
+    pub outcome: MassOutcome,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub struct AssemblyMassLine {
+    pub id: AssemblyId,
+    #[serde(flatten)]
+    pub outcome: MassOutcome,
 }
 
 /// One assembly's solve: where each component is, in SI, and how each
@@ -217,6 +264,36 @@ impl Evaluation {
                 joints: outcome.joints.clone(),
             })
             .collect();
+        let materials: Vec<MaterialLine> = doc
+            .materials()
+            .values()
+            .map(|m| MaterialLine {
+                id: m.id,
+                name: m.name.clone(),
+                density: self.masses.densities.get(&m.id).copied(),
+                appearance: m.appearance.0,
+            })
+            .collect();
+        let masses = &self.masses;
+        let mass = (!masses.bodies.is_empty()).then(|| MassLine {
+            bodies: masses.bodies.clone(),
+            parts: masses
+                .parts
+                .iter()
+                .map(|(id, outcome)| PartMassLine {
+                    id: *id,
+                    outcome: outcome.clone(),
+                })
+                .collect(),
+            assemblies: masses
+                .assemblies
+                .iter()
+                .map(|(id, outcome)| AssemblyMassLine {
+                    id: *id,
+                    outcome: outcome.clone(),
+                })
+                .collect(),
+        });
         let failed = params.iter().any(|p| p.diagnostic.is_some())
             || features.iter().any(|f| f.status == "failed")
             || assemblies.iter().any(|a| {
@@ -237,6 +314,8 @@ impl Evaluation {
             features,
             bodies,
             assemblies,
+            materials,
+            mass,
         }
     }
 }

@@ -159,6 +159,12 @@ arrix eval <docs or dirs>… [--sweep <feature>.<param>=<from>..<to>:<n>]
   `assemblies` (in SI, a pose a frame) is absent when the document has none,
   so a line of a document without them is unchanged (ADR-0026, additive); a
   joint that failed (`ref.lost` and the rest) makes the line `failed`.
+  Likewise `materials` (`id`, `name`, `density` in kg/m³ or null,
+  `appearance` as r, g, b) and `mass` (ADR-0031: `bodies`, `parts`,
+  `assemblies`, each volume, an optional `mass` `{mass, centroid,
+  inertia}` in SI about the centre of mass, `partial` and the
+  `mass.no-material` diagnostics) are absent when there is no material or
+  body, and are additive.
 
 - `--summary` ends with the failure histogram: one row per category with
   its count, the documents that hit it and the plugins that called it.

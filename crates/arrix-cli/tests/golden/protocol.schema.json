@@ -116,6 +116,70 @@
         "description": "A blob's file name under `blobs/`: 64 lower-case hex digits of the\nBLAKE3 of its bytes, a dot, and an extension of lower-case letters\nand digits (`arrisbody`, `json`).",
         "type": "string"
       },
+      "BodyMass": {
+        "description": "One final body's mass.",
+        "properties": {
+          "centroid": {
+            "description": "The centre of the volume in the part's frame, which is the centre of\nmass for a uniform body; known without a material.",
+            "items": {
+              "format": "double",
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          },
+          "diagnostic": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Diagnostic"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mass": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Inertial"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "In the part's frame; none when the body has no density\n(`diagnostic` says why)."
+          },
+          "material": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/MaterialId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "part": {
+            "$ref": "#/$defs/PartId"
+          },
+          "slot": {
+            "$ref": "#/$defs/BodySlot"
+          },
+          "volume": {
+            "description": "Cubic metres.",
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "part",
+          "slot",
+          "volume",
+          "centroid"
+        ],
+        "type": "object"
+      },
       "BodyMeasures": {
         "description": "A body's measures, in SI, and its topology counts.",
         "properties": {
@@ -2400,6 +2464,44 @@
         ],
         "type": "object"
       },
+      "Inertial": {
+        "description": "Mass, centre of mass and inertia of something, in SI and in the frame\nit is given in: kilograms, metres, kg m². The inertia is about the\ncentre of mass, with the frame's axes, in the physical convention (the\ndiagonal holds the moments, the off-diagonal the negated products).",
+        "properties": {
+          "centroid": {
+            "items": {
+              "format": "double",
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          },
+          "inertia": {
+            "items": {
+              "items": {
+                "format": "double",
+                "type": "number"
+              },
+              "maxItems": 3,
+              "minItems": 3,
+              "type": "array"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          },
+          "mass": {
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "mass",
+          "centroid",
+          "inertia"
+        ],
+        "type": "object"
+      },
       "Input": {
         "anyOf": [
           {
@@ -2614,6 +2716,89 @@
             "type": "object"
           }
         ]
+      },
+      "MassOutcome": {
+        "description": "A part's or an assembly's total: what could be summed, and whether\nsomething could not (a body without a material, a component unplaced).",
+        "properties": {
+          "diagnostics": {
+            "items": {
+              "$ref": "#/$defs/Diagnostic"
+            },
+            "type": "array"
+          },
+          "mass": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Inertial"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "In the part's or assembly's frame; none when nothing has a mass."
+          },
+          "partial": {
+            "description": "Something is left out of `mass`: it is a lower bound.",
+            "type": "boolean"
+          },
+          "volume": {
+            "description": "Cubic metres, of every body, whether or not it has a mass.",
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "volume",
+          "partial"
+        ],
+        "type": "object"
+      },
+      "Masses": {
+        "description": "Every mass result of an evaluation.",
+        "properties": {
+          "assemblies": {
+            "additionalProperties": false,
+            "patternProperties": {
+              "^[0-9A-F][0-9A-HJKMNP-TV-Z]{12}$": {
+                "$ref": "#/$defs/MassOutcome"
+              }
+            },
+            "type": "object"
+          },
+          "bodies": {
+            "description": "Every final body, in the document's order.",
+            "items": {
+              "$ref": "#/$defs/BodyMass"
+            },
+            "type": "array"
+          },
+          "densities": {
+            "additionalProperties": false,
+            "description": "Each material's density in kg/m³, where it has a valid one.",
+            "patternProperties": {
+              "^[0-9A-F][0-9A-HJKMNP-TV-Z]{12}$": {
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "type": "object"
+          },
+          "parts": {
+            "additionalProperties": false,
+            "patternProperties": {
+              "^[0-9A-F][0-9A-HJKMNP-TV-Z]{12}$": {
+                "$ref": "#/$defs/MassOutcome"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "bodies",
+          "parts",
+          "assemblies"
+        ],
+        "type": "object"
       },
       "Material": {
         "additionalProperties": false,
@@ -4031,6 +4216,27 @@
           "generation",
           "assembly",
           "outcome"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "The mass, centroid and inertia of every body, part and assembly in\nthe evaluation of `generation` (ADR-0031), sent after the\n`Assembled` events and before `Finished`.",
+        "properties": {
+          "generation": {
+            "$ref": "#/$defs/Generation"
+          },
+          "kind": {
+            "const": "massed",
+            "type": "string"
+          },
+          "masses": {
+            "$ref": "#/$defs/Masses"
+          }
+        },
+        "required": [
+          "kind",
+          "generation",
+          "masses"
         ],
         "type": "object"
       },

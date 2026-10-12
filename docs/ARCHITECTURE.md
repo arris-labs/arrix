@@ -143,6 +143,8 @@ event is a `session.event` notification, a mesh's runs, an `Opened` blob
 and an export's bytes as base64. A subscription's `Opened` is followed by the
 newest generation's `Evaluated`, `Assembled` (one per assembly: its
 components' poses and its joints' outcomes, sent before `Finished`),
+`Massed` (the mass of every body, part and assembly, after the
+`Assembled`, ADR-0031),
 `Finished` and latest `Meshed` heard so far,
 so a client that joins late hears them (ADR-0026, additive). A reader and one writer thread serve
 it, and a request's response is queued before any event it caused. A round-trip test serialises every request and event

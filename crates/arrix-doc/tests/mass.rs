@@ -461,3 +461,24 @@ fn an_edit_of_the_density_changes_the_mass_and_nothing_else() {
         "mass ratio",
     );
 }
+
+#[test]
+fn the_eval_line_carries_the_materials_and_the_mass() {
+    let doc = steel_box();
+    let line = eval(&doc).line("steel-box", &doc);
+    assert_eq!(line.materials.len(), 1);
+    assert_eq!(line.materials[0].name, "Steel");
+    close(line.materials[0].density.unwrap(), STEEL_RHO, "density");
+    let mass = line.mass.expect("a document with a body has a mass");
+    assert_eq!(mass.bodies.len(), 1);
+    assert_eq!(mass.parts[0].id, BOX);
+    close(
+        mass.parts[0].outcome.mass.unwrap().mass,
+        STEEL_RHO * A_ * B_ * C_,
+        "part mass",
+    );
+    // No body, no material: neither is on the line.
+    let empty = Document::default();
+    let line = eval(&empty).line("empty", &empty);
+    assert!(line.materials.is_empty() && line.mass.is_none());
+}

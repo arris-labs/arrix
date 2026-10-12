@@ -469,14 +469,16 @@ fn the_servo_follows_its_joint_and_the_plates_width() {
         -DVec3::Z,
     );
 
-    // Every generation announced the assembly (before its Finished).
+    // Every generation announced the assembly (then its masses, before its Finished).
     let mut announced = 0;
-    for pair in c.heard.windows(2) {
+    for triple in c.heard.windows(3) {
         if let [
             arrix_doc::SessionEvent::Assembled { generation: a, .. },
+            arrix_doc::SessionEvent::Massed { generation: m, .. },
             arrix_doc::SessionEvent::Finished { generation: f, .. },
-        ] = pair
+        ] = triple
         {
+            assert_eq!(a, m);
             assert_eq!(a, f);
             announced += 1;
         }
