@@ -91,6 +91,7 @@ fn kind_with_article(kind: QuantityKind) -> String {
         QuantityKind::Count => "a count",
         QuantityKind::Ratio => "a ratio",
         QuantityKind::Mass => "a mass",
+        QuantityKind::Density => "a density",
     };
     name.into()
 }

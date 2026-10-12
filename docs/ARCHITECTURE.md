@@ -6,7 +6,7 @@ the kernel's choke point, errors, testing and the gate. The charter is
 `docs/PLUGINS.md`, the UI `docs/UI-RENDERING.md`, threads and the browser
 `docs/CONCURRENCY-WASM.md`. Built, as of C1 and the boundary's M1: every crate of §Crates
 but the Tier 1 half of `arrix-plugin-host`
-(`arrix-plugin-api` is at 0.5.0), the protocol boundary, errors and
+(`arrix-plugin-api` is at 0.6.0), the protocol boundary, errors and
 diagnostics, the kernel choke point, the testing layers and the gates. Where
 a section says "not built", it is later than C1.
 
@@ -51,7 +51,7 @@ hashes through the same code) has, `toml` (1, parsing and serde only) and
 "forbid"` is a workspace lint every crate inherits; `wit-bindgen`'s
 `generate!` compiles under it, its `export!` does not, which is why the
 equality test implements the guest traits without exporting them.
-`arrix-plugin-api` alone carries its own version (0.5.0); every other
+`arrix-plugin-api` alone carries its own version (0.6.0); every other
 crate is the workspace's 0.0.0.
 The binaries are `arrix` (`arrix-cli`) and `arrix-app`. No crate is
 published yet (`publish = false`); reserving names is the human's act.

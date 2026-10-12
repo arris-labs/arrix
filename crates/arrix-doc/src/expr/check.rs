@@ -35,6 +35,10 @@ impl Dim {
             QuantityKind::Length => d.length = 1,
             QuantityKind::Angle => d.angle = 1,
             QuantityKind::Mass => d.mass = 1,
+            QuantityKind::Density => {
+                d.mass = 1;
+                d.length = -3;
+            }
             QuantityKind::Count | QuantityKind::Ratio => {}
         }
         d

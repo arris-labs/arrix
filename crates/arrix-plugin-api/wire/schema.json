@@ -717,7 +717,8 @@
         "angle",
         "count",
         "ratio",
-        "mass"
+        "mass",
+        "density"
       ],
       "type": "string"
     },
@@ -1035,8 +1036,8 @@
       "type": "object"
     }
   },
-  "$id": "arrix:plugin@0.5.0/schema",
+  "$id": "arrix:plugin@0.6.0/schema",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "Generated from wit/arrix-plugin.wit (ADR-0022). Do not edit.",
-  "title": "The wire's types, arrix:plugin@0.5.0"
+  "title": "The wire's types, arrix:plugin@0.6.0"
 }

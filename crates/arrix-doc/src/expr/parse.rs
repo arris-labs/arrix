@@ -10,6 +10,7 @@
 //! ```
 
 use arrix_core::Unit;
+use arrix_core::units::UNITS;
 
 use super::{Ast, BinOp, ExprError};
 
@@ -47,6 +48,9 @@ fn lex(text: &str) -> Result<Vec<(usize, Tok)>, ExprError> {
                 });
             }
             out.push((start, Tok::Num(value)));
+        } else if let Some(unit) = compound_unit(&text[start..], out.last().map(|(_, t)| t)) {
+            out.push((start, Tok::Ident(unit.to_owned())));
+            i += unit.len();
         } else if c.is_ascii_alphabetic() || c == b'_' {
             while i < bytes.len() && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
                 i += 1;
@@ -65,6 +69,24 @@ fn lex(text: &str) -> Result<Vec<(usize, Tok)>, ExprError> {
     }
     out.push((text.len(), Tok::End));
     Ok(out)
+}
+
+/// The unit with a `/` in its symbol (`g/cm3`) that `rest` starts with,
+/// right after a number: otherwise `7.85 g/cm3` would read as a mass over
+/// a name.
+fn compound_unit(rest: &str, prev: Option<&Tok>) -> Option<&'static str> {
+    if !matches!(prev, Some(Tok::Num(_))) {
+        return None;
+    }
+    UNITS
+        .iter()
+        .map(|u| u.symbol)
+        .filter(|s| s.contains('/'))
+        .find(|s| {
+            rest.strip_prefix(s).is_some_and(|after| {
+                !after.starts_with(|c: char| c.is_ascii_alphanumeric() || c == '_')
+            })
+        })
 }
 
 /// The end of the number starting at `i`: digits, a fraction, and an

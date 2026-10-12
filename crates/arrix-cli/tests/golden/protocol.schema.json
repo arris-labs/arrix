@@ -3075,7 +3075,8 @@
           "angle",
           "count",
           "ratio",
-          "mass"
+          "mass",
+          "density"
         ],
         "type": "string"
       },
@@ -6196,7 +6197,8 @@
           "angle",
           "count",
           "ratio",
-          "mass"
+          "mass",
+          "density"
         ],
         "type": "string"
       },
@@ -9832,7 +9834,8 @@
           "angle",
           "count",
           "ratio",
-          "mass"
+          "mass",
+          "density"
         ],
         "type": "string"
       },

@@ -4,7 +4,7 @@ The plugin model is ArriX's reason to exist (`SEED.md` §3, §6.3): one
 interface, versioned apart from the app, hosted three ways, and enough of it
 that first-party domains need nothing else. This document is the design of
 `arrix-plugin-api` and `arrix-plugin-host`. Built, as of C1: the world and
-its Rust traits at 0.5.0 (§One interface), manifests (§The manifest), Tier 0
+its Rust traits at 0.6.0 (§One interface), manifests (§The manifest), Tier 0
 hosting (§Three tiers), the test kit (§The test kit, `arrix test`), and the
 first plugin, `plugins/gears` with `gears.spur` (its crate docs state its
 geometry and tolerance). Tier 2 is built (boundary-opened M1), as is the
@@ -24,16 +24,16 @@ API's version. From it come:
 - the **Python SDK** (`python/arrix`): stubs generated from the world, and
   a thin runtime speaking the Tier 2 wire protocol.
 
-The world as it stands at 0.5.0 (the file is the authority; comments and
+The world as it stands at 0.6.0 (the file is the authority; comments and
 field lists are elided here):
 
 ```wit
-package arrix:plugin@0.5.0;
+package arrix:plugin@0.6.0;
 
 interface types {                                    // SI; no Arris type anywhere
   type id = u64;                                     // arrix-core's typed ids
   record vec2, vec3, frame { origin, x-axis, z-axis }
-  enum quantity-kind { length, angle, count, ratio, mass }
+  enum quantity-kind { length, angle, count, ratio, mass, density }
   record quantity { kind, si: f64 }
   record persistent-ref { encoded: string }          // a PersistentName's text form, opaque here
   variant reference { param, feature, slot, topo, sketch, region, plugin }   // arrix-core's Ref
@@ -405,7 +405,8 @@ only, whatever the manifest says, because determinism demands it.
   and `tool` input kinds, the tool a feature keeps (ADR-0012, ADR-0013),
   and the kernel's `revolve`, `common`, `fillet`, `chamfer`, `copy` and
   `mirror`; 0.5.0 (breaking) the choices a type declares, `shown-when`,
-  and the choices `evaluate` receives (ADR-0018).
+  and the choices `evaluate` receives (ADR-0018); 0.6.0 (breaking) the
+  `density` quantity kind (ADR-0031).
   While it is `0.x`, a minor bump is breaking. Every change to it says its
   semver effect in the commit body (`.agents/rules/git.md`).
 - The host supports one API range at a time and says which in `arrix

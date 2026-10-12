@@ -67,6 +67,7 @@ fn unit_hint(kind: QuantityKind) -> &'static str {
         QuantityKind::Length => "mm",
         QuantityKind::Angle => "deg",
         QuantityKind::Mass => "kg",
+        QuantityKind::Density => "kg/m3",
         QuantityKind::Count | QuantityKind::Ratio => "",
     }
 }

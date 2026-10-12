@@ -5,7 +5,7 @@
 //
 // SI throughout: metres, radians, kilograms. No Arris type appears here.
 
-package arrix:plugin@0.5.0;
+package arrix:plugin@0.6.0;
 
 interface types {
   // An id: 64 bits, as `arrix-core`'s typed ids carry it.
@@ -17,7 +17,7 @@ interface types {
   // A right-handed frame, Y = Z x X. A plane is its XY plane, its normal Z.
   record frame { origin: vec3, x-axis: vec3, z-axis: vec3 }
 
-  enum quantity-kind { length, angle, count, ratio, mass }
+  enum quantity-kind { length, angle, count, ratio, mass, density }
   record quantity { kind: quantity-kind, si: f64 }
 
   // A face, edge or vertex by persistent name, in its canonical text form

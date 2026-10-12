@@ -20,6 +20,7 @@ pub enum QuantityKind {
     Count,
     Ratio,
     Mass,
+    Density,
 }
 
 /// A unit a value can be typed or shown in.
@@ -53,6 +54,9 @@ pub const UNITS: &[Unit] = &[
     unit("rad", QuantityKind::Angle, 1.0, 1.0),
     unit("g", QuantityKind::Mass, 1.0, 1000.0),
     unit("kg", QuantityKind::Mass, 1.0, 1.0),
+    unit("kg/m3", QuantityKind::Density, 1.0, 1.0),
+    // 1e-3 kg over 1e-6 m3.
+    unit("g/cm3", QuantityKind::Density, 1000.0, 1.0),
 ];
 
 impl Unit {
@@ -131,6 +135,27 @@ mod tests {
         assert_eq!(Quantity::new(250.0, u("g")).si, 0.25);
         assert_eq!(Quantity::new(2.0, u("kg")).kind, QuantityKind::Mass);
         assert_eq!(Quantity::new(1.0, u("in")).in_unit(u("mm")), Ok(25.4));
+    }
+
+    #[test]
+    fn converts_a_density() {
+        let steel = Quantity::new(7.85, u("g/cm3"));
+        assert_eq!(steel.kind, QuantityKind::Density);
+        assert_eq!(steel.si, 7850.0);
+        assert_eq!(steel.in_unit(u("kg/m3")), Ok(7850.0));
+        assert_eq!(
+            Quantity::new(1.0, u("kg/m3")).in_unit(u("g/cm3")),
+            Ok(0.001)
+        );
+        // A length is not a density.
+        assert_eq!(
+            Quantity::new(1.0, u("mm")).in_unit(u("g/cm3")),
+            Err(UnitMismatch {
+                have: QuantityKind::Length,
+                unit: "g/cm3",
+                want: QuantityKind::Density
+            })
+        );
     }
 
     #[test]

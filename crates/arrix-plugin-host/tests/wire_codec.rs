@@ -267,6 +267,7 @@ fn every_type_and_case_round_trips_and_keeps_its_schema() {
         QuantityKind::Count,
         QuantityKind::Ratio,
         QuantityKind::Mass,
+        QuantityKind::Density,
     ] {
         r.go(
             "quantity-kind",

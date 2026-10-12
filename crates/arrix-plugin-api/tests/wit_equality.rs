@@ -130,6 +130,7 @@ impl Mirror for QuantityKind {
             QuantityKind::Count => wt::QuantityKind::Count,
             QuantityKind::Ratio => wt::QuantityKind::Ratio,
             QuantityKind::Mass => wt::QuantityKind::Mass,
+            QuantityKind::Density => wt::QuantityKind::Density,
         }
     }
     fn from_wit(w: wt::QuantityKind) -> Self {
@@ -139,6 +140,7 @@ impl Mirror for QuantityKind {
             wt::QuantityKind::Count => QuantityKind::Count,
             wt::QuantityKind::Ratio => QuantityKind::Ratio,
             wt::QuantityKind::Mass => QuantityKind::Mass,
+            wt::QuantityKind::Density => QuantityKind::Density,
         }
     }
 }
@@ -1148,6 +1150,7 @@ fn every_type_round_trips_through_the_world() {
         QuantityKind::Count,
         QuantityKind::Ratio,
         QuantityKind::Mass,
+        QuantityKind::Density,
     ] {
         round_trip(&Quantity::si(kind, 0.012));
     }
@@ -1403,11 +1406,11 @@ fn the_world_is_exactly_what_is_covered() {
     // `types` only through the `use`s.
     assert_eq!(
         names(&world.imports),
-        BTreeSet::from(["arrix:plugin/kernel@0.5.0", "arrix:plugin/types@0.5.0"].map(String::from))
+        BTreeSet::from(["arrix:plugin/kernel@0.6.0", "arrix:plugin/types@0.6.0"].map(String::from))
     );
     assert_eq!(
         names(&world.exports),
-        BTreeSet::from(["arrix:plugin/feature@0.5.0".to_owned()])
+        BTreeSet::from(["arrix:plugin/feature@0.6.0".to_owned()])
     );
 
     let mut found = BTreeSet::new();

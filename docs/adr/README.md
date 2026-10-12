@@ -71,3 +71,4 @@ Each rejected option and the one-line reason it lost.
 - [ADR-0030](0030-assemblies-in-the-app.md): assemblies in the app: a tab looks at one part or assembly, an instanced scene picked by component path, the joint drag solved by FK on the client (ADR-0029 §13), a parameter-driven drag edits the parameter
 - [ADR-0031](0031-materials-and-mass-properties.md): materials in the document (density expression, appearance), per part with a per-body override, mass evaluated per body, part and assembly, `mass.no-material` partial totals, no library, schema 5
 - [ADR-0032](0032-step-with-product-structure.md): STEP with product structure: a product's frame by the inverse placement, one `Group` import, colours as materials, the export mapping, what is lost
+- [ADR-0033](0033-density-is-a-quantity-kind-of-the-api.md): density is a quantity kind of the plugin API, 0.6.0 (breaking), amends ADR-0031 §7

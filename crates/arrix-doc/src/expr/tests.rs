@@ -229,3 +229,18 @@ proptest! {
         }
     }
 }
+
+#[test]
+fn a_density_is_typed_with_its_compound_unit() {
+    use QuantityKind::Density;
+    assert_eq!(q("7.85 g/cm3", Density), Ok(7850.0));
+    assert_eq!(q("7850 kg/m3", Density), Ok(7850.0));
+    assert_eq!(
+        q("2 kg / 1 m^3", Density),
+        Ok(2.0),
+        "a quotient of a mass and a volume"
+    );
+    // A length is not a density, and a density is not a mass.
+    assert!(q("7 mm", Density).is_err());
+    assert!(q("7.85 g/cm3", QuantityKind::Mass).is_err());
+}

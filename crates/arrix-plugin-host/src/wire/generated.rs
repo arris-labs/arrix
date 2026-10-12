@@ -59,6 +59,7 @@ pub fn quantity_kind_to_json(v: &QuantityKind) -> Result<Value, WireError> {
         QuantityKind::Count => "count",
         QuantityKind::Ratio => "ratio",
         QuantityKind::Mass => "mass",
+        QuantityKind::Density => "density",
     }))
 }
 
@@ -69,10 +70,11 @@ pub fn quantity_kind_from_json(v: &Value) -> Result<QuantityKind, WireError> {
         "count" => Ok(QuantityKind::Count),
         "ratio" => Ok(QuantityKind::Ratio),
         "mass" => Ok(QuantityKind::Mass),
+        "density" => Ok(QuantityKind::Density),
         other => Err(unknown_case(
             "quantity-kind",
             other,
-            &["length", "angle", "count", "ratio", "mass"],
+            &["length", "angle", "count", "ratio", "mass", "density"],
         )),
     }
 }

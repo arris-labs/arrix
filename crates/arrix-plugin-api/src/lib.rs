@@ -11,7 +11,7 @@
 //! the method table, generated from the WIT (ADR-0022) and held fresh by
 //! `tests/wire.rs`.
 //!
-//! Built so far (0.5.0): the `types`, `kernel` (extrude, revolve, fuse,
+//! Built so far (0.6.0): the `types`, `kernel` (extrude, revolve, fuse,
 //! cut, common, fillet, chamfer, copy, mirror, names, face frames, mass
 //! properties) and `feature` interfaces; 0.2 added region references and
 //! region inputs (ADR-0006), 0.3 body inputs, slots that modify them, and

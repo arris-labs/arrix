@@ -1,7 +1,7 @@
 [plugin]
 id = "standoff"
 version = "0.1.0"
-api = "^0.5"
+api = "^0.6"
 tier = 2
 title = "Standoff"
 licence = "MIT OR Apache-2.0"

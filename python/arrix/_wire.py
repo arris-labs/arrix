@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-API_VERSION = "0.5.0"
+API_VERSION = "0.6.0"
 
 
 Body = int
@@ -98,7 +98,8 @@ class QuantityKind:
     COUNT = "count"
     RATIO = "ratio"
     MASS = "mass"
-    ALL = ("length", "angle", "count", "ratio", "mass")
+    DENSITY = "density"
+    ALL = ("length", "angle", "count", "ratio", "mass", "density")
 
 
 @dataclass(frozen=True)
