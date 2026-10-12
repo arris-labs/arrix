@@ -129,7 +129,7 @@ mod tests {
         let record = FeatureRecord {
             id: feature,
             type_id: FeatureTypeId::new("core.import-step").unwrap(),
-            type_version: 1,
+            type_version: 2,
             name: "servo".into(),
             params: BTreeMap::new(),
             choices: BTreeMap::new(),

@@ -91,11 +91,13 @@ pub struct FileArg<'a> {
 /// The plugin API's `Kernel` with the call that reads a file in.
 pub trait FileKernel: Kernel {
     /// Solid number `solid` (from 1) of the STEP file `file`, in metres,
-    /// its entities named from the file's (`Kernel::import_step`).
+    /// its entities named from the file's (`Kernel::import_step`); in its
+    /// product's own frame when `product_frame` (`Kernel::import_step_in`).
     fn import_step(
         &mut self,
         file: &[u8],
         solid: u32,
+        product_frame: bool,
     ) -> Result<arrix_plugin_api::Body, Diagnostic>;
 }
 

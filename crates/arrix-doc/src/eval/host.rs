@@ -103,8 +103,18 @@ impl<'k> FeatureKernel<'k> {
 }
 
 impl crate::registry::FileKernel for FeatureKernel<'_> {
-    fn import_step(&mut self, file: &[u8], solid: u32) -> Result<Body, Diagnostic> {
-        let r = self.kernel.import_step(self.feature, file, solid);
+    fn import_step(
+        &mut self,
+        file: &[u8],
+        solid: u32,
+        product_frame: bool,
+    ) -> Result<Body, Diagnostic> {
+        let frame = if product_frame {
+            arrix_kernel::ImportFrame::Product
+        } else {
+            arrix_kernel::ImportFrame::World
+        };
+        let r = self.kernel.import_step_in(self.feature, file, solid, frame);
         let body = self.take(r)?;
         Ok(self.hand_out(body))
     }

@@ -344,6 +344,30 @@ pub(crate) fn instance_names(
     operand: &BodyNames,
     provenance: &Provenance,
 ) -> Result<BodyNames, String> {
+    carried_names(m, body, operand, provenance, |name| {
+        name.chain.push(NameStep::Instance { feature, index });
+    })
+}
+
+/// The names of a body moved rigidly (`ops::transform`): each entity
+/// keeps its operand's name, since a move changes where it is and not what
+/// it is.
+pub(crate) fn moved_names(
+    m: &Model,
+    body: Body,
+    operand: &BodyNames,
+    provenance: &Provenance,
+) -> Result<BodyNames, String> {
+    carried_names(m, body, operand, provenance, |_| {})
+}
+
+fn carried_names(
+    m: &Model,
+    body: Body,
+    operand: &BodyNames,
+    provenance: &Provenance,
+    rename: impl Fn(&mut PersistentName),
+) -> Result<BodyNames, String> {
     let old: BTreeMap<EntityId, &PersistentName> = operand.pairs().map(|(n, id)| (id, n)).collect();
     let mut named: BTreeMap<EntityId, PersistentName> = BTreeMap::new();
     for origin in provenance.origins_recorded() {
@@ -358,7 +382,7 @@ pub(crate) fn instance_names(
             return Err(format!("{origin} is not copied one-to-one"));
         };
         let mut name = from_name.clone();
-        name.chain.push(NameStep::Instance { feature, index });
+        rename(&mut name);
         if let Some(other) = named.insert(shape.id, name) {
             return Err(format!("{other} names {} twice", shape.id));
         }

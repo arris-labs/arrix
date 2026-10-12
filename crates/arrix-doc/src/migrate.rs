@@ -53,7 +53,7 @@ fn schema_4_to_5(_: &mut Tree) -> Result<(), String> {
 /// schema chain (a feature record's `type_version` is migrated by its type,
 /// docs/DATA-MODEL.md §File format). `core.boolean` 1 had one `tool` body
 /// input; 2 has a `tools` list, so a version-1 record's `tool` becomes a
-/// list of one.
+/// list of one. `core.import-step` 1 becomes 2, which only adds a choice.
 pub(crate) fn core_types(tree: &mut Tree) {
     for (path, part) in tree.iter_mut() {
         if !path.starts_with("parts/") {
@@ -70,6 +70,11 @@ pub(crate) fn core_types(tree: &mut Tree) {
                 if let Some(tool) = inputs.remove("tool") {
                     inputs.insert("tools".into(), Value::Array(vec![tool]));
                 }
+                record["type_version"] = Value::from(2);
+            }
+            // `core.import-step` 2 added the `frame` choice, whose default
+            // is version 1's behaviour.
+            if record["type_id"] == "core.import-step" && record["type_version"] == 1 {
                 record["type_version"] = Value::from(2);
             }
         }
@@ -161,6 +166,26 @@ mod tests {
         let again = t.clone();
         core_types(&mut t);
         assert_eq!(t, again, "it is idempotent");
+    }
+
+    #[test]
+    fn an_import_of_version_1_reads_in_the_world_frame_as_before() {
+        let record = |version: u64| {
+            serde_json::json!({
+                "type_id": "core.import-step", "type_version": version,
+                "params": {"solid": "2"},
+            })
+        };
+        let mut t = tree(5);
+        t.insert(
+            "parts/P.json".into(),
+            serde_json::json!({"features": {"a": record(1), "b": record(2)}}),
+        );
+        core_types(&mut t);
+        let features = &t["parts/P.json"]["features"];
+        // Only the version moves: `frame` is absent, so its default, world.
+        assert_eq!(features["a"], record(2));
+        assert_eq!(features["b"], record(2));
     }
 
     #[test]

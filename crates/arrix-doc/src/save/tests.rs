@@ -437,6 +437,7 @@ fn assembly_scenario() -> Vec<Command> {
             name: "servo.step".into(),
             blob: BlobRef::of(&bytes, "step"),
         }),
+        type_version: 2,
         ..feature(import, "core.import-step", "Servo", &[], vec![])
     };
     vec![

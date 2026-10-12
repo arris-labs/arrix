@@ -21,6 +21,7 @@ mod eval;
 mod executor;
 pub mod expr;
 mod frozen;
+mod import_products;
 mod mass;
 mod material;
 mod migrate;
@@ -58,6 +59,7 @@ pub use eval::{
     sweep,
 };
 pub use frozen::{BlobRef, Frozen, FrozenResult, InvalidBlobRef};
+pub use import_products::{ImportError, Imported, import_products};
 pub use mass::{BodyMass, Inertial, MassOutcome};
 pub use material::{InvalidSlotRef, Material, Rgb, SlotRef};
 pub use open::{DOCUMENT_JSON, DocumentSource, MemorySource, OpenError, PARAMS_JSON, SCHEMA, open};

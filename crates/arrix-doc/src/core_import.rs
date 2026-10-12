@@ -1,13 +1,16 @@
 //! `core.import-step` (docs/DATA-MODEL.md §The core feature types,
 //! ADR-0029): one solid of the STEP file the record keeps, read in metres
 //! and named from the file's own entities. It has no inputs; the file is
-//! the record's, a blob in the document.
+//! the record's, a blob in the document. Version 2 adds the `frame` choice
+//! (ADR-0032 §3): `world`, the solid where the file's assembly places it
+//! (version 1's only behaviour), or `product`, in its product's own frame.
 
 use arrix_core::{Diagnostic, QuantityKind, Severity, SlotName};
 use arrix_plugin_api::{
     FeatureOutput, FeatureTypeSpec, Kernel, OutputValue, ParamSpec, SlotKind, SlotOutput, SlotSpec,
 };
 
+use crate::core_choice::choice;
 use crate::registry::{FeatureArgs, FeatureType, FileArg, FileKernel, TypeOutput};
 
 fn error(code: &str, message: impl Into<String>) -> Diagnostic {
@@ -20,11 +23,14 @@ pub struct CoreImportStep {
 }
 
 impl CoreImportStep {
+    /// The type's version, which a record it makes carries.
+    pub const VERSION: u32 = 2;
+
     pub fn new() -> Self {
         Self {
             spec: FeatureTypeSpec {
                 id: "core.import-step".into(),
-                version: 1,
+                version: Self::VERSION,
                 title: "Import STEP".into(),
                 params: vec![ParamSpec {
                     name: "solid".into(),
@@ -39,7 +45,15 @@ impl CoreImportStep {
                     kind: SlotKind::Body,
                     modifies: None,
                 }],
-                choices: vec![],
+                choices: vec![choice(
+                    "frame",
+                    "Frame",
+                    &[
+                        ("world", "Where the file places it"),
+                        ("product", "In its product's own frame"),
+                    ],
+                    Some("world"),
+                )],
             },
         }
     }
@@ -80,7 +94,8 @@ impl FeatureType for CoreImportStep {
                 format!("the solid of {} is counted from 1, not {asked}", file.name),
             ));
         };
-        let body = kernel.import_step(file.bytes, solid)?;
+        let product = args.choices.get("frame").is_some_and(|f| f == "product");
+        let body = kernel.import_step(file.bytes, solid, product)?;
         Ok(FeatureOutput {
             slots: vec![SlotOutput {
                 name: self.spec.outputs[0].name.clone(),

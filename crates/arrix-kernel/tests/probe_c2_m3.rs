@@ -33,19 +33,17 @@
 //! same way (`Surface::transformed` carries the control points), which the
 //! accept's vendor part exercises at step 11.
 
-use std::collections::BTreeMap;
-use std::f64::consts::{FRAC_PI_2, FRAC_PI_6};
+mod arm;
 
-use arris::Control;
+use std::collections::BTreeMap;
+
+use arm::{BLUE, GREY, MM, NONE, STEEL, parts, tree, written_placements};
+
 use arris::check::{Level, check};
-use arris::io::step::{self, LengthUnit, Occurrence, ProductTree, ReadOptions, Rgb};
-use arris::math::nalgebra::UnitQuaternion;
-use arris::math::{Axis, Isometry, Point3, Precision, Vec3};
+use arris::io::step::{self, LengthUnit, Occurrence, ProductTree, ReadOptions};
+use arris::math::{Isometry, Point3, Precision};
 use arris::ops;
 use arris::topo::{Body, EntityId, Model, Origin, Provenance, Role, Shape};
-
-/// The file is written in millimetres and read in metres.
-const MM: f64 = 1e-3;
 
 /// How far a read placement may stand from the written one, in metres,
 /// over points 0.1 m around: found 1.4e-17 (one rotated screw), every
@@ -65,12 +63,6 @@ const INSTANCES_AGREE: f64 = 1e-16;
 /// 4.7e-16 at worst.
 const VOLUME: f64 = 1e-14;
 
-const NONE: &Control = &Control::NONE;
-
-const GREY: Rgb = Rgb([0.6, 0.6, 0.6]);
-const BLUE: Rgb = Rgb([0.1, 0.2, 0.7]);
-const STEEL: Rgb = Rgb([0.8, 0.8, 0.85]);
-
 /// The model the read lands in: metres, at the kernel's tolerance.
 fn metres() -> Model {
     Model::new(Precision {
@@ -78,97 +70,6 @@ fn metres() -> Model {
         ..Precision::DEFAULT
     })
     .unwrap()
-}
-
-fn rotation(axis: Vec3, angle: f64) -> UnitQuaternion<f64> {
-    UnitQuaternion::from_axis_angle(&arris::math::UnitVec3::new_normalize(axis), angle)
-}
-
-/// The parts, in millimetres, each in its own frame: a bracket plate with
-/// a bore, the servo of `tests/fixtures/step/servo.step`, a screw.
-fn parts(m: &mut Model) -> [Body; 3] {
-    let (plate, _) = ops::primitive_box(m, [0.0; 3], [60.0, 40.0, 5.0], NONE).unwrap();
-    let bore = Axis::new(Point3::new(15.0, 20.0, -1.0), Vec3::z()).unwrap();
-    let (bore, _) = ops::primitive_cylinder(m, bore, 4.0, 7.0, NONE).unwrap();
-    let (bracket, _) = ops::cut(m, plate, bore, NONE).unwrap();
-
-    let (servo, _) = ops::primitive_box(m, [0.0; 3], [40.0, 20.0, 36.0], NONE).unwrap();
-    let shaft = Axis::new(Point3::new(10.0, 10.0, 36.0), Vec3::z()).unwrap();
-    let (shaft, _) = ops::primitive_cylinder(m, shaft, 3.0, 6.0, NONE).unwrap();
-    let (servo, _) = ops::fuse(m, servo, shaft, NONE).unwrap();
-
-    let (screw, _) =
-        ops::primitive_cylinder(m, Axis::z_at(Point3::origin()), 1.5, 10.0, NONE).unwrap();
-    [bracket, servo, screw]
-}
-
-fn leaf(product: u64, name: &str, placement: Isometry, colour: Rgb, solid: usize) -> Occurrence {
-    Occurrence {
-        product: Some(product),
-        name: name.into(),
-        placement: Ok(placement),
-        colour: Some(colour),
-        solids: vec![solid],
-        children: vec![],
-    }
-}
-
-/// The placements as written, in millimetres, by name of the child.
-fn written_placements() -> BTreeMap<&'static str, Isometry> {
-    BTreeMap::from([
-        (
-            "bracket",
-            Isometry::from_translation(Vec3::new(5.0, -3.0, 0.0)),
-        ),
-        (
-            "mount",
-            Isometry::new(rotation(Vec3::z(), FRAC_PI_2), Vec3::new(50.0, 10.0, 5.0)),
-        ),
-        (
-            "servo",
-            Isometry::new(rotation(Vec3::x(), FRAC_PI_6), Vec3::new(0.0, 2.0, 0.0)),
-        ),
-        (
-            "screw-a",
-            Isometry::new(
-                rotation(Vec3::new(1.0, 1.0, 0.0), 0.3),
-                Vec3::new(4.0, 4.0, 36.0),
-            ),
-        ),
-        (
-            "screw-b",
-            Isometry::from_translation(Vec3::new(36.0, 16.0, 36.0)),
-        ),
-    ])
-}
-
-/// `arm` { bracket, mount { servo, screw, screw } }.
-fn tree() -> ProductTree {
-    let at = written_placements();
-    let mount = Occurrence {
-        product: Some(3),
-        name: "mount".into(),
-        placement: Ok(at["mount"]),
-        colour: None,
-        solids: vec![],
-        children: vec![
-            leaf(4, "servo", at["servo"], BLUE, 1),
-            leaf(5, "screw", at["screw-a"], STEEL, 2),
-            leaf(5, "screw", at["screw-b"], STEEL, 2),
-        ],
-    };
-    let arm = Occurrence {
-        product: Some(1),
-        name: "arm".into(),
-        placement: Ok(Isometry::identity()),
-        colour: None,
-        solids: vec![],
-        children: vec![leaf(2, "bracket", at["bracket"], GREY, 0), mount],
-    };
-    ProductTree {
-        roots: vec![arm],
-        faces: vec![],
-    }
 }
 
 struct Probe {

@@ -304,7 +304,10 @@ operation, or, with no tools, the target's reflection is fused into it.
 The codes are `mirror.no-target`, `mirror.no-plane` and `mirror.misses`
 (a reflection that cuts nothing, or fuses to nothing it touches).
 
-`core.import-step` is built (ADR-0029): no inputs, a `solid` count
+`core.import-step` is built (ADR-0029, type version 2 since ADR-0032): no
+inputs, a `frame` choice, `world` (the default, version 1's only
+behaviour: the solid where the file's assembly places it) or `product` (in
+its product's own frame), a `solid` count
 parameter (which solid of the file, from 1 in the reader's order, default
 1) and one output slot `body`, of its own. The file is the record's
 `file`, a blob in the document that the input hash holds by name, so a
@@ -317,7 +320,18 @@ from the file's own entity (§Persistent naming). The codes are
 that is not a whole number from 1, or past the file's count) and
 `kernel.import.<kind>` (the file or solid is refused, its message naming
 the file entity). It is built in, so never frozen. No create command
-lists it yet: only an import creates it, with its file (M2).
+lists it yet: only an import creates it, with its file (M2). An import of
+a whole file is `import_products` (ADR-0032 §2): given the document, the
+file, the `StepStructure` and an id minter it returns one `Group` (an undo
+removes it all) and the roots it made. A product is a part with one
+`product`-frame import feature per solid (a product placed twice, one
+part), a product with children an assembly, each occurrence a component
+grounded at the file's placement (metres and roll, pitch, yaw in radians),
+each distinct colour a material named `Colour #rrggbb` with no density.
+Names are made unique against the document (`arm 2`); a solid the reader
+refused is left out and said (`import.refused`), a placement it cannot read
+is `import.placement`, a file with nothing importable `import.empty`.
+`arrix import <step> -o <dir>` writes it as a new document.
 
 `core.boolean` is built (type version 2): a `target` body input, a `tools`
 list of body inputs and an `op` choice, `fuse` (the default), `cut` or

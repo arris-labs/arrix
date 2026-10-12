@@ -227,14 +227,43 @@ pub enum KernelOp {
         feature: FeatureId,
         file: FileHash,
         solid: u32,
+        /// Where the solid is read: at its placement in the file's
+        /// assembly, or in its product's own frame (ADR-0032 §1).
+        #[serde(default, skip_serializing_if = "ImportFrame::is_world")]
+        frame: ImportFrame,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         entity: Option<FileSolid>,
+        #[serde(skip)]
+        bytes: FileBytes,
+    },
+    /// The product structure of the STEP file whose hash is `file`, read
+    /// in metres (ADR-0032); the solids it read are dropped again.
+    ReadStepStructure {
+        file: FileHash,
         #[serde(skip)]
         bytes: FileBytes,
     },
     /// Body bytes read into the model; `bytes` is their hash. The operand
     /// list is empty: the bytes are the input.
     FromBytes { bytes: BodyHash },
+}
+
+/// Where an imported solid sits (ADR-0032 §1).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ImportFrame {
+    /// At its placement in the file's assembly, as the reader bakes it.
+    #[default]
+    World,
+    /// In its product's own frame: the inverse of the placement composed
+    /// from the root, so a product placed twice is one shape twice.
+    Product,
+}
+
+impl ImportFrame {
+    pub(crate) fn is_world(&self) -> bool {
+        *self == ImportFrame::World
+    }
 }
 
 /// The model tolerances a call ran under, in the fields an Arris fixture

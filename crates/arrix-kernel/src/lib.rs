@@ -23,6 +23,7 @@ mod mesh;
 mod naming;
 mod project;
 mod record;
+mod structure;
 
 use arris::Control;
 use arris::io::body::BodyError;
@@ -38,9 +39,10 @@ pub use interrupt::Interrupt;
 pub use naming::BodyNames;
 pub use project::Projected;
 pub use record::{
-    ARRIS_VERSION, BodyHash, CallIndex, CallPrecision, FileBytes, FileHash, FileSolid, KernelCall,
-    KernelOp,
+    ARRIS_VERSION, BodyHash, CallIndex, CallPrecision, FileBytes, FileHash, FileSolid, ImportFrame,
+    KernelCall, KernelOp,
 };
+pub use structure::{StepOccurrence, StepSolid, StepStructure};
 
 /// Arris's `fillet` and `chamfer`, one signature.
 type BlendOp = fn(

@@ -65,6 +65,7 @@ fn imported(bytes: &[u8]) -> Document {
         },
     );
     let mut import = record(IMPORT, "core.import-step", "Servo");
+    import.type_version = 2;
     import.file = Some(ImportedFile {
         name: "servo.step".into(),
         blob,
@@ -253,7 +254,11 @@ fn a_file_changes_the_result_and_a_missing_one_or_solid_is_named() {
         Command::AddFeature {
             part: PART,
             at: 0,
-            record: record(IMPORT, "core.import-step", "Servo"),
+            record: {
+                let mut r = record(IMPORT, "core.import-step", "Servo");
+                r.type_version = 2;
+                r
+            },
         },
     );
     assert_eq!(code(&eval(&bare), IMPORT), "import.no-file");

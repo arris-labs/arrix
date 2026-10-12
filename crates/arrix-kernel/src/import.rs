@@ -10,7 +10,8 @@ use arrix_core::{FeatureId, NameRoot, NameStep, PersistentName};
 
 use crate::error::kebab;
 use crate::naming::{self, BodyNames};
-use crate::record::{FileBytes, FileHash, FileSolid};
+use crate::record::{FileBytes, FileHash, FileSolid, ImportFrame};
+use crate::structure::product_placement;
 use crate::{Kernel, KernelBody, KernelError, KernelOp};
 
 impl Kernel {
@@ -34,6 +35,21 @@ impl Kernel {
         file: &[u8],
         solid: u32,
     ) -> Result<KernelBody, KernelError> {
+        self.import_step_in(feature, file, solid, ImportFrame::World)
+    }
+
+    /// [`import_step`](Self::import_step) with the solid read in `frame`:
+    /// `Product` moves it back by the inverse of its placement composed
+    /// from the root (a solid the file's products do not hold is already
+    /// there), keeping every name. A placement Arris does not read is
+    /// `kernel.import.placement`.
+    pub fn import_step_in(
+        &mut self,
+        feature: FeatureId,
+        file: &[u8],
+        solid: u32,
+        frame: ImportFrame,
+    ) -> Result<KernelBody, KernelError> {
         let hash = FileHash::of(file);
         let bytes = self
             .files
@@ -45,6 +61,7 @@ impl Kernel {
                 feature,
                 file: hash,
                 solid,
+                frame,
                 entity: None,
                 bytes: FileBytes(Some(bytes)),
             },
@@ -86,11 +103,45 @@ impl Kernel {
         })?;
         let names = import_names(&self.model, read_body.body, feature, &read_body.provenance)
             .map_err(|message| KernelError::Naming { call, message })?;
-        Ok(self.push(call, read_body.body, names))
+        let ImportFrame::Product = frame else {
+            return Ok(self.push(call, read_body.body, names));
+        };
+        let moved = self.move_to_product(&read, index, &read_body, &names, call);
+        let (moved, names) = match moved {
+            Ok(moved) => moved,
+            Err(e) => {
+                self.release_read(&read);
+                return Err(e);
+            }
+        };
+        // The body as the reader placed it is not this feature's.
+        self.release_read_but(&read, Some(moved));
+        Ok(self.push(call, moved, names))
+    }
+
+    /// The picked solid moved into its product's frame, with its names.
+    fn move_to_product(
+        &mut self,
+        read: &step::Read,
+        index: Option<usize>,
+        read_body: &step::ReadBody,
+        names: &BodyNames,
+        call: crate::CallIndex,
+    ) -> Result<(Body, BodyNames), KernelError> {
+        let world = product_placement(&read.products, index.expect("a solid was picked"))
+            .map_err(|why| KernelError::import(call, "placement", why))?;
+        let (moved, provenance) = self
+            .controlled(|m, control| {
+                arris::ops::transform(m, read_body.body, &world.inverse(), control)
+            })
+            .map_err(|e| KernelError::op(call, &e))?;
+        let names = naming::moved_names(&self.model, moved, names, &provenance)
+            .map_err(|message| KernelError::Naming { call, message })?;
+        Ok((moved, names))
     }
 
     /// Drops every body `read` put in the model.
-    fn release_read(&mut self, read: &step::Read) {
+    pub(crate) fn release_read(&mut self, read: &step::Read) {
         self.release_read_but(read, None);
     }
 

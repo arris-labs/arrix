@@ -18,3 +18,10 @@ Files `arrix-kernel`'s import and anchor probes read
   anchor's axis refuses. Copied from Arris's corpus at `v0.6.0`
   (`tests/fixtures/query/ray-nurbs-cylinder/`). Licence: Arris's, MIT or
   Apache-2.0.
+- `arm.step`: an `arm` assembly of a bracket and a `mount`, itself a
+  servo and one screw placed twice, each part coloured, in millimetres.
+  Written by Arris 0.6.0's `step::write_products` from the recipe in
+  `crates/arrix-kernel/tests/arm/mod.rs`, which `tests/structure.rs` holds
+  it to (`UPDATE_SNAPSHOTS=1` writes it again). The structure tests and
+  `core.import-step`'s `frame: product` read it. Licence: this
+  repository's.

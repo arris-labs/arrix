@@ -467,10 +467,11 @@ impl Out {
                 file,
                 entity,
                 bytes,
+                frame,
                 ..
             } => {
                 let entity = entity.ok_or(FixtureError::NoFileSolid(call))?;
-                if entity.instance > 0 {
+                if entity.instance > 0 || !frame.is_world() {
                     return Err(FixtureError::Placement(call));
                 }
                 let bytes = bytes.0.clone().ok_or(FixtureError::NoFile(call))?;
@@ -497,7 +498,9 @@ impl Out {
             | KernelOp::MassProperties
             | KernelOp::Tessellate { .. }
             | KernelOp::ToBytes => return Ok(()),
-            KernelOp::Export { .. } | KernelOp::FromBytes { .. } => {
+            KernelOp::Export { .. }
+            | KernelOp::FromBytes { .. }
+            | KernelOp::ReadStepStructure { .. } => {
                 return Err(FixtureError::NoStep {
                     call,
                     op: op_word(&record.op),
@@ -585,6 +588,7 @@ fn op_word(op: &KernelOp) -> &'static str {
         KernelOp::Export { .. } => "export",
         KernelOp::FromBytes { .. } => "from_bytes",
         KernelOp::ImportStep { .. } => "import_step",
+        KernelOp::ReadStepStructure { .. } => "read_step_structure",
     }
 }
 

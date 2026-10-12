@@ -233,6 +233,7 @@ fn build_bracket(c: &mut Client, i: &Ids) {
 fn import_servo(c: &mut Client, i: &Ids) {
     let bytes = servo_step();
     let mut import = record(i.import, "core.import-step", "Servo");
+    import.type_version = 2;
     import.file = Some(ImportedFile {
         name: "servo.step".into(),
         blob: BlobRef::of(&bytes, "step"),

@@ -271,6 +271,7 @@ fn a_recipe_that_reads_an_imported_file_is_written_with_it() {
         file: None,
     };
     let mut imported = record(import, "core.import-step", "Servo");
+    imported.type_version = 2;
     imported.file = Some(ImportedFile {
         name: "servo.step".into(),
         blob: arrix_doc::BlobRef::of(&bytes, "step"),

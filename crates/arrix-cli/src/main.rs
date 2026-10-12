@@ -6,6 +6,7 @@ mod config;
 mod describe;
 mod eval;
 mod export;
+mod import;
 mod load;
 mod plugin_test;
 mod plugins;
@@ -108,6 +109,18 @@ enum Command {
         /// Evaluate as a build without this plugin would (repeatable).
         #[arg(long = "without-plugin", value_name = "ID")]
         without: Vec<String>,
+    },
+    /// Read a STEP file's product tree into a new document directory: a
+    /// part per product, an assembly per assembly product, a component per
+    /// occurrence at the file's placement, colours as materials. Exit
+    /// status: 0 when imported (what was left out is on stderr), 2 when
+    /// the file could not be imported.
+    Import {
+        /// The STEP file.
+        step: PathBuf,
+        /// The document directory to write; it must not hold files.
+        #[arg(short, long, value_name = "DIR")]
+        out: PathBuf,
     },
     /// Print everything there is to configure and its effective value: the
     /// commands and their keys, the settings, the theme roles, the feature
@@ -245,6 +258,10 @@ fn main() -> ExitCode {
             out: &out,
             plugins: &plugins,
             without: &without,
+        }),
+        Command::Import { step, out } => import::run(&import::Args {
+            step: &step,
+            out: &out,
         }),
         Command::Test {
             dir: Some(dir),

@@ -119,6 +119,10 @@ it before ticking a step:
   <feature>.<slot>]… -o <file>` writes the final bodies, in metres;
   `step` is refused (`kernel.export.unit`) until Arris's writer can
   declare metres (Arris ask A12).
+- `cargo run -p arrix-cli -- import <step> -o <dir>` reads a STEP file's
+  product tree into a new document directory (parts, assemblies,
+  components at the file's placements, colours as materials;
+  `tests/fixtures/step/arm.step`, `cargo test -p arrix-cli --test import`).
 - `cargo run -p arrix-cli -- describe [--json]` lists everything there is to
   configure; `config check [--dir]` validates the files (exit 1 on any
   diagnostic); `config schema [kind]` prints their JSON Schemas; `config

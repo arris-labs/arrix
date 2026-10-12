@@ -126,7 +126,7 @@ fn servo_doc(angle: &str) -> Document {
     let import = FeatureRecord {
         id: IMPORT,
         type_id: FeatureTypeId::new("core.import-step").unwrap(),
-        type_version: 1,
+        type_version: 2,
         name: "Servo".into(),
         params: BTreeMap::new(),
         choices: BTreeMap::new(),

@@ -215,9 +215,9 @@ The executor, cancellation, the wasm story and budgets are in
 C2 M3 extends the door (ADR-0031, ADR-0032; not yet built):
 `mass_properties` gains an inertia about the centroid at unit density
 (built; the plugin API's `MassProperties` is unchanged),
-`read_step_structure` returns a plain product tree, `import_step` takes a
-frame, and `export_step` and `export_step_products` write metres once Arris
-releases A12, each a recorded call.
+`read_step_structure` returns a plain product tree and `import_step_in`
+takes a frame (both built), and `export_step` and `export_step_products`
+write metres once Arris releases A12, each a recorded call.
 
 `arrix-kernel` is the only door to Arris (`SEED.md` §6.6). It exists for
 three reasons: to keep Arris's breaking enums out of the plugin API, to name
@@ -288,6 +288,17 @@ geometry from provenance, and to make every kernel call a record.
   record shares the file's bytes, kept once per kernel by hash, for its
   recipe. Invalid UTF-8 is replaced: Part 21 is ASCII outside string
   literals.
+  `import_step_in` (C2 M3, ADR-0032 §1) is the same with a frame, recorded
+  (`frame`, omitted for `world`): `product` moves the solid back by the
+  inverse of its placement composed from the root (`ops::transform`, names
+  carried one to one), so a product placed twice is the same shape and the
+  same names twice; a placement Arris does not read is
+  `kernel.import.placement`. A framed import has no fixture recipe
+  (`FixtureError::Placement`). `read_step_structure` (a recorded call,
+  `KernelOp::ReadStepStructure`) reads the file once at metres, drops the
+  bodies and returns a `StepStructure`: the occurrences with product id,
+  name, placement in the parent as a `Frame`, colour and solid numbers (as
+  `import_step` counts them), and every solid's file entity and refusal.
   `anchor_frame` (C2 M1, ADR-0029 §3) is the frame a joint attaches at,
   a recorded query (`KernelOp::AnchorFrame { axis, origin }`) on a part's
   final body: a cylindrical face gives its axis as Arris orients the

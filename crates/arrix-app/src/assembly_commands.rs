@@ -5,7 +5,9 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use arrix_core::{AssemblyId, FeatureId, PartId};
-use arrix_doc::{Assembly, BlobRef, Command, FeatureRecord, FeatureTypeId, ImportedFile, Part};
+use arrix_doc::{
+    Assembly, BlobRef, Command, CoreImportStep, FeatureRecord, FeatureTypeId, ImportedFile, Part,
+};
 
 use crate::ArrixApp;
 use crate::context::Context;
@@ -50,17 +52,12 @@ impl ArrixApp {
             .unwrap_or("import.step")
             .to_owned();
         let title = title_of(&path);
-        let version = self
-            .feature_types
-            .iter()
-            .find(|t| t.id == "core.import-step")
-            .map_or(1, |t| t.version);
         let part = PartId(self.ids.next_id());
         let feature = FeatureId(self.ids.next_id());
         let record = FeatureRecord {
             id: feature,
             type_id: FeatureTypeId::new("core.import-step").expect("a literal type id"),
-            type_version: version,
+            type_version: CoreImportStep::VERSION,
             name: title.clone(),
             params: BTreeMap::new(),
             choices: BTreeMap::new(),
