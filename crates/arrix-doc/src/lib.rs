@@ -21,6 +21,7 @@ mod eval;
 mod executor;
 pub mod expr;
 mod frozen;
+mod mass;
 mod material;
 mod migrate;
 mod open;
@@ -52,10 +53,11 @@ pub use eval::{
     AssemblyLine, AssemblyOutcome, BodyLine, BodyMeasures, BodySlot, EVAL_FORMAT, EvalEvent,
     EvalLine, EvalStatus, Evaluation, Evaluator, ExportError, ExportedFile, FailedCall,
     FeatureLine, FeatureOutcome, FinalBody, FrozenInfo, FrozenReason, InputHash, JointOutcome,
-    ParamLine, PlacedComponent, RegionView, Run, SavedRecipe, SketchView, SlotView, Sweep,
+    Masses, ParamLine, PlacedComponent, RegionView, Run, SavedRecipe, SketchView, SlotView, Sweep,
     SweepError, SweepPoint, eval, export, place, run, sweep,
 };
 pub use frozen::{BlobRef, Frozen, FrozenResult, InvalidBlobRef};
+pub use mass::{BodyMass, Inertial, MassOutcome};
 pub use material::{InvalidSlotRef, Material, Rgb, SlotRef};
 pub use open::{DOCUMENT_JSON, DocumentSource, MemorySource, OpenError, PARAMS_JSON, SCHEMA, open};
 pub use registry::{

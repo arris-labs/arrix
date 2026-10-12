@@ -15,6 +15,7 @@ mod host;
 mod input_tests;
 mod kinematics;
 mod line;
+mod mass;
 mod meshing;
 mod project;
 mod resolve;
@@ -52,6 +53,7 @@ pub use line::{
     AssemblyLine, BodyLine, EVAL_FORMAT, EvalLine, EvalStatus, FeatureLine, ParamLine, SweepPoint,
     eval,
 };
+pub use mass::Masses;
 pub use meshing::{BodySlot, FinalBody};
 pub use sweep::{Sweep, SweepError, sweep};
 
@@ -198,6 +200,8 @@ pub struct Evaluation {
     pub params: BTreeMap<ParamId, Result<Quantity, Diagnostic>>,
     pub events: Vec<EvalEvent>,
     pub assemblies: BTreeMap<AssemblyId, AssemblyOutcome>,
+    /// Mass, centroid and inertia per body, part and assembly (ADR-0031).
+    pub masses: Masses,
 }
 
 impl Evaluation {
@@ -338,6 +342,9 @@ pub struct Evaluator {
     /// meshes made of the versions the cache holds.
     finals: Vec<meshing::FinalBody>,
     meshes: BTreeMap<(KernelBody, MeshDetail), RenderMesh>,
+    /// The kernel's unit-density properties of the versions the cache
+    /// holds, for the mass pass.
+    unit: BTreeMap<KernelBody, arrix_kernel::MassProperties>,
     run: u64,
     capacity: usize,
 }
@@ -357,6 +364,7 @@ impl Evaluator {
             solved: BTreeMap::new(),
             finals: Vec::new(),
             meshes: BTreeMap::new(),
+            unit: BTreeMap::new(),
             run: 0,
             capacity: Self::DEFAULT_CAPACITY,
         }
@@ -457,12 +465,17 @@ impl Evaluator {
             self.collect();
             return None;
         };
+        let Ok(masses) = self.masses(doc, &params, &finals, &assemblies) else {
+            self.collect();
+            return None;
+        };
         self.finals = finals;
         self.collect();
         Some(Evaluation {
             params: params.values,
             events,
             assemblies,
+            masses,
         })
     }
 
@@ -919,6 +932,7 @@ impl Evaluator {
             call: e.call(),
         };
         let p = self.kernel.mass_properties(body).map_err(fail)?;
+        self.unit.insert(body, p);
         let names = self.kernel.names(body).map_err(fail)?;
         Ok(BodyMeasures {
             volume: p.volume,
@@ -961,6 +975,7 @@ impl Evaluator {
             .collect();
         self.kernel.retain(&keep);
         self.keep_meshes(&keep);
+        self.unit.retain(|body, _| keep.contains(body));
     }
 }
 

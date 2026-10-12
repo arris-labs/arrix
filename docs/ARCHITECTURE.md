@@ -211,7 +211,8 @@ The executor, cancellation, the wasm story and budgets are in
 ## The kernel choke point
 
 C2 M3 extends the door (ADR-0031, ADR-0032; not yet built):
-`mass_properties` gains an inertia about the centroid at unit density,
+`mass_properties` gains an inertia about the centroid at unit density
+(built; the plugin API's `MassProperties` is unchanged),
 `read_step_structure` returns a plain product tree, `import_step` takes a
 frame, and `export_step` and `export_step_products` write metres once Arris
 releases A12, each a recorded call.

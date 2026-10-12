@@ -64,6 +64,10 @@ pub struct MassProperties {
     /// Square metres.
     pub area: f64,
     pub centroid: DVec3,
+    /// The inertia tensor about the centroid, in the physical convention
+    /// (the diagonal holds the moments, the off-diagonal the negated
+    /// products), row by row, kg m² per kg/m³.
+    pub inertia: [[f64; 3]; 3],
 }
 
 struct BodyEntry {
@@ -770,6 +774,7 @@ impl Kernel {
             volume: p.volume,
             area: p.area,
             centroid: convert::dpoint3(p.centroid),
+            inertia: std::array::from_fn(|r| std::array::from_fn(|c| p.inertia[(r, c)])),
         })
     }
 

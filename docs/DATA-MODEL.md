@@ -69,7 +69,7 @@ parses, an assignment names a material and a feature of the part), the
 four commands (`AddMaterial`, `EditMaterial`, `DeleteMaterial`, refused
 while a part is made of it as `material.in-use`, `AssignMaterial`, each
 with its inverse) and a part's DAG edge to its materials, a material's to
-the parameters its density reads. The mass pass is not built yet. A STEP's
+the parameters its density reads. The mass pass is built (§Evaluation). A STEP's
 product structure imports as parts, an assembly and grounded components in
 one `Group` (ADR-0032), not built yet.
 
@@ -616,6 +616,22 @@ its nested outcomes' frames and its values, with one value optionally
 overridden. The evaluator's pass and the app's joint drag both call it, so a
 drag's preview is the pose the release's evaluation gives (ADR-0030 §3); it
 reads no document and makes no kernel call.
+
+**The mass pass** (ADR-0031 §4; as built, `Evaluation::masses`, `Masses`).
+After the assemblies, each final body gets a `BodyMass`: its material (the
+part's per-body override, else the part's) gives a density, a quantity of
+kind density evaluated like any expression, and the kernel's unit-density
+volume, centroid and inertia (about the centroid, held per body version so
+a density edit makes no kernel call) scale by it into an `Inertial` in the
+part's frame. A `MassOutcome` per part sums its bodies; one per assembly
+sums every placed part at its solved pose (the inertia rotated, the
+centroids weighted, the inertias moved to the common centre by the
+parallel-axis theorem, `arrix_doc::Inertial`, pure). A body without a
+material or with a material without a density is `mass.no-material`, one
+whose density does not evaluate to a positive number `mass.density`, a
+component `assembly.unplaced` is left out as `mass.unplaced`; each is a
+warning, the body's volume and centroid stay, and the totals above it are
+`partial`, a lower bound. Never a default density.
 
 **Determinism.** Evaluating the same snapshot twice, on any machine,
 native or wasm, gives byte-identical outputs and names. Nothing in
