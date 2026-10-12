@@ -57,6 +57,14 @@ undo), the DAG's nodes (§The dependency DAG) and the assembly pass
 (§Evaluation) are built, and the eval line and the protocol carry an
 assembly's outcome (`Assembled`).
 
+Materials (ADR-0031) add `materials: BTreeMap<MaterialId, Material>` to the
+document (`Material { id, name, density: Expr, appearance: Rgb }`) and
+`material: Option<MaterialId>` and `body_materials: BTreeMap<SlotRef,
+MaterialId>` to a `Part`; mass is evaluated from them, never stored. A
+STEP's product structure imports as parts, an assembly and grounded
+components in one `Group` (ADR-0032). Both are specified by those ADRs and
+not yet built.
+
 **What is not in the document** (`SEED.md` §6.1 rule 4): selection, hover,
 the active sketch, the edit mode, the camera, panel layout, and every
 evaluated result. Those are session state, owned by the client. Evaluated

@@ -60,3 +60,4 @@ idea is not brainstormed twice.
 
 - Everything is a plugin (the shell, the sketcher and the part features too): it reopens `SEED.md` §6.2 and §6.3 for flexibility the configurable shell mostly gives (ADR-0015, ADR-0016)
 - An agent-only, headless ArriX: it gives up the interactive document `SEED.md` §3 exists for (ADR-0016)
+- A material library (steel, aluminium, ABS, PLA) as a user config file (ADR-0015); ADR-0031 §6 ships document-only materials (plans/c2-m3 step 2)

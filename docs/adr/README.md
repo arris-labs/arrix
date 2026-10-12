@@ -69,3 +69,5 @@ Each rejected option and the one-line reason it lost.
 - [ADR-0028](0028-the-exchange-unit.md): the exchange unit is metres, written as metres; the reader passes `Metre` explicitly; STEP export refused as `kernel.export.unit` until Arris's writer takes a unit (A12)
 - [ADR-0029](0029-assemblies-in-the-document.md): assemblies in the document: components, joints with anchors by persistent name, tree FK with soft diagnostics, imported names, `core.import-step`, schema 4
 - [ADR-0030](0030-assemblies-in-the-app.md): assemblies in the app: a tab looks at one part or assembly, an instanced scene picked by component path, the joint drag solved by FK on the client (ADR-0029 §13), a parameter-driven drag edits the parameter
+- [ADR-0031](0031-materials-and-mass-properties.md): materials in the document (density expression, appearance), per part with a per-body override, mass evaluated per body, part and assembly, `mass.no-material` partial totals, no library, schema 5
+- [ADR-0032](0032-step-with-product-structure.md): STEP with product structure: a product's frame by the inverse placement, one `Group` import, colours as materials, the export mapping, what is lost
