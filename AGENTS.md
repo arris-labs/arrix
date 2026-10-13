@@ -32,13 +32,10 @@ coarse mesh misses, an Arris finding), the app's `--test visual m3_accept`.
 **The boundary opened done 2026-10-11** (ADR-0016, ADR-0021 to ADR-0026):
 Tier 2 Python plugins, `arrix serve --stdio`, headless `arrix-app render`,
 `arrix test`; its accept `--test boundary_m3`.
-**C2 M1 done 2026-10-11** (assemblies in the document, headless; ADR-0027 to
-ADR-0029): `--test c2_m1`.
-**C2 M2 done 2026-10-12** (assemblies in the app, the joint drag; ADR-0030):
-`cargo test -p arrix-app --test visual c2_m2_accept`.
-**C2 M3 done 2026-10-13** (STEP with structure both ways in metres,
-materials, mass; ADR-0031 to ADR-0033; `arris` 0.8): `--test c2_accept`.
-**Next:** `/close-cycle` C2 (`docs/ROADMAP.md`).
+**C2 done 2026-10-13** (assemblies in the document and the app, STEP with
+product structure both ways in metres, materials and mass; ADR-0027 to
+ADR-0033; `arris` 0.8): `--test c2_accept`, held to Open CASCADE's reading.
+**Next:** C3, the boundary crossed (`docs/ROADMAP.md`); plan it.
 
 ## Rules that are not derivable from the code
 

@@ -8,7 +8,7 @@ to its status line (`/close-cycle`), and the next is detailed below it.
 
 Spine: **C1** (the vertical slice with a plugin feature in it; done), then
 **the boundary opened** (the agent's way in; ADR-0016; done), **C2** (assemblies
-and exchange; M1 done), **C3** (the boundary crossed), **C4** (the web). Beyond
+and exchange; done), **C3** (the boundary crossed), **C4** (the web). Beyond
 C4, the named cycles are unordered.
 
 ---
@@ -113,17 +113,13 @@ stays green.
 them, placed by joints whose values are expressions, and an assembly leaves
 and returns through STEP with its structure, in metres.*
 
-**Status: open, ready to close.** Split from the mechanical core by ADR-0027; M1 done
-2026-10-11 (assemblies in the document, headless: `core.import-step`,
-schema 4, the commands, forward kinematics, the eval line and `Assembled`;
-`cargo test -p arrix-cli --test c2_m1`; ADR-0028, ADR-0029); M2 done 2026-10-12
-(the app: instanced meshes, picks by component path, the tree, the component
-and joint forms, the joint drag; `cargo test -p arrix-app --test visual
-c2_m2_accept`; ADR-0030); M3 done 2026-10-13 (STEP with product structure
-both ways in metres, materials, mass, the accept against Open CASCADE's
-reading: `cargo test -p arrix-cli --test c2_accept`; ADR-0031 to ADR-0033).
-The risk to retire: a persistent name
-across parts and instances, into imported and frozen geometry.
+**Status: done 2026-10-13, tag `c2`.** The risk retired: a persistent name
+across parts and instances, into imported and frozen geometry. M1 (assemblies
+in the document, headless; `--test c2_m1`), M2 (the app: instanced meshes,
+picks by component path, the joint drag; `c2_m2_accept`) and M3 (STEP with
+product structure both ways in metres, materials, mass; `--test c2_accept`,
+held to Open CASCADE's reading) landed 2026-10-11 to 10-13 on `arris` 0.6 to
+0.8; decisions in ADR-0027 to ADR-0033.
 
 **In:**
 - The exchange unit (ADR-0028): metres in, metres out; STEP export
@@ -141,11 +137,6 @@ across parts and instances, into imported and frozen geometry.
 mate solver and closed loops; interference checks; in-context design (a
 feature naming another part's geometry); references to other `.arrx` files;
 healing a vendor file (A7).
-
-**Milestones:** M1 assemblies in the document, headless (import, model,
-commands, FK, `arrix eval` and the protocol); M2 the app (instanced meshes,
-picking by component path, tree, joint form and tool, drag); M3 exchange
-and the accept (structure both ways, materials, mass).
 
 **Accept:** a real multi-part assembly round-trips through STEP against
 another CAD's reading of it: Open CASCADE through a script, never in CI,

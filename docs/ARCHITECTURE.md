@@ -585,7 +585,7 @@ A step blocked on an ask names it and waits.
 | A2 | body bytes with a compatibility policy | C1: frozen results (fixture recipes replay the calls: Arris's recipe has no body-bytes operand); C3: the Tier 2 boundary | released in 0.4.0, taken in C1 M1 |
 | A3 | cancellation: an interrupt token, optionally a step budget | C1: superseded evaluations; C4: the browser | released in 0.4.0 (`Control`), taken in C1 M4 |
 | A11 | `ops::mirror` | C1: the mirror feature | released in 0.4.0, taken in C1 M2 |
-| A4 | STEP product structure | C2 | released in 0.4.0 (`Read::products`, `step::write_products`), not taken; M1 reads one solid per import feature, M3 takes the product tree |
+| A4 | STEP product structure | C2 | released in 0.4.0 (`Read::products`, `step::write_products`), taken in C2 M3 (the product tree both ways) |
 | A12 | the STEP writer declares the caller's length unit (the reader's `LengthUnit`) | STEP export; C2's round trip | released in 0.8.0, taken in C2 M3 |
 | A8 | multi-tool booleans (`cut_many`, `fuse_many`) | a pattern's holes in one boolean | released in 0.6.0, not used yet (`docs/BACKLOG.md`) |
 | A9 | per-face tessellation (`tessellate_faces`, `TriMesh::weld`) | per-face mesh caching | released in 0.6.0, not taken |
