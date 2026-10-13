@@ -145,6 +145,29 @@ world plugin {
   snapshot reads) and the `commands`, `exchange`, `analysis` and `ui`
   exports as the first plugin needs each.
 
+**The snapshot read and exporters** (ADR-0037, designed for 0.7.0, built
+in C3 M2): the world gains `interface document` and `interface exchange`,
+one world, so a plugin implements what it contributes and the SDK supplies
+the rest empty. `world plugin { import kernel; import document; export
+feature; export exchange; }`.
+
+- `document` is read-only and granted by `document-read`. By function:
+  the parts (final bodies, material name and colour), each body's refined
+  mesh (chord 1e-4 m, `f32` positions and normals, `u32` triangles, in the
+  part's frame), each part's mass, centroid and inertia or its `mass.*`
+  diagnostic, and the assemblies: components at every depth by path with
+  their solved poses, and joints (kind, parent and child paths, anchors,
+  axis, limits, value, status). It may be called only during an
+  `exchange` call, against that call's generation; any other call is
+  `plugin.capability`.
+- `exchange` has `exporters()` (id `<plugin>.<name>`, title, extension,
+  subject part or assembly, `params` and `choices` as a feature's specs)
+  and `export(id, subject, params, choices) -> result<list<file>,
+  diagnostic>`; `file { name, bytes }`, the first the main one. A name is
+  relative, `/`-separated, without `..`: otherwise `export.path`.
+- `export_plugin!(features = A, exporters = B)` names either or both;
+  `export_plugin!(A)` is features only.
+
 **The Rust side mirrors it**: `Kernel` and `Feature` traits and plain
 types, with `arrix-core`'s own types (`Frame`, `Profile`,
 `PersistentName`, `Ref`, `Diagnostic`, `Quantity`) re-exported where the
@@ -380,10 +403,15 @@ supplies an inverse.
 - **Importer**: bytes of a file the user picked, in; commands, out. A
   feature-history dataset replayed into ArriX is an importer
   (`SEED.md` §6.6).
-- **Exporter**: an evaluated snapshot, in; bytes, out. The host writes them
-  where the user chose. URDF, SDF and MJCF are the robotics plugin's. The
-  core STEP importer and exporter carry the product structure both ways
-  (ADR-0032), through this same surface.
+- **Exporter**: an evaluated snapshot, in (read through `document`); files,
+  out (`exchange`, ADR-0037). The host writes them where the user chose:
+  one file to the path, several into a directory there, so a URDF's meshes
+  sit beside it, and an existing file is kept unless `--force`. URDF, SDF
+  and MJCF are the robotics plugin's. The core's STEP, STL and OBJ are
+  registered as `core.step`, `core.stl` and `core.obj`, listed and
+  reachable like any exporter, but implemented natively: STEP needs the
+  B-rep, which the snapshot does not carry. They carry the product
+  structure both ways (ADR-0032).
 
 A plugin never receives a path, only bytes and a file name, so an
 importer is the same on native, in the browser and on a remote server.
@@ -416,7 +444,7 @@ more.
 | Capability | Grants |
 |---|---|
 | `kernel` | the kernel host service |
-| `document-read` | snapshot reads beyond the feature's own resolved inputs |
+| `document-read` | the `document` snapshot read, during an `exchange` call only (ADR-0037) |
 | `document-write` | issuing commands |
 | `files = "picked"` | bytes of files the user picked in a host dialog, for import; a save target for export |
 | `network` | none by default; a Tier 1 plugin never gets sockets without the user's approval |
