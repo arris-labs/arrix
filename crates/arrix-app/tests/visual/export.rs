@@ -1,6 +1,6 @@
 //! The shell's export (plans/c1-m4 step 7): `Export…` through the palette
 //! with the save dialog answered by the scenario, the file read back, STEP
-//! refused until Arris's writer can declare metres, and no document command
+//! written in metres, and no document command
 //! in the gesture log.
 
 use std::cell::RefCell;
@@ -103,32 +103,16 @@ fn export_writes_the_bodies_and_applies_no_command() {
         wait_for(h, &selected);
         assert_eq!(std::fs::read(&selected).unwrap(), text.as_bytes());
 
-        // STEP is refused until Arris's writer can declare metres: nothing
-        // written, and the status line says why.
+        // STEP declares metres.
         let step = scratch("body.step");
         *answer.borrow_mut() = Some(step.clone());
         run_export(h);
-        let started = web_time::Instant::now();
-        let hint = loop {
-            h.step();
-            let hint = h
-                .state()
-                .debug_state()
-                .shell
-                .expect("a frame ran")
-                .status
-                .hint;
-            if hint.contains("kernel.export.unit") {
-                break hint;
-            }
-            assert!(
-                started.elapsed() < std::time::Duration::from_secs(30),
-                "never refused: {hint}"
-            );
-            std::thread::sleep(std::time::Duration::from_millis(5));
-        };
-        assert!(hint.starts_with("export failed"), "{hint}");
-        assert!(!step.exists());
+        wait_for(h, &step);
+        let text = std::fs::read_to_string(&step).unwrap();
+        assert!(
+            text.contains("SI_UNIT($,.METRE.)"),
+            "the file declares metres"
+        );
 
         // The format is the extension's: a closed STL.
         let stl = scratch("body.stl");

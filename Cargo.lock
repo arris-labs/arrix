@@ -299,9 +299,9 @@ checksum = "d3fb67a6e08acf24fdeccbac2cb6ac4305825bd1f117462e0e6f2f193345ad56"
 
 [[package]]
 name = "arris"
-version = "0.6.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f5404a99958ea02b3706c92291a4bf0aa432ae90b34adb2f3d0ce7393b9d1de"
+checksum = "2e0d02b11ccc11727f591537dee59bf7e8dddf65899b4664c5333820fbc34d99"
 dependencies = [
  "arris-check",
  "arris-geom",
@@ -314,9 +314,9 @@ dependencies = [
 
 [[package]]
 name = "arris-check"
-version = "0.6.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f94d19241ef780391367de1beb4144d63f561e5f97f7f6240d62f1625d002462"
+checksum = "df72b0a08c1c6aa757bcce1e2298b49d60c9c7fc93e46d3277a7f6f403b1c589"
 dependencies = [
  "arris-geom",
  "arris-math",
@@ -325,9 +325,9 @@ dependencies = [
 
 [[package]]
 name = "arris-geom"
-version = "0.6.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80d8066558cbd689b14697b3ec4cd40cfd753d139efca3e3fc1bb924337499ee"
+checksum = "3cd30732a6eec39689f2fb27a57dc1f09e7b895ac1f941274595f291b683f772"
 dependencies = [
  "arris-math",
  "serde",
@@ -336,9 +336,9 @@ dependencies = [
 
 [[package]]
 name = "arris-io"
-version = "0.6.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26aeeb5247b69ff93b1bb4e454a5f86b24f587cc1d3d1b6e694d502c1388df28"
+checksum = "8f629960fb3cd7c903e4efcf9771025c03e34696dfc68d9c80c8a1738aafc5f1"
 dependencies = [
  "arris-check",
  "arris-geom",
@@ -353,9 +353,9 @@ dependencies = [
 
 [[package]]
 name = "arris-math"
-version = "0.6.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f85739a30b6444d16de7ebf67b409d1f8d8108159675985083b82bd8ed3afe6"
+checksum = "fb91bf4605124bee6470e8fad81be5356e1e933d1f3041e4f1399f6480a96ffd"
 dependencies = [
  "nalgebra",
  "robust",
@@ -364,9 +364,9 @@ dependencies = [
 
 [[package]]
 name = "arris-mesh"
-version = "0.6.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16938943afa6126c67eff7c38424e8f9787054d6306e78dd3891d767ff67fe63"
+checksum = "128952d5d7bbe1567ee832c3ad7421f9c8f7354165c1ec1c01d1c542d0d8bd14"
 dependencies = [
  "arris-check",
  "arris-geom",
@@ -377,9 +377,9 @@ dependencies = [
 
 [[package]]
 name = "arris-ops"
-version = "0.6.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ef80275704f0d026d4585e1f4b9abed569f11158cf3e5e1fa603261e2e3e328"
+checksum = "ef6d79da8d323fdc987ec86ea05bef92979b1269350e5c702aef7a553a484fff"
 dependencies = [
  "arris-check",
  "arris-geom",
@@ -390,9 +390,9 @@ dependencies = [
 
 [[package]]
 name = "arris-topo"
-version = "0.6.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f215f83ce153cdc58ebf6172f8db58c5a521faa788037aaa653864f4a3404c5b"
+checksum = "88a3e085a8d2784104a12239f7e8ff81fb113de1cad91d9b98c0976b089c2653"
 dependencies = [
  "arris-geom",
  "arris-math",

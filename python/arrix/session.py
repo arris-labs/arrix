@@ -142,8 +142,7 @@ class Session:
         return self._request("redo", {"author": author})
 
     def export(self, format: str, bodies: Sequence[dict] = ()) -> dict:
-        """Queues an export (`stl` or `obj`; `step` is refused as
-        `kernel.export.unit` until Arris's writer can declare metres); the
+        """Queues an export (`stl`, `obj` or `step`, in metres); the
         file follows as an `exported` event, its bytes in base64 (see
         `exported_bytes`)."""
         return self._request("export", {"bodies": list(bodies), "format": format})

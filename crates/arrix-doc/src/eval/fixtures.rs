@@ -118,7 +118,7 @@ mod tests {
             precision: CallPrecision {
                 default_tolerance: 1e-6,
             },
-            arris_version: "0.6.0".into(),
+            arris_version: "0.8.0".into(),
         }
     }
 

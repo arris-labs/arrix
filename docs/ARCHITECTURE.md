@@ -35,7 +35,7 @@ unless an ADR says otherwise.
 Crates live in `crates/<name>/`, plugins in `plugins/<name>/` (package
 `arrix-<name>`: `plugins/gears` is `arrix-gears`). External versions are
 pinned once, in the root `Cargo.toml`'s `[workspace.dependencies]`:
-`arris` 0.6, and one egui minor for `egui`, `eframe`, `egui-wgpu` and the
+`arris` 0.8, and one egui minor for `egui`, `eframe`, `egui-wgpu` and the
 dev-only `egui_kittest` (0.36). The table's externals not yet in a
 manifest (`wgpu` directly, `wasmtime`)
 join with the code that needs them; `miniz_oxide` (0.9, deflate, no default
@@ -228,7 +228,7 @@ C2 M3 extends the door (ADR-0031, ADR-0032; not yet built):
 (built; the plugin API's `MassProperties` is unchanged),
 `read_step_structure` returns a plain product tree and `import_step_in`
 takes a frame (both built), and `export_step` and `export_step_products`
-write metres once Arris releases A12, each a recorded call.
+write metres (A12, `arris` 0.8; `export_step` built), each a recorded call.
 
 `arrix-kernel` is the only door to Arris (`SEED.md` §6.6). It exists for
 three reasons: to keep Arris's breaking enums out of the plugin API, to name
@@ -244,10 +244,9 @@ geometry from provenance, and to make every kernel call a record.
   `export_stl`, `export_obj` (built: each one recorded call,
   `KernelOp::Export { format }`, over the bodies given as its operands;
   STL and OBJ of the refined meshes in one file, lengths in metres as the
-  model has them; `export_step` is refused as `kernel.export.unit`, the
-  call recorded, because Arris's STEP writer declares millimetres, so a
-  file of metres would read a thousand times too small; it waits on the
-  Arris ask A12, §Arris dependencies). Handles
+  model has them; `export_step` writes STEP through `write_with` declaring
+  metres, no coordinate converted, so a read in metres returns every
+  coordinate bit for bit: Arris ask A12, §Arris dependencies). Handles
   it returns are opaque (`KernelBody`) and valid while a cache entry
   holds them; a plugin sees only its own evaluation's, by handle.
   Built: `extrude` (a keyed `Profile` along its plane's normal, a
@@ -294,7 +293,8 @@ geometry from provenance, and to make every kernel call a record.
   is `kernel.import.parse`, a solid the reader refuses
   `kernel.import.<refusal kind>` (`offset`, `pcurve`, `gap`, …, its message
   naming the file entity), a solid past the file's count
-  `import.no-solid`; each is a recorded call (`KernelOp::ImportStep {
+  `import.no-solid`, a surface model
+  `kernel.import.sheet`; each is a recorded call (`KernelOp::ImportStep {
   feature, file, solid, entity }`, `file` the bytes' BLAKE3), and the
   record shares the file's bytes, kept once per kernel by hash, for its
   recipe. Invalid UTF-8 is replaced: Part 21 is ASCII outside string
@@ -408,7 +408,7 @@ geometry from provenance, and to make every kernel call a record.
   `invalid-input`, …) for tessellation, `kernel.interrupted` for any
   call the interrupt stopped (`kernel.interrupted.budget` for a spent
   step budget), whatever the call was, since the stop is the caller's,
-  `kernel.export.<error>` (`unit` for STEP until A12,
+  `kernel.export.<error>` (`write` for STEP,
   `too-many-triangles`) for a format that could not be written, and
   `kernel.import.<error>` (`parse`, or the reader's refusal kind) for a
   file or solid that could not be read, `import.no-file` for an import
@@ -577,15 +577,19 @@ A step blocked on an ask names it and waits.
 | A3 | cancellation: an interrupt token, optionally a step budget | C1: superseded evaluations; C4: the browser | released in 0.4.0 (`Control`), taken in C1 M4 |
 | A11 | `ops::mirror` | C1: the mirror feature | released in 0.4.0, taken in C1 M2 |
 | A4 | STEP product structure | C2 | released in 0.4.0 (`Read::products`, `step::write_products`), not taken; M1 reads one solid per import feature, M3 takes the product tree |
-| A12 | the STEP writer declares the caller's length unit (the reader's `LengthUnit`) | STEP export, refused as `kernel.export.unit` until then; C2's round trip | asked 2026-10-11 |
+| A12 | the STEP writer declares the caller's length unit (the reader's `LengthUnit`) | STEP export; C2's round trip | released in 0.8.0, taken in C2 M3 |
 | A8 | multi-tool booleans (`cut_many`, `fuse_many`) | a pattern's holes in one boolean | released in 0.6.0, not used yet (`docs/BACKLOG.md`) |
 | A9 | per-face tessellation (`tessellate_faces`, `TriMesh::weld`) | per-face mesh caching | released in 0.6.0, not taken |
 | A10 | the Python binding | the Tier 2 SDK, which does not need it (ADR-0021) | released by 2026-10-01, not taken |
 | A5 | `region2` as public API | C1–C2: sketch regions | open; the ported arrangement is used |
 | A6, A7 | the query cycle; the sweep and healing cycles (A7's shell and offset are in 0.6.0) | C2 and later | open |
 
-The pin is `arris` 0.6 (taken after C1, with its one change: `Reason` is
-grouped, and `arrix-kernel` keys a refusal on the leaf's `Reason::name`).
+The pin is `arris` 0.8 (taken in C2 M3: `ReadOptions` gains `heal`, left
+at its default, the reader healing small gaps and turned faces and naming
+each in `ReadBody::healing`; a surface model reads as a `Sheet`, refused at
+import as `kernel.import.sheet`; `write_with` declares metres). Before it,
+0.6 (taken after C1: `Reason` is grouped, and `arrix-kernel` keys a refusal
+on the leaf's `Reason::name`).
 
 This table is brought up to date at every cycle close (`/close-cycle`).
 

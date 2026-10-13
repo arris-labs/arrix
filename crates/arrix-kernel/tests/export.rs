@@ -119,18 +119,38 @@ fn volume_tolerance(k: &mut Kernel, body: KernelBody) -> f64 {
 }
 
 #[test]
-fn step_is_refused_until_the_writer_declares_metres() {
+fn step_declares_metres_and_reads_back_bit_exact() {
     let mut k = Kernel::new();
     let body = bracket(&mut k);
-    let err = k.export_step(&[body]).unwrap_err();
-    assert_eq!(err.code().as_str(), "kernel.export.unit");
-    assert!(err.to_string().contains("A12"), "{err}");
+    let want = k.mass_properties(body).unwrap();
+    let text = k.export_step(&[body]).unwrap();
+    assert!(
+        text.contains("SI_UNIT($,.METRE."),
+        "the file declares metres"
+    );
     let call = k.records().last().unwrap();
     assert!(matches!(
         call.op,
         KernelOp::Export { format } if format == arrix_core::ExportFormat::Step
     ));
-    assert_eq!(call.operands.len(), 1, "the refused call is recorded");
+    assert_eq!(call.operands.len(), 1);
+
+    let back = k.import_step(FeatureId(Id(3)), text.as_bytes(), 1).unwrap();
+    let got = k.mass_properties(back).unwrap();
+    // A file read in the unit it declares returns every coordinate as it
+    // was written, so the properties agree to rounding of their sums.
+    let near = |a: f64, b: f64| (a - b).abs() <= 1e-12 * a.abs().max(b.abs());
+    assert!(
+        near(got.volume, want.volume),
+        "{} {}",
+        got.volume,
+        want.volume
+    );
+    assert!(near(got.area, want.area), "{} {}", got.area, want.area);
+    for i in 0..3 {
+        assert!((got.centroid[i] - want.centroid[i]).abs() < 1e-15);
+    }
+    assert_eq!(k.export_step(&[body]).unwrap(), text, "deterministic");
 }
 
 #[test]

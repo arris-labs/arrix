@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 
 /// The Arris release this crate is built against, as `Cargo.lock` pins it.
 /// A record carries it so a fixture says which kernel failed.
-pub const ARRIS_VERSION: &str = "0.6.0";
+pub const ARRIS_VERSION: &str = "0.8.0";
 
 /// The index of a record in its evaluation's list, in call order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]

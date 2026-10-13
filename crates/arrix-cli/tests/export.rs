@@ -1,6 +1,6 @@
 //! `arrix export` as a user runs it (plans/c1-m4 step 6): the slice in each
-//! format, read back as the kernel's tests read an export (STEP refused
-//! until Arris's writer can declare metres), the body selection, the
+//! format, read back as the kernel's tests read an export (STEP declaring
+//! metres), the body selection, the
 //! `.arrx` input and the exit statuses.
 
 mod common;
@@ -62,13 +62,19 @@ fn assert_exit(out: &Output, code: i32) {
 }
 
 #[test]
-fn step_is_refused_until_the_writer_declares_metres() {
+fn step_is_written_in_metres() {
     let path = scratch("slice.step");
     let _ = std::fs::remove_file(&path);
-    let out = arrix_export("tests/docs/slice", &["--format", "step"], &path);
-    assert_refused(&out, "kernel.export.unit");
-    assert!(String::from_utf8_lossy(&out.stderr).contains("A12"));
-    assert!(!path.exists(), "a refused export writes nothing");
+    assert_exit(
+        &arrix_export("tests/docs/slice", &["--format", "step"], &path),
+        0,
+    );
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert!(
+        text.contains("SI_UNIT($,.METRE."),
+        "the file declares metres"
+    );
+    assert!(!text.contains("SI_UNIT(.MILLI."), "and not millimetres");
 }
 
 #[test]

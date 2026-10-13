@@ -71,6 +71,7 @@ impl Kernel {
         let text = String::from_utf8_lossy(file);
         let options = ReadOptions {
             length_unit: LengthUnit::Metre,
+            ..ReadOptions::default()
         };
         let read = self
             .controlled(|m, control| step::read(m, &text, &options, control))
@@ -84,7 +85,13 @@ impl Kernel {
                     id: s.entity.id,
                     instance: s.entity.instance,
                 },
-                refused: s.result.as_ref().err().map(ToString::to_string),
+                refused: match &s.result {
+                    Err(refusal) => Some(refusal.to_string()),
+                    Ok(r) if self.is_sheet(r.body) => {
+                        Some("a surface model, not a solid (kernel.import.sheet)".to_owned())
+                    }
+                    Ok(_) => None,
+                },
             })
             .collect();
         Ok(StepStructure {

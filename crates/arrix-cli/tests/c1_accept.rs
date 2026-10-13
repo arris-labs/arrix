@@ -871,9 +871,8 @@ fn arrix(args: &[&str]) -> std::process::Output {
 
 /// Criterion 6: the bracket exported through `arrix export` and read back:
 /// STL and OBJ closed with the evaluated body's volume within the mesh's
-/// tolerance. STEP, which C1 read back to the body's counts and volume, is
-/// refused as `kernel.export.unit` until Arris's writer can declare metres
-/// (Arris ask A12): the file it wrote read a thousand times too small.
+/// tolerance. STEP is written declaring metres (Arris ask A12) and read
+/// back to the body's volume.
 #[test]
 fn the_bracket_exports_and_reads_back() {
     let line = arrix(&["eval", "tests/docs/bracket"]);
@@ -901,11 +900,11 @@ fn the_bracket_exports_and_reads_back() {
         to
     };
 
-    let (out, to) = run("step");
-    let stderr = String::from_utf8_lossy(&out.stderr);
-    assert_eq!(out.status.code(), Some(2), "{stderr}");
-    assert!(stderr.contains("kernel.export.unit"), "{stderr}");
-    assert!(!to.exists(), "a refused export writes nothing");
+    let step = std::fs::read_to_string(export("step")).unwrap();
+    assert!(
+        step.contains("SI_UNIT($,.METRE."),
+        "the file declares metres"
+    );
     let stl = std::fs::read(export("stl")).unwrap();
     common::assert_closed_mesh(&common::stl_triangles(&stl), want);
     let obj = std::fs::read_to_string(export("obj")).unwrap();

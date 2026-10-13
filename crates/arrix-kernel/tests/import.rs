@@ -104,6 +104,7 @@ fn the_servo_reads_in_metres() {
     let text = String::from_utf8(servo_bytes()).unwrap();
     let options = ReadOptions {
         length_unit: LengthUnit::Millimetre,
+        ..ReadOptions::default()
     };
     let read = step::read(&mut m, &text, &options, &Control::NONE).unwrap();
     let mm = read.solids[0].result.as_ref().unwrap().body;

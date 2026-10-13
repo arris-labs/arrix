@@ -102,8 +102,8 @@ else what to do next.
   no part until something needs one. `core.file.export` (palette only) asks
   a save dialog (`crates/arrix-app/src/file_dialog`, behind a trait so a
   scenario answers it) for a path, takes the format from its extension
-  (`.step`, `.stl`, `.obj`; any other is a notice; a `.step` comes back
-  refused as `kernel.export.unit`, ARCHITECTURE §The kernel choke point),
+  (`.step`, `.stl`, `.obj`; any other is a notice; a `.step` declares
+  metres, ARCHITECTURE §The kernel choke point),
   and sends the session
   `Request::Export` for the bodies the selection is in, every body with
   none selected; the file is written when the `Exported` event arrives, and

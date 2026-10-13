@@ -123,9 +123,8 @@ c2_m2_accept`; ADR-0030); M3 is unplanned. The risk to retire: a persistent name
 across parts and instances, into imported and frozen geometry.
 
 **In:**
-- The exchange unit (ADR-0028): metres in, metres out; STEP export stays
-  refused (`kernel.export.unit`) until Arris ships the writer's length unit
-  (A12).
+- The exchange unit (ADR-0028): metres in, metres out; STEP export
+  declares metres (A12, `arris` 0.8).
 - `core.import-step`: a feature whose file is a blob in the document and
   whose faces are named from the file's entities.
 - Assemblies (ADR-0029): components, nested assemblies, fixed, revolute and

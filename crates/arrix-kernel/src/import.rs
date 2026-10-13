@@ -70,6 +70,7 @@ impl Kernel {
         let text = String::from_utf8_lossy(file);
         let options = ReadOptions {
             length_unit: LengthUnit::Metre,
+            ..ReadOptions::default()
         };
         let read = self
             .controlled(|m, control| step::read(m, &text, &options, control))
@@ -90,6 +91,7 @@ impl Kernel {
                 instance: picked.entity.instance,
             });
         }
+        let picked_entity = picked.entity;
         let picked = picked.result.clone();
         // The file's other solids are not this feature's.
         let keep = picked.as_ref().ok().map(|r| r.body);
@@ -101,6 +103,17 @@ impl Kernel {
                 refusal.to_string(),
             )
         })?;
+        if self.is_sheet(read_body.body) {
+            self.release_read(&read);
+            return Err(KernelError::import(
+                call,
+                "sheet",
+                format!(
+                    "{:?} is a surface model, not a solid; ArriX imports solids",
+                    picked_entity
+                ),
+            ));
+        }
         let names = import_names(&self.model, read_body.body, feature, &read_body.provenance)
             .map_err(|message| KernelError::Naming { call, message })?;
         let ImportFrame::Product = frame else {
@@ -138,6 +151,13 @@ impl Kernel {
         let names = naming::moved_names(&self.model, moved, names, &provenance)
             .map_err(|message| KernelError::Naming { call, message })?;
         Ok((moved, names))
+    }
+
+    /// Whether the reader made `body` from a surface model (Arris 0.8).
+    pub(crate) fn is_sheet(&self, body: Body) -> bool {
+        self.model
+            .body(body.id)
+            .is_ok_and(|b| b.kind() == arris::topo::entity::BodyKind::Sheet)
     }
 
     /// Drops every body `read` put in the model.

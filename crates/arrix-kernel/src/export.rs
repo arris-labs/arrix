@@ -1,11 +1,13 @@
 //! Bodies as exchange files (docs/ARCHITECTURE.md §The kernel choke point):
 //! STL and OBJ of the refined meshes, each one recorded call over the
-//! bodies given, in that order. Lengths are the model's: metres. STEP is
-//! refused until Arris's writer can declare metres.
+//! bodies given, in that order. Lengths are the model's: metres, and the
+//! STEP file declares them.
 //!
 //! The writers are deterministic, so two exports of the same bodies are
 //! the same bytes.
 
+use arris::io::step::LengthUnit;
+use arris::io::step::{self, WriteOptions};
 use arris::io::{obj, stl};
 use arris::mesh::{MeshRequest, TriMesh};
 use arrix_core::{ExportFormat, MeshDetail};
@@ -16,11 +18,9 @@ use crate::{CallIndex, Kernel, KernelBody, KernelError, KernelOp};
 const SOLID: &str = "arrix";
 
 impl Kernel {
-    /// Refused as `kernel.export.unit`, the call recorded: Arris's STEP
-    /// writer declares millimetres and the model is in metres, so the file
-    /// would read a thousand times too small in any other CAD. It waits
-    /// on Arris's ask A12, a length unit on the writer (docs/ARCHITECTURE.md
-    /// §Arris dependencies).
+    /// `bodies` as a STEP file declaring metres, no coordinate converted
+    /// (Arris's `write_with`, ask A12), so a reader of the same unit gets
+    /// every coordinate bit for bit.
     pub fn export_step(&mut self, bodies: &[KernelBody]) -> Result<String, KernelError> {
         let call = self.begin(
             KernelOp::Export {
@@ -28,13 +28,15 @@ impl Kernel {
             },
             bodies,
         )?;
-        Err(KernelError::export(
-            call,
-            "unit",
-            "STEP export waits on Arris: its writer declares millimetres for ArriX's metres \
-             (Arris ask A12, a length unit on the writer); export STL or OBJ meanwhile"
-                .into(),
-        ))
+        let mut targets = Vec::with_capacity(bodies.len());
+        for &body in bodies {
+            targets.push(self.entry(body)?.body);
+        }
+        let options = WriteOptions {
+            length_unit: LengthUnit::Metre,
+        };
+        step::write_with(&self.model, &targets, &options)
+            .map_err(|e| KernelError::export(call, "write", e.to_string()))
     }
 
     /// `bodies` as binary STL, their refined meshes in one solid.

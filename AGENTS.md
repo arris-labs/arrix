@@ -117,8 +117,7 @@ it before ticking a step:
   `--budget <steps>` (`docs/CONCURRENCY-WASM.md` §Batch evaluation).
   `cargo run -p arrix-cli -- export <doc> --format stl|obj [--body
   <feature>.<slot>]… -o <file>` writes the final bodies, in metres;
-  `step` is refused (`kernel.export.unit`) until Arris's writer can
-  declare metres (Arris ask A12).
+  `step` is written declaring metres (`write_with`, Arris ask A12).
 - `cargo run -p arrix-cli -- import <step> -o <dir>` reads a STEP file's
   product tree into a new document directory (parts, assemblies,
   components at the file's placements, colours as materials;

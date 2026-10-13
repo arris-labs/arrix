@@ -88,6 +88,7 @@ fn probe() -> Probe {
     let mut read_into = metres();
     let options = ReadOptions {
         length_unit: LengthUnit::Metre,
+        ..ReadOptions::default()
     };
     let read = step::read(&mut read_into, &text, &options, NONE).unwrap();
     Probe {
