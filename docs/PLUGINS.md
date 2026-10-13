@@ -17,8 +17,8 @@ The interface is a WIT world (the WebAssembly component model's IDL),
 API's version. From it come:
 
 - the **Rust traits and plain types** of `arrix-plugin-api`, which Tier 0
-  plugins implement directly and Tier 1 plugins implement through
-  `wit-bindgen`'s guest bindings;
+  plugins implement directly and Tier 1 plugins implement through the
+  `guest` feature's bindings (`export_plugin!`, ADR-0035);
 - the **host side** in `arrix-plugin-host`: an adapter per tier that
   presents a plugin, however hosted, as the same trait objects;
 - the **Python SDK** (`python/arrix`): stubs generated from the world, and
@@ -153,8 +153,9 @@ evaluate` takes the kernel as `&mut dyn Kernel`, where the world imports
 it. `crates/arrix-plugin-api/tests/wit_equality.rs` holds the two equal
 three ways: every world type converts to its Rust type and back with
 exhaustive destructuring on both sides, and round trips; `feature`'s
-generated `Guest` is implemented over a Rust `Feature` and the reverse,
-and the Rust `Kernel` over the generated imports, so a function added on
+generated `Guest` is implemented over a Rust `Feature` and the reverse
+(the `guest` feature's `Exported`, which Tier 1 plugins ship), and the
+Rust `Kernel` over the generated imports (its `WitKernel`), so a function added on
 either side fails to compile; and the world as `wit-parser` reads it is
 exactly the inventory the test covers, so an addition the bindings would
 silently absorb fails too.
@@ -424,6 +425,10 @@ only, whatever the manifest says, because determinism demands it.
   `mirror`; 0.5.0 (breaking) the choices a type declares, `shown-when`,
   and the choices `evaluate` receives (ADR-0018); 0.6.0 (breaking) the
   `density` quantity kind (ADR-0031).
+  The `guest` feature (Tier 1 SDK, ADR-0035) adds API without touching
+  the world, so the crate and the WIT package stay at 0.6.0: the package
+  version is the crate's, which a patch bump would ripple through every
+  wire file, the Python SDK and each component's import names.
   While it is `0.x`, a minor bump is breaking. Every change to it says its
   semver effect in the commit body (`.agents/rules/git.md`).
 - The host supports one API range at a time and says which in `arrix

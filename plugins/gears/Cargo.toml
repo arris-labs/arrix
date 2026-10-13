@@ -9,5 +9,14 @@ publish.workspace = true
 [lints]
 workspace = true
 
+# `rlib` is Tier 0 (compiled in); `cdylib` is the Tier 1 component's core
+# module, built for wasm32-unknown-unknown with `--features guest`
+# (docs/PLUGINS.md §Three tiers).
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[features]
+guest = ["arrix-plugin-api/guest"]
+
 [dependencies]
 arrix-plugin-api.workspace = true

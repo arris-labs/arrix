@@ -15,13 +15,18 @@ workspace = true
 # The session protocol's JSON Schemas (ADR-0023 §5): `JsonSchema` on the
 # feature-type specs a `SessionEvent::Registry` carries.
 schema = ["dep:schemars", "arrix-core/schema"]
+# The Tier 1 guest SDK (ADR-0035): the world's bindings, the conversions and
+# `export_plugin!`.
+guest = ["dep:wit-bindgen"]
 
 [dependencies]
 arrix-core.workspace = true
 schemars = { workspace = true, optional = true }
 serde.workspace = true
+wit-bindgen = { workspace = true, optional = true }
 
 [dev-dependencies]
-wit-bindgen.workspace = true
+# The equality test needs the guest SDK.
+arrix-plugin-api = { path = ".", features = ["guest"] }
 wit-parser.workspace = true
 serde_json.workspace = true

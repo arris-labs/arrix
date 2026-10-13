@@ -21,7 +21,7 @@ unless an ADR says otherwise.
 | `arrix-core` | units and quantities, the length tolerance, ids, plugin ids, plain math over `glam` (f64), persistent-reference types, `Diagnostic` | — | `glam`, `serde`, `thiserror` |
 | `arrix-kernel` | the only crate naming Arris types: operations, naming from provenance, render meshes, body bytes, call records | core | `arris`, `blake3`, `serde`, `thiserror` |
 | `arrix-sketch` | the sketch model and `SketchEdit`, the constraint solver and diagnostics, regions and their keyed profiles, trim/extend/offset/mirror, inference (ported) | core | `serde`, `thiserror` |
-| `arrix-plugin-api` | the WIT world, its Rust traits and plain types; semver of its own | core | `wit-bindgen`, `wit-parser` (the equality test only, dev) |
+| `arrix-plugin-api` | the WIT world, its Rust traits and plain types; semver of its own | core | `wit-bindgen` (the `guest` feature, ADR-0035), `wit-parser` (the equality test only, dev) |
 | `arrix-doc` | document, parameters and expressions, DAG, feature registry, commands, undo, evaluator, `.arrx`, the `arrix eval` line, the `PluginLoader` trait, the protocol's schemas (`schema` feature, as in core, sketch and plugin-api); reads no files (a `DocumentSource` hands it bytes) | core, kernel, sketch, plugin-api | `serde_json`, `blake3`, `miniz_oxide`, `crc32fast` |
 | `arrix-plugin-host` | tier 0/1/2 hosting, manifests, capabilities, the frozen fallback; the wire (ADR-0022): the JSON-RPC framing and a codec per plugin-API type, generated from the WIT by `arrix-plugin-api`'s `tests/wire.rs`; the Tier 2 host (`tier2`, native only: spawn, handshake, kernel callbacks, timeout, restart) | core, doc, plugin-api, and `arrix-gears` (its Tier 1 tests, dev) | `toml`, `semver`, `serde_json`, `wasmtime` (native, C3; for now the Tier 1 probe's, dev, with `wit-component` and `wasmparser`) |
 | `arrix-viewport` | wgpu scene, ID-buffer picking, overlays, camera (ported) | core | `wgpu`, `egui-wgpu`, `glam`, `bytemuck` |
@@ -49,8 +49,9 @@ hashes through the same code) has, `toml` (1, parsing and serde only) and
 `semver` (1) have, for manifests, and so have `wit-bindgen` (0.62, its `macros` feature alone) and
 `wit-parser` (0.259), dev-only in `arrix-plugin-api`. `unsafe_code =
 "forbid"` is a workspace lint every crate inherits; `wit-bindgen`'s
-`generate!` compiles under it, its `export!` does not, which is why the
-equality test implements the guest traits without exporting them.
+`generate!` compiles under it, and so does `arrix_plugin_api::
+export_plugin!` expanded in a plugin's crate, while `export!` expanded
+there directly does not (ADR-0035): the guest SDK needs no exception.
 `arrix-plugin-api` alone carries its own version (0.6.0); every other
 crate is the workspace's 0.0.0.
 The binaries are `arrix` (`arrix-cli`) and `arrix-app`. No crate is

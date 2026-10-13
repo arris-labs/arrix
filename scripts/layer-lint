@@ -105,7 +105,9 @@ def check_edges(packages):
     graph = {}
     for pkg in packages:
         name = pkg["name"]
-        deps = {d["name"] for d in pkg["dependencies"]}
+        # A crate may dev-depend on itself to turn a feature on for its own
+        # tests (arrix-plugin-api's `guest`); that is no edge.
+        deps = {d["name"] for d in pkg["dependencies"]} - {name}
         graph[name] = deps & names
         is_plugin = package_dir(pkg).startswith("plugins/")
         if is_plugin:

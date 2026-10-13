@@ -34,8 +34,9 @@ wasmtime (`crates/arrix-plugin-host/tests/probe_tier1.rs`) and found:
 
 ## Decision
 
-1. **The guest SDK is a `guest` feature of `arrix-plugin-api`**, API patch
-   0.6.1 (the world is unchanged). It holds the `generate!` bindings, the
+1. **The guest SDK is a `guest` feature of `arrix-plugin-api`**, API 0.6.0
+   unchanged in version (the world is unchanged, and the WIT package's
+   version is the crate's; plans/c3-m1 step 4). It holds the `generate!` bindings, the
    conversions between the world's types and the API's (moved out of
    `tests/wit_equality.rs`, which now uses them), the Rust `Kernel` over the
    world's `kernel` import, and `arrix_plugin_api::export_plugin!(T)` for a

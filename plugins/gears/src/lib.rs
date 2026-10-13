@@ -48,3 +48,7 @@ impl Feature for Gears {
         }
     }
 }
+
+// Tier 1: the world's `feature` export, for the component build only.
+#[cfg(all(feature = "guest", target_arch = "wasm32"))]
+arrix_plugin_api::export_plugin!(Gears);

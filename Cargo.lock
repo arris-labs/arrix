@@ -535,6 +535,7 @@ name = "arrix-plugin-api"
 version = "0.6.0"
 dependencies = [
  "arrix-core",
+ "arrix-plugin-api",
  "schemars",
  "serde",
  "serde_json",

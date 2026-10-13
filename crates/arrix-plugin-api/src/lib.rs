@@ -22,6 +22,8 @@
 //! choices an `evaluate` receives (ADR-0018).
 
 mod feature;
+#[cfg(feature = "guest")]
+pub mod guest;
 mod kernel;
 
 pub use arrix_core::geom::{FrameError, ProfileError};
