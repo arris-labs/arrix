@@ -205,8 +205,23 @@ change, reviewed like any other, never a private hook.
   evaluator carries on; natively only, since a wasm32 build aborts on a
   panic. A panic inside a kernel call it made is caught the same way, but
   the model's state after one is not vouched for.
-- **Tier 1** runs each component in its own `wasmtime` store, with fuel as
-  the deterministic step budget and an epoch interrupt for cancellation.
+- **Tier 1** (ADR-0035; designed, built in C3 M1) runs a component in
+  `wasmtime` with the component model, native only. A Rust author depends
+  on `arrix-plugin-api` alone, enables its `guest` feature, writes
+  `arrix_plugin_api::export_plugin!(MyFeature)` under `forbid(unsafe_code)`
+  and builds a `cdylib` for `wasm32-unknown-unknown`; the host
+  componentises it at load (`wit-component`). The manifest's `[tier1]`
+  table names the `.wasm` and may raise the fuel. The sandbox:
+  - the component's imports are the world's alone; any other is refused
+    at load (`plugin.load`);
+  - each evaluation gets a fresh store from one pre-instantiated
+    component, so nothing survives between evaluations;
+  - fuel is the deterministic step budget (`plugin.fuel`, default 2^30,
+    at most 2^36), memory is capped at 256 MiB (`plugin.memory`), and a
+    trap or a guest panic is `plugin.trap`, each ending only that feature;
+  - a superseded evaluation stops the component through an epoch deadline
+    callback that polls the evaluator's interrupt flag
+    (`kernel.interrupted`).
   In the browser, hosting components inside a wasm app is unsolved in the
   ecosystem; a document using a Tier 1 plugin opens there with its
   features frozen until an ADR decides otherwise (`SEED.md` §9).
