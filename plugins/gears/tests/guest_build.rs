@@ -1,6 +1,7 @@
 //! `gears` as a Tier 1 component's core module (ADR-0035): built for
-//! `wasm32-unknown-unknown` with `--features guest`, in a target directory
-//! of its own, and checked to export the world's `feature` interface.
+//! `wasm32-unknown-unknown` with `--features guest`, in the target
+//! directory of the Tier 1 test plugins (`target/tier1-fixtures`), and
+//! checked to export the world's `feature` interface.
 //! `arrix-plugin-host`'s Tier 1 tests instantiate it.
 
 use std::path::Path;
@@ -9,7 +10,7 @@ use std::process::Command;
 #[test]
 fn gears_builds_as_a_core_module_exporting_the_feature_world() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let target_dir = root.join("target/tier1-gears");
+    let target_dir = root.join("target/tier1-fixtures");
     let status = Command::new(env!("CARGO"))
         .args(["build", "--release", "--target", "wasm32-unknown-unknown"])
         .args(["-p", "arrix-gears", "--features", "guest", "--target-dir"])

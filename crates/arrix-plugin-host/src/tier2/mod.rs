@@ -5,8 +5,8 @@
 //! kernel, called back over the wire, its bodies crossing as that
 //! evaluation's handles. Native only.
 
-mod process;
-mod serve;
+pub(crate) mod process;
+pub(crate) mod serve;
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -106,7 +106,7 @@ fn initialize(p: &mut Process, m: &Manifest, timeout: Duration) -> Result<(), Ca
 }
 
 impl CallError {
-    fn diagnostic(&self, plugin: &str, during: &str) -> Diagnostic {
+    pub(crate) fn diagnostic(&self, plugin: &str, during: &str) -> Diagnostic {
         let (code, what) = match self {
             // The evaluator's own stop, as the kernel gave it.
             CallError::Interrupted(d) => return d.clone(),

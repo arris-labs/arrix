@@ -1,17 +1,17 @@
 //! The Tier 1 probe (plans/c3-m1 step 2): `gears`, unchanged but for its
-//! export line, built for wasm32 with wit-bindgen's export glue (the guest
-//! in `tests/probe-tier1/`, a workspace of its own), made a component and
-//! run in wasmtime with the world's `kernel` served by a stub.
+//! export line, built for wasm32 with the guest SDK's export glue
+//! (`support/tier1.rs`), made a component and run in wasmtime with the
+//! world's `kernel` served by a stub. Its private SDK and workspace were
+//! retired in step 6 for the guest feature it shaped.
 //!
-//! It establishes, for ADR-0035:
+//! It established, for ADR-0035:
 //!
 //! - which target gives a component whose imports are the world's alone:
 //!   `wasm32-unknown-unknown`, componentised by the host (`wit-component`);
 //! - where the `unsafe` of the export glue can live under the workspace's
-//!   `forbid`: nowhere needs an exception. The SDK (`tests/probe-tier1/sdk`)
-//!   and the plugin (`tests/probe-tier1/gears`) both forbid it and build,
-//!   because the glue is expanded only in the plugin's crate and from the
-//!   SDK's macro, and the lint does not report another crate's macro;
+//!   `forbid`: nowhere needs an exception, because the glue is expanded
+//!   only in the plugin's crate and from the SDK's macro, and the lint does
+//!   not report another crate's macro;
 //! - that the world, the `body` resource included, carries `describe`, an
 //!   `evaluate` error path, and a spur through the kernel's `extrude` and
 //!   back as an owned body;
@@ -23,8 +23,9 @@
 //! Run `cargo test -p arrix-plugin-host --test probe_tier1 -- --nocapture`
 //! for the numbers.
 
-use std::path::{Path, PathBuf};
-use std::process::Command;
+#[path = "support/tier1.rs"]
+mod tier1_build;
+
 use web_time::Instant;
 
 use arrix_plugin_api::{
@@ -256,24 +257,9 @@ fn ulps(a: f64, b: f64) -> u64 {
     (a.to_bits() as i64).abs_diff(b.to_bits() as i64)
 }
 
-fn root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
-
 /// Builds the guest and returns its core module.
 fn build_guest() -> Vec<u8> {
-    let target_dir = root().join("target/tier1-probe");
-    let status = Command::new(env!("CARGO"))
-        .args(["build", "--release", "--target", "wasm32-unknown-unknown"])
-        .arg("--target-dir")
-        .arg(&target_dir)
-        .current_dir(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/probe-tier1"))
-        .env_remove("RUSTFLAGS")
-        .env_remove("CARGO_ENCODED_RUSTFLAGS")
-        .status()
-        .expect("cargo runs");
-    assert!(status.success(), "the guest builds");
-    std::fs::read(target_dir.join("wasm32-unknown-unknown/release/probe_gears.wasm")).unwrap()
+    tier1_build::build(&["-p", "arrix-gears"], "arrix-gears")
 }
 
 /// The core module's imports, as `module/name`.

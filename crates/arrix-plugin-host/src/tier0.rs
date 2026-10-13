@@ -32,8 +32,8 @@ pub enum HostError {
     Namespace { plugin: String, type_id: String },
     #[error(transparent)]
     Registry(#[from] RegistryError),
-    /// A Tier 2 plugin that could not be started or read, or that broke
-    /// the protocol before its types were known.
+    /// A Tier 1 or Tier 2 plugin that could not be loaded, started or
+    /// read, or that broke the protocol before its types were known.
     #[error("plugin {plugin}: {message}")]
     Process { plugin: String, message: String },
 }

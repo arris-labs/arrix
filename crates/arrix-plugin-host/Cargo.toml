@@ -19,6 +19,13 @@ serde_json.workspace = true
 thiserror.workspace = true
 toml.workspace = true
 
+# Tier 1 (ADR-0035): components compiled and run natively, a core module
+# made a component at load.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+wasmparser.workspace = true
+wasmtime.workspace = true
+wit-component.workspace = true
+
 [dev-dependencies]
 arrix-gears.workspace = true
 regex.workspace = true
