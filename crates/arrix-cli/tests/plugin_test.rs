@@ -105,6 +105,58 @@ fn gears_and_the_standoff_pass_every_check() {
     }
 }
 
+fn bom_copy(name: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("arrix-test-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    copy_tree(&workspace().join("python/examples/bom"), &dir);
+    let _ = std::fs::remove_dir_all(dir.join("__pycache__"));
+    dir
+}
+
+#[test]
+fn an_exporter_passes_its_export_check_and_a_random_one_fails_it() {
+    let out = arrix_test(&[], &workspace().join("python/examples/bom"));
+    let report = lines(&out);
+    assert!(
+        out.status.success(),
+        "{report:?}{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_valid(&report);
+    let export = check(&report, "export");
+    assert_eq!(export["status"], "pass", "{export}");
+    let detail = export["detail"].as_str().unwrap();
+    assert!(
+        detail.contains("bom.csv") && detail.contains("blake3"),
+        "{detail}"
+    );
+
+    let dir = bom_copy("random-export");
+    let source = dir.join("bom.py");
+    let text = std::fs::read_to_string(&source).unwrap();
+    let planted = text
+        .replace("import arrix\n", "import random\n\nimport arrix\n")
+        .replace(
+            "lines = [f\"part,",
+            "lines = [f\"{random.random()}\", f\"part,",
+        );
+    assert_ne!(planted, text, "the plugin was changed");
+    std::fs::write(&source, planted).unwrap();
+    let out = arrix_test(&[], &dir);
+    assert_eq!(out.status.code(), Some(1));
+    let report = lines(&out);
+    let export = check(&report, "export");
+    assert_eq!(export["status"], "fail", "{export}");
+    assert!(
+        export["detail"]
+            .as_str()
+            .unwrap()
+            .contains("two exports differ"),
+        "{export}"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 #[test]
 fn a_non_deterministic_plugin_fails_determinism_with_its_detail() {
     let dir = standoff_copy("random");

@@ -147,6 +147,31 @@ class Session:
         `exported_bytes`)."""
         return self._request("export", {"bodies": list(bodies), "format": format})
 
+    def export_with(
+        self,
+        exporter: str,
+        *,
+        assembly: Optional[str] = None,
+        part: Optional[str] = None,
+        params: Optional[dict[str, str]] = None,
+        choices: Optional[dict[str, str]] = None,
+    ) -> dict:
+        """Queues an export by the exporter `exporter` (`<plugin>.<name>`) of
+        an assembly or a part, given by id; `params` are expressions and
+        `choices` words. The files follow as an `exported` event (see
+        `exported_files`)."""
+        if (assembly is None) == (part is None):
+            raise ValueError("give the assembly or the part, one of them")
+        subject = {"assembly": assembly} if assembly is not None else {"part": part}
+        request = {"id": exporter, "subject": subject}
+        if params:
+            request["params"] = dict(params)
+        if choices:
+            request["choices"] = dict(choices)
+        return self._request(
+            "export", {"bodies": [], "format": "step", "exporter": request}
+        )
+
     def load_plugin(self, directory: str | os.PathLike) -> dict:
         """Loads the Tier 2 plugin directory `directory` into the session."""
         return self._request("load_plugin", {"dir": os.fspath(directory)})
@@ -224,6 +249,14 @@ class Session:
     def exported_bytes(event: dict) -> bytes:
         """The file an `exported` event carries."""
         return base64.b64decode(event["bytes"]["Ok"])
+
+    @staticmethod
+    def exported_files(event: dict) -> list[tuple[str, bytes]]:
+        """The files an exporter's `exported` event carries, the main one
+        first, as (name, bytes); raises when the export failed."""
+        if "Err" in event["bytes"]:
+            raise SessionError(event["bytes"]["Err"])
+        return [(f["name"], base64.b64decode(f["bytes"])) for f in event.get("files", [])]
 
     # -- ending ------------------------------------------------------------
 

@@ -13,12 +13,15 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use arrix_core::Diagnostic;
-use arrix_doc::{FeatureArgs, FeatureType, FeatureTypeId, Registry, TypeOutput};
-use arrix_plugin_api::{API_VERSION, ChoiceValue, FeatureTypeSpec, Kernel};
+use arrix_doc::{ExporterType, FeatureArgs, FeatureType, FeatureTypeId, Registry, TypeOutput};
+use arrix_plugin_api::{
+    API_VERSION, ChoiceValue, ExportFile, ExporterSpec, FeatureTypeSpec, Kernel, ParamValue,
+    Snapshot, Subject,
+};
 use serde_json::{Value, json};
 
 use crate::manifest::Manifest;
-use crate::tier0::{HostError, check, error, register_types};
+use crate::tier0::{HostError, check, error, register_exporters, register_types};
 use crate::wire::rpc::{PROTOCOL_VERSION, Request, RpcError};
 use crate::wire::*;
 use process::{CallError, Process, Served};
@@ -51,20 +54,19 @@ impl Plugin {
         Ok(self.process.as_mut().expect("started above"))
     }
 
-    /// Calls `method`, serving the plugin's kernel calls on `kernel`. A
-    /// call that fails ends the process; the next one starts another.
-    fn call(
-        &mut self,
-        method: &str,
-        params: Value,
-        kernel: Option<&mut dyn Kernel>,
-    ) -> Result<Value, CallError> {
+    /// Calls `method`, serving the plugin's requests as `serving` says:
+    /// its kernel calls on the evaluating kernel, or its document calls on
+    /// the export's snapshot. A call that fails ends the process; the next
+    /// one starts another.
+    fn call(&mut self, method: &str, params: Value, serving: Serving) -> Result<Value, CallError> {
         let timeout = self.timeout;
-        let mut kernel = kernel;
-        let allowed = self.manifest.capabilities.kernel;
-        let mut serve = |request: &Request| match kernel.as_deref_mut() {
-            Some(k) => serve::kernel_call(k, allowed, request),
-            None => Served::Answer(Err(RpcError::method_not_found(&request.method))),
+        let mut serving = serving;
+        let caps = &self.manifest.capabilities;
+        let (kernel_ok, document_ok) = (caps.kernel, caps.document_read);
+        let mut serve = |request: &Request| match &mut serving {
+            Serving::Kernel(k) => serve::kernel_call(&mut **k, kernel_ok, request),
+            Serving::Document(d) => serve::document_call(&mut **d, document_ok, request),
+            Serving::Nothing => Served::Answer(Err(RpcError::method_not_found(&request.method))),
         };
         let result = self
             .process()
@@ -78,6 +80,16 @@ impl Plugin {
     fn id(&self) -> String {
         self.manifest.id.to_string()
     }
+}
+
+/// What a call serves the plugin's requests from.
+enum Serving<'a> {
+    /// A feature's evaluation: the `kernel` interface.
+    Kernel(&'a mut dyn Kernel),
+    /// An export: the `document` interface, from the snapshot.
+    Document(&'a mut dyn Snapshot),
+    /// A call that is not to be called back, such as a description.
+    Nothing,
 }
 
 /// The handshake (ADR-0022 §7): the protocol's version and the plugin
@@ -160,7 +172,7 @@ impl FeatureType for Tier2Type {
             "inputs": list_to(&args.inputs, resolved_input_to_json).map_err(protocol)?,
         });
         let result = plugin
-            .call("feature.evaluate", params, Some(kernel))
+            .call("feature.evaluate", params, Serving::Kernel(kernel))
             .map_err(|e| e.diagnostic(&plugin.id(), &during))?;
         serve::result_from(&result, feature_output_from_json)
             .map_err(|e| {
@@ -172,6 +184,45 @@ impl FeatureType for Tier2Type {
 
     fn plugin_version(&self) -> Option<&str> {
         Some(&self.version)
+    }
+}
+
+/// One exporter of a Tier 2 plugin.
+struct Tier2Exporter {
+    spec: ExporterSpec,
+    plugin: Arc<Mutex<Plugin>>,
+}
+
+impl ExporterType for Tier2Exporter {
+    fn spec(&self) -> &ExporterSpec {
+        &self.spec
+    }
+
+    /// The plugin's `exchange.run`, its `document` calls served from
+    /// `snapshot` while it runs.
+    fn export(
+        &self,
+        snapshot: &mut dyn Snapshot,
+        subject: &Subject,
+        params: &[ParamValue],
+        choices: &[ChoiceValue],
+    ) -> Result<Vec<ExportFile>, Diagnostic> {
+        let during = format!("exporting {}", self.spec.id);
+        let mut plugin = self.plugin.lock().unwrap_or_else(|p| p.into_inner());
+        let protocol = |e: WireError| error("plugin.protocol", format!("{during}: {e}"));
+        let args = json!({
+            "exporter": self.spec.id,
+            "subject": subject_to_json(subject).map_err(protocol)?,
+            "params": list_to(params, param_value_to_json).map_err(protocol)?,
+            "choices": list_to(choices, choice_value_to_json).map_err(protocol)?,
+        });
+        let result = plugin
+            .call("exchange.run", args, Serving::Document(snapshot))
+            .map_err(|e| e.diagnostic(&plugin.id(), &during))?;
+        serve::result_from(&result, |v| list_from(v, file_from_json)).map_err(|e| {
+            plugin.process = None;
+            protocol(e)
+        })?
     }
 }
 
@@ -201,18 +252,33 @@ pub fn register_tier2(
         plugin: id.clone(),
         message,
     };
-    let specs = match plugin.call("feature.describe", Value::Null, None) {
+    let specs = match plugin.call("feature.describe", Value::Null, Serving::Nothing) {
         Ok(v) => list_from(&v, feature_type_spec_from_json)
             .map_err(|e| process(format!("its `feature.describe` is malformed: {e}")))?,
         Err(e) => return Err(process(e.diagnostic(&id, "describing").message)),
     };
+    let exporters = match plugin.call("exchange.exporters", Value::Null, Serving::Nothing) {
+        Ok(v) => list_from(&v, exporter_spec_from_json)
+            .map_err(|e| process(format!("its `exchange.exporters` is malformed: {e}")))?,
+        Err(e) => return Err(process(e.diagnostic(&id, "describing").message)),
+    };
     let m = plugin.manifest.clone();
     let plugin = Arc::new(Mutex::new(plugin));
-    register_types(registry, &m, specs, |spec| {
+    // Types and exporters register together, or neither does.
+    let mut next = registry.clone();
+    let mut ids = register_types(&mut next, &m, specs, |spec| {
         Arc::new(Tier2Type {
             spec,
             version: version.clone(),
             plugin: plugin.clone(),
         })
-    })
+    })?;
+    ids.extend(register_exporters(&mut next, &m, exporters, |spec| {
+        Arc::new(Tier2Exporter {
+            spec,
+            plugin: plugin.clone(),
+        })
+    })?);
+    *registry = next;
+    Ok(ids)
 }

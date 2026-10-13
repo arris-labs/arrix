@@ -1,0 +1,21 @@
+[plugin]
+id = "bom"
+version = "0.1.0"
+api = "^0.7"
+tier = 2
+title = "Bill of materials"
+licence = "MIT OR Apache-2.0"
+
+[tier2]
+command = ["python3", "-m", "arrix.plugin", "bom"]
+
+[capabilities]
+document-read = true
+
+[contributes]
+exporters = ["bom.csv"]
+
+[[test.exports]]
+document = "fixtures/assembly-exchange"
+exporter = "bom.csv"
+assembly = "Servo on bracket"

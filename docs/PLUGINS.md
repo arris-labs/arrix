@@ -268,6 +268,14 @@ change, reviewed like any other, never a private hook.
   runs, and bodies cross as handles valid for that evaluation, never as
   bytes (ADR-0021). Out-of-process Python gets numpy, torch and CUDA for
   its own computation, and in remote mode the server's GPU.
+  An exporter is the same, the other way round: the host calls
+  `exchange.run`, and the plugin reads the document by `document.*`
+  requests, answered from the export's snapshot while it runs. A
+  `document.*` request without `document-read`, or one made during an
+  evaluation, ends the call as `plugin.capability`; so does a `kernel.*`
+  request during an export. The Python SDK's `@arrix.exporter` registers
+  one (`python/examples/bom`, a CSV bill of materials), and `arrix.session`
+  has `export_with` and `exported_files`.
 
 The Tier 2 wire is JSON-RPC 2.0, one object per line, its methods and
 shapes generated from the WIT world (ADR-0022): `kernel.extrude`,

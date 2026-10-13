@@ -23,6 +23,12 @@ pub(crate) fn kernel_call(kernel: &mut dyn Kernel, allowed: bool, request: &Requ
             request.method
         )));
     }
+    if request.method.starts_with("document.") {
+        return Served::End(CallError::Capability(format!(
+            "it called `{}` outside an export, which reads the kernel only",
+            request.method
+        )));
+    }
     let answered = method(&request.method, Direction::PluginToHost).and_then(|method| {
         let params = object(&request.params).map_err(|e| RpcError::invalid_params(&e))?;
         call(kernel, method.name, params).map_err(|e| RpcError::invalid_params(&e))

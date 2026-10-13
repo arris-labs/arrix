@@ -35,6 +35,10 @@ def plate_commands(features=2):
     return commands, part["history"]
 
 
+BOM = REPO / "python/examples/bom"
+EXCHANGE = REPO / "tests/docs/assembly-exchange"
+
+
 @unittest.skipUnless(ARRIX, "ARRIX names the built binary; run through cargo test")
 class SessionTest(unittest.TestCase):
     def spawn(self, **kw):
@@ -66,6 +70,25 @@ class SessionTest(unittest.TestCase):
         lines = arrix.eval(out / "doc", arrix=ARRIX)
         self.assertEqual(lines[0]["status"], "ok")
         self.assertEqual(len(lines[0]["bodies"]), 1)
+
+    def test_an_exporter_at_tier_2_writes_the_bill_of_materials(self):
+        assembly = json.loads(next((EXCHANGE / "assemblies").glob("*.json")).read_text())["id"]
+        s = self.spawn(plugins=[BOM], doc=EXCHANGE)
+        s.initialize()
+        s.export_with("bom.csv", assembly=assembly)
+        files = s.exported_files(s.wait_event(kind="exported"))
+        self.assertEqual([name for name, _ in files], ["bom.csv"])
+        rows = files[0][1].decode().splitlines()
+        self.assertEqual(rows[0], "part,count,mass (kg),material")
+        self.assertTrue(rows[1].startswith("Bracket,1,"), rows)
+        self.assertTrue(rows[-1].startswith("total,6,"), rows)
+        # An option is a word: grams, not kilograms.
+        s.export_with("bom.csv", assembly=assembly, choices={"mass-unit": "g"})
+        grams = s.wait_event(
+            lambda e: e.get("kind") == "exported"
+            and b"mass (g)" in s.exported_files(e)[0][1]
+        )
+        self.assertEqual(len(s.exported_files(grams)), 1)
 
     def test_events_iterate_in_order(self):
         s = self.spawn()

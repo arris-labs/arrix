@@ -14,13 +14,13 @@ import traceback
 from typing import IO, Any
 
 from . import _wire as w
-from . import feature
+from . import exchange, feature
 
 PROTOCOL = 1
 
 
-class _Host(w.KernelStubs):
-    """The kernel, over the pipe."""
+class _Host(w.KernelStubs, w.DocumentStubs):
+    """The kernel and the document, over the pipe."""
 
     def __init__(self, inp: IO[str], out: IO[str]):
         self._in, self._out, self._next = inp, out, 0
@@ -37,9 +37,10 @@ class _Host(w.KernelStubs):
         return answer["result"]
 
 
-class _Runtime(w.FeatureStubs):
-    def __init__(self, kernel: w.KernelStubs):
-        self._kernel = kernel
+class _Runtime(w.FeatureStubs, w.ExchangeStubs):
+    def __init__(self, host: _Host):
+        self._kernel = host
+        self._document = host
 
     def describe(self) -> list[w.FeatureTypeSpec]:
         return feature.registered()
@@ -50,6 +51,27 @@ class _Runtime(w.FeatureStubs):
         except w.Failure:
             raise
         except Exception as e:  # the feature's own bug is its diagnostic
+            traceback.print_exc()
+            raise w.Failure(
+                feature.diagnostic("plugin.exception", f"{type(e).__name__}: {e}")
+            ) from e
+
+
+    def dispatch(self, method: str, params: dict[str, Any]) -> Any:
+        # The two generated interfaces each dispatch their own methods.
+        if method.startswith("exchange."):
+            return w.ExchangeStubs.dispatch(self, method, params)
+        return w.FeatureStubs.dispatch(self, method, params)
+
+    def exporters(self) -> list[w.ExporterSpec]:
+        return exchange.registered()
+
+    def run(self, exporter, subject, params, choices) -> list[w.File]:
+        try:
+            return exchange.run(self._document, exporter, subject, params, choices)
+        except w.Failure:
+            raise
+        except Exception as e:  # the exporter's own bug is its diagnostic
             traceback.print_exc()
             raise w.Failure(
                 feature.diagnostic("plugin.exception", f"{type(e).__name__}: {e}")

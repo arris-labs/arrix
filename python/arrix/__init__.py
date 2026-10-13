@@ -21,14 +21,18 @@ from . import _wire as wire
 from . import session  # noqa: F401
 from ._wire import (  # noqa: F401
     API_VERSION,
+    DocumentError,
+    File,
     Failure,
     InputKind,
     KernelError,
     QuantityKind,
     Severity,
     SlotKind,
+    SubjectKind,
 )
 from ._eval import EVAL_FORMAT, EvalError, eval  # noqa: F401
+from .exchange import ExportArgs, exporter  # noqa: F401
 from .feature import Args, choice, diagnostic, feature_type, input, param, slot  # noqa: F401
 from .ids import key  # noqa: F401
 from .shapes import circle_loop, polygon_loop, profile  # noqa: F401

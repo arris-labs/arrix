@@ -65,6 +65,15 @@ class FakeHost:
                 return m, seen
 
 
+def run_params(exporter, subject, scale=1.0, style="short"):
+    return {
+        "exporter": exporter,
+        "subject": subject,
+        "params": [{"name": "scale", "value": {"kind": "ratio", "si": scale}}],
+        "choices": [{"name": "style", "value": style}],
+    }
+
+
 def evaluate_params(type_id, size=0.01, choice="sharp"):
     return {
         "type-id": type_id,
@@ -76,6 +85,41 @@ def evaluate_params(type_id, size=0.01, choice="sharp"):
 
 def ok(handle):
     return lambda method, params: {"ok": handle}
+
+
+class Exporters(unittest.TestCase):
+    def test_exporters_are_listed_as_the_wire_has_them(self):
+        r, _ = FakeHost(self).call("exchange.exporters")
+        specs = r["result"]
+        self.assertEqual([s["id"] for s in specs], ["sample.dump", "sample.mass"])
+        self.assertEqual(specs[0]["extension"], "txt")
+        self.assertEqual(specs[0]["subject"], "assembly")
+        self.assertEqual(specs[1]["subject"], "part")
+        self.assertEqual(w.ExporterSpec.from_json(specs[0]).to_json(), specs[0])
+
+    def test_a_run_reads_the_document_by_callback_and_returns_files(self):
+        parts = lambda m, p: []  # noqa: E731
+        r, seen = FakeHost(self).call(
+            "exchange.run", run_params("sample.dump", {"assembly": "1A"}, 2.0, "long"), [parts]
+        )
+        self.assertEqual([m for m, _ in seen], ["document.parts"])
+        files = [w.File.from_json(f) for f in r["result"]["ok"]]
+        self.assertEqual([f.name for f in files], ["dump.txt", "meshes/a.bin"])
+        self.assertEqual(files[0].bytes, b"assembly 1A x2.0 long []")
+        self.assertEqual(files[1].bytes, b"\x01\x02")
+
+    def test_a_refused_document_call_is_the_exports_diagnostic(self):
+        refusal = w.Diagnostic(w.Severity.ERROR, "mass.no-density", "no density", [], [])
+        deny = lambda m, p: {"err": refusal.to_json()}  # noqa: E731
+        r, seen = FakeHost(self).call(
+            "exchange.run", run_params("sample.mass", {"part": "2B"}), [deny]
+        )
+        self.assertEqual(seen, [("document.mass", {"part": "2B"})])
+        self.assertEqual(r["result"], {"err": refusal.to_json()})
+
+    def test_an_exporter_the_plugin_lacks_is_a_diagnostic(self):
+        r, _ = FakeHost(self).call("exchange.run", run_params("sample.nothing", {"part": "2B"}))
+        self.assertEqual(r["result"]["err"]["code"], "plugin.unknown-type")
 
 
 class Sdk(unittest.TestCase):

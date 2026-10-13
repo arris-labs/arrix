@@ -1,0 +1,24 @@
+{
+  "features": {
+    "3WWS0MZZ6N1QT": {
+      "file": {
+        "blob": "20c061bfc0243e9e5dc3fc445a4be8ac28ec86877ea5e920718ad08ba7dce174.step",
+        "name": "nist-ftc-11.stp"
+      },
+      "id": "3WWS0MZZ6N1QT",
+      "inputs": {},
+      "name": "Vendor",
+      "params": {},
+      "suppressed": false,
+      "type_id": "core.import-step",
+      "type_version": 2
+    }
+  },
+  "history": [
+    "3WWS0MZZ6N1QT"
+  ],
+  "id": "2VB455MTX7CM4",
+  "material": "61CPHHF5R74E1",
+  "name": "Vendor",
+  "rollback": null
+}
