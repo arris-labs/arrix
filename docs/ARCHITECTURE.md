@@ -36,7 +36,7 @@ Crates live in `crates/<name>/`, plugins in `plugins/<name>/` (package
 pinned once, in the root `Cargo.toml`'s `[workspace.dependencies]`:
 `arris` 0.8, and one egui minor for `egui`, `eframe`, `egui-wgpu` and the
 dev-only `egui_kittest` (0.36). The table's externals not yet in a
-manifest (`wgpu` directly, `wasmtime` other than as a dev dependency)
+manifest (`wgpu` directly)
 join with the code that needs them; `miniz_oxide` (0.9, deflate, no default
 features but `with-alloc`) and `crc32fast` (1) have, for the `.arrx` zip,
 which `arrix-doc` writes and reads itself (`crates/arrix-doc/src/zip.rs`,
