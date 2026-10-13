@@ -29,6 +29,7 @@ wit-component.workspace = true
 
 [dev-dependencies]
 arrix-gears.workspace = true
+arrix-robotics.workspace = true
 regex.workspace = true
 wasm-encoder.workspace = true
 wasmparser.workspace = true

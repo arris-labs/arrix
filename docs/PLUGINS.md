@@ -429,7 +429,9 @@ supplies an inverse.
   out (`exchange`, ADR-0037). The host writes them where the user chose:
   one file to the path, several into a directory there, so a URDF's meshes
   sit beside it, and an existing file is kept unless `--force`. URDF, SDF
-  and MJCF are the robotics plugin's. The core's STEP, STL and OBJ are
+  and MJCF are the robotics plugin's (`robotics.urdf` is built: options
+  `effort`, `velocity` and the choice `mesh-prefix`, `relative` or
+  `package`; SDF and MJCF are not). The core's STEP, STL and OBJ are
   registered as `core.step`, `core.stl` and `core.obj`, listed and
   reachable like any exporter, but implemented natively: STEP needs the
   B-rep, which the snapshot does not carry. They carry the product

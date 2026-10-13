@@ -15,7 +15,7 @@ use arrix_config::{
 };
 use arrix_doc::Registry;
 use arrix_plugin_api::FeatureTypeSpec;
-use arrix_plugin_host::register_tier0;
+use arrix_plugin_host::{register_tier0, register_tier0_exporters};
 use arrix_ui::{RibbonCommand, RibbonGroup, RibbonTab, RibbonView};
 
 /// The core feature types and every compiled-in plugin's: this binary's
@@ -24,6 +24,12 @@ pub fn feature_types() -> Registry {
     let mut r = Registry::with_core_types();
     register_tier0(&mut r, arrix_gears::MANIFEST, Arc::new(arrix_gears::Gears))
         .expect("a first-party plugin fits the host it is built with");
+    register_tier0_exporters(
+        &mut r,
+        arrix_robotics::MANIFEST,
+        Arc::new(arrix_robotics::Robotics),
+    )
+    .expect("a first-party plugin fits the host it is built with");
     r
 }
 

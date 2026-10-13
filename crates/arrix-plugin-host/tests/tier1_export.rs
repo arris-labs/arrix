@@ -131,3 +131,34 @@ fn a_component_that_reads_the_document_without_the_capability_is_refused_at_load
     );
     assert!(r.exporter_specs().is_empty());
 }
+
+/// `robotics` registered at Tier 0, or from its component.
+fn robotics(tier1: bool) -> Registry {
+    let mut r = Registry::with_core_types();
+    if tier1 {
+        register_tier1(&mut r, tier1_build::robotics()).unwrap();
+    } else {
+        register_tier0_exporters(
+            &mut r,
+            arrix_robotics::MANIFEST,
+            Arc::new(arrix_robotics::Robotics),
+        )
+        .unwrap();
+    }
+    r
+}
+
+#[test]
+fn robotics_writes_the_same_urdf_and_stls_as_a_component_to_the_byte() {
+    let (t0, t1) = (robotics(false), robotics(true));
+    assert_eq!(t0.exporter_specs(), t1.exporter_specs());
+    let a = export(&t0, "robotics.urdf", &[]).unwrap();
+    let b = export(&t1, "robotics.urdf", &[("effort", "10")]);
+    assert!(a.len() > 1, "a URDF and its meshes: {}", a.len());
+    assert_ne!(Ok(a.clone()), b, "an option reaches the component");
+    assert_eq!(
+        export(&t1, "robotics.urdf", &[]).unwrap(),
+        a,
+        "the component's files are the compiled-in plugin's"
+    );
+}

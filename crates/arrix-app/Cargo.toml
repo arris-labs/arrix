@@ -21,6 +21,7 @@ arrix-plugin-api.workspace = true
 arrix-doc.workspace = true
 arrix-config.workspace = true
 arrix-gears.workspace = true
+arrix-robotics.workspace = true
 arrix-plugin-host.workspace = true
 arrix-viewport.workspace = true
 arrix-ui.workspace = true

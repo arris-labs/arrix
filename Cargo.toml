@@ -13,6 +13,7 @@ members = [
     "crates/arrix-app",
     "crates/arrix-cli",
     "plugins/gears",
+    "plugins/robotics",
 ]
 
 [workspace.package]
@@ -46,6 +47,7 @@ arrix-config = { path = "crates/arrix-config" }
 # First-party Tier 0 plugins, named only by the binaries' registration
 # lists (docs/PLUGINS.md §Three tiers).
 arrix-gears = { path = "plugins/gears" }
+arrix-robotics = { path = "plugins/robotics" }
 
 # The kernel: pinned minor, crates.io only (SEED.md §8.3). Named by
 # `arrix-kernel` alone (docs/ARCHITECTURE.md §Crates and the layer rule).

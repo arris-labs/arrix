@@ -91,6 +91,17 @@ pub fn gears() -> &'static Path {
     })
 }
 
+/// `robotics` at Tier 1, built once per test process.
+pub fn robotics() -> &'static Path {
+    static DIR: OnceLock<PathBuf> = OnceLock::new();
+    DIR.get_or_init(|| {
+        let module = build(&["-p", "arrix-robotics"], "arrix-robotics");
+        let manifest =
+            std::fs::read_to_string(root().join("plugins/robotics/arrix-plugin.toml")).unwrap();
+        plugin_dir("robotics", &manifest, &module)
+    })
+}
+
 /// The misbehaving test plugin's core module (`tests/plugins/misbehave`,
 /// outside the workspace), built once per test process.
 pub fn misbehave_module() -> &'static [u8] {

@@ -1,0 +1,14 @@
+# The robotics plugin's manifest (docs/PLUGINS.md §The manifest).
+[plugin]
+id = "robotics"
+version = "0.1.0"
+api = "^0.7"
+tier = 0
+title = "Robotics"
+licence = "MIT OR Apache-2.0"
+
+[capabilities]
+document-read = true
+
+[contributes]
+exporters = ["robotics.urdf"]

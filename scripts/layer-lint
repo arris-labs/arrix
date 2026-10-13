@@ -38,8 +38,14 @@ ALLOWED = {
     "arrix-plugin-api": {"arrix-core"},
     "arrix-doc": {"arrix-core", "arrix-kernel", "arrix-sketch", "arrix-plugin-api"},
     # Its Tier 1 tests compare a first-party plugin's component with the
-    # plugin compiled in (`arrix-gears`, dev only).
-    "arrix-plugin-host": {"arrix-core", "arrix-doc", "arrix-plugin-api", "arrix-gears"},
+    # plugin compiled in (`arrix-gears`, `arrix-robotics`, dev only).
+    "arrix-plugin-host": {
+        "arrix-core",
+        "arrix-doc",
+        "arrix-plugin-api",
+        "arrix-gears",
+        "arrix-robotics",
+    },
     "arrix-viewport": {"arrix-core"},
     "arrix-ui": {"arrix-core", "arrix-viewport", "arrix-plugin-api"},
     # The user's configuration (ADR-0015): plain data, no UI, no document.
@@ -55,6 +61,7 @@ ALLOWED = {
         "arrix-ui",
         "arrix-config",
         "arrix-gears",
+        "arrix-robotics",
     },
     # The CLI's Tier 0 registration list names each compiled-in plugin; its
     # scenario tests draw sketches (`arrix-sketch`, dev only).
@@ -66,6 +73,7 @@ ALLOWED = {
         "arrix-kernel",
         "arrix-plugin-api",
         "arrix-gears",
+        "arrix-robotics",
         "arrix-config",
     },
 }

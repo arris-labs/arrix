@@ -426,6 +426,7 @@ dependencies = [
  "arrix-kernel",
  "arrix-plugin-api",
  "arrix-plugin-host",
+ "arrix-robotics",
  "arrix-sketch",
  "arrix-ui",
  "arrix-viewport",
@@ -454,6 +455,7 @@ dependencies = [
  "arrix-kernel",
  "arrix-plugin-api",
  "arrix-plugin-host",
+ "arrix-robotics",
  "arrix-sketch",
  "base64",
  "blake3",
@@ -554,6 +556,7 @@ dependencies = [
  "arrix-doc",
  "arrix-gears",
  "arrix-plugin-api",
+ "arrix-robotics",
  "base64",
  "regex",
  "semver",
@@ -566,6 +569,13 @@ dependencies = [
  "wasmtime",
  "web-time",
  "wit-component 0.258.3",
+]
+
+[[package]]
+name = "arrix-robotics"
+version = "0.0.0"
+dependencies = [
+ "arrix-plugin-api",
 ]
 
 [[package]]

@@ -6,20 +6,44 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use arrix_doc::Registry;
-use arrix_plugin_api::{Feature, FeatureTypeSpec};
-use arrix_plugin_host::{Manifest, manifest_in, register_dir, register_tier0};
+use arrix_plugin_api::{Exporter, Feature, FeatureTypeSpec};
+use arrix_plugin_host::{
+    Manifest, manifest_in, register_dir, register_tier0, register_tier0_exporters,
+};
 
-/// Each compiled-in plugin: its manifest text and its feature.
-fn tier0() -> Vec<(&'static str, Arc<dyn Feature>)> {
-    vec![(arrix_gears::MANIFEST, Arc::new(arrix_gears::Gears))]
+/// A compiled-in plugin: its manifest text and what it contributes.
+enum Compiled {
+    Feature(&'static str, Arc<dyn Feature>),
+    Exporter(&'static str, Arc<dyn Exporter>),
+}
+
+impl Compiled {
+    fn manifest(&self) -> &'static str {
+        match self {
+            Self::Feature(text, _) | Self::Exporter(text, _) => text,
+        }
+    }
+}
+
+/// Each compiled-in plugin.
+fn tier0() -> Vec<Compiled> {
+    vec![
+        Compiled::Feature(arrix_gears::MANIFEST, Arc::new(arrix_gears::Gears)),
+        Compiled::Exporter(arrix_robotics::MANIFEST, Arc::new(arrix_robotics::Robotics)),
+    ]
 }
 
 /// The core feature types and every compiled-in plugin's.
 pub fn registry() -> Registry {
     let mut r = Registry::with_core_types();
-    for (manifest, feature) in tier0() {
-        register_tier0(&mut r, manifest, feature)
-            .expect("a first-party plugin fits the host it is built with");
+    for plugin in tier0() {
+        match plugin {
+            Compiled::Feature(manifest, feature) => register_tier0(&mut r, manifest, feature),
+            Compiled::Exporter(manifest, exporter) => {
+                register_tier0_exporters(&mut r, manifest, exporter)
+            }
+        }
+        .expect("a first-party plugin fits the host it is built with");
     }
     r
 }
@@ -48,7 +72,7 @@ pub fn register_dirs(registry: &mut Registry, dirs: &[PathBuf]) -> Result<Vec<Ma
 pub fn manifests() -> Vec<Manifest> {
     tier0()
         .iter()
-        .map(|(text, _)| Manifest::parse(text).expect("a first-party manifest parses"))
+        .map(|p| Manifest::parse(p.manifest()).expect("a first-party manifest parses"))
         .collect()
 }
 
@@ -66,6 +90,9 @@ mod tests {
             .map(|id| id.as_str().to_owned())
             .collect();
         assert_eq!(ids[0], "core.boolean");
+        assert!(ids.iter().any(|id| id == "gears.spur"));
         assert_eq!(super::manifests()[0].id.as_str(), "gears");
+        assert_eq!(super::manifests()[1].id.as_str(), "robotics");
+        assert!(super::registry().exporter("robotics.urdf").is_some());
     }
 }
