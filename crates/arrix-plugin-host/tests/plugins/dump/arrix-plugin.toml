@@ -1,0 +1,14 @@
+# The dump plugin's manifest.
+[plugin]
+id = "dump"
+version = "0.1.0"
+api = "^0.7"
+tier = 0
+title = "Dump"
+licence = "MIT OR Apache-2.0"
+
+[capabilities]
+document-read = true
+
+[contributes]
+exporters = ["dump.bad", "dump.empty", "dump.pair", "dump.part", "dump.text"]

@@ -1,0 +1,23 @@
+# A Tier 1 test exporter (plans/c3-m2 step 6): the `dump` exporters of
+# `tests/snapshot.rs` as a component. Outside the workspace, so the gate
+# never builds it for the host; `tests/support/tier1.rs` builds it for
+# wasm32 with `guest`.
+[package]
+name = "dump"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+guest = ["arrix-plugin-api/guest"]
+
+[dependencies]
+arrix-plugin-api = { path = "../../../../arrix-plugin-api" }
+
+[lints.rust]
+unsafe_code = "forbid"

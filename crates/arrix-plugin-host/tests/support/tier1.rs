@@ -140,3 +140,19 @@ pub fn height(name: &str, tall: bool) -> PathBuf {
     .unwrap();
     plugin_dir(name, &manifest, &height_module(tall))
 }
+
+/// The `dump` test exporter (`tests/plugins/dump`, outside the workspace)
+/// as a tier-1 directory named `name`, `document-read` granted or not.
+pub fn dump(name: &str, document_read: bool) -> PathBuf {
+    let manifest = root().join("crates/arrix-plugin-host/tests/plugins/dump/Cargo.toml");
+    let module = build(&["--manifest-path", manifest.to_str().unwrap()], "dump");
+    let text = std::fs::read_to_string(
+        root().join("crates/arrix-plugin-host/tests/plugins/dump/arrix-plugin.toml"),
+    )
+    .unwrap()
+    .replace(
+        "document-read = true",
+        &format!("document-read = {document_read}"),
+    );
+    plugin_dir(name, &text, &module)
+}

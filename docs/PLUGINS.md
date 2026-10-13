@@ -252,6 +252,12 @@ change, reviewed like any other, never a private hook.
   A plugin gives the same eval line, kernel calls and saved bytes at Tier
   0 and Tier 1, to the bit, its math being the API's (ADR-0036;
   `crates/arrix-plugin-host/tests/tier1_parity.rs` holds `gears` to it).
+  An exporter is the same: `exchange.run` runs in a fresh store with fuel
+  and the epoch interrupt, its `document` calls served by the host from the
+  export's snapshot (and refused as `plugin.capability` in an evaluation or
+  outside a call); a component importing `document` without `document-read`
+  is refused at load. `tests/tier1_export.rs` holds the `dump` exporter to
+  the same files at both tiers, to the byte.
   In the browser, hosting components inside a wasm app is unsolved in the
   ecosystem; a document using a Tier 1 plugin opens there with its
   features frozen until an ADR decides otherwise (`SEED.md` §9).

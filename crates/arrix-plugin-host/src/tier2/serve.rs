@@ -4,7 +4,8 @@
 //! request the world does not have, or params not of its shape, is the
 //! protocol's error (ADR-0022 §4).
 
-use arrix_plugin_api::{Body, Diagnostic, Kernel};
+use arrix_core::PartId;
+use arrix_plugin_api::{Body, Diagnostic, Kernel, Snapshot};
 use serde_json::{Map, Value};
 
 use super::process::{CallError, Served};
@@ -33,6 +34,59 @@ pub(crate) fn kernel_call(kernel: &mut dyn Kernel, allowed: bool, request: &Requ
         return Served::End(CallError::Interrupted(d));
     }
     Served::Answer(answered)
+}
+
+/// Answers one `document.*` request of an exporter's on the export's
+/// snapshot (ADR-0037 §5). A plugin whose manifest does not grant
+/// `document-read`, or one that asks for anything but the `document`
+/// interface (a kernel call during an export), is refused and the call ends.
+pub(crate) fn document_call(
+    snapshot: &mut dyn Snapshot,
+    allowed: bool,
+    request: &Request,
+) -> Served {
+    if !allowed {
+        return Served::End(CallError::Capability(format!(
+            "it called `{}`, and its manifest does not grant `document-read`",
+            request.method
+        )));
+    }
+    if !request.method.starts_with("document.") {
+        return Served::End(CallError::Capability(format!(
+            "it called `{}` during an export, which reads the document only",
+            request.method
+        )));
+    }
+    let answered = method(&request.method, Direction::PluginToHost).and_then(|method| {
+        let params = object(&request.params).map_err(|e| RpcError::invalid_params(&e))?;
+        document(snapshot, method.name, params).map_err(|e| RpcError::invalid_params(&e))
+    });
+    Served::Answer(answered)
+}
+
+fn document(snapshot: &mut dyn Snapshot, method: &str, p: &Map<String, Value>) -> Wire<Value> {
+    match method {
+        "document.parts" => {
+            deny_unknown(p, &[])?;
+            list_to(&snapshot.parts(), part_info_to_json)
+        }
+        "document.mesh" => {
+            deny_unknown(p, &["part", "body"])?;
+            let part = field(p, "part", id_from::<PartId>)?;
+            let body = field(p, "body", body_ref_from_json)?;
+            answer(snapshot.mesh(part, &body), triangles_to_json)
+        }
+        "document.mass" => {
+            deny_unknown(p, &["part"])?;
+            let part = field(p, "part", id_from::<PartId>)?;
+            answer(snapshot.mass(part), inertial_to_json)
+        }
+        "document.assemblies" => {
+            deny_unknown(p, &[])?;
+            list_to(&snapshot.assemblies(), assembly_info_to_json)
+        }
+        other => unreachable!("`{other}` is a document method of the table this match covers"),
+    }
 }
 
 fn call(kernel: &mut dyn Kernel, method: &str, p: &Map<String, Value>) -> Wire<Value> {

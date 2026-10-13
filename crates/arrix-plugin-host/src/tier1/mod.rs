@@ -26,14 +26,19 @@ use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use arrix_core::Diagnostic;
-use arrix_doc::{FeatureArgs, FeatureType, FeatureTypeId, Interrupt, Registry, TypeOutput};
-use arrix_plugin_api::{API_VERSION, ChoiceValue, FeatureTypeSpec, Kernel};
+use arrix_doc::{
+    ExporterType, FeatureArgs, FeatureType, FeatureTypeId, Interrupt, Registry, TypeOutput,
+};
+use arrix_plugin_api::{
+    API_VERSION, ChoiceValue, ExportFile, ExporterSpec, FeatureTypeSpec, Kernel, ParamValue,
+    Snapshot, Subject,
+};
 use serde_json::{Map, Value, json};
 use wasmtime::component::{Component, InstancePre, Linker, ResourceType, Val};
 use wasmtime::{Config, Engine, ResourceLimiter, Store, Trap, UpdateDeadline};
 
 use crate::manifest::Manifest;
-use crate::tier0::{HostError, check, error, register_types};
+use crate::tier0::{HostError, check, error, register_exporters, register_types};
 use crate::tier2::process::{CallError, Served};
 use crate::tier2::{MANIFEST, serve};
 use crate::wire::rpc::{Request, RpcError};
@@ -88,7 +93,9 @@ struct Calls {
 
 /// What the component's thread sends the evaluator's.
 enum Ask {
-    Kernel(Request),
+    /// A `kernel` call (while evaluating) or a `document` call (while
+    /// exporting).
+    Call(Request),
     Done(Result<Value, Ended>),
 }
 
@@ -144,11 +151,12 @@ impl Plugin {
         self.manifest.id.to_string()
     }
 
-    /// Calls the `feature` export `func` with `args` (the wire's params by
+    /// Calls the export `func` of interface `iface` with `args` (the wire's params by
     /// name) in a fresh store, its kernel calls asked over `calls`, until
     /// it returns or `interrupt` is raised.
     fn call(
         &self,
+        iface: &str,
         func: &str,
         args: &Map<String, Value>,
         calls: Option<Calls>,
@@ -174,13 +182,13 @@ impl Plugin {
         });
         let run = |store: &mut Store<State>| -> Result<Value, wasmtime::Error> {
             let instance = self.pre.instantiate(&mut *store)?;
-            let feature = instance
-                .get_export_index(&mut *store, None, &interface("feature"))
-                .ok_or_else(|| wasmtime::format_err!("no `feature` export"))?;
+            let export = instance
+                .get_export_index(&mut *store, None, &interface(iface))
+                .ok_or_else(|| wasmtime::format_err!("no `{iface}` export"))?;
             let f = instance
-                .get_export_index(&mut *store, Some(&feature), func)
+                .get_export_index(&mut *store, Some(&export), func)
                 .and_then(|i| instance.get_func(&mut *store, i))
-                .ok_or_else(|| wasmtime::format_err!("no `feature.{func}` export"))?;
+                .ok_or_else(|| wasmtime::format_err!("no `{iface}.{func}` export"))?;
             let ty = f.ty(&*store);
             let mut params = Vec::new();
             for (name, ty) in ty.params() {
@@ -189,7 +197,11 @@ impl Plugin {
             }
             let mut results = vec![Val::Bool(false); ty.results().len()];
             f.call(&mut *store, &params, &mut results)?;
-            to_json(&results[0], store).map_err(|e| wasmtime::Error::new(Protocol(e)))
+            let ty = ty
+                .results()
+                .next()
+                .expect("a world function returns a result");
+            to_json(&results[0], &ty, store).map_err(|e| wasmtime::Error::new(Protocol(e)))
         };
         run(&mut store).map_err(|e| {
             let state = store.data_mut();
@@ -251,7 +263,6 @@ fn linker() -> Result<Linker<State>, wasmtime::Error> {
         .iter()
         .filter(|m| m.direction == Direction::PluginToHost)
     {
-        // The `document` import is served in an export (ADR-0037, step 6).
         let Some(name) = m.name.strip_prefix("kernel.") else {
             continue;
         };
@@ -277,6 +288,38 @@ fn linker() -> Result<Linker<State>, wasmtime::Error> {
             }
         })?;
     }
+    // The `document` import: served from the export's snapshot, and only
+    // while an export runs (ADR-0037 §5).
+    let mut document = linker.instance(&interface("document"))?;
+    for m in METHODS
+        .iter()
+        .filter(|m| m.direction == Direction::PluginToHost)
+    {
+        let Some(name) = m.name.strip_prefix("document.") else {
+            continue;
+        };
+        let method = m.name;
+        document.func_new(name, move |mut store, ty, params, results| {
+            let served = ask(&mut store, method, &ty, params);
+            let answer = served.and_then(|v| {
+                let ty = ty
+                    .results()
+                    .next()
+                    .expect("a document function returns a result");
+                from_json(&v, &ty, &mut store).map_err(|e| CallError::Protocol(e.to_string()))
+            });
+            match answer {
+                Ok(v) => {
+                    results[0] = v;
+                    Ok(())
+                }
+                Err(c) => {
+                    store.data_mut().ended = Some(c);
+                    wasmtime::bail!("the document call `{method}` ended the call")
+                }
+            }
+        })?;
+    }
     Ok(linker)
 }
 
@@ -289,13 +332,14 @@ fn ask(
     params: &[Val],
 ) -> Result<Value, CallError> {
     let mut args = Map::new();
-    for ((name, _), v) in ty.params().zip(params) {
-        let v = to_json(v, store).map_err(|e| CallError::Protocol(format!("`{method}`: {e}")))?;
+    for ((name, pty), v) in ty.params().zip(params) {
+        let v =
+            to_json(v, &pty, store).map_err(|e| CallError::Protocol(format!("`{method}`: {e}")))?;
         args.insert(name.to_owned(), v);
     }
     let Some(calls) = &store.data().calls else {
         return Err(CallError::Capability(format!(
-            "it called `{method}` while describing"
+            "it called `{method}` outside an evaluation or an export"
         )));
     };
     let request = Request {
@@ -304,7 +348,7 @@ fn ask(
         params: Value::Object(args),
     };
     let gone = || CallError::Crash("the host stopped serving".to_owned());
-    calls.ask.send(Ask::Kernel(request)).map_err(|_| gone())?;
+    calls.ask.send(Ask::Call(request)).map_err(|_| gone())?;
     match calls.answers.recv().map_err(|_| gone())? {
         Served::Answer(Ok(v)) => Ok(v),
         Served::Answer(Err(RpcError { message, .. })) => {
@@ -364,6 +408,7 @@ impl FeatureType for Tier1Type {
                     answers,
                 };
                 let _ = ask.send(Ask::Done(plugin.call(
+                    "feature",
                     "evaluate",
                     &params,
                     Some(calls),
@@ -372,8 +417,17 @@ impl FeatureType for Tier1Type {
             });
             loop {
                 match asked.recv().expect("the component's thread answers once") {
-                    Ask::Kernel(r) => {
-                        let _ = answer.send(serve::kernel_call(kernel, allowed, &r));
+                    Ask::Call(r) => {
+                        // `document` is for exports: an evaluation has the kernel only.
+                        let served = if r.method.starts_with("document.") {
+                            Served::End(CallError::Capability(format!(
+                                "it called `{}` during an evaluation, which reads the kernel only",
+                                r.method
+                            )))
+                        } else {
+                            serve::kernel_call(kernel, allowed, &r)
+                        };
+                        let _ = answer.send(served);
                     }
                     Ask::Done(result) => break result,
                 }
@@ -387,6 +441,70 @@ impl FeatureType for Tier1Type {
 
     fn plugin_version(&self) -> Option<&str> {
         Some(&self.version)
+    }
+}
+
+/// One exporter of a Tier 1 plugin.
+struct Tier1Exporter {
+    spec: ExporterSpec,
+    plugin: Arc<Plugin>,
+}
+
+impl ExporterType for Tier1Exporter {
+    fn spec(&self) -> &ExporterSpec {
+        &self.spec
+    }
+
+    /// The component's `run` in a fresh store, with fuel and the epoch
+    /// interrupt, on a thread of its own; its `document` calls are served
+    /// here from `snapshot` (ADR-0037 §5, §9).
+    fn export(
+        &self,
+        snapshot: &mut dyn Snapshot,
+        subject: &Subject,
+        params: &[ParamValue],
+        choices: &[ChoiceValue],
+    ) -> Result<Vec<ExportFile>, Diagnostic> {
+        let plugin = &self.plugin;
+        let during = format!("exporting {}", self.spec.id);
+        let protocol = |e: WireError| error("plugin.protocol", format!("{during}: {e}"));
+        let args = json!({
+            "exporter": self.spec.id,
+            "subject": subject_to_json(subject).map_err(protocol)?,
+            "params": list_to(params, param_value_to_json).map_err(protocol)?,
+            "choices": list_to(choices, choice_value_to_json).map_err(protocol)?,
+        });
+        let Value::Object(args) = args else {
+            unreachable!("an object literal")
+        };
+        let allowed = plugin.manifest.capabilities.document_read;
+        let (ask, asked) = channel();
+        let (answer, answers) = channel();
+        let result = std::thread::scope(|s| {
+            s.spawn(move || {
+                let calls = Calls {
+                    ask: ask.clone(),
+                    answers,
+                };
+                let _ = ask.send(Ask::Done(plugin.call(
+                    "exchange",
+                    "run",
+                    &args,
+                    Some(calls),
+                    Interrupt::default(),
+                )));
+            });
+            loop {
+                match asked.recv().expect("the component's thread answers once") {
+                    Ask::Call(r) => {
+                        let _ = answer.send(serve::document_call(snapshot, allowed, &r));
+                    }
+                    Ask::Done(result) => break result,
+                }
+            }
+        });
+        let result = result.map_err(|e| e.diagnostic(&plugin.id(), &during))?;
+        serve::result_from(&result, |v| list_from(v, file_from_json)).map_err(protocol)?
     }
 }
 
@@ -422,8 +540,8 @@ pub fn register_tier1(
             format!("its component {} could not be read: {e}", path.display()),
         )
     })?;
-    let component =
-        compile(&bytes).map_err(|e| failed(&id, format!("{}: {e}", tier1.component)))?;
+    let component = compile(&bytes, manifest.capabilities.document_read)
+        .map_err(|e| failed(&id, format!("{}: {e}", tier1.component)))?;
     let pre = linker()
         .and_then(|l| l.instantiate_pre(&component))
         .map_err(|e| failed(&id, format!("{}: {e:#}", tier1.component)))?;
@@ -433,27 +551,70 @@ pub fn register_tier1(
         pre,
     };
     let specs = plugin
-        .call("describe", &Map::new(), None, Interrupt::default())
+        .call(
+            "feature",
+            "describe",
+            &Map::new(),
+            None,
+            Interrupt::default(),
+        )
         .map_err(|e| failed(&id, e.diagnostic(&id, "describing").message))
         .and_then(|v| {
             list_from(&v, feature_type_spec_from_json)
                 .map_err(|e| failed(&id, format!("its `feature.describe` is malformed: {e}")))
         })?;
+    // A component without an `exchange` export has no exporters.
+    let exporters = if exports(&component, "exchange") {
+        plugin
+            .call(
+                "exchange",
+                "exporters",
+                &Map::new(),
+                None,
+                Interrupt::default(),
+            )
+            .map_err(|e| failed(&id, e.diagnostic(&id, "describing").message))
+            .and_then(|v| {
+                list_from(&v, exporter_spec_from_json)
+                    .map_err(|e| failed(&id, format!("its `exchange.exporters` is malformed: {e}")))
+            })?
+    } else {
+        Vec::new()
+    };
     let m = plugin.manifest.clone();
     let version = m.version.to_string();
     let plugin = Arc::new(plugin);
-    register_types(registry, &m, specs, |spec| {
+    // Types and exporters register together, or neither does.
+    let mut next = registry.clone();
+    let mut ids = register_types(&mut next, &m, specs, |spec| {
         Arc::new(Tier1Type {
             spec,
             version: version.clone(),
             plugin: plugin.clone(),
         })
-    })
+    })?;
+    ids.extend(register_exporters(&mut next, &m, exporters, |spec| {
+        Arc::new(Tier1Exporter {
+            spec,
+            plugin: plugin.clone(),
+        })
+    })?);
+    *registry = next;
+    Ok(ids)
+}
+
+/// Whether `component` exports the interface `name`.
+fn exports(component: &Component, name: &str) -> bool {
+    let name = interface(name);
+    component
+        .component_type()
+        .exports(engine())
+        .any(|(export, _)| export == name)
 }
 
 /// The component in `bytes`, made one first if it is a core module, and
 /// refused if it imports anything the world does not.
-fn compile(bytes: &[u8]) -> Result<Component, String> {
+fn compile(bytes: &[u8], document_read: bool) -> Result<Component, String> {
     let encoded;
     let bytes = if wasmparser::Parser::is_core_wasm(bytes) {
         encoded = wit_component::ComponentEncoder::default()
@@ -465,7 +626,11 @@ fn compile(bytes: &[u8]) -> Result<Component, String> {
         bytes
     };
     let component = Component::new(engine(), bytes).map_err(|e| format!("{e:#}"))?;
-    let world = [interface("types"), interface("kernel")];
+    // `document` is the world's, granted by `document-read` (ADR-0037 §5).
+    let mut world = vec![interface("types"), interface("kernel")];
+    if document_read {
+        world.push(interface("document"));
+    }
     let ty = component.component_type();
     let foreign: Vec<_> = ty
         .imports(engine())
@@ -473,6 +638,15 @@ fn compile(bytes: &[u8]) -> Result<Component, String> {
         .filter(|name| !world.iter().any(|w| w == name))
         .map(|name| format!("`{name}`"))
         .collect();
+    if !document_read
+        && ty
+            .imports(engine())
+            .any(|(n, _)| n == interface("document"))
+    {
+        return Err(
+            "it imports `document`, and its manifest does not grant `document-read`".to_owned(),
+        );
+    }
     if !foreign.is_empty() {
         return Err(format!(
             "it imports {}, outside the world, which a sandbox does not grant",
