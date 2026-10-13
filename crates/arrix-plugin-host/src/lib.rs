@@ -19,7 +19,7 @@ mod tier2;
 pub mod wire;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub use loader::Tier2Loader;
+pub use loader::{DirLoader, manifest_in, register_dir};
 pub use manifest::{
     Capabilities, Contributes, Files, Fixture, Manifest, ManifestError, TestFixtures,
 };

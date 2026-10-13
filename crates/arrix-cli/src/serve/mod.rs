@@ -18,7 +18,7 @@ use std::sync::{Arc, Mutex};
 use arrix_doc::{
     Document, EventStream, LocalSession, PROTOCOL_VERSION, Registry, Request, Session as _,
 };
-use arrix_plugin_host::Tier2Loader;
+use arrix_plugin_host::DirLoader;
 use arrix_plugin_host::wire::rpc::{
     INVALID_PARAMS, INVALID_REQUEST, LineError, LineReader, METHOD_NOT_FOUND, Message, Response,
     RpcError,
@@ -77,7 +77,8 @@ fn open(doc: Option<&Path>, dirs: &[PathBuf]) -> Result<LocalSession, String> {
         .into_iter()
         .zip(dirs)
         .map(|(m, d)| (m.id, d.clone()));
-    let loader = Tier2Loader::with_plugins(known);
+    let loader =
+        DirLoader::with_plugins(known).replacing(plugins::manifests().into_iter().map(|m| m.id));
     LocalSession::open_with(document, registry, Some(Box::new(loader))).map_err(|e| e.to_string())
 }
 

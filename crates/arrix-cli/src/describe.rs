@@ -14,7 +14,7 @@ use crate::config::{Loaded, load};
 use crate::plugins;
 use arrix_plugin_host::Manifest;
 
-/// A plugin as `describe` lists it; a Tier 2 one also says how it is run.
+/// A plugin as `describe` lists it; a Tier 1 one says its component and fuel, a Tier 2 one how it is run; both their capabilities.
 fn plugin_json(m: &Manifest) -> Value {
     let mut plugin = json!({
         "id": m.id.as_str(),
@@ -29,6 +29,12 @@ fn plugin_json(m: &Manifest) -> Value {
                 .unwrap_or(arrix_plugin_host::DEFAULT_TIMEOUT)
                 .as_secs_f64()
         );
+    }
+    if let Some(tier1) = &m.tier1 {
+        plugin["component"] = json!(tier1.component);
+        plugin["fuel"] = json!(tier1.fuel.unwrap_or(arrix_plugin_host::DEFAULT_FUEL));
+    }
+    if m.tier != 0 {
         plugin["capabilities"] = json!({
             "kernel": m.capabilities.kernel,
             "document_read": m.capabilities.document_read,
@@ -73,8 +79,10 @@ pub fn describe(loaded: &Loaded) -> Value {
         tier2,
         config,
     } = loaded;
+    // A `--plugin` directory takes the place of a compiled-in plugin of its id.
     let plugins: Vec<_> = plugins::manifests()
         .iter()
+        .filter(|m| !tier2.iter().any(|d| d.id == m.id))
         .chain(tier2)
         .map(plugin_json)
         .collect();

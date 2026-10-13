@@ -2,12 +2,12 @@
 //! linker registration does not work on wasm (docs/PLUGINS.md §Three
 //! tiers). A build without a plugin leaves it off this list.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use arrix_doc::Registry;
 use arrix_plugin_api::{Feature, FeatureTypeSpec};
-use arrix_plugin_host::{MANIFEST, Manifest, register_tier0, register_tier2};
+use arrix_plugin_host::{Manifest, manifest_in, register_dir, register_tier0};
 
 /// Each compiled-in plugin: its manifest text and its feature.
 fn tier0() -> Vec<(&'static str, Arc<dyn Feature>)> {
@@ -24,22 +24,24 @@ pub fn registry() -> Registry {
     r
 }
 
-/// Starts each Tier 2 plugin directory of `dirs` (`--plugin`) and
-/// registers its feature types; returns their manifests. The message names
-/// the directory that could not be.
+/// Loads each plugin directory of `dirs` (`--plugin`) at the tier its
+/// manifest names and registers its feature types; returns their
+/// manifests. A directory takes the place of a compiled-in plugin of the
+/// same id (a Tier 1 `gears` for the Tier 0 one). The message names the
+/// directory that could not be.
 pub fn register_dirs(registry: &mut Registry, dirs: &[PathBuf]) -> Result<Vec<Manifest>, String> {
+    let compiled = manifests();
     dirs.iter()
         .map(|dir| {
             let named = |e: &dyn std::fmt::Display| format!("--plugin {}: {e}", dir.display());
-            register_tier2(registry, dir).map_err(|e| named(&e))?;
-            manifest_in(dir).map_err(|e| named(&e))
+            let manifest = manifest_in(dir).map_err(|e| named(&e))?;
+            if compiled.iter().any(|m| m.id == manifest.id) {
+                registry.remove_plugin(&manifest.id);
+            }
+            register_dir(registry, dir).map_err(|e| named(&e))?;
+            Ok(manifest)
         })
         .collect()
-}
-
-fn manifest_in(dir: &Path) -> Result<Manifest, String> {
-    let text = std::fs::read_to_string(dir.join(MANIFEST)).map_err(|e| e.to_string())?;
-    Manifest::parse(&text).map_err(|e| e.to_string())
 }
 
 /// The manifests of the compiled-in plugins.

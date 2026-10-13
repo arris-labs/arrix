@@ -24,10 +24,22 @@ fn target_dir() -> PathBuf {
 /// it is: `-p <name>` in the workspace, or `--manifest-path`) and returns
 /// its core module.
 pub fn build(args: &[&str], package: &str) -> Vec<u8> {
+    build_with(args, package, "guest")
+}
+
+/// [`build`] with the cargo `features` (comma separated) instead of
+/// `guest` alone, in a target directory of its own when they differ, so
+/// two builds of one package never overwrite each other.
+pub fn build_with(args: &[&str], package: &str, features: &str) -> Vec<u8> {
+    let target = if features == "guest" {
+        target_dir()
+    } else {
+        target_dir().join(features.replace(',', "+"))
+    };
     let status = Command::new(env!("CARGO"))
         .args(["build", "--release", "--target", "wasm32-unknown-unknown"])
-        .args(["--features", "guest", "--target-dir"])
-        .arg(target_dir())
+        .args(["--features", features, "--target-dir"])
+        .arg(&target)
         .args(args)
         .current_dir(root())
         .env_remove("RUSTFLAGS")
@@ -39,7 +51,7 @@ pub fn build(args: &[&str], package: &str) -> Vec<u8> {
         "wasm32-unknown-unknown/release/{}.wasm",
         package.replace('-', "_")
     );
-    std::fs::read(target_dir().join(wasm)).expect("the cdylib is written")
+    std::fs::read(target.join(wasm)).expect("the cdylib is written")
 }
 
 /// A tier-1 plugin directory named `name`: `manifest` (a tier-0 one)
@@ -106,4 +118,25 @@ pub fn misbehave(name: &str, fuel: u64, kernel: bool) -> PathBuf {
         misbehave_module(),
         &format!("fuel = {fuel}"),
     )
+}
+
+/// The height test plugin's core module (`tests/plugins/height`, outside
+/// the workspace), 5 mm tall, or 12.5 mm with `tall`.
+pub fn height_module(tall: bool) -> Vec<u8> {
+    let manifest = root().join("crates/arrix-plugin-host/tests/plugins/height/Cargo.toml");
+    let features = if tall { "guest,tall" } else { "guest" };
+    build_with(
+        &["--manifest-path", manifest.to_str().unwrap()],
+        "height",
+        features,
+    )
+}
+
+/// The height plugin as a tier-1 directory named `name`.
+pub fn height(name: &str, tall: bool) -> PathBuf {
+    let manifest = std::fs::read_to_string(
+        root().join("crates/arrix-plugin-host/tests/plugins/height/arrix-plugin.toml"),
+    )
+    .unwrap();
+    plugin_dir(name, &manifest, &height_module(tall))
 }

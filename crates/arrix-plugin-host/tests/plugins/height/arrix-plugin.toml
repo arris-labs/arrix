@@ -1,0 +1,14 @@
+# The height plugin's manifest.
+[plugin]
+id = "height"
+version = "0.1.0"
+api = "^0.6"
+tier = 0
+title = "Height"
+licence = "MIT OR Apache-2.0"
+
+[capabilities]
+kernel = true
+
+[contributes]
+features = ["height.block"]

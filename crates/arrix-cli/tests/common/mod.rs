@@ -6,6 +6,7 @@
 
 pub mod build;
 pub mod serve_client;
+pub mod tier1;
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};

@@ -1,0 +1,24 @@
+# A Tier 1 test plugin whose code changes with a cargo feature (plans/c3-m1
+# step 10): `tall` is "the rebuild" a reload picks up. Outside the
+# workspace, so the gate never builds it for the host;
+# `tests/support/tier1.rs` builds it for wasm32 with `guest`.
+[package]
+name = "height"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+guest = ["arrix-plugin-api/guest"]
+tall = []
+
+[dependencies]
+arrix-plugin-api = { path = "../../../../arrix-plugin-api" }
+
+[lints.rust]
+unsafe_code = "forbid"

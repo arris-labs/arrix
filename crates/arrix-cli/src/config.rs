@@ -19,7 +19,7 @@ pub struct Loaded {
     pub dir: Option<PathBuf>,
     pub commands: CommandRegistry,
     pub types: Vec<FeatureTypeSpec>,
-    /// The manifests of the Tier 2 plugins started with `--plugin`.
+    /// The manifests of the Tier 1 and 2 plugins loaded with `--plugin`.
     pub tier2: Vec<Manifest>,
     pub config: Config,
 }

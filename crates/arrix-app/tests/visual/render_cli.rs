@@ -155,6 +155,31 @@ fn render_plugin_evaluates_a_tier2_feature() {
     });
 }
 
+/// `--plugin` loads a Tier 1 plugin by its manifest: `gears` built as a
+/// component takes the compiled-in one's place and draws the same gear.
+#[test]
+fn render_plugin_evaluates_a_tier1_feature() {
+    #[path = "../../../arrix-plugin-host/tests/support/tier1.rs"]
+    mod tier1_build;
+
+    harness::with_gpu("render_plugin_evaluates_a_tier1_feature", || {
+        let dir = scratch("tier1");
+        let component = tier1_build::gears();
+        let bodies = |plugin: bool| {
+            let (png, json) = (dir.join("g.png"), dir.join("g.json"));
+            let mut cmd = render(&["tests/docs/gear-on-plane", "--size", "320x200"]);
+            cmd.args(["-o", path(&png), "--json", path(&json)]);
+            if plugin {
+                cmd.args(["--plugin", path(component)]);
+            }
+            rendered(cmd, &json)["debug_state"]["bodies"].clone()
+        };
+        let at_tier1 = bodies(true);
+        assert!(!at_tier1.as_array().expect("bodies").is_empty());
+        assert_eq!(at_tier1, bodies(false), "the same gear at either tier");
+    });
+}
+
 /// `--without-plugin` opens a saved slice as a build without `gears`
 /// would: the gear frozen, and its badge in the JSON.
 #[test]

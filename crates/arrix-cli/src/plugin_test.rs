@@ -117,9 +117,9 @@ struct Check {
 struct Kit {
     dir: PathBuf,
     manifest: Manifest,
-    /// The Tier 2 directories every fresh registry starts: the plugin's
+    /// The directories (Tier 1 or 2) every fresh registry loads: the plugin's
     /// own, and `--plugin` ones it depends on.
-    tier2: Vec<PathBuf>,
+    dirs: Vec<PathBuf>,
     /// The `--plugin` directories alone: what a run without the plugin keeps.
     extra: Vec<PathBuf>,
 }
@@ -142,7 +142,7 @@ impl Kit {
                 ));
             }
         }
-        let mut tier2 = Vec::new();
+        let mut dirs = Vec::new();
         match manifest.tier {
             0 => {
                 if !plugins::manifests().iter().any(|m| m.id == manifest.id) {
@@ -152,26 +152,24 @@ impl Kit {
                     ));
                 }
             }
-            2 => tier2.push(args.dir.to_path_buf()),
-            tier => diagnostics.push(format!(
-                "{shown}: tier {tier} plugins are not testable yet (C3)"
-            )),
+            1 | 2 => dirs.push(args.dir.to_path_buf()),
+            tier => diagnostics.push(format!("{shown}: tier {tier} is not a tier")),
         }
-        tier2.extend(args.plugins.iter().cloned());
+        dirs.extend(args.plugins.iter().cloned());
         if !diagnostics.is_empty() {
             return Err(diagnostics);
         }
         Ok(Kit {
             dir: args.dir.to_path_buf(),
             manifest,
-            tier2,
+            dirs,
             extra: args.plugins.to_vec(),
         })
     }
 
-    /// A registry on a fresh kernel, with a fresh Tier 2 process.
+    /// A registry on a fresh kernel, with a fresh Tier 2 process or Tier 1 store.
     fn fresh(&self) -> Result<Registry, String> {
-        registry_for(&self.tier2, &[])
+        registry_for(&self.dirs, &[])
     }
 
     /// Every check, in order: the plugin's specs, each fixture document's
@@ -215,7 +213,10 @@ impl Kit {
 
     /// The registry of a run without the plugin.
     fn without(&self) -> Result<Registry, String> {
-        if self.manifest.tier == 0 {
+        let compiled = plugins::manifests()
+            .iter()
+            .any(|m| m.id == self.manifest.id);
+        if compiled {
             registry_for(&self.extra, &[self.manifest.id.to_string()])
         } else {
             registry_for(&self.extra, &[])

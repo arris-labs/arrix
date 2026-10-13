@@ -322,8 +322,8 @@ impl ArrixApp {
         self.open_without(&path.to_string_lossy(), &source, without)
     }
 
-    /// [`Self::open_path_without`] with each Tier 2 plugin directory of
-    /// `plugins` started first (`arrix-app render --plugin`), so its
+    /// [`Self::open_path_without`] with each plugin directory of
+    /// `plugins` (Tier 1 or 2) loaded first (`arrix-app render --plugin`), so its
     /// features evaluate live; one of `without` may name such a plugin too.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn open_path_with(
@@ -334,8 +334,14 @@ impl ArrixApp {
     ) -> Result<(), String> {
         let source = document_files::PathSource::read(path)?;
         let mut registry = commands::feature_types();
+        let compiled: Vec<_> = registry.ids().filter_map(|id| id.plugin()).collect();
         for dir in plugins {
-            arrix_plugin_host::register_tier2(&mut registry, dir).map_err(|err| err.to_string())?;
+            let named = |err: &dyn std::fmt::Display| format!("{}: {err}", dir.display());
+            let manifest = arrix_plugin_host::manifest_in(dir).map_err(|err| named(&err))?;
+            if compiled.contains(&manifest.id) {
+                registry.remove_plugin(&manifest.id);
+            }
+            arrix_plugin_host::register_dir(&mut registry, dir).map_err(|err| named(&err))?;
         }
         remove_plugins(&mut registry, without)?;
         self.open_in(&path.to_string_lossy(), &source, registry)
