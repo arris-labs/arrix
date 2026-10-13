@@ -50,6 +50,7 @@ pub use document::{
     Document, FeatureRecord, FeatureTypeId, ImportedFile, Invalid, InvalidFeatureTypeId, Param,
     Part, is_param_name,
 };
+pub use eval::check_export_name;
 #[cfg(feature = "schema")]
 pub use eval::eval_line_schema;
 pub use eval::{
@@ -66,7 +67,8 @@ pub use mass::{BodyMass, Inertial, MassOutcome};
 pub use material::{InvalidSlotRef, Material, Rgb, SlotRef};
 pub use open::{DOCUMENT_JSON, DocumentSource, MemorySource, OpenError, PARAMS_JSON, SCHEMA, open};
 pub use registry::{
-    FeatureArgs, FeatureType, FileArg, FileKernel, Registry, RegistryError, SketchArgs, TypeOutput,
+    ExporterType, FeatureArgs, FeatureType, FileArg, FileKernel, Registry, RegistryError,
+    SketchArgs, TypeOutput,
 };
 pub use save::{save, to_json};
 #[cfg(feature = "schema")]

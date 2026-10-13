@@ -41,7 +41,8 @@ pub struct PartInfo {
     pub bodies: Vec<BodyInfo>,
 }
 
-/// A refined mesh in the part's frame, chord 1e-4 m (ADR-0037 §4): three
+/// A refined mesh in the part's frame, the refined chord (1e-4 of the body's box
+/// diagonal, as STL export, ADR-0037 §4): three
 /// `f32` per vertex in `positions` and `normals`, three `u32` per triangle
 /// in `indices`, counter-clockwise seen from outside.
 #[derive(Clone, Debug, Default, PartialEq)]

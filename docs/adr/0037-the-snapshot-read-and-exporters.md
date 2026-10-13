@@ -125,3 +125,9 @@ step 1 probed a scratch world with both beside `feature`
   resolve meshes beside the file, so the user unpacks it first.
 - **The plugin writing to a path**: a capability the browser and a remote
   server do not have, and the path leaks into the output.
+
+## Erratum (plans/c3-m2 step 4)
+
+§4 says the refined chord is 1e-4 m. It is `MeshDetail::Refined`, which is
+1e-4 of the body's box diagonal (`MeshDetail::chord_fraction`), and it is
+what STL export uses. The decision stands: the refined detail, fixed.

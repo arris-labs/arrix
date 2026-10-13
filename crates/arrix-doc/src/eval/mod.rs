@@ -23,6 +23,7 @@ mod project;
 mod resolve;
 #[cfg(test)]
 mod sketch_tests;
+mod snapshot;
 mod sweep;
 #[cfg(test)]
 pub(crate) mod tests;
@@ -57,6 +58,7 @@ pub use line::{
 };
 pub use mass::Masses;
 pub use meshing::{BodySlot, FinalBody};
+pub use snapshot::check_export_name;
 pub use sweep::{Sweep, SweepError, sweep};
 
 use crate::dag::{Dag, Node};

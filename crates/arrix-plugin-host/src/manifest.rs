@@ -89,6 +89,8 @@ pub enum Files {
 #[serde(default, deny_unknown_fields)]
 pub struct Contributes {
     pub features: Vec<String>,
+    /// Exporter ids (ADR-0037).
+    pub exporters: Vec<String>,
     pub ribbon: Vec<String>,
 }
 

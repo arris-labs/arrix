@@ -647,6 +647,21 @@ component `assembly.unplaced` is left out as `mass.unplaced`; each is a
 warning, the body's volume and centroid stay, and the totals above it are
 `partial`, a lower bound. Never a default density.
 
+**The snapshot an exporter reads** (ADR-0037; as built, `Evaluator::export_with`).
+After a finished evaluation, an exporter sees the document through the
+plugin API's `Snapshot`, built from the `Evaluation` and the evaluator and
+never stored: the parts with their final bodies and materials, each body's
+refined mesh (the cached `MeshDetail::Refined`, positions made absolute),
+each part's `MassOutcome` as an `Inertial` or its diagnostic, and the
+assemblies, whose components come at every depth with their solved poses and
+whose joints carry their limits (the expressions evaluated) and, for a joint
+that solved, both anchors in their own component's frame, which does not
+move with the joint's value. The host evaluates the exporter's options
+(`export_with`'s `params` and `choices`) as a feature's, refuses a subject
+of the wrong kind (`export.subject`) and a file name that is not relative
+(`export.path`), and calls no kernel but for a mesh. Nothing persists, so
+the schema does not change.
+
 **Determinism.** Evaluating the same snapshot twice, on any machine,
 native or wasm, gives byte-identical outputs and names. Nothing in
 evaluation reads the clock, a random source or a `HashMap`'s iteration

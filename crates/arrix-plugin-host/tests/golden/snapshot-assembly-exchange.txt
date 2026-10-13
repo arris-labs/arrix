@@ -1,0 +1,25 @@
+options [ParamValue { name: "scale", value: Quantity { kind: Ratio, si: 1.0 } }] [ChoiceValue { name: "unit", value: "metre" }]
+part 1P2FZ8HX2QT11 Screw
+  body 08R5XFB8MME4Q.body material steel (0.450000000, 0.450000000, 0.500000000): 366 vertices, 360 triangles
+  mass 4.43907e-4 at (0, 0, 0.004000000) inertia xx=2.61720e-9 xy=0 xz=0 yy=2.61720e-9 yz=0 zz=4.99395e-10
+part 2VB455MTX7CM4 Vendor
+  body 3WWS0MZZ6N1QT.body material brass (0.800000000, 0.650000000, 0.200000000): 7828 vertices, 13778 triangles
+  mass 0.043599782 at (0, 0, -3.51261e-4) inertia xx=1.37957e-5 xy=0 xz=0 yy=1.37957e-5 yz=0 zz=2.75472e-5
+part 82GRC5NB6745K Horn
+  body 0TW075W7AR03N.body material abs (0.200000000, 0.250000000, 0.600000000): 294 vertices, 280 triangles
+  mass 0.001438128 at (0.013761388, 0.005000000, 0.002619306) inertia xx=1.70168e-8 xy=0 xz=7.80326e-9 yy=1.16623e-7 yz=0 zz=1.21408e-7
+part BC6X598GYWPZN Bracket
+  body EBWK5C332393W.body material aluminium (0.750000000, 0.770000000, 0.800000000): 2442 vertices, 1952 triangles
+  mass 0.022651381 at (-1.04852e-4, 0, 0.004399958) inertia xx=1.64905e-6 xy=0 xz=-4.51248e-9 yy=2.56055e-6 yz=0 zz=3.67623e-6
+part ESTFRCC4SPS9K Servo
+  body 6ABRADVD9YM8C.body material abs (0.200000000, 0.250000000, 0.600000000): 392 vertices, 380 triangles
+  mass 0.029943119 at (0.019750147, 0.010000000, 0.018124927) inertia xx=4.30117e-6 xy=0 xz=3.64723e-8 yy=7.27271e-6 yz=0 zz=4.98739e-6
+assembly 6NDZZ2CNWB0X9 Servo on bracket
+  component 1FQK0FQ03Z16X right screw of part 1P2FZ8HX2QT11: o=(-0.015000000, -0.010000000, 0.005000000) x=(1.000000000, 0, 0) z=(0, 0, 1.000000000)
+  component 4GM777SG0Q2K8 horn of part 82GRC5NB6745K: o=(0.034169873, 0.006830127, 0.009000000) x=(0.866025404, -0.500000000, 0) z=(0, 0, -1.000000000)
+  component ACF5C6ZNQV1MW vendor of part 2VB455MTX7CM4: o=(0.060000000, 0, 0) x=(0, 1.000000000, 0) z=(0, 0, 1.000000000)
+  component C4VR764XTFX0Z bracket of part BC6X598GYWPZN: o=(0, 0, 0) x=(1.000000000, 0, 0) z=(0, 0, 1.000000000)
+  component D3R8R4JY3BKPH left screw of part 1P2FZ8HX2QT11: o=(-0.015000000, 0.010000000, 0.005000000) x=(1.000000000, 0, 0) z=(0, 0, 1.000000000)
+  component FEJ0R7MAVP776 servo of part ESTFRCC4SPS9K: o=(0.004000000, 0.010000000, 0.041000000) x=(1.000000000, 0, 0) z=(0, 0, -1.000000000)
+  joint 0G7W8ZGKFDKEV hinge Revolute limits none: value 0 parent o=(0.014000000, 0, 0.005000000) x=(1.000000000, 0, 0) z=(0, 0, -1.000000000) child o=(0.010000000, 0.010000000, 0.036000000) x=(1.000000000, 0, 0) z=(0, 0, 1.000000000)
+  joint 0M0FHYS0BH8QE spin Revolute limits none: value 0.523598776 parent o=(0.032000000, 0.010000000, 0.036000000) x=(1.000000000, 0, 0) z=(0, 0, 1.000000000) child o=(0.005000000, 0.005000000, 0.004000000) x=(1.000000000, 0, 0) z=(0, 0, 1.000000000)

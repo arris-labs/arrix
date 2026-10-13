@@ -9,7 +9,8 @@ use std::sync::Arc;
 use arrix_core::{Diagnostic, FeatureId, SlotName};
 use arrix_kernel::Interrupt;
 use arrix_plugin_api::{
-    FeatureOutput, FeatureTypeSpec, InputKind, Kernel, ParamValue, ResolvedInput, SlotKind,
+    ChoiceValue, ExportFile, ExporterSpec, FeatureOutput, FeatureTypeSpec, InputKind, Kernel,
+    ParamValue, ResolvedInput, SlotKind, Snapshot, Subject,
 };
 use arrix_sketch::Sketch;
 
@@ -24,6 +25,22 @@ use crate::core_revolve::CoreRevolve;
 use crate::core_types::{CoreSketch, DatumPlane};
 use crate::document::{FeatureTypeId, InvalidFeatureTypeId};
 use crate::eval::SketchView;
+
+/// An exporter as the evaluator sees it, built-in or plugin: the plugin
+/// API's `Exporter` for one id (ADR-0037). It reads the snapshot and
+/// returns files, and does nothing else.
+pub trait ExporterType: Send + Sync {
+    fn spec(&self) -> &ExporterSpec;
+
+    /// Deterministic: a pure function of the snapshot and the options.
+    fn export(
+        &self,
+        snapshot: &mut dyn Snapshot,
+        subject: &Subject,
+        params: &[ParamValue],
+        choices: &[ChoiceValue],
+    ) -> Result<Vec<ExportFile>, Diagnostic>;
+}
 
 /// A feature type as the evaluator sees it, built-in or plugin: the plugin
 /// API's `Feature` for one type, so a Tier 0 plugin is adapted onto it
@@ -191,6 +208,7 @@ pub enum RegistryError {
 #[derive(Clone, Default)]
 pub struct Registry {
     types: BTreeMap<FeatureTypeId, Arc<dyn FeatureType>>,
+    exporters: BTreeMap<FeatureTypeId, Arc<dyn ExporterType>>,
 }
 
 impl Registry {
@@ -246,13 +264,38 @@ impl Registry {
         Ok(id)
     }
 
-    /// Leaves out every feature type `plugin` contributes, as a build
-    /// without it would. `false` when it contributed none.
+    /// Registers an exporter (ADR-0037) under its `<plugin>.<name>` id.
+    pub fn register_exporter(
+        &mut self,
+        ty: Arc<dyn ExporterType>,
+    ) -> Result<FeatureTypeId, RegistryError> {
+        let id = FeatureTypeId::new(ty.spec().id.clone())?;
+        if self.exporters.contains_key(&id) {
+            return Err(RegistryError::Duplicate(id));
+        }
+        self.exporters.insert(id.clone(), ty);
+        Ok(id)
+    }
+
+    /// Leaves out every feature type and exporter `plugin` contributes, as
+    /// a build without it would. `false` when it contributed none.
     pub fn remove_plugin(&mut self, plugin: &arrix_core::PluginId) -> bool {
-        let before = self.types.len();
+        let before = self.types.len() + self.exporters.len();
         self.types
             .retain(|id, _| id.plugin().as_ref() != Some(plugin));
-        self.types.len() != before
+        self.exporters
+            .retain(|id, _| id.plugin().as_ref() != Some(plugin));
+        self.types.len() + self.exporters.len() != before
+    }
+
+    /// The exporter `id` (`<plugin>.<name>`).
+    pub fn exporter(&self, id: &str) -> Option<&Arc<dyn ExporterType>> {
+        self.exporters.get(&FeatureTypeId::new(id).ok()?)
+    }
+
+    /// The specs of every exporter, in id order.
+    pub fn exporter_specs(&self) -> Vec<ExporterSpec> {
+        self.exporters.values().map(|e| e.spec().clone()).collect()
     }
 
     pub fn get(&self, id: &FeatureTypeId) -> Option<&Arc<dyn FeatureType>> {

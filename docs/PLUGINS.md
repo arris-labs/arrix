@@ -155,7 +155,7 @@ feature; export exchange; }`.
 
 - `document` is read-only and granted by `document-read`. By function:
   the parts (final bodies, material name and colour), each body's refined
-  mesh (chord 1e-4 m, `f32` positions and normals, `u32` triangles, in the
+  mesh (the refined chord, 1e-4 of the body's box diagonal; `f32` positions and normals, `u32` triangles, in the
   part's frame), each part's mass, centroid and inertia or its `mass.*`
   diagnostic, and the assemblies: components at every depth by path with
   their solved poses, and joints (kind, parent and child paths, anchors,

@@ -8,8 +8,13 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::Arc;
 
 use arrix_core::{Diagnostic, Severity};
-use arrix_doc::{FeatureArgs, FeatureType, FeatureTypeId, Registry, RegistryError, TypeOutput};
-use arrix_plugin_api::{ChoiceValue, Feature, FeatureTypeSpec, Kernel};
+use arrix_doc::{
+    ExporterType, FeatureArgs, FeatureType, FeatureTypeId, Registry, RegistryError, TypeOutput,
+};
+use arrix_plugin_api::{
+    ChoiceValue, ExportFile, Exporter, ExporterSpec, Feature, FeatureTypeSpec, Kernel, ParamValue,
+    Snapshot, Subject,
+};
 
 use crate::manifest::{Manifest, ManifestError};
 
@@ -30,6 +35,8 @@ pub enum HostError {
     Api { plugin: String, api: String },
     #[error("plugin {plugin} describes {type_id}, outside its namespace `{plugin}.`")]
     Namespace { plugin: String, type_id: String },
+    #[error("plugin {plugin} describes exporters, and its manifest does not grant `document-read`")]
+    Capability { plugin: String },
     #[error(transparent)]
     Registry(#[from] RegistryError),
     /// A Tier 1 or Tier 2 plugin that could not be loaded, started or
@@ -84,6 +91,39 @@ impl FeatureType for Tier0Type {
     }
 }
 
+/// One exporter of a Tier 0 plugin.
+struct Tier0Exporter {
+    spec: ExporterSpec,
+    exporter: Arc<dyn Exporter>,
+}
+
+impl ExporterType for Tier0Exporter {
+    fn spec(&self) -> &ExporterSpec {
+        &self.spec
+    }
+
+    /// The plugin's `export`, with a panic caught and made the export's
+    /// diagnostic. Native only.
+    fn export(
+        &self,
+        snapshot: &mut dyn Snapshot,
+        subject: &Subject,
+        params: &[ParamValue],
+        choices: &[ChoiceValue],
+    ) -> Result<Vec<ExportFile>, Diagnostic> {
+        let run = AssertUnwindSafe(|| {
+            self.exporter
+                .export(snapshot, &self.spec.id, subject, params, choices)
+        });
+        catch_unwind(run).unwrap_or_else(|payload| {
+            Err(error(
+                "plugin.panic",
+                format!("{} panicked: {}", self.spec.id, panic_message(&*payload)),
+            ))
+        })
+    }
+}
+
 pub(crate) fn error(code: &str, message: String) -> Diagnostic {
     Diagnostic::new(Severity::Error, code, message).expect("a literal code is well-formed")
 }
@@ -113,6 +153,54 @@ pub fn register_tier0(
             feature: feature.clone(),
         })
     })
+}
+
+/// Registers every exporter a Tier 0 plugin describes, or none of them
+/// (ADR-0037). The manifest must grant `document-read`: a Tier 0 plugin is
+/// trusted, so its capabilities are declarative, and the host refuses the
+/// plugin that would read the snapshot without declaring it.
+pub fn register_tier0_exporters(
+    registry: &mut Registry,
+    manifest: &str,
+    exporter: Arc<dyn Exporter>,
+) -> Result<Vec<FeatureTypeId>, HostError> {
+    let m = Manifest::parse(manifest)?;
+    check(&m, 0)?;
+    register_exporters(registry, &m, exporter.exporters(), |spec| {
+        Arc::new(Tier0Exporter {
+            spec,
+            exporter: exporter.clone(),
+        })
+    })
+}
+
+/// Registers `specs`, each adapted by `adapt`, all under the plugin's
+/// namespace, or none of them.
+pub(crate) fn register_exporters(
+    registry: &mut Registry,
+    m: &Manifest,
+    specs: Vec<ExporterSpec>,
+    adapt: impl Fn(ExporterSpec) -> Arc<dyn ExporterType>,
+) -> Result<Vec<FeatureTypeId>, HostError> {
+    if !specs.is_empty() && !m.capabilities.document_read {
+        return Err(HostError::Capability {
+            plugin: m.id.to_string(),
+        });
+    }
+    let mut next = registry.clone();
+    let mut ids = Vec::new();
+    for spec in specs {
+        let id = FeatureTypeId::new(spec.id.clone()).map_err(RegistryError::from)?;
+        if id.plugin().as_ref() != Some(&m.id) {
+            return Err(HostError::Namespace {
+                plugin: m.id.to_string(),
+                type_id: spec.id,
+            });
+        }
+        ids.push(next.register_exporter(adapt(spec))?);
+    }
+    *registry = next;
+    Ok(ids)
 }
 
 /// Refuses a manifest of another tier, or built against another plugin API.
