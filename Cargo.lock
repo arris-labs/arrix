@@ -558,6 +558,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.21",
  "toml",
+ "wasm-encoder 0.258.3",
  "wasmparser 0.258.3",
  "wasmtime",
  "web-time",

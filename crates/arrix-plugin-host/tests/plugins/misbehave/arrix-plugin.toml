@@ -1,0 +1,14 @@
+# The misbehaving plugin's manifest. The fuel is small so a loop ends fast.
+[plugin]
+id = "misbehave"
+version = "0.1.0"
+api = "^0.6"
+tier = 0
+title = "Misbehave"
+licence = "MIT OR Apache-2.0"
+
+[capabilities]
+kernel = true
+
+[contributes]
+features = ["misbehave.fine", "misbehave.loop", "misbehave.panic", "misbehave.memory", "misbehave.kernel"]

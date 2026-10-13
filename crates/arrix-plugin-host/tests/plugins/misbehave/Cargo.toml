@@ -1,0 +1,23 @@
+# A Tier 1 test plugin that misbehaves on purpose (plans/c3-m1 step 8): it
+# loops, panics, grows its memory and calls the kernel, each by a feature
+# type of its own. Outside the workspace, so the gate never builds it for
+# the host; `tests/support/tier1.rs` builds it for wasm32 with `guest`.
+[package]
+name = "misbehave"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+guest = ["arrix-plugin-api/guest"]
+
+[dependencies]
+arrix-plugin-api = { path = "../../../../arrix-plugin-api" }
+
+[lints.rust]
+unsafe_code = "forbid"
