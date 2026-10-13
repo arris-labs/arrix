@@ -20,11 +20,27 @@ pub struct Manifest {
     /// Tier 2's longest silence before a call is a `plugin.timeout`; the
     /// host's default when the manifest sets none.
     pub timeout: Option<std::time::Duration>,
+    /// Tier 1's `[tier1]` table.
+    pub tier1: Option<Tier1>,
     pub capabilities: Capabilities,
     pub contributes: Contributes,
     /// The fixtures `arrix test` runs the plugin on.
     pub test: TestFixtures,
 }
+
+/// The `[tier1]` table (ADR-0035): the component, and the fuel it may use.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Tier1 {
+    /// The `.wasm`, relative to the plugin's directory and inside it.
+    pub component: String,
+    /// 1-based, in the manifest.
+    pub line: u32,
+    /// The fuel of one evaluation, when the manifest raises the default.
+    pub fuel: Option<u64>,
+}
+
+/// The most fuel a manifest may ask for (ADR-0035 §5).
+pub const MAX_FUEL: u64 = 1 << 36;
 
 /// A path named in the manifest and the line it is on, for the diagnostic
 /// of a fixture that is not there.
@@ -81,6 +97,7 @@ pub struct Contributes {
 struct Raw {
     plugin: RawPlugin,
     tier2: Option<RawTier2>,
+    tier1: Option<RawTier1>,
     #[serde(default)]
     capabilities: Capabilities,
     #[serde(default)]
@@ -115,6 +132,13 @@ struct RawTier2 {
     timeout_seconds: Option<f64>,
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawTier1 {
+    component: toml::Spanned<String>,
+    fuel: Option<toml::Spanned<i64>>,
+}
+
 #[derive(Clone, Debug, PartialEq, thiserror::Error)]
 pub enum ManifestError {
     #[error("the manifest is not valid: {0}")]
@@ -129,6 +153,14 @@ pub enum ManifestError {
     Tier(u8),
     #[error("a tier 2 plugin needs a [tier2] command, and only tier 2 has one")]
     Command,
+    #[error("a tier 1 plugin needs a [tier1] component, and only tier 1 has one")]
+    Component,
+    #[error(
+        "line {line}: `component` {path:?} is not a relative `.wasm` path inside the plugin's directory"
+    )]
+    ComponentPath { path: String, line: u32 },
+    #[error("line {line}: `fuel` {fuel} is not between 1 and {MAX_FUEL}")]
+    Fuel { fuel: i64, line: u32 },
     #[error("`timeout-seconds` {0} is not a positive number of seconds")]
     Timeout(f64),
 }
@@ -143,6 +175,44 @@ impl Manifest {
         if p.tier > 2 {
             return Err(ManifestError::Tier(p.tier));
         }
+        let line = |at: usize| 1 + text[..at].matches('\n').count() as u32;
+        let tier1 = match (p.tier, raw.tier1) {
+            (1, Some(t)) => {
+                let component = t.component.get_ref().clone();
+                let at = line(t.component.span().start);
+                let path = std::path::Path::new(&component);
+                let inside = path.is_relative()
+                    && path.extension().is_some_and(|e| e == "wasm")
+                    && path
+                        .components()
+                        .all(|c| matches!(c, std::path::Component::Normal(_)));
+                if !inside {
+                    return Err(ManifestError::ComponentPath {
+                        path: component,
+                        line: at,
+                    });
+                }
+                let fuel = match t.fuel {
+                    None => None,
+                    Some(f) => match u64::try_from(*f.get_ref()) {
+                        Ok(n) if (1..=MAX_FUEL).contains(&n) => Some(n),
+                        _ => {
+                            return Err(ManifestError::Fuel {
+                                fuel: *f.get_ref(),
+                                line: line(f.span().start),
+                            });
+                        }
+                    },
+                };
+                Some(Tier1 {
+                    component,
+                    line: at,
+                    fuel,
+                })
+            }
+            (1, None) | (_, Some(_)) => return Err(ManifestError::Component),
+            (_, None) => None,
+        };
         let (command, timeout) = match (p.tier, raw.tier2) {
             (2, Some(t)) if !t.command.is_empty() => {
                 let timeout = match t.timeout_seconds {
@@ -174,6 +244,7 @@ impl Manifest {
             licence: p.licence,
             command,
             timeout,
+            tier1,
             capabilities: raw.capabilities,
             contributes: raw.contributes,
             test: TestFixtures {
@@ -263,6 +334,57 @@ features = ["gears.spur"]
                 t2(&format!("timeout-seconds = {bad}")),
                 Err(ManifestError::Timeout(_))
             ));
+        }
+    }
+
+    #[test]
+    fn reads_a_tier1_table_and_refuses_it_elsewhere() {
+        let t1 = |table: &str| {
+            Manifest::parse(
+                &GEARS
+                    .replace("tier = 0", "tier = 1")
+                    .replace("[capabilities]", &format!("{table}\n[capabilities]")),
+            )
+        };
+        let first = 11; // the line after `[capabilities]`'s old place
+        let m = t1("[tier1]\ncomponent = \"gears.wasm\"").unwrap();
+        let t = m.tier1.unwrap();
+        assert_eq!((t.component.as_str(), t.fuel), ("gears.wasm", None));
+        assert_eq!(t.line, first);
+        let m = t1("[tier1]\ncomponent = \"lib/g.wasm\"\nfuel = 5000000000").unwrap();
+        assert_eq!(m.tier1.unwrap().fuel, Some(5_000_000_000));
+        assert!(Manifest::parse(GEARS).unwrap().tier1.is_none());
+
+        // Required on tier 1, refused on any other.
+        assert!(matches!(t1(""), Err(ManifestError::Component)));
+        let on_tier0 = GEARS.replace(
+            "[capabilities]",
+            "[tier1]\ncomponent = \"g.wasm\"\n[capabilities]",
+        );
+        assert!(matches!(
+            Manifest::parse(&on_tier0),
+            Err(ManifestError::Component)
+        ));
+
+        // A path that leaves the directory, is absolute, or is no `.wasm`.
+        for bad in ["../g.wasm", "/g.wasm", "g.so", "a/../g.wasm"] {
+            assert!(
+                matches!(
+                    t1(&format!("[tier1]\ncomponent = {bad:?}")),
+                    Err(ManifestError::ComponentPath { line, .. }) if line == first
+                ),
+                "{bad}"
+            );
+        }
+        // Fuel is a positive number within the cap, and the refusal names its line.
+        for bad in ["0", "-1", "68719476737"] {
+            assert!(
+                matches!(
+                    t1(&format!("[tier1]\ncomponent = \"g.wasm\"\nfuel = {bad}")),
+                    Err(ManifestError::Fuel { line, .. }) if line == first + 1
+                ),
+                "{bad}"
+            );
         }
     }
 

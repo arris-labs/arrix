@@ -234,7 +234,8 @@ fn a_plugin_that_does_not_fit_is_refused_whole() {
             Err(HostError::Api { .. })
         ));
     }
-    let tier1 = manifest("demo", "0.1.0", "^0.6").replace("tier = 0", "tier = 1");
+    let tier1 = manifest("demo", "0.1.0", "^0.6").replace("tier = 0", "tier = 1")
+        + "\n[tier1]\ncomponent = \"demo.wasm\"\n";
     assert!(matches!(
         register_tier0(&mut r, &tier1, demo()),
         Err(HostError::Tier {

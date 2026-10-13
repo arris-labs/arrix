@@ -265,6 +265,10 @@ licence = "MIT OR Apache-2.0"
 command = ["python", "-m", "arrix_fasteners"]
 timeout-seconds = 30         # optional: the longest silence in a call
 
+[tier1]                      # Tier 1 only (ADR-0035)
+component = "gears.wasm"     # a relative .wasm path inside the plugin's directory
+fuel = 1073741824            # optional: fuel per evaluation, up to 2^36 (default 2^30)
+
 [capabilities]               # §Capabilities
 kernel = true
 document-read = true
@@ -288,7 +292,10 @@ manifest's file and line, as for any other table.
 Contributed ids are `<plugin-id>.<name>`. `core.` is reserved for built-ins.
 `arrix_plugin_host::Manifest::parse` refuses an unknown key, a `version`
 that is not semver, an `api` that is not a range, a tier past 2, and a
-`[tier2]` section on any tier but 2 (or its absence there), and a
+`[tier2]` section on any tier but 2 (or its absence there), a `[tier1]`
+section on any tier but 1 (or its absence there), a `component` that is
+not a relative `.wasm` path inside the directory, a `fuel` outside 1 to
+2^36 (each of those two naming its line), and a
 `timeout-seconds` that is not a positive number (default 30). The timeout
 bounds each wait for the plugin's next line, not a call: the kernel's time
 while the plugin waits is the host's.
