@@ -32,6 +32,7 @@ mod session;
 mod step_tree;
 mod zip;
 
+pub use arrix_kernel::Interrupt;
 pub use assembly::{Anchor, Assembly, Component, ComponentOf, Joint, JointKind, Pose};
 pub use authority::{AuthorId, Authority, Change, CommandEnvelope, Generation, Outcome, Rejected};
 pub use command::{Applied, Command, CommandError, FeatureEdit, apply};

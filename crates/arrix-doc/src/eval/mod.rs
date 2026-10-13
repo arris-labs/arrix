@@ -764,6 +764,7 @@ impl Evaluator {
                     })
                 })
                 .transpose()?,
+            interrupt: kernel.interrupt(),
             ..FeatureArgs::default()
         };
         for p in &spec.params {

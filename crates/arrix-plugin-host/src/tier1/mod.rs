@@ -11,19 +11,26 @@
 //! is `'static`, so the component runs on a scoped thread of its own and
 //! asks for each kernel call over a channel, the evaluator's thread
 //! answering, as a Tier 2 process asks over its pipe.
+//!
+//! The evaluator's interrupt reaches a running component through the
+//! engine's epoch, ticked every [`TICK`] by one thread: a store's deadline
+//! callback looks at the flag on each tick and traps if it is raised
+//! (ADR-0035 §7). The clock decides only when the flag is looked at;
+//! fuel is the only budget in a result.
 
 mod value;
 
 use std::path::Path;
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::sync::{Arc, OnceLock};
+use std::time::Duration;
 
 use arrix_core::Diagnostic;
-use arrix_doc::{FeatureArgs, FeatureType, FeatureTypeId, Registry, TypeOutput};
+use arrix_doc::{FeatureArgs, FeatureType, FeatureTypeId, Interrupt, Registry, TypeOutput};
 use arrix_plugin_api::{API_VERSION, ChoiceValue, FeatureTypeSpec, Kernel};
 use serde_json::{Map, Value, json};
 use wasmtime::component::{Component, InstancePre, Linker, ResourceType, Val};
-use wasmtime::{Config, Engine, ResourceLimiter, Store, Trap};
+use wasmtime::{Config, Engine, ResourceLimiter, Store, Trap, UpdateDeadline};
 
 use crate::manifest::Manifest;
 use crate::tier0::{HostError, check, error, register_types};
@@ -40,15 +47,32 @@ pub const DEFAULT_FUEL: u64 = 1 << 30;
 const MEMORY: usize = 256 << 20;
 const TABLE: usize = 100_000;
 
-/// The engine every Tier 1 plugin compiles on.
+/// How often a running component looks at the interrupt flag: a tenth of
+/// the cancellation budget (docs/CONCURRENCY-WASM.md §Budgets).
+const TICK: Duration = Duration::from_millis(5);
+
+/// The engine every Tier 1 plugin compiles on, and the thread that ticks
+/// its epoch, started with it.
 fn engine() -> &'static Engine {
     static ENGINE: OnceLock<Engine> = OnceLock::new();
     ENGINE.get_or_init(|| {
         let mut config = Config::new();
         config.wasm_component_model(true);
         config.consume_fuel(true);
+        config.epoch_interruption(true);
         config.cranelift_nan_canonicalization(true);
-        Engine::new(&config).expect("the Tier 1 engine's configuration is valid")
+        let engine = Engine::new(&config).expect("the Tier 1 engine's configuration is valid");
+        let ticked = engine.clone();
+        std::thread::Builder::new()
+            .name("arrix-tier1-epoch".to_owned())
+            .spawn(move || {
+                loop {
+                    std::thread::sleep(TICK);
+                    ticked.increment_epoch();
+                }
+            })
+            .expect("the epoch thread starts");
+        engine
     })
 }
 
@@ -73,6 +97,8 @@ enum Ended {
     /// A kernel call that ended it (refused, malformed or interrupted).
     Call(CallError),
     Fuel,
+    /// The evaluator's interrupt, raised while it ran.
+    Interrupted,
     Memory,
     Trap(String),
 }
@@ -119,12 +145,14 @@ impl Plugin {
     }
 
     /// Calls the `feature` export `func` with `args` (the wire's params by
-    /// name) in a fresh store, its kernel calls asked over `calls`.
+    /// name) in a fresh store, its kernel calls asked over `calls`, until
+    /// it returns or `interrupt` is raised.
     fn call(
         &self,
         func: &str,
         args: &Map<String, Value>,
         calls: Option<Calls>,
+        interrupt: Interrupt,
     ) -> Result<Value, Ended> {
         let mut store = Store::new(
             engine(),
@@ -136,6 +164,14 @@ impl Plugin {
         );
         store.limiter(|s| s);
         store.set_fuel(self.fuel).expect("fuel is configured");
+        store.set_epoch_deadline(1);
+        store.epoch_deadline_callback(move |_| {
+            Ok(if interrupt.is_raised() {
+                UpdateDeadline::Interrupt
+            } else {
+                UpdateDeadline::Continue(1)
+            })
+        });
         let run = |store: &mut Store<State>| -> Result<Value, wasmtime::Error> {
             let instance = self.pre.instantiate(&mut *store)?;
             let feature = instance
@@ -163,6 +199,8 @@ impl Plugin {
                 Ended::Call(c)
             } else if e.downcast_ref::<Trap>() == Some(&Trap::OutOfFuel) {
                 Ended::Fuel
+            } else if e.downcast_ref::<Trap>() == Some(&Trap::Interrupt) {
+                Ended::Interrupted
             } else if state.past_limit {
                 Ended::Memory
             } else {
@@ -189,6 +227,9 @@ impl Ended {
         let (code, what) = match self {
             Ended::Call(c) => return c.diagnostic(plugin, during),
             Ended::Fuel => ("plugin.fuel", "ran out of fuel".to_owned()),
+            // A stop like a kernel call's, which the evaluator reads as the
+            // caller's and not the feature's.
+            Ended::Interrupted => ("kernel.interrupted", "was interrupted".to_owned()),
             Ended::Memory => (
                 "plugin.memory",
                 format!("grew past its {} MiB of memory", MEMORY >> 20),
@@ -310,6 +351,7 @@ impl FeatureType for Tier1Type {
             unreachable!("an object literal")
         };
         let allowed = plugin.manifest.capabilities.kernel;
+        let interrupt = args.interrupt.clone();
         let (ask, asked) = channel();
         let (answer, answers) = channel();
         let result = std::thread::scope(|s| {
@@ -318,7 +360,12 @@ impl FeatureType for Tier1Type {
                     ask: ask.clone(),
                     answers,
                 };
-                let _ = ask.send(Ask::Done(plugin.call("evaluate", &params, Some(calls))));
+                let _ = ask.send(Ask::Done(plugin.call(
+                    "evaluate",
+                    &params,
+                    Some(calls),
+                    interrupt,
+                )));
             });
             loop {
                 match asked.recv().expect("the component's thread answers once") {
@@ -383,7 +430,7 @@ pub fn register_tier1(
         pre,
     };
     let specs = plugin
-        .call("describe", &Map::new(), None)
+        .call("describe", &Map::new(), None, Interrupt::default())
         .map_err(|e| failed(&id, e.diagnostic(&id, "describing").message))
         .and_then(|v| {
             list_from(&v, feature_type_spec_from_json)

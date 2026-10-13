@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use arrix_core::{Diagnostic, FeatureId, SlotName};
+use arrix_kernel::Interrupt;
 use arrix_plugin_api::{
     FeatureOutput, FeatureTypeSpec, InputKind, Kernel, ParamValue, ResolvedInput, SlotKind,
 };
@@ -104,13 +105,17 @@ pub trait FileKernel: Kernel {
 /// What the evaluator resolved for one feature: every parameter of the
 /// type's form in SI (the record's expression or the form's default), its
 /// plain choices as written, the inputs the record gives, in the form's
-/// order, and a `core.sketch` record's sketch.
-#[derive(Debug, Default, PartialEq)]
+/// order, and a `core.sketch` record's sketch. `interrupt` is the
+/// evaluator's flag, for a host that runs a plugin's code outside the
+/// kernel to stop it by (docs/CONCURRENCY-WASM.md §Cancellation); it is
+/// never handed to a plugin.
+#[derive(Debug, Default)]
 pub struct FeatureArgs {
     pub params: Vec<ParamValue>,
     pub choices: BTreeMap<String, String>,
     pub inputs: Vec<ResolvedInput>,
     pub sketch: Option<SketchArgs>,
+    pub interrupt: Interrupt,
 }
 
 /// A record's sketch with every driving dimension's expression resolved

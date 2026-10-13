@@ -31,9 +31,13 @@ NATIVE_ONLY = ("crates/arrix-cli/",)
 # Path prefixes where a rule does not apply, besides NATIVE_ONLY.
 PERMITTED = {
     # The session and evaluator threads (docs/CONCURRENCY-WASM.md §Roles and
-    # threads); a web worker in C4. And a Tier 2 plugin's stdout reader,
-    # native only (cfg-gated out of the wasm build).
-    "thread": ("crates/arrix-doc/src/executor", "crates/arrix-plugin-host/src/tier2"),
+    # threads); a web worker in C4. And a Tier 2 plugin's stdout reader and
+    # Tier 1's epoch ticker, native only (cfg-gated out of the wasm build).
+    "thread": (
+        "crates/arrix-doc/src/executor",
+        "crates/arrix-plugin-host/src/tier1",
+        "crates/arrix-plugin-host/src/tier2",
+    ),
     # The app's native file dialog, config files and document files, its
     # binary's native entry (`arrix-app render` writes its PNG and JSON,
     # ADR-0025), and the plugin host (manifests, Tier 1 and Tier 2 on native).

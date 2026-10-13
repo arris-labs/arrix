@@ -60,7 +60,14 @@ preclude (`SEED.md` §6.1). Locally all three are in one process.
   commit raises the flag: a preview never stops a commit, and a preview a
   commit or a newer preview supersedes stops at its next feature or mesh.
   A spent step budget (`kernel.interrupted.budget`) is a failure like any
-  other, not a stop.
+  other, not a stop. A Tier 1 component running its own code between
+  kernel calls is stopped by the same flag (ADR-0035 §7): the evaluator
+  hands it to the type in `FeatureArgs`, never to the plugin, one thread
+  ticks the wasmtime engine's epoch every 5 ms, and each store's deadline
+  callback traps on a tick that finds the flag raised, which ends the
+  feature as `kernel.interrupted`, a stop and not `plugin.fuel`
+  (`crates/arrix-plugin-host/tests/tier1_cancel.rs`, held to the 50 ms
+  budget).
 - **Events carry their generation.** A client drops an event older than
   the latest generation it has drawn for that feature.
   As built: the worker publishes each feature's event as it is made and
