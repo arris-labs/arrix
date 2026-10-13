@@ -36,7 +36,9 @@ Tier 2 Python plugins, `arrix serve --stdio`, headless `arrix-app render`,
 ADR-0029): `--test c2_m1`.
 **C2 M2 done 2026-10-12** (assemblies in the app, the joint drag; ADR-0030):
 `cargo test -p arrix-app --test visual c2_m2_accept`.
-**Next:** C2 M3, exchange and the accept (`docs/ROADMAP.md`); plan it.
+**C2 M3 done 2026-10-13** (STEP with structure both ways in metres,
+materials, mass; ADR-0031 to ADR-0033; `arris` 0.8): `--test c2_accept`.
+**Next:** `/close-cycle` C2 (`docs/ROADMAP.md`).
 
 ## Rules that are not derivable from the code
 
