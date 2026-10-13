@@ -3,12 +3,13 @@
 The plugin model is ArriX's reason to exist (`SEED.md` §3, §6.3): one
 interface, versioned apart from the app, hosted three ways, and enough of it
 that first-party domains need nothing else. This document is the design of
-`arrix-plugin-api` and `arrix-plugin-host`. Built, as of C1: the world and
-its Rust traits at 0.6.0 (§One interface), manifests (§The manifest), Tier 0
-hosting (§Three tiers), the test kit (§The test kit, `arrix test`), and the
-first plugin, `plugins/gears` with `gears.spur` (its crate docs state its
-geometry and tolerance). Tier 2 is built (boundary-opened M1), as is the
-kit (M3); Tier 1 and `arrix-plugin-test` come with C3 (ADR-0016).
+`arrix-plugin-api` and `arrix-plugin-host`. Built, as of C3 M1: the world and
+its Rust traits at 0.6.0 (§One interface), the Rust guest SDK (`guest`
+feature, `export_plugin!`), manifests (§The manifest), Tier 0, Tier 1 and
+Tier 2 hosting (§Three tiers), the test kit (§The test kit, `arrix test`),
+and the first plugin, `plugins/gears` with `gears.spur` (its crate docs
+state its geometry and tolerance), at Tier 0 or as a Tier 1 component.
+`arrix-plugin-test` comes with C3 M3 (ADR-0034).
 
 ## One interface, defined once
 
@@ -206,7 +207,7 @@ change, reviewed like any other, never a private hook.
   evaluator carries on; natively only, since a wasm32 build aborts on a
   panic. A panic inside a kernel call it made is caught the same way, but
   the model's state after one is not vouched for.
-- **Tier 1** (ADR-0035; designed, built in C3 M1) runs a component in
+- **Tier 1** (ADR-0035; built in C3 M1) runs a component in
   `wasmtime` with the component model, native only. A Rust author depends
   on `arrix-plugin-api` alone, enables its `guest` feature, writes
   `arrix_plugin_api::export_plugin!(MyFeature)` under `forbid(unsafe_code)`
@@ -244,10 +245,14 @@ shapes generated from the WIT world (ADR-0022): `kernel.extrude`,
 `f32` and `u32` runs as base64. `arrix serve --stdio` uses the same
 framing.
 
-A Tier 2 plugin is loaded into a running session by a request, not a
-command (ADR-0024): `session.load_plugin` takes a plugin directory, and
-`session.reload_plugin` restarts the process from where it was loaded, so
-an edit to its source is seen with no rebuild. `arrix serve --plugin
+A Tier 1 or Tier 2 plugin is loaded into a running session by a request,
+not a command (ADR-0024): `session.load_plugin` takes a plugin directory
+and loads it at the tier its manifest names, and `session.reload_plugin`
+loads it again from where it was loaded (the process restarted, the
+component re-read), so an edit to its source or a rebuilt `.wasm` is seen
+with no rebuild of ArriX. A directory takes the place of a compiled-in
+plugin of the same id (a Tier 1 `gears` for the Tier 0 one), here and in
+`--plugin` everywhere. `arrix serve --plugin
 <dir>` loads at start. Each makes a generation, and the features frozen
 for lack of the plugin evaluate live. Unloading is not built. A plugin calls `kernel.*` while it answers `feature.evaluate`.
 
@@ -460,7 +465,9 @@ only, whatever the manifest says, because determinism demands it.
 
 A plugin feature evaluates frozen when its plugin is not installed, its
 version or API range does not match, its tier cannot run here (Tier 2 in
-the browser, Tier 1 in the browser until an ADR), or the user disabled it.
+the browser, Tier 1 in the browser until an ADR: a wasm build has no
+`tier1` module, so a Tier 1 plugin is not in its registry and its features
+are frozen as any plugin's absent), or the user disabled it.
 The reason is shown on the feature and in `arrix eval`'s output. The
 states, staleness and re-freezing are in `docs/DATA-MODEL.md` §Frozen
 results.
@@ -470,7 +477,7 @@ results.
 A plugin is tested headless, with no window and no human, the same way
 ArriX tests itself. `arrix test <plugin-dir> [--plugin <dir>]… [--schema]`
 runs the checks below on any plugin directory, whatever its tier, and
-`plugins/gears` and `python/examples/standoff` pass it. The plugin's
+`plugins/gears` (built in, or as a Tier 1 component) and `python/examples/standoff` pass it. At Tier 1 a fresh store per evaluation is the determinism check's fresh process. The plugin's
 manifest names its fixture documents in `[test]` (§The manifest), kept
 inside the plugin's directory so a plugin outside the repository is as
 self-contained as these (`plugins/gears/fixtures/gear-on-plane`,

@@ -4,8 +4,7 @@ The crates, the rules between them, the one data flow, where threads run,
 the kernel's choke point, errors, testing and the gate. The charter is
 `SEED.md` §6; the document model is `docs/DATA-MODEL.md`, the plugin model
 `docs/PLUGINS.md`, the UI `docs/UI-RENDERING.md`, threads and the browser
-`docs/CONCURRENCY-WASM.md`. Built, as of C1 and the boundary's M1: every crate of §Crates
-but the Tier 1 half of `arrix-plugin-host`
+`docs/CONCURRENCY-WASM.md`. Built, as of C3 M1: every crate of §Crates
 (`arrix-plugin-api` is at 0.6.0), the protocol boundary, errors and
 diagnostics, the kernel choke point, the testing layers and the gates. Where
 a section says "not built", it is later than C1.
@@ -23,7 +22,7 @@ unless an ADR says otherwise.
 | `arrix-sketch` | the sketch model and `SketchEdit`, the constraint solver and diagnostics, regions and their keyed profiles, trim/extend/offset/mirror, inference (ported) | core | `serde`, `thiserror` |
 | `arrix-plugin-api` | the WIT world, its Rust traits and plain types; semver of its own | core | `libm` (`math`, ADR-0036), `wit-bindgen` (the `guest` feature, ADR-0035), `wit-parser` (the equality test only, dev) |
 | `arrix-doc` | document, parameters and expressions, DAG, feature registry, commands, undo, evaluator, `.arrx`, the `arrix eval` line, the `PluginLoader` trait, the protocol's schemas (`schema` feature, as in core, sketch and plugin-api); reads no files (a `DocumentSource` hands it bytes) | core, kernel, sketch, plugin-api | `serde_json`, `blake3`, `miniz_oxide`, `crc32fast` |
-| `arrix-plugin-host` | tier 0/1/2 hosting, manifests, capabilities, the frozen fallback; the wire (ADR-0022): the JSON-RPC framing and a codec per plugin-API type, generated from the WIT by `arrix-plugin-api`'s `tests/wire.rs`; the Tier 2 host (`tier2`, native only: spawn, handshake, kernel callbacks, timeout, restart) | core, doc, plugin-api, and `arrix-gears` (its Tier 1 tests, dev) | `toml`, `semver`, `serde_json`, `wasmtime` (native, C3; for now the Tier 1 probe's, dev, with `wit-component` and `wasmparser`) |
+| `arrix-plugin-host` | tier 0/1/2 hosting, manifests, capabilities, the frozen fallback; the wire (ADR-0022): the JSON-RPC framing and a codec per plugin-API type, generated from the WIT by `arrix-plugin-api`'s `tests/wire.rs`; the Tier 1 host (`tier1`, native only: wasmtime, a store per evaluation, fuel, epoch cancellation, ADR-0035), the Tier 2 host (`tier2`, native only: spawn, handshake, kernel callbacks, timeout, restart), and the directory loader (`DirLoader`, `register_dir`) | core, doc, plugin-api, and `arrix-gears` (its Tier 1 tests, dev) | `toml`, `semver`, `serde_json`, `wasmtime`, `wit-component`, `wasmparser` (native only) |
 | `arrix-viewport` | wgpu scene, ID-buffer picking, overlays, camera (ported) | core | `wgpu`, `egui-wgpu`, `glam`, `bytemuck` |
 | `arrix-ui` | egui widgets over plain view types; the declarative-UI renderer | core, viewport, plugin-api (UI types only) | `egui` |
 | `arrix-config` | the user's configuration (ADR-0015): setting specs, the layered model (built-in defaults, then the user's directory), each file's diagnostics with its file and line; reads no files (a `ConfigSource` hands it bytes); never reaches the document or `evaluate`. Holds the settings, the command registry (`CommandSpec` as plain data), the keymap, the themes and the feature parameter defaults (their expression check is handed in by the caller, since this crate cannot depend on `arrix-doc`). Read by app and cli; not by `arrix-ui`, which gets plain view data | core, plugin-api | `toml`, `serde` |
@@ -168,7 +167,7 @@ remote mode is built.
 
 The authority owns the registry (ADR-0024). `Request::LoadPlugin { dir }`
 and `ReloadPlugin { plugin }` go to the `PluginLoader` that
-`LocalSession::open_with` was handed (`arrix-plugin-host`'s `Tier2Loader`);
+`LocalSession::open_with` was handed (`arrix-plugin-host`'s `DirLoader`, which loads a directory at the tier its manifest names);
 with none, they are `Rejected::NoPluginLoader`, and a failed load is
 `Rejected::PluginLoad`. Neither is a command: no undo entry, no gesture,
 no document change, and nothing persisted. Each makes a new generation
@@ -529,7 +528,9 @@ tests of **pre-push** cover it with no step of their own.
    rename is seen through; dev and build dependencies included) against
    the allowed-edges table of §Crates, kept in the script; a crate the
    table does not name fails until it is added; `arris*` only in
-   `arrix-kernel`, `egui*`/`eframe`/`wgpu*` only in viewport, ui and app;
+   `arrix-kernel`, `egui*`/`eframe`/`wgpu*` only in viewport, ui and app,
+   `wasmtime*`/`wit-component`/`wasmparser` (the Tier 1 engine, ADR-0035)
+   only in `arrix-plugin-host`;
    and `arrix-ui` must not reach `arrix-doc` or `arrix-sketch`
    transitively, so a re-export cannot carry a doc type to it. **Paths**:
    source as written, no `arris::` outside `arrix-kernel`, no egui, eframe

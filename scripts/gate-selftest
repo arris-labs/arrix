@@ -87,6 +87,7 @@ CASES = [
         1,
     ),
     ("egui dependency in arrix-doc", "layer-lint", "crates/arrix-doc/Cargo.toml", "egui.workspace = true\n", 1),
+    ("wasmtime dependency in arrix-doc", "layer-lint", "crates/arrix-doc/Cargo.toml", "wasmtime.workspace = true\n", 1),
     ("egui path in arrix-doc", "layer-lint", "crates/arrix-doc/src/lib.rs", "\npub use egui::Context;\n", 1),
     ("egui named in a comment in arrix-doc", "layer-lint", "crates/arrix-doc/src/lib.rs", "\n// egui::Context\n", 0),
     ("arris path outside arrix-kernel", "layer-lint", "crates/arrix-doc/src/lib.rs", "\npub use arris::Model;\n", 1),

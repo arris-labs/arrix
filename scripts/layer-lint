@@ -72,12 +72,19 @@ ALLOWED = {
 # Every package under plugins/: the plugin API alone, first-party included.
 PLUGIN_ALLOWED = {"arrix-plugin-api"}
 
+# (the Tier 1 engine, ADR-0035, is `arrix-plugin-host`'s alone: `wasmtime`,
+# `wit-component` and `wasmparser`; a plugin names none of it either, the
+# path rule below).
 # Crates `arrix-ui` must not reach, directly or through another crate.
 UI_UNREACHABLE = {"arrix-doc", "arrix-sketch"}
 
 
 def is_kernel_dep(name):
     return name == "arris" or name.startswith("arris-")
+
+
+def is_component_dep(name):
+    return name in ("wasmtime", "wit-component", "wasmparser") or name.startswith("wasmtime-")
 
 
 def is_ui_dep(name):
@@ -123,6 +130,8 @@ def check_edges(packages):
                 found.append(f"{name} -> {dep}: {what}")
             elif is_kernel_dep(dep) and name != "arrix-kernel":
                 found.append(f"{name} -> {dep}: Arris only in arrix-kernel")
+            elif is_component_dep(dep) and name != "arrix-plugin-host" and not is_plugin:
+                found.append(f"{name} -> {dep}: the component engine only in arrix-plugin-host")
             elif is_ui_dep(dep) and name not in UI_CRATES:
                 found.append(f"{name} -> {dep}: egui/eframe/wgpu only in viewport, ui and app")
     # The transitive rule, for when the table itself is edited wrongly.
