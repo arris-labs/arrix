@@ -184,7 +184,7 @@ per session: a newer one, `ClearPreview` or an applied change ends it, and
 its events stop there.
 
 An **export** is a request and no command: `Request::Export { bodies, format,
-assembly }` (no bodies: every final body; an `assembly` with `format: Step`
+assembly, exporter }` (no bodies: every final body; an `assembly` with `format: Step`
 writes that assembly's product structure instead, ADR-0032 §5) is answered `Exporting`, makes no
 generation, no undo entry and no gesture, and `SessionEvent::Exported {
 generation, format, bytes }` follows with the file, or the diagnostic that
@@ -194,6 +194,14 @@ evaluation, after that commit is evaluated and before any preview, however
 many previews or edits came before it; the bodies go in the document's
 order. Headless, `arrix_doc::export` (and `export_assembly`) opens,
 evaluates and writes the same file, with the evaluation's line beside it.
+With an `exporter` (`{id, subject: part | assembly, params, choices}`,
+ADR-0037) the request runs that exporter on the same evaluation instead:
+`Exported` then carries `files` (name and bytes, the main file first) and
+an empty `bytes`, or the diagnostic (`export.unknown-exporter`,
+`export.subject`, `export.path`, a `feature.*` for an option). The fields are
+optional and defaulted, so the protocol stays at version 1 (ADR-0026 §3);
+headless it is `arrix_doc::export_with_exporter`, and `arrix export
+--exporter` writes one file as given or several into a directory.
 An assembly's tree is a part a product written once, a component an
 occurrence at its solved pose in its parent, a nested assembly a
 sub-assembly, the part's final bodies its solids and its material's

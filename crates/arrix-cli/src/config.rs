@@ -19,6 +19,8 @@ pub struct Loaded {
     pub dir: Option<PathBuf>,
     pub commands: CommandRegistry,
     pub types: Vec<FeatureTypeSpec>,
+    /// The plugins' exporters (ADR-0037), in id order.
+    pub exporters: Vec<arrix_plugin_api::ExporterSpec>,
     /// The manifests of the Tier 1 and 2 plugins loaded with `--plugin`.
     pub tier2: Vec<Manifest>,
     pub config: Config,
@@ -38,6 +40,7 @@ pub fn load(dir: Option<&Path>, plugin_dirs: &[PathBuf]) -> Result<Loaded, Strin
     let mut registry = plugins::registry();
     let tier2 = plugins::register_dirs(&mut registry, plugin_dirs)?;
     let types = plugins::feature_types(&registry);
+    let exporters = registry.exporter_specs();
     let commands = CommandRegistry::new(&types);
     let config = match &dir {
         Some(dir) => Config::load(
@@ -57,6 +60,7 @@ pub fn load(dir: Option<&Path>, plugin_dirs: &[PathBuf]) -> Result<Loaded, Strin
         dir,
         commands,
         types,
+        exporters,
         tier2,
         config,
     })

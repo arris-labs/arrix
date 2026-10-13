@@ -55,11 +55,11 @@ pub use eval::check_export_name;
 pub use eval::eval_line_schema;
 pub use eval::{
     AssemblyLine, AssemblyMassLine, AssemblyOutcome, BodyLine, BodyMeasures, BodySlot, EVAL_FORMAT,
-    EvalEvent, EvalLine, EvalStatus, Evaluation, Evaluator, ExportError, ExportedFile, FailedCall,
-    FeatureLine, FeatureOutcome, FinalBody, FrozenInfo, FrozenReason, InputHash, JointOutcome,
-    MassLine, Masses, MaterialLine, ParamLine, PartMassLine, PlacedComponent, RegionView, Run,
-    SavedRecipe, SketchView, SlotView, Sweep, SweepError, SweepPoint, eval, export,
-    export_assembly, place, run, sweep,
+    EvalEvent, EvalLine, EvalStatus, Evaluation, Evaluator, ExportError, ExportedFile,
+    ExporterFiles, FailedCall, FeatureLine, FeatureOutcome, FinalBody, FrozenInfo, FrozenReason,
+    InputHash, JointOutcome, MassLine, Masses, MaterialLine, ParamLine, PartMassLine,
+    PlacedComponent, RegionView, Run, SavedRecipe, SketchView, SlotView, Sweep, SweepError,
+    SweepPoint, eval, export, export_assembly, export_with_exporter, place, run, sweep,
 };
 pub use frozen::{BlobRef, Frozen, FrozenResult, InvalidBlobRef};
 pub use import_products::{ImportError, Imported, import_products};
@@ -74,8 +74,9 @@ pub use save::{save, to_json};
 #[cfg(feature = "schema")]
 pub use session::protocol_schemas;
 pub use session::{
-    DocHash, EventStream, LocalSession, PROTOCOL_VERSION, ParamValues, PluginLoader, PreviewBody,
-    PreviewId, PreviewTag, Replica, ReplicaError, Request, Session, SessionEvent,
+    DocHash, EventStream, ExportSubject, ExportedFileEvent, ExporterRequest, LocalSession,
+    PROTOCOL_VERSION, ParamValues, PluginLoader, PreviewBody, PreviewId, PreviewTag, Replica,
+    ReplicaError, Request, Session, SessionEvent,
 };
 pub use step_tree::{Placement, StepNode, StepTree, read_step_tree};
 pub use zip::{ZipError, from_zip, open_zip, save_zip, to_zip};

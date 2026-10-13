@@ -3,7 +3,10 @@
 //! user sees, in the document's order, through the kernel's recorded
 //! export.
 
+use std::collections::BTreeMap;
+
 use arrix_core::{AssemblyId, Diagnostic, ExportFormat, Severity};
+use arrix_plugin_api::{ExportFile, Subject};
 
 use super::{BodySlot, EvalLine, Evaluator, FinalBody, host};
 use crate::open::{DocumentSource, OpenError, open};
@@ -67,6 +70,54 @@ pub fn export_assembly(
         .map_err(ExportError::Export)?;
     Ok(ExportedFile {
         bytes,
+        line: evaluation.line(doc, &document),
+    })
+}
+
+/// A document exported by an exporter (ADR-0037): the files it wrote, the
+/// main one first, and the evaluation they were made from.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ExporterFiles {
+    pub files: Vec<ExportFile>,
+    pub line: EvalLine,
+}
+
+/// Opens and evaluates like [`eval`](super::eval), then runs the
+/// registry's exporter `exporter` on `subject` with the options `params`
+/// (expressions) and `choices` (words), as the evaluator's
+/// [`export_with`](Evaluator::export_with) does. `export.unknown-exporter`
+/// names an id the registry does not have.
+pub fn export_with_exporter(
+    doc: &str,
+    source: &impl DocumentSource,
+    registry: &Registry,
+    exporter: &str,
+    subject: Subject,
+    params: &BTreeMap<String, String>,
+    choices: &BTreeMap<String, String>,
+) -> Result<ExporterFiles, ExportError> {
+    let document = open(source)?;
+    let Some(ty) = registry.exporter(exporter) else {
+        return Err(ExportError::Export(error(
+            "export.unknown-exporter",
+            format!("no exporter `{exporter}`"),
+        )));
+    };
+    let ty = ty.clone();
+    let mut evaluator = Evaluator::new(registry.clone());
+    let evaluation = evaluator.evaluate(&document);
+    let files = evaluator
+        .export_with(
+            &document,
+            &evaluation,
+            ty.as_ref(),
+            subject,
+            params,
+            choices,
+        )
+        .map_err(ExportError::Export)?;
+    Ok(ExporterFiles {
+        files,
         line: evaluation.line(doc, &document),
     })
 }

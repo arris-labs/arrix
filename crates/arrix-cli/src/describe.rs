@@ -76,6 +76,7 @@ pub fn describe(loaded: &Loaded) -> Value {
         dir,
         commands,
         types,
+        exporters,
         tier2,
         config,
     } = loaded;
@@ -143,6 +144,45 @@ pub fn describe(loaded: &Loaded) -> Value {
             json!({"id": ty.id, "title": ty.title, "params": params})
         })
         .collect();
+    // The core's formats are exporters too (ADR-0037 §10), written natively
+    // from the final bodies; a plugin's follow, in id order.
+    let core = arrix_core::ExportFormat::ALL.iter().map(|f| {
+        json!({
+            "id": format!("core.{}", f.extension()),
+            "title": f.extension().to_uppercase(),
+            "extension": f.extension(),
+            "subject": "document",
+            "params": [],
+            "choices": [],
+        })
+    });
+    let exporter_list: Vec<_> = core
+        .chain(exporters.iter().map(|e| {
+            let params: Vec<_> = e
+                .params
+                .iter()
+                .map(|p| {
+                    json!({"name": p.name, "title": p.title, "kind": p.kind, "default": p.default})
+                })
+                .collect();
+            let choices: Vec<_> = e
+                .choices
+                .iter()
+                .map(|c| {
+                    let options: Vec<_> = c.options.iter().map(|o| o.name.as_str()).collect();
+                    json!({"name": c.name, "title": c.title, "default": c.default, "options": options})
+                })
+                .collect();
+            json!({
+                "id": e.id,
+                "title": e.title,
+                "extension": e.extension,
+                "subject": format!("{:?}", e.subject).to_lowercase(),
+                "params": params,
+                "choices": choices,
+            })
+        }))
+        .collect();
     json!({
         "schema": SCHEMA,
         "config_dir": dir.as_ref().map(|d| d.display().to_string()),
@@ -159,6 +199,7 @@ pub fn describe(loaded: &Loaded) -> Value {
             "roles": roles,
         },
         "feature_types": feature_types,
+        "exporters": exporter_list,
         "diagnostics": config.diagnostics,
     })
 }
@@ -225,6 +266,40 @@ fn render(d: &Value) -> String {
                 text(&p["kind"]),
                 text(&p["effective"]),
                 text(&p["default"])
+            );
+        }
+    }
+    for e in d["exporters"].as_array().into_iter().flatten() {
+        let _ = writeln!(
+            out,
+            "\nexporter {} ({}): a {} to .{}",
+            text(&e["id"]),
+            text(&e["title"]),
+            text(&e["subject"]),
+            text(&e["extension"])
+        );
+        for p in e["params"].as_array().into_iter().flatten() {
+            let _ = writeln!(
+                out,
+                "  {:<16} {}  (default {})",
+                text(&p["name"]),
+                text(&p["kind"]),
+                text(&p["default"])
+            );
+        }
+        for c in e["choices"].as_array().into_iter().flatten() {
+            let options: Vec<_> = c["options"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(text)
+                .collect();
+            let _ = writeln!(
+                out,
+                "  {:<16} one of {}  (default {})",
+                text(&c["name"]),
+                options.join(", "),
+                text(&c["default"])
             );
         }
     }

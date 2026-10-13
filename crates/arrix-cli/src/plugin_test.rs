@@ -11,9 +11,11 @@ use std::process::ExitCode;
 use arrix_doc::{
     DocumentSource, EvalLine, Evaluator, FeatureLine, MemorySource, Registry, open, save,
 };
-use arrix_plugin_host::{MANIFEST, Manifest};
+use arrix_plugin_api::Subject;
+use arrix_plugin_host::{ExportFixture, MANIFEST, Manifest};
 use serde::Serialize;
 
+use crate::export::{assembly_id, part_id, split_options};
 use crate::load::{Loaded, registry_for};
 use crate::plugins;
 
@@ -134,7 +136,14 @@ impl Kit {
         let manifest =
             Manifest::parse(&text).map_err(|e| vec![format!("{shown}: {}", one_line(&e))])?;
         let mut diagnostics = Vec::new();
-        for fixture in manifest.test.documents.iter().chain(&manifest.test.fail) {
+        let exported = manifest.test.exports.iter().map(|e| &e.document);
+        for fixture in manifest
+            .test
+            .documents
+            .iter()
+            .chain(&manifest.test.fail)
+            .chain(exported)
+        {
             if !args.dir.join(&fixture.path).exists() {
                 diagnostics.push(format!(
                     "{shown}:{}: the fixture `{}` does not exist",
@@ -195,6 +204,13 @@ impl Kit {
                 });
             }
         }
+        for export in &self.manifest.test.exports {
+            out.push(Check {
+                check: "export",
+                doc: export.document.path.clone(),
+                result: self.export_twice(export),
+            });
+        }
         out.extend(self.migration(&manifest_file));
         for fixture in &self.manifest.test.fail {
             out.push(Check {
@@ -244,9 +260,100 @@ impl Kit {
                 "the plugin registers `{id}`, which the manifest's `contributes.features` does not list"
             ));
         }
+        let exporters: Vec<String> = registry
+            .exporter_specs()
+            .into_iter()
+            .map(|e| e.id)
+            .filter(|id| self.owns(id))
+            .collect();
+        let declared = &self.manifest.contributes.exporters;
+        if let Some(id) = declared.iter().find(|id| !exporters.contains(id)) {
+            return Err(format!(
+                "the manifest contributes the exporter `{id}`, which the plugin does not register"
+            ));
+        }
+        if let Some(id) = exporters.iter().find(|id| !declared.contains(id)) {
+            return Err(format!(
+                "the plugin registers the exporter `{id}`, which the manifest's `contributes.exporters` does not list"
+            ));
+        }
         Ok(format!(
-            "{} feature type(s) register with a valid spec",
-            registered.len()
+            "{} feature type(s) and {} exporter(s) register with a valid spec",
+            registered.len(),
+            exporters.len()
+        ))
+    }
+
+    /// An export of the manifest runs twice, each on a fresh registry (a
+    /// fresh Tier 1 store or Tier 2 process), to identical files
+    /// (ADR-0037 §9); the detail names the files and their hashes.
+    fn export_twice(&self, export: &ExportFixture) -> Result<String, String> {
+        let id = export.exporter.as_str();
+        if !self.owns(id) {
+            return Err(format!("`{id}` is not an exporter of this plugin"));
+        }
+        let source = self.fixture_source(&export.document.path)?;
+        let document = open(&source).map_err(|e| e.to_string())?;
+        let registry = self.fresh()?;
+        let Some(exporter) = registry.exporter(id) else {
+            return Err(format!("the plugin registers no exporter `{id}`"));
+        };
+        let subject = match (&export.assembly, &export.part) {
+            (Some(a), None) => Subject::Assembly(assembly_id(&document, a)?),
+            (None, Some(p)) => Subject::Part(part_id(&document, p)?),
+            _ => return Err("an export names its `assembly` or its `part`, one of them".into()),
+        };
+        let options: Vec<String> = export
+            .options
+            .iter()
+            .map(|(k, v)| format!("{k}={v}"))
+            .collect();
+        let (params, choices) = split_options(exporter.spec(), &options)?;
+        let run = || {
+            arrix_doc::export_with_exporter(
+                &export.document.path,
+                &source,
+                &self.fresh()?,
+                id,
+                subject,
+                &params,
+                &choices,
+            )
+            .map(|done| done.files)
+            .map_err(|e| e.to_string())
+        };
+        let (first, second) = (run()?, run()?);
+        if first != second {
+            let names = |files: &[arrix_plugin_api::ExportFile]| {
+                files.iter().map(|f| f.name.clone()).collect::<Vec<_>>()
+            };
+            return Err(match (names(&first), names(&second)) {
+                (a, b) if a != b => format!("two exports write different files: {a:?}, then {b:?}"),
+                _ => {
+                    let at = first.iter().zip(&second).find(|(a, b)| a != b);
+                    format!(
+                        "two exports differ in `{}`",
+                        at.map_or("?", |(a, _)| a.name.as_str())
+                    )
+                }
+            });
+        }
+        let listed: Vec<String> = first
+            .iter()
+            .map(|f| {
+                let hash = blake3::hash(&f.bytes).to_hex();
+                format!(
+                    "{} ({} bytes, blake3 {})",
+                    f.name,
+                    f.bytes.len(),
+                    &hash[..16]
+                )
+            })
+            .collect();
+        Ok(format!(
+            "two exports write the same {} file(s): {}",
+            first.len(),
+            listed.join("; ")
         ))
     }
 

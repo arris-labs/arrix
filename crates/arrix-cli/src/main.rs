@@ -93,8 +93,23 @@ enum Command {
         /// A document directory, or an `.arrx` file.
         doc: PathBuf,
         /// The file format.
-        #[arg(long, value_enum)]
-        format: Format,
+        #[arg(long, value_enum, required_unless_present = "exporter")]
+        format: Option<Format>,
+        /// Run this exporter (`arrix describe` lists them) instead:
+        /// `core.step`, `core.stl` and `core.obj` are `--format`, a
+        /// plugin's is `<plugin>.<name>` on `--assembly` or `--part`.
+        #[arg(long, value_name = "ID", conflicts_with = "format")]
+        exporter: Option<String>,
+        /// The part (by id or name) a plugin's exporter takes.
+        #[arg(long, value_name = "PART", conflicts_with_all = ["bodies", "assembly"])]
+        part: Option<String>,
+        /// An exporter's option, `<name>=<value>` (repeatable): a
+        /// parameter's expression or a choice's word.
+        #[arg(long = "option", value_name = "NAME=VALUE", requires = "exporter")]
+        options: Vec<String>,
+        /// With several files, overwrite those already in `--out`.
+        #[arg(long, requires = "exporter")]
+        force: bool,
         /// Only this body, `<feature>.<slot>` with the feature by id or
         /// name (repeatable); by default every final body.
         #[arg(long = "body", value_name = "FEATURE.SLOT")]
@@ -104,8 +119,9 @@ enum Command {
         /// pose; STEP only, instead of the bodies.
         #[arg(long, value_name = "ASSEMBLY", conflicts_with = "bodies")]
         assembly: Option<String>,
-        /// The file to write.
-        #[arg(short, long, value_name = "FILE")]
+        /// The file to write; with an exporter that writes several files,
+        /// the directory to write them in (created if missing).
+        #[arg(short, long, value_name = "PATH")]
         out: PathBuf,
         /// Start the Tier 2 plugin in this directory (repeatable): one
         /// holding an `arrix-plugin.toml`, whose command is run there.
@@ -248,6 +264,10 @@ fn main() -> ExitCode {
         Command::Export {
             doc,
             format,
+            exporter,
+            part,
+            options,
+            force,
             bodies,
             assembly,
             out,
@@ -255,13 +275,17 @@ fn main() -> ExitCode {
             without,
         } => export::run(&export::Args {
             doc: &doc,
-            format: match format {
+            format: format.map(|f| match f {
                 Format::Step => arrix_core::ExportFormat::Step,
                 Format::Stl => arrix_core::ExportFormat::Stl,
                 Format::Obj => arrix_core::ExportFormat::Obj,
-            },
+            }),
+            exporter: exporter.as_deref(),
             bodies: &bodies,
             assembly: assembly.as_deref(),
+            part: part.as_deref(),
+            options: &options,
+            force,
             out: &out,
             plugins: &plugins,
             without: &without,

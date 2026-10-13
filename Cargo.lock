@@ -456,6 +456,7 @@ dependencies = [
  "arrix-plugin-host",
  "arrix-sketch",
  "base64",
+ "blake3",
  "ciborium",
  "clap",
  "jsonschema",

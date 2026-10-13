@@ -4,7 +4,7 @@
 
 use arrix_core::{ExportFormat, FeatureId, Severity};
 
-use super::preview_tests::{PLATE, envelope, extrude, open, until};
+use super::preview_tests::{PART, PLATE, envelope, extrude, open, until};
 use super::*;
 use crate::command::{Command, FeatureEdit};
 use crate::expr::Expr;
@@ -28,6 +28,7 @@ fn exported(events: &EventStream) -> (Generation, Result<Vec<u8>, Diagnostic>) {
             generation,
             format: ExportFormat::Obj,
             bytes,
+            ..
         }) => (generation, bytes),
         other => panic!("{other:?}"),
     }
@@ -151,6 +152,7 @@ fn a_request_and_its_answer_cross_as_json() {
         }],
         format: ExportFormat::Step,
         assembly: None,
+        exporter: None,
     };
     crate::session::crosses(&request, "request");
 
@@ -163,7 +165,41 @@ fn a_request_and_its_answer_cross_as_json() {
             generation: Generation(4),
             format: ExportFormat::Stl,
             bytes,
+            files: Vec::new(),
         };
         crate::session::crosses(&event, "event");
+    }
+}
+
+#[test]
+fn an_exporter_the_registry_lacks_is_answered_not_dropped() {
+    let (s, events, _) = open();
+    let request = ExporterRequest {
+        id: "nobody.nothing".into(),
+        subject: ExportSubject::Part(PART),
+        params: Default::default(),
+        choices: Default::default(),
+    };
+    crate::session::crosses(
+        &Request::Export {
+            bodies: vec![],
+            format: ExportFormat::Step,
+            assembly: None,
+            exporter: Some(request.clone()),
+        },
+        "request",
+    );
+    assert_eq!(s.export_with(request), Ok(Outcome::Exporting));
+    let seen = until(&events, |e| matches!(e, SessionEvent::Exported { .. }));
+    match seen.into_iter().last() {
+        Some(SessionEvent::Exported {
+            bytes: Err(d),
+            files,
+            ..
+        }) => {
+            assert_eq!(d.code.as_str(), "export.unknown-exporter");
+            assert!(files.is_empty());
+        }
+        other => panic!("{other:?}"),
     }
 }

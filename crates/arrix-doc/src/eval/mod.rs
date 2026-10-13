@@ -46,7 +46,9 @@ use arrix_sketch::{ConstraintId, Sketch};
 use serde::{Deserialize, Serialize};
 
 pub use assembly::{AssemblyOutcome, JointOutcome, PlacedComponent};
-pub use export::{ExportError, ExportedFile, export, export_assembly};
+pub use export::{
+    ExportError, ExportedFile, ExporterFiles, export, export_assembly, export_with_exporter,
+};
 pub use fixtures::{FailedCall, Run, SavedRecipe, run};
 pub use hash::InputHash;
 pub use kinematics::place;

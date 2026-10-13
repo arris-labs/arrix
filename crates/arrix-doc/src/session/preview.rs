@@ -60,6 +60,7 @@ pub(super) struct ExportJob {
     pub bodies: Vec<BodySlot>,
     pub format: ExportFormat,
     pub assembly: Option<AssemblyId>,
+    pub exporter: Option<super::ExporterRequest>,
 }
 
 /// A STEP file's tree to read, as the worker takes it.

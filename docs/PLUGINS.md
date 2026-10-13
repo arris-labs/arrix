@@ -316,6 +316,12 @@ ribbon = ["gears"]
 [test]                       # §The test kit; optional
 documents = ["fixtures/gear-on-plane"]   # fixture documents, relative to the plugin
 fail = ["fixtures/oversize"]             # fixtures expected to fail with a kernel category
+
+[[test.exports]]                          # an exporter run on a fixture, twice
+document = "fixtures/arm"
+exporter = "robotics.urdf"
+assembly = "arm"                          # or `part = "…"`, by name or id
+options = { effort = "10" }               # as `arrix export --option`
 ```
 
 `[test]` is read by `arrix test` and by nothing else. A fixture that is not
@@ -535,6 +541,11 @@ directories of plugins the fixtures depend on.
 - **Spec**: every feature spec validates (ADR-0018). A valid spec is a
   renderable form, which is why the kit does not render forms: `arrix`
   never links wgpu (ADR-0025).
+- **Exports**: each `[[test.exports]]` entry runs its exporter twice, each
+  on a fresh registry (a fresh Tier 1 store or Tier 2 process), to identical
+  files (ADR-0037 §9); the detail names the files, their sizes and hashes.
+  **Spec** also holds the manifest's `contributes.exporters` to the
+  exporters the plugin registers.
 - **Kernel failures**: each `fail` fixture fails with a `kernel.*`
   category and leaves a call record that replays (`SEED.md` §6.6).
 

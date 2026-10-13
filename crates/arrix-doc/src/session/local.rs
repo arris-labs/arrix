@@ -10,11 +10,15 @@ use std::sync::mpsc::{Receiver, Sender, channel};
 
 use super::plugins::{PluginLoader, Plugins, RegistryChange};
 use super::preview::{self, ExportJob, Job, PreviewJob, Queue, StructureJob};
-use super::{DocHash, EventStream, PreviewTag, Request, Session, SessionEvent, files};
+use super::{
+    DocHash, EventStream, ExportSubject, ExportedFileEvent, ExporterRequest, PreviewTag, Request,
+    Session, SessionEvent, files,
+};
 use crate::authority::{Authority, Generation, Outcome, Rejected};
 use crate::eval::{EvalEvent, interrupted};
-use arrix_core::{FeatureId, MeshDetail};
+use arrix_core::{Diagnostic, FeatureId, MeshDetail, Severity};
 use arrix_kernel::Interrupt;
+use arrix_plugin_api::Subject;
 
 use crate::document::Document;
 use crate::eval::{Evaluator, FeatureOutcome, InputHash};
@@ -248,11 +252,13 @@ fn serve(
                         bodies,
                         format,
                         assembly,
+                        exporter,
                     } => {
                         let _ = jobs.send(Job::Export(ExportJob {
                             bodies,
                             format,
                             assembly,
+                            exporter,
                         }));
                         Ok(Outcome::Exporting)
                     }
@@ -483,9 +489,17 @@ fn export_queued(
             }
             *held = true;
         }
-        let bytes = match job.assembly {
-            Some(assembly) => evaluator.export_assembly(doc, assembly),
-            None => evaluator.export(&job.bodies, job.format),
+        let (bytes, files) = if let Some(request) = &job.exporter {
+            match export_files(evaluator, doc, request) {
+                Ok(files) => (Ok(Vec::new()), files),
+                Err(d) => (Err(d), Vec::new()),
+            }
+        } else {
+            let bytes = match job.assembly {
+                Some(assembly) => evaluator.export_assembly(doc, assembly),
+                None => evaluator.export(&job.bodies, job.format),
+            };
+            (bytes, Vec::new())
         };
         if matches!(&bytes, Err(d) if interrupted(d)) {
             return;
@@ -494,10 +508,55 @@ fn export_queued(
             generation,
             format: job.format,
             bytes,
+            files,
         };
         let _ = publish.send(Msg::Publish(event));
         queue.exports.pop_front();
     }
+}
+
+/// Runs the exporter `request` names on `doc`, evaluated again first
+/// (cached, and the exporter reads the evaluation it was made on).
+fn export_files(
+    evaluator: &mut Evaluator,
+    doc: &Arc<Document>,
+    request: &ExporterRequest,
+) -> Result<Vec<ExportedFileEvent>, Diagnostic> {
+    let Some(exporter) = evaluator.registry().exporter(&request.id).cloned() else {
+        return Err(Diagnostic::new(
+            Severity::Error,
+            "export.unknown-exporter",
+            format!("no exporter `{}`", request.id),
+        )
+        .expect("a literal code is well-formed"));
+    };
+    let Some(evaluation) = evaluator.evaluate_while(doc, |_| true) else {
+        return Err(Diagnostic::new(
+            Severity::Error,
+            "kernel.interrupted",
+            "the export was stopped".to_string(),
+        )
+        .expect("a literal code is well-formed"));
+    };
+    let subject = match request.subject {
+        ExportSubject::Part(p) => Subject::Part(p),
+        ExportSubject::Assembly(a) => Subject::Assembly(a),
+    };
+    let files = evaluator.export_with(
+        doc,
+        &evaluation,
+        exporter.as_ref(),
+        subject,
+        &request.params,
+        &request.choices,
+    )?;
+    Ok(files
+        .into_iter()
+        .map(|f| ExportedFileEvent {
+            name: f.name,
+            bytes: f.bytes,
+        })
+        .collect())
 }
 
 /// Meshes the final bodies of the evaluation of `generation`, every body

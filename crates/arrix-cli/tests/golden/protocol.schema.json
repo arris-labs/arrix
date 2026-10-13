@@ -2025,6 +2025,22 @@
           }
         ]
       },
+      "ExportedFileEvent": {
+        "description": "A file an exporter wrote: a relative `/`-separated path, the main file\nfirst (ADR-0037 §7).",
+        "properties": {
+          "bytes": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "bytes"
+        ],
+        "type": "object"
+      },
       "Expr": {
         "description": "An expression: its text as typed, and the tree parsed from it.",
         "type": "string"
@@ -4522,7 +4538,15 @@
         "description": "The file a `Request::Export` asked for, written from the bodies of\n`generation`'s evaluation, or why it could not be. Not part of the\ndocument: a replica ignores it.",
         "properties": {
           "bytes": {
-            "$ref": "#/$defs/Result_of_Array_of_uint8_or_Diagnostic"
+            "$ref": "#/$defs/Result_of_Array_of_uint8_or_Diagnostic",
+            "description": "The file; empty when an exporter wrote (see `files`)."
+          },
+          "files": {
+            "description": "The files an exporter wrote, the main one first (ADR-0037);\nempty for a `format` export.",
+            "items": {
+              "$ref": "#/$defs/ExportedFileEvent"
+            },
+            "type": "array"
           },
           "format": {
             "$ref": "#/$defs/ExportFormat"
@@ -10469,6 +10493,63 @@
           }
         ]
       },
+      "ExportSubject": {
+        "description": "What an exporter (ADR-0037) is run on.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "part": {
+                "$ref": "#/$defs/PartId"
+              }
+            },
+            "required": [
+              "part"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "assembly": {
+                "$ref": "#/$defs/AssemblyId"
+              }
+            },
+            "required": [
+              "assembly"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ExporterRequest": {
+        "description": "An export by an exporter: its id (`<plugin>.<name>`), the part or\nassembly it is of and its options as a feature's: `params` are\nexpressions, `choices` words; what is not given is the spec's default.",
+        "properties": {
+          "choices": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "id": {
+            "type": "string"
+          },
+          "params": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "subject": {
+            "$ref": "#/$defs/ExportSubject"
+          }
+        },
+        "required": [
+          "id",
+          "subject"
+        ],
+        "type": "object"
+      },
       "Expr": {
         "description": "An expression: its text as typed, and the tree parsed from it.",
         "type": "string"
@@ -11427,6 +11508,17 @@
                   "$ref": "#/$defs/BodySlot"
                 },
                 "type": "array"
+              },
+              "exporter": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ExporterRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Run this exporter (ADR-0037) instead: `bodies`, `format` and\n`assembly` are then ignored, and the files follow as\n`Exported::files`."
               },
               "format": {
                 "$ref": "#/$defs/ExportFormat"

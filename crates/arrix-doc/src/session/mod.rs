@@ -51,6 +51,40 @@ pub use preview::{PreviewBody, PreviewId, PreviewTag};
 #[cfg(feature = "schema")]
 pub use schema::protocol_schemas;
 
+/// What an exporter (ADR-0037) is run on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum ExportSubject {
+    Part(PartId),
+    Assembly(AssemblyId),
+}
+
+/// An export by an exporter: its id (`<plugin>.<name>`), the part or
+/// assembly it is of and its options as a feature's: `params` are
+/// expressions, `choices` words; what is not given is the spec's default.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub struct ExporterRequest {
+    pub id: String,
+    pub subject: ExportSubject,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub params: BTreeMap<String, String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub choices: BTreeMap<String, String>,
+}
+
+/// A file an exporter wrote: a relative `/`-separated path, the main file
+/// first (ADR-0037 §7).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub struct ExportedFileEvent {
+    pub name: String,
+    #[serde(with = "crate::command::bytes")]
+    #[cfg_attr(feature = "schema", schemars(with = "String"))]
+    pub bytes: Vec<u8>,
+}
+
 /// The session protocol's version (ADR-0023 §6), raised with any change to
 /// the shapes of its requests, outcomes and events; separate from the
 /// plugin API's.
@@ -113,6 +147,11 @@ pub enum Request {
         /// of bodies: STEP only, `bodies` empty.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         assembly: Option<AssemblyId>,
+        /// Run this exporter (ADR-0037) instead: `bodies`, `format` and
+        /// `assembly` are then ignored, and the files follow as
+        /// `Exported::files`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        exporter: Option<ExporterRequest>,
     },
     /// Reads the product tree of the STEP file `bytes` on the worker
     /// (ADR-0032), answered `Reading`, the tree following as
@@ -257,7 +296,12 @@ pub enum SessionEvent {
     Exported {
         generation: Generation,
         format: ExportFormat,
+        /// The file; empty when an exporter wrote (see `files`).
         bytes: Result<Vec<u8>, Diagnostic>,
+        /// The files an exporter wrote, the main one first (ADR-0037);
+        /// empty for a `format` export.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        files: Vec<ExportedFileEvent>,
     },
     /// The product tree a `Request::ReadStepTree` asked for, or why the
     /// file could not be read. Not part of the document: a replica
@@ -314,6 +358,18 @@ pub trait Session {
             bodies,
             format,
             assembly: None,
+            exporter: None,
+        })
+    }
+
+    /// The exporter `exporter` (ADR-0037) of a part or assembly, its files
+    /// following as `Exported::files`.
+    fn export_with(&self, exporter: ExporterRequest) -> Result<Outcome, Rejected> {
+        self.request(Request::Export {
+            bodies: Vec::new(),
+            format: ExportFormat::Step,
+            assembly: None,
+            exporter: Some(exporter),
         })
     }
 
@@ -323,6 +379,7 @@ pub trait Session {
             bodies: Vec::new(),
             format: ExportFormat::Step,
             assembly: Some(assembly),
+            exporter: None,
         })
     }
 

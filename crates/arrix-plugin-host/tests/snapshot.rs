@@ -410,3 +410,53 @@ fn leaving_a_plugin_out_leaves_its_exporters_out() {
     assert!(r.remove_plugin(&"dump".parse().unwrap()));
     assert!(r.exporter("dump.text").is_none());
 }
+
+/// The session answers an exporter request with the files `export_with`
+/// writes, in the same bytes (plans/c3-m2 step 5).
+#[test]
+fn a_session_export_by_an_exporter_writes_the_files_of_the_headless_path() {
+    use arrix_doc::{ExportSubject, ExporterRequest, LocalSession, Outcome, Session, SessionEvent};
+    use std::time::Duration;
+
+    let mut headless = run();
+    let Subject::Assembly(assembly) = headless.assembly() else {
+        unreachable!()
+    };
+    let want = headless
+        .export("dump.pair", Subject::Assembly(assembly), &[])
+        .unwrap();
+
+    let document = open(&files("assembly-exchange")).unwrap();
+    let session = LocalSession::open(document, registry()).unwrap();
+    let events = session.subscribe();
+    let ask = |id: &str| ExporterRequest {
+        id: id.into(),
+        subject: ExportSubject::Assembly(assembly),
+        params: BTreeMap::new(),
+        choices: BTreeMap::new(),
+    };
+    let answer = |events: &arrix_doc::EventStream| loop {
+        let event = events
+            .recv_timeout(Duration::from_secs(60))
+            .expect("the session answers");
+        if let SessionEvent::Exported { bytes, files, .. } = event {
+            return (bytes, files);
+        }
+    };
+
+    assert_eq!(
+        session.export_with(ask("dump.pair")),
+        Ok(Outcome::Exporting)
+    );
+    let (bytes, files) = answer(&events);
+    assert_eq!(bytes, Ok(Vec::new()));
+    let got: Vec<_> = files.into_iter().map(|f| (f.name, f.bytes)).collect();
+    let want: Vec<_> = want.into_iter().map(|f| (f.name, f.bytes)).collect();
+    assert_eq!(got, want);
+
+    // A refusal is the answer, not a hang: here a name outside the directory.
+    assert_eq!(session.export_with(ask("dump.bad")), Ok(Outcome::Exporting));
+    let (bytes, files) = answer(&events);
+    assert_eq!(bytes.unwrap_err().code.as_str(), "export.path");
+    assert!(files.is_empty());
+}

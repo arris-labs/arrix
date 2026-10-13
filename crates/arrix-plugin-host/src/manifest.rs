@@ -52,6 +52,18 @@ pub struct Fixture {
     pub line: u32,
 }
 
+/// One `[[test.exports]]` entry: a fixture document, an exporter of the
+/// plugin, the assembly or part it is run on (by name or id) and its
+/// options as `arrix export --option` gives them (ADR-0037 §9).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ExportFixture {
+    pub document: Fixture,
+    pub exporter: String,
+    pub assembly: Option<String>,
+    pub part: Option<String>,
+    pub options: std::collections::BTreeMap<String, String>,
+}
+
 /// The `[test]` table (docs/PLUGINS.md §The test kit).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct TestFixtures {
@@ -59,6 +71,8 @@ pub struct TestFixtures {
     pub documents: Vec<Fixture>,
     /// Documents expected to fail with a `kernel.*` category.
     pub fail: Vec<Fixture>,
+    /// Exports that must run twice to identical files.
+    pub exports: Vec<ExportFixture>,
 }
 
 /// What a plugin may reach (docs/PLUGINS.md §Capabilities). Everything is
@@ -113,6 +127,18 @@ struct Raw {
 struct RawTest {
     documents: Vec<toml::Spanned<String>>,
     fail: Vec<toml::Spanned<String>>,
+    exports: Vec<RawExport>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawExport {
+    document: toml::Spanned<String>,
+    exporter: String,
+    assembly: Option<String>,
+    part: Option<String>,
+    #[serde(default)]
+    options: std::collections::BTreeMap<String, String>,
 }
 
 #[derive(Deserialize)]
@@ -229,14 +255,11 @@ impl Manifest {
             (0 | 1, None) => (Vec::new(), None),
             _ => return Err(ManifestError::Command),
         };
-        let fixtures = |list: Vec<toml::Spanned<String>>| {
-            list.into_iter()
-                .map(|f| Fixture {
-                    line: 1 + text[..f.span().start].matches('\n').count() as u32,
-                    path: f.into_inner(),
-                })
-                .collect()
+        let fixture = |f: toml::Spanned<String>| Fixture {
+            line: 1 + text[..f.span().start].matches('\n').count() as u32,
+            path: f.into_inner(),
         };
+        let fixtures = |list: Vec<toml::Spanned<String>>| list.into_iter().map(fixture).collect();
         Ok(Manifest {
             id: PluginId::new(p.id)?,
             version,
@@ -252,6 +275,18 @@ impl Manifest {
             test: TestFixtures {
                 documents: fixtures(raw.test.documents),
                 fail: fixtures(raw.test.fail),
+                exports: raw
+                    .test
+                    .exports
+                    .into_iter()
+                    .map(|e| ExportFixture {
+                        document: fixture(e.document),
+                        exporter: e.exporter,
+                        assembly: e.assembly,
+                        part: e.part,
+                        options: e.options,
+                    })
+                    .collect(),
             },
         })
     }
