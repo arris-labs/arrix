@@ -72,3 +72,4 @@ Each rejected option and the one-line reason it lost.
 - [ADR-0031](0031-materials-and-mass-properties.md): materials in the document (density expression, appearance), per part with a per-body override, mass evaluated per body, part and assembly, `mass.no-material` partial totals, no library, schema 5
 - [ADR-0032](0032-step-with-product-structure.md): STEP with product structure: a product's frame by the inverse placement, one `Group` import, colours as materials, the export mapping, what is lost
 - [ADR-0033](0033-density-is-a-quantity-kind-of-the-api.md): density is a quantity kind of the plugin API, 0.6.0 (breaking), amends ADR-0031 §7
+- [ADR-0034](0034-c3-is-the-boundary-crossed.md): C3 is the boundary crossed in three milestones: Tier 1 first, then a plugin reading an assembly (robotics, URDF), then plugin commands, Python fasteners as components, out of tree proven in tree and the API review; `SEED.md` §7 and §6.7 amended

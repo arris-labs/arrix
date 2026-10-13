@@ -5,7 +5,6 @@ One line per raw idea. Picking one up means `/idea` (needs thinking) or
 committed to. Rejected ideas keep one line below with the reason, so the same
 idea is not brainstormed twice.
 
-- Tier 1 guest SDK: `wit-bindgen`'s `export!` emits `unsafe`, which the workspace forbids; an ADR for where the exception lives, in C3 (plans/c1-m1-document step 3)
 - Structural sharing of document snapshots and an incremental DAG rebuild, each when a command-apply budget asks for it; the C1 benchmark's bracket applies a command in 0.1 ms against 1 ms, so a much larger document first (plans/c1-m1-document steps 5 and 13, plans/c1-m4 step 16)
 - Upstream failure reporting: the opt-in, locally shrunk, previewed report of a kernel failure to Arris (`SEED.md` §6.6), its transport and where reports land
 - Replay of public feature-history datasets through the batch API as an Arris corpus source, each dataset's licence checked first (`SEED.md` §6.6)

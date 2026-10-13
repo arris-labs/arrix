@@ -35,7 +35,9 @@ Tier 2 Python plugins, `arrix serve --stdio`, headless `arrix-app render`,
 **C2 done 2026-10-13** (assemblies in the document and the app, STEP with
 product structure both ways in metres, materials and mass; ADR-0027 to
 ADR-0033; `arris` 0.8): `--test c2_accept`, held to Open CASCADE's reading.
-**Next:** C3, the boundary crossed (`docs/ROADMAP.md`); plan it.
+**Next:** C3, the boundary crossed (ADR-0034; Tier 1, then a plugin
+reading an assembly, then commands and the north-star accept); M1 is
+`docs/plans/c3-m1.md`.
 
 ## Rules that are not derivable from the code
 

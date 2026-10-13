@@ -8,7 +8,7 @@ to its status line (`/close-cycle`), and the next is detailed below it.
 
 Spine: **C1** (the vertical slice with a plugin feature in it; done), then
 **the boundary opened** (the agent's way in; ADR-0016; done), **C2** (assemblies
-and exchange; done), **C3** (the boundary crossed), **C4** (the web). Beyond
+and exchange; done), **C3** (the boundary crossed; next), **C4** (the web). Beyond
 C4, the named cycles are unordered.
 
 ---
@@ -145,10 +145,57 @@ horn) and one vendor STEP Arris reads cleanly.
 
 ## C3 — the boundary crossed
 
-The Tier 1 (wasm component) host; `arrix-plugin-test`, the Rust kit for
-Tier 0 authors, beside the Tier 1 SDK; robotics moved out as plugin #1; a
-second first-party plugin in Python through Tier 2 only; `arrix-plugin-api`
-reviewed for 0.x stability. Accept: the north-star demo (`SEED.md` §7).
+*Goal: the north-star demo (`SEED.md` §7) runs. A Python plugin places
+library screws into a bracket's picked holes as components, a Rust plugin
+hosted as a wasm component exports URDF that another reader loads, and the
+file opens with neither plugin, frozen, still following a width edit.*
+
+**Status: open.** Detailed by ADR-0034; M1 is planned
+(`docs/plans/c3-m1.md`). The risk to retire: the plugin API holds across
+every boundary. A Rust plugin runs sandboxed exactly as it runs compiled
+in, and two real domains need nothing but the public API.
+
+**In:**
+- The Tier 1 host: wasmtime with the component model, native only. A
+  component's imports are the world's alone, fuel is the deterministic
+  step budget, and an epoch interrupt cancels. The Rust guest SDK is a
+  feature of `arrix-plugin-api`.
+- A snapshot read (`document-read`: parts, meshes, assemblies with solved
+  poses, joints, mass and inertia) and the `exchange` export (snapshot
+  in, bytes out), on all three tiers; `arrix export --exporter <id>`.
+- `robotics`, plugin #1: Rust, a Tier 1 component, URDF of an assembly (a
+  link per component, joints with limits, STL meshes, inertials).
+- The `commands` export: a gesture expanded into one `Group` (ADR-0004),
+  bound to a ribbon button and the selection, through Tier 2 and the
+  protocol.
+- `fasteners`, plugin #2: Python, Tier 2 only. ISO 4762 socket-head cap
+  screws, each size a part with a `fasteners.*` feature, each screw a
+  component held by a fixed joint on a picked hole's edge.
+- Out of tree, proven in tree: each first-party plugin a Cargo workspace
+  of its own on `arrix-plugin-api` alone, passing `arrix test` from the
+  installed binary; `arrix-plugin-test`, the Rust kit for Tier 0 and 1.
+- `arrix-plugin-api` reviewed for 0.x stability, by ADR.
+
+**Out:** Tier 1 in the browser (C4's ADR); SDF and MJCF; the plugins'
+own repositories and a published `arrix-plugin-api` (the human's acts,
+after the accept); plugin document data, importers, analyses, panels and
+viewport drawables by plugins; unloading a plugin; FEA export; screw
+families beyond one, and modelled threads; a plugin index; distributions.
+
+**Milestones:** M1 Tier 1 (the host, the guest SDK, `gears` identical at
+Tiers 0 and 1); M2 a plugin reads an assembly (the snapshot read,
+exporters, robotics); M3 commands, fasteners, out of tree, the API review
+and the accept.
+
+**Accept:** the north-star demo, run two ways. Headless, `cargo test -p
+arrix-cli --test c3_accept` drives it through `arrix serve`, with the
+picks as references. In the app, a visual scenario runs the fastener
+command from the ribbon on picked hole edges. The URDF is held to
+urdfdom's and a Python loader's reading (links, joints, limits, masses,
+link poses at two joint values) by a script, never in CI, into a committed
+text golden. Saved and opened with neither plugin, the fastener features
+are frozen with their reason, and a bracket width edit moves the holes and
+the screws.
 
 ## C4 — the web
 
