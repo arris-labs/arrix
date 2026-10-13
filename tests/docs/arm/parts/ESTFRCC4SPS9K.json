@@ -1,0 +1,24 @@
+{
+  "features": {
+    "6ABRADVD9YM8C": {
+      "file": {
+        "blob": "473cf5bb7103419da3e9c9cbe755329658307de5cd3f9ff76c432660d210f5dd.step",
+        "name": "servo.step"
+      },
+      "id": "6ABRADVD9YM8C",
+      "inputs": {},
+      "name": "Servo",
+      "params": {},
+      "suppressed": false,
+      "type_id": "core.import-step",
+      "type_version": 2
+    }
+  },
+  "history": [
+    "6ABRADVD9YM8C"
+  ],
+  "id": "ESTFRCC4SPS9K",
+  "material": "DB892CQ1Q0XZC",
+  "name": "Servo",
+  "rollback": null
+}

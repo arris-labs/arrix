@@ -1,0 +1,146 @@
+<?xml version="1.0"?>
+<!-- ArriX robotics.urdf: metres, kilograms, radians; z up. -->
+<robot name="Servo_on_bracket">
+  <material name="steel"><color rgba="0.45 0.45 0.5 1"/></material>
+  <material name="abs"><color rgba="0.2 0.25 0.6 1"/></material>
+  <material name="brass"><color rgba="0.8 0.65 0.2 1"/></material>
+  <material name="aluminium"><color rgba="0.75 0.77 0.8 1"/></material>
+  <link name="base_link"/>
+  <link name="right_screw">
+    <inertial>
+      <origin xyz="0 0 0.004" rpy="0 0 0"/>
+      <mass value="0.00044390704195223786"/>
+      <inertia ixx="2.6172019348434024e-9" ixy="0" ixz="0" iyy="2.6172019348434024e-9" iyz="0" izz="4.993954221962677e-10"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/Screw.stl"/></geometry>
+      <material name="steel"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/Screw.stl"/></geometry>
+    </collision>
+  </link>
+  <link name="horn">
+    <inertial>
+      <origin xyz="0.008761387958 0 -0.001380693979" rpy="0 0 0"/>
+      <mass value="0.0014381283034585414"/>
+      <inertia ixx="1.701680152541493e-8" ixy="0" ixz="7.80325586451516e-9" iyy="1.1662331325444525e-7" iyz="0" izz="1.2140808909459376e-7"/>
+    </inertial>
+    <visual>
+      <origin xyz="-0.005 -0.005 -0.004" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/Horn.stl"/></geometry>
+      <material name="abs"/>
+    </visual>
+    <collision>
+      <origin xyz="-0.005 -0.005 -0.004" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/Horn.stl"/></geometry>
+    </collision>
+  </link>
+  <link name="vendor">
+    <inertial>
+      <origin xyz="0 0 -0.000351260998" rpy="0 0 0"/>
+      <mass value="0.04359978215959278"/>
+      <inertia ixx="1.3795669692037825e-5" ixy="0" ixz="0" iyy="1.3795669692037821e-5" iyz="0" izz="2.7547154260935456e-5"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/Vendor.stl"/></geometry>
+      <material name="brass"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/Vendor.stl"/></geometry>
+    </collision>
+  </link>
+  <link name="bracket">
+    <inertial>
+      <origin xyz="-0.000104852063 0 0.00439995817" rpy="0 0 0"/>
+      <mass value="0.022651381191382162"/>
+      <inertia ixx="1.6490462242037353e-6" ixy="0" ixz="-4.512484340472145e-9" iyy="2.5605465792903557e-6" iyz="0" izz="3.6762343451089594e-6"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/Bracket.stl"/></geometry>
+      <material name="aluminium"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/Bracket.stl"/></geometry>
+    </collision>
+  </link>
+  <link name="left_screw">
+    <inertial>
+      <origin xyz="0 0 0.004" rpy="0 0 0"/>
+      <mass value="0.00044390704195223786"/>
+      <inertia ixx="2.6172019348434024e-9" ixy="0" ixz="0" iyy="2.6172019348434024e-9" iyz="0" izz="4.993954221962677e-10"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/Screw.stl"/></geometry>
+      <material name="steel"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/Screw.stl"/></geometry>
+    </collision>
+  </link>
+  <link name="servo">
+    <inertial>
+      <origin xyz="0.009750146649 0 -0.017875073324" rpy="0 0 0"/>
+      <mass value="0.029943119494235775"/>
+      <inertia ixx="4.3011664827010466e-6" ixy="0" ixz="3.647231870219671e-8" iyy="7.272708794470628e-6" iyz="0" izz="4.9873938715167005e-6"/>
+    </inertial>
+    <visual>
+      <origin xyz="-0.01 -0.01 -0.036" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/Servo.stl"/></geometry>
+      <material name="abs"/>
+    </visual>
+    <collision>
+      <origin xyz="-0.01 -0.01 -0.036" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/Servo.stl"/></geometry>
+    </collision>
+  </link>
+  <joint name="base_to_right_screw" type="fixed">
+    <parent link="base_link"/>
+    <child link="right_screw"/>
+    <origin xyz="-0.015 -0.01 0.005" rpy="0 0 0"/>
+  </joint>
+  <joint name="spin" type="revolute">
+    <parent link="servo"/>
+    <child link="horn"/>
+    <origin xyz="0.022 0 0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.14159265359" upper="3.14159265359" effort="100" velocity="1"/>
+  </joint>
+  <joint name="base_to_vendor" type="fixed">
+    <parent link="base_link"/>
+    <child link="vendor"/>
+    <origin xyz="0.06 0 0" rpy="0 0 1.570796326795"/>
+  </joint>
+  <joint name="base_to_bracket" type="fixed">
+    <parent link="base_link"/>
+    <child link="bracket"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+  <joint name="base_to_left_screw" type="fixed">
+    <parent link="base_link"/>
+    <child link="left_screw"/>
+    <origin xyz="-0.015 0.01 0.005" rpy="0 0 0"/>
+  </joint>
+  <joint name="hinge" type="revolute">
+    <parent link="bracket"/>
+    <child link="servo"/>
+    <origin xyz="0.014 0 0.005" rpy="3.14159265359 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-1.570796326795" upper="1.570796326795" effort="100" velocity="1"/>
+  </joint>
+</robot>
+
+meshes (bytes, blake3):
+  meshes/Bracket.stl 97684 b0f8bbda15e551ab4a9f2a3600dbfd119fccf7820da21aabadf45c0cd6a05634
+  meshes/Horn.stl 14084 c42d4828e4b71356c735c8cdba7952b491c476f8cc400d45265ede00530bbdca
+  meshes/Screw.stl 18084 fff875a3d10c890da6a3af95f9b234e5d2862f7af0d2df30ad2f4358e360b828
+  meshes/Servo.stl 19084 92f8c00a1efdef49dd20f2a8b4eda358f7bae7a87ddcb8b9fa8c33139a9eb9b2
+  meshes/Vendor.stl 688984 c1a3d94c5fc95c97b791dd7f2150db677f8974fa32cbaf598599ed16821a4467

@@ -1,0 +1,27 @@
+{
+  "2W015VK5519BX": {
+    "expr": "0 deg",
+    "kind": "angle",
+    "name": "angle"
+  },
+  "3KB37HHSMBZTH": {
+    "expr": "1 mm",
+    "kind": "length",
+    "name": "m"
+  },
+  "BMHFC1CYHV5GD": {
+    "expr": "5 mm",
+    "kind": "length",
+    "name": "t"
+  },
+  "E2PTGP209DD49": {
+    "expr": "20",
+    "kind": "count",
+    "name": "teeth"
+  },
+  "EVQ7AMJVZ35T2": {
+    "expr": "40 mm",
+    "kind": "length",
+    "name": "w"
+  }
+}

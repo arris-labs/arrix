@@ -12,3 +12,10 @@ document-read = true
 
 [contributes]
 exporters = ["robotics.urdf"]
+
+# The accept's document (docs/PLUGINS.md §The test kit), run twice to
+# identical files.
+[[test.exports]]
+document = "../../tests/docs/arm"
+exporter = "robotics.urdf"
+assembly = "Servo on bracket"

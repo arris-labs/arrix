@@ -102,7 +102,7 @@ fn the_flags_of_the_two_ways_do_not_mix() {
 }
 
 #[test]
-fn describe_lists_the_core_formats_as_exporters() {
+fn describe_lists_the_core_formats_and_compiled_in_exporters() {
     let run = arrix(&["describe", "--json"]);
     assert_eq!(run.status.code(), Some(0));
     let d: serde_json::Value = serde_json::from_slice(&run.stdout).unwrap();
@@ -112,7 +112,7 @@ fn describe_lists_the_core_formats_as_exporters() {
         .iter()
         .map(|e| e["id"].as_str().unwrap())
         .collect();
-    assert_eq!(ids, ["core.step", "core.stl", "core.obj"]);
+    assert_eq!(ids, ["core.step", "core.stl", "core.obj", "robotics.urdf"]);
     let text = arrix(&["describe"]);
     assert!(String::from_utf8_lossy(&text.stdout).contains("exporter core.stl"));
 }
