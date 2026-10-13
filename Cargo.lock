@@ -553,6 +553,7 @@ dependencies = [
  "arrix-doc",
  "arrix-gears",
  "arrix-plugin-api",
+ "base64",
  "regex",
  "semver",
  "serde",

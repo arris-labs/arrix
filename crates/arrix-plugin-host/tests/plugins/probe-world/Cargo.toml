@@ -1,0 +1,23 @@
+# The probe of plans/c3-m2 step 1: a guest of the scratch world in `wit/`,
+# built as one of its three worlds by a cargo feature. It calls
+# `generate!` itself, so it is not under `forbid(unsafe_code)` as a real
+# plugin is (ADR-0035 §2). Outside the workspace, so the gate never builds
+# it for the host; `tests/probe_world.rs` builds it for wasm32.
+[package]
+name = "probe-world"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+full = []
+exporter = []
+features = []
+
+[dependencies]
+wit-bindgen = { version = "0.62", default-features = false, features = ["macros"] }

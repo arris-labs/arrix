@@ -28,6 +28,7 @@ wit-component.workspace = true
 
 [dev-dependencies]
 arrix-gears.workspace = true
+base64.workspace = true
 regex.workspace = true
 wasm-encoder.workspace = true
 wasmparser.workspace = true

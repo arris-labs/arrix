@@ -1,0 +1,40 @@
+// A scratch world for plans/c3-m2 step 1: the shape the plugin world may
+// grow into (a `document` import, an `exchange` export beside `feature`),
+// cut down to what the probe asks. Not the API; ADR-0037 decides that.
+
+package arrix:probe@0.1.0;
+
+interface document {
+  // A body's mesh as the snapshot may carry it: bulk f32 and u32 runs.
+  record triangles { positions: list<f32>, normals: list<f32>, triangles: list<u32> }
+  parts: func() -> list<u64>;
+  mesh: func(part: u64) -> triangles;
+}
+
+interface feature {
+  describe: func() -> list<string>;
+}
+
+interface exchange {
+  record file { name: string, bytes: list<u8> }
+  exporters: func() -> list<string>;
+  %export: func(id: string) -> result<list<file>, string>;
+}
+
+// Every export, the import unused by the guest.
+world full {
+  import document;
+  export feature;
+  export exchange;
+}
+
+// An exporter that reads the document.
+world exporter {
+  import document;
+  export exchange;
+}
+
+// Features alone, as `gears` is.
+world features {
+  export feature;
+}
