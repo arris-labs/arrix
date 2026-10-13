@@ -462,6 +462,7 @@ dependencies = [
  "proptest",
  "serde",
  "serde_json",
+ "wasm-encoder 0.258.3",
  "web-time",
 ]
 

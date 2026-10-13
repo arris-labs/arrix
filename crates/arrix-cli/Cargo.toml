@@ -35,6 +35,8 @@ proptest.workspace = true
 jsonschema.workspace = true
 # The scenario tests draw sketches (tests/slice.rs, tests/gears.rs).
 arrix-sketch.workspace = true
+# The Tier 1 accept makes a component that imports beyond the world (tests/c3_m1.rs).
+wasm-encoder.workspace = true
 
 [[bin]]
 name = "arrix"

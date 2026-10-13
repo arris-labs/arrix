@@ -150,8 +150,8 @@ library screws into a bracket's picked holes as components, a Rust plugin
 hosted as a wasm component exports URDF that another reader loads, and the
 file opens with neither plugin, frozen, still following a width edit.*
 
-**Status: open.** Detailed by ADR-0034; M1 is planned
-(`docs/plans/c3-m1.md`). The risk to retire: the plugin API holds across
+**Status: open; M1 (Tier 1) done 2026-10-13, M2 next.** Detailed by
+ADR-0034. The risk to retire: the plugin API holds across
 every boundary. A Rust plugin runs sandboxed exactly as it runs compiled
 in, and two real domains need nothing but the public API.
 

@@ -134,7 +134,10 @@ stand on it.
   code everywhere (ADR-0036). `sqrt` and the arithmetic are exact under
   IEEE 754 and need nothing.
 - **Time budgets are not determinism.** A wall-clock timeout makes a
-  result depend on the machine. Batch evaluation uses Arris's step budget
+  result depend on the machine. A Tier 1 component's fuel (ADR-0035 §5)
+  is the same kind of budget for its own code, counted in wasm
+  instructions and the same on every run, beside Arris's for the kernel's.
+  Batch evaluation uses Arris's step budget
   (ask A3) where it exists; a wall-clock timeout is a last resort, and a
   result it cut short is reported as `timeout`, never as a kernel failure.
 

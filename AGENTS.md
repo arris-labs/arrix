@@ -35,9 +35,10 @@ Tier 2 Python plugins, `arrix serve --stdio`, headless `arrix-app render`,
 **C2 done 2026-10-13** (assemblies in the document and the app, STEP with
 product structure both ways in metres, materials and mass; ADR-0027 to
 ADR-0033; `arris` 0.8): `--test c2_accept`, held to Open CASCADE's reading.
-**Next:** C3, the boundary crossed (ADR-0034; Tier 1, then a plugin
-reading an assembly, then commands and the north-star accept); M1 is
-`docs/plans/c3-m1.md`.
+**C3 M1 done 2026-10-13** (Tier 1: wasmtime components, the Rust guest SDK,
+ADR-0034 to ADR-0036): `--test c3_m1`, `gears` identical at both tiers.
+**Next:** C3 M2, a plugin reads an assembly (the snapshot read, exporters,
+`robotics`); then M3, commands, `fasteners` and the north-star accept.
 
 ## Rules that are not derivable from the code
 
@@ -113,6 +114,16 @@ it before ticking a step:
   `arrix test <plugin-dir> [--schema]` runs the test kit (the plugin's
   `[test]` table, one JSON line per check); `eval --schema` and
   `arrix-app render --schema` print the other surfaces' schemas.
+- A Tier 1 plugin is a Rust crate on `arrix-plugin-api` alone with its
+  `guest` feature, a `cdylib` built `cargo build --release --target
+  wasm32-unknown-unknown --features guest`; its directory holds an
+  `arrix-plugin.toml` (`tier = 1`, a `[tier1]` table naming the `.wasm`) and
+  the module. `--plugin <dir>` and `session.load_plugin` load it by the
+  tier the manifest names, and a directory takes the place of a compiled-in
+  plugin of its id (`gears` at Tier 1 for the Tier 0 one).
+  `cargo test -p arrix-cli --test c3_m1` is C3 M1's accept, `--test
+  tier1_surfaces` the CLI's surfaces; the host's tests build the fixtures
+  in `target/tier1-fixtures`.
 - `cargo test -p arrix-cli --test c2_accept` is C2's accept: `tests/docs/
   assembly-exchange` exported with `arrix export --assembly`, re-imported,
   and ArriX's reading of it and of the NIST vendor part held to Open
