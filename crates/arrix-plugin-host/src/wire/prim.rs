@@ -4,8 +4,13 @@
 
 use std::fmt;
 
-use arrix_core::{CurveKey, FeatureId, Id, ParamId, RecordId, SketchEntityId};
+use arrix_core::{
+    AssemblyId, ComponentId, CurveKey, FeatureId, Id, JointId, ParamId, PartId, RecordId,
+    SketchEntityId,
+};
 use arrix_plugin_api::Body;
+use base64::Engine as _;
+use base64::engine::general_purpose::STANDARD;
 use serde_json::{Map, Number, Value};
 
 /// Past this a JSON number is not exact in every reader (a double).
@@ -105,7 +110,17 @@ macro_rules! typed_wire_ids {
     )*};
 }
 
-typed_wire_ids!(FeatureId, ParamId, SketchEntityId, RecordId, CurveKey);
+typed_wire_ids!(
+    FeatureId,
+    ParamId,
+    SketchEntityId,
+    RecordId,
+    CurveKey,
+    PartId,
+    AssemblyId,
+    ComponentId,
+    JointId
+);
 
 pub fn id_to<T: WireId>(x: &T) -> Wire<Value> {
     Ok(Value::String(x.to_id().to_string()))
@@ -204,6 +219,54 @@ pub fn handle_to(body: &Body) -> Wire<Value> {
 
 pub fn handle_from(v: &Value) -> Wire<u32> {
     u32_from(v)
+}
+
+// ---- runs -----------------------------------------------------------------
+
+/// A run of `u8`, `f32` or `u32` is one base64 string of its little-endian
+/// bytes (ADR-0022 §5), where a long array of numbers would be a line of
+/// text per number.
+fn run_bytes(v: &Value) -> Wire<Vec<u8>> {
+    STANDARD
+        .decode(str_from(v)?)
+        .map_err(|e| WireError::new(format!("not base64: {e}")))
+}
+
+fn run_of<const N: usize, T>(v: &Value, what: &str, f: fn([u8; N]) -> T) -> Wire<Vec<T>> {
+    let bytes = run_bytes(v)?;
+    if bytes.len() % N != 0 {
+        return Err(WireError::new(format!(
+            "{} bytes are no run of {what} ({N} bytes each)",
+            bytes.len()
+        )));
+    }
+    Ok(bytes.as_chunks::<N>().0.iter().map(|c| f(*c)).collect())
+}
+
+pub fn run_u8_to(x: &[u8]) -> Wire<Value> {
+    Ok(Value::String(STANDARD.encode(x)))
+}
+
+pub fn run_u8_from(v: &Value) -> Wire<Vec<u8>> {
+    run_bytes(v)
+}
+
+pub fn run_f32_to(x: &[f32]) -> Wire<Value> {
+    let bytes: Vec<u8> = x.iter().flat_map(|f| f.to_le_bytes()).collect();
+    Ok(Value::String(STANDARD.encode(bytes)))
+}
+
+pub fn run_f32_from(v: &Value) -> Wire<Vec<f32>> {
+    run_of(v, "f32", f32::from_le_bytes)
+}
+
+pub fn run_u32_to(x: &[u32]) -> Wire<Value> {
+    let bytes: Vec<u8> = x.iter().flat_map(|n| n.to_le_bytes()).collect();
+    Ok(Value::String(STANDARD.encode(bytes)))
+}
+
+pub fn run_u32_from(v: &Value) -> Wire<Vec<u32>> {
+    run_of(v, "u32", u32::from_le_bytes)
 }
 
 // ---- containers -----------------------------------------------------------

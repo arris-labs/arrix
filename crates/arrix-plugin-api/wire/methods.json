@@ -1,5 +1,5 @@
 {
-  "api": "0.6.0",
+  "api": "0.7.0",
   "description": "Generated from wit/arrix-plugin.wit (ADR-0022). Do not edit. Each method's params and result are schemas over schema.json's $defs.",
   "methods": [
     {
@@ -670,6 +670,214 @@
             "properties": {
               "ok": {
                 "$ref": "schema.json#/$defs/feature-output"
+              }
+            },
+            "required": [
+              "ok"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "err": {
+                "$ref": "schema.json#/$defs/diagnostic"
+              }
+            },
+            "required": [
+              "err"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    {
+      "direction": "plugin-to-host",
+      "method": "document.parts",
+      "params": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "result": {
+        "items": {
+          "$ref": "schema.json#/$defs/part-info"
+        },
+        "type": "array"
+      }
+    },
+    {
+      "description": "The refined mesh of one final body of `part`.",
+      "direction": "plugin-to-host",
+      "method": "document.mesh",
+      "params": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "schema.json#/$defs/body-ref"
+          },
+          "part": {
+            "$ref": "schema.json#/$defs/id"
+          }
+        },
+        "required": [
+          "part",
+          "body"
+        ],
+        "type": "object"
+      },
+      "result": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "ok": {
+                "$ref": "schema.json#/$defs/triangles"
+              }
+            },
+            "required": [
+              "ok"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "err": {
+                "$ref": "schema.json#/$defs/diagnostic"
+              }
+            },
+            "required": [
+              "err"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    {
+      "description": "The part's mass properties, or the `mass.*` diagnostic.",
+      "direction": "plugin-to-host",
+      "method": "document.mass",
+      "params": {
+        "additionalProperties": false,
+        "properties": {
+          "part": {
+            "$ref": "schema.json#/$defs/id"
+          }
+        },
+        "required": [
+          "part"
+        ],
+        "type": "object"
+      },
+      "result": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "ok": {
+                "$ref": "schema.json#/$defs/inertial"
+              }
+            },
+            "required": [
+              "ok"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "err": {
+                "$ref": "schema.json#/$defs/diagnostic"
+              }
+            },
+            "required": [
+              "err"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    {
+      "direction": "plugin-to-host",
+      "method": "document.assemblies",
+      "params": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "result": {
+        "items": {
+          "$ref": "schema.json#/$defs/assembly-info"
+        },
+        "type": "array"
+      }
+    },
+    {
+      "direction": "host-to-plugin",
+      "method": "exchange.exporters",
+      "params": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "result": {
+        "items": {
+          "$ref": "schema.json#/$defs/exporter-spec"
+        },
+        "type": "array"
+      }
+    },
+    {
+      "description": "Deterministic: a pure function of the snapshot and the options.",
+      "direction": "host-to-plugin",
+      "method": "exchange.run",
+      "params": {
+        "additionalProperties": false,
+        "properties": {
+          "choices": {
+            "items": {
+              "$ref": "schema.json#/$defs/choice-value"
+            },
+            "type": "array"
+          },
+          "exporter": {
+            "type": "string"
+          },
+          "params": {
+            "items": {
+              "$ref": "schema.json#/$defs/param-value"
+            },
+            "type": "array"
+          },
+          "subject": {
+            "$ref": "schema.json#/$defs/subject"
+          }
+        },
+        "required": [
+          "exporter",
+          "subject",
+          "params",
+          "choices"
+        ],
+        "type": "object"
+      },
+      "result": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "ok": {
+                "items": {
+                  "$ref": "schema.json#/$defs/file"
+                },
+                "type": "array"
               }
             },
             "required": [

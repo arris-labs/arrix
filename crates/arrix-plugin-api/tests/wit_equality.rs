@@ -10,8 +10,9 @@
 //!    trips at run time.
 //! 2. **Functions.** `feature`'s `Guest` is implemented by forwarding to a
 //!    Rust `Feature`, and a Rust `Feature` by forwarding to the `Guest`;
-//!    the Rust `Kernel` is implemented over the world's imports. A method
-//!    or function added on either side fails to compile.
+//!    the same for `exchange`'s `Guest` and a Rust `Exporter`; the Rust
+//!    `Kernel` and `Snapshot` are implemented over the world's imports. A
+//!    method or function added on either side fails to compile.
 //! 3. **Inventory.** The world as parsed is exactly the types and functions
 //!    this file covers, so a WIT addition the bindings would silently
 //!    absorb (an unused record, a new import) fails here. The generated
@@ -22,12 +23,16 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use arrix_plugin_api as api;
-use arrix_plugin_api::guest::bindings::exports::arrix::plugin::feature as wf;
-use arrix_plugin_api::guest::{Exported, Mirror, Plugin, WitKernel, input_to_wit, output_from_wit};
+use arrix_plugin_api::guest::bindings::exports::arrix::plugin::{exchange as wx, feature as wf};
+use arrix_plugin_api::guest::{
+    Exported, ExporterSource, FeatureSource, Mirror, NoExporters, NoFeatures, Plugin, WitKernel,
+    WitSnapshot, WithExporters, WithFeatures, input_to_wit, output_from_wit,
+};
 use arrix_plugin_api::{
-    Axis, CurveKey, DVec2, DVec3, Diagnostic, FeatureId, Frame, Id, Motion, ParamId,
-    PersistentName, PluginId, Profile, ProfileLoop, ProfileSegment, Quantity, QuantityKind,
-    RecordId, Ref, RegionKey, Severity, SketchEntityId, SlotName,
+    AssemblyId, Axis, ComponentId, CurveKey, DVec2, DVec3, Diagnostic, FeatureId, Frame, Id,
+    JointId, Motion, ParamId, PartId, PersistentName, PluginId, Profile, ProfileLoop,
+    ProfileSegment, Quantity, QuantityKind, RecordId, Ref, RegionKey, Severity, SketchEntityId,
+    SlotName,
 };
 
 fn round_trip<T: Mirror + PartialEq + std::fmt::Debug>(v: &T) {
@@ -124,7 +129,7 @@ impl api::Feature for Offset {
     }
 }
 
-impl Plugin for Offset {
+impl FeatureSource for Offset {
     fn feature() -> &'static dyn api::Feature {
         &Offset
     }
@@ -132,7 +137,124 @@ impl Plugin for Offset {
 
 /// The world's `feature` export over `Offset`, as a Tier 1 guest built by
 /// `export_plugin!` is.
-type OffsetExported = Exported<Offset>;
+struct OffsetPlugin;
+
+impl Plugin for OffsetPlugin {
+    type Features = WithFeatures<Offset>;
+    type Exporters = NoExporters;
+}
+
+type OffsetExported = Exported<OffsetPlugin>;
+
+/// A test exporter: a text file naming the subject, and a second file that
+/// is its bytes' length, so a result is checked file by file.
+struct Dump;
+
+fn dump_spec() -> api::ExporterSpec {
+    api::ExporterSpec {
+        id: "test.dump".into(),
+        title: "Dump".into(),
+        extension: "txt".into(),
+        subject: api::SubjectKind::Assembly,
+        params: vec![api::ParamSpec {
+            name: "scale".into(),
+            title: "Scale".into(),
+            kind: QuantityKind::Ratio,
+            default: "1".into(),
+            shown_when: None,
+        }],
+        choices: vec![api::ChoiceSpec {
+            name: "unit".into(),
+            title: "Unit".into(),
+            options: vec![api::ChoiceOption {
+                name: "metre".into(),
+                title: "Metre".into(),
+            }],
+            default: Some("metre".into()),
+        }],
+    }
+}
+
+impl api::Exporter for Dump {
+    fn exporters(&self) -> Vec<api::ExporterSpec> {
+        vec![dump_spec()]
+    }
+
+    fn export(
+        &self,
+        _snapshot: &mut dyn api::Snapshot,
+        exporter: &str,
+        subject: &api::Subject,
+        params: &[api::ParamValue],
+        choices: &[api::ChoiceValue],
+    ) -> Result<Vec<api::ExportFile>, Diagnostic> {
+        if exporter != "test.dump" {
+            return Err(Diagnostic::new(Severity::Error, "test.dump.unknown", exporter).unwrap());
+        }
+        let text = format!("{subject:?} {params:?} {choices:?}").into_bytes();
+        Ok(vec![
+            api::ExportFile {
+                name: "dump.txt".into(),
+                bytes: text.clone(),
+            },
+            api::ExportFile {
+                name: "meshes/len.bin".into(),
+                bytes: (text.len() as u64).to_le_bytes().to_vec(),
+            },
+        ])
+    }
+}
+
+impl ExporterSource for Dump {
+    fn exporter() -> &'static dyn api::Exporter {
+        &Dump
+    }
+}
+
+struct DumpPlugin;
+
+impl Plugin for DumpPlugin {
+    type Features = NoFeatures;
+    type Exporters = WithExporters<Dump>;
+}
+
+type DumpExported = Exported<DumpPlugin>;
+
+/// A Rust `Exporter` implemented by forwarding to the world's export, as
+/// the host sees a Tier 1 plugin. The snapshot is the guest's own import,
+/// which natively cannot be reached, so `Dump` never reads it.
+struct ImportedDump;
+
+impl api::Exporter for ImportedDump {
+    fn exporters(&self) -> Vec<api::ExporterSpec> {
+        Vec::from_wit(<DumpExported as wx::Guest>::exporters())
+    }
+
+    fn export(
+        &self,
+        _snapshot: &mut dyn api::Snapshot,
+        exporter: &str,
+        subject: &api::Subject,
+        params: &[api::ParamValue],
+        choices: &[api::ChoiceValue],
+    ) -> Result<Vec<api::ExportFile>, Diagnostic> {
+        <DumpExported as wx::Guest>::run(
+            exporter.to_owned(),
+            subject.to_wit(),
+            params.to_vec().to_wit(),
+            choices.to_vec().to_wit(),
+        )
+        .map(Vec::from_wit)
+        .map_err(Diagnostic::from_wit)
+    }
+}
+
+/// The snapshot imported by the world, as a Rust `Snapshot`: held at
+/// compile time, since natively the imports are unreachable.
+#[allow(dead_code)]
+fn the_snapshot_is_the_worlds_import() -> impl api::Snapshot {
+    WitSnapshot
+}
 
 /// A Rust `Feature` implemented by forwarding to the world's export, as
 /// the host sees a Tier 1 plugin.
@@ -310,6 +432,125 @@ fn every_type_round_trips_through_the_world() {
     }
     round_trip(&api::ToolOp::Fuse);
     round_trip(&api::ToolOp::Cut);
+    document_types_round_trip();
+}
+
+fn document_types_round_trip() {
+    let part = PartId(Id(11));
+    let assembly = AssemblyId(Id(12));
+    let body = api::BodyRef {
+        feature: FeatureId(Id(13)),
+        slot: SlotName::new("body").unwrap(),
+    };
+    round_trip(&body);
+    let material = api::MaterialInfo {
+        name: "Steel".into(),
+        color: api::Rgb {
+            red: 0.5,
+            green: 0.25,
+            blue: 1.0,
+        },
+    };
+    round_trip(&material);
+    round_trip(&api::PartInfo {
+        id: part,
+        name: "Bracket".into(),
+        bodies: vec![
+            api::BodyInfo {
+                body: body.clone(),
+                material: Some(material),
+            },
+            api::BodyInfo {
+                body,
+                material: None,
+            },
+        ],
+    });
+    round_trip(&api::Triangles {
+        positions: vec![0.0, 0.0, 0.0, 1e-3, 0.0, 0.0, 0.0, 1e-3, 0.0],
+        normals: vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0],
+        indices: vec![0, 1, 2],
+    });
+    round_trip(&api::Inertial {
+        mass: 0.125,
+        centroid: DVec3::new(0.01, 0.0, -0.002),
+        inertia: api::InertiaTensor {
+            xx: 1e-6,
+            xy: -1e-8,
+            xz: 2e-8,
+            yy: 2e-6,
+            yz: -3e-8,
+            zz: 3e-6,
+        },
+    });
+    for kind in [
+        api::JointKind::Fixed,
+        api::JointKind::Revolute,
+        api::JointKind::Prismatic,
+    ] {
+        round_trip(&kind);
+    }
+    let component = ComponentId(Id(14));
+    let unplaced = Diagnostic::new(Severity::Warning, "assembly.unplaced", "no joint").unwrap();
+    let components = vec![
+        api::ComponentInfo {
+            path: vec![component],
+            name: "arm".into(),
+            of: api::ComponentOf::Part(part),
+            pose: tilted(),
+            diagnostics: vec![],
+        },
+        api::ComponentInfo {
+            path: vec![component, ComponentId(Id(15))],
+            name: "hand".into(),
+            of: api::ComponentOf::Assembly(assembly),
+            pose: Frame::WORLD_XY,
+            diagnostics: vec![unplaced.clone()],
+        },
+    ];
+    let placed = api::JointPlacement {
+        parent_anchor: tilted(),
+        child_anchor: Frame::WORLD_ZX,
+        value: 0.5,
+        diagnostics: vec![unplaced.clone()],
+    };
+    let joints = vec![
+        api::JointInfo {
+            id: JointId(Id(16)),
+            name: "hinge".into(),
+            kind: api::JointKind::Revolute,
+            parent: vec![component],
+            child: vec![component, ComponentId(Id(15))],
+            limits: Some([-1.5, 1.5]),
+            state: api::JointState::Placed(placed),
+        },
+        api::JointInfo {
+            id: JointId(Id(17)),
+            name: "slide".into(),
+            kind: api::JointKind::Prismatic,
+            parent: vec![],
+            child: vec![component],
+            limits: None,
+            state: api::JointState::Failed(unplaced),
+        },
+    ];
+    round_trip(&api::AssemblyInfo {
+        id: assembly,
+        name: "Arm".into(),
+        components,
+        joints,
+    });
+
+    for kind in [api::SubjectKind::Part, api::SubjectKind::Assembly] {
+        round_trip(&kind);
+    }
+    round_trip(&api::Subject::Part(part));
+    round_trip(&api::Subject::Assembly(assembly));
+    round_trip(&dump_spec());
+    round_trip(&api::ExportFile {
+        name: "meshes/link.stl".into(),
+        bytes: vec![0, 1, 254, 255],
+    });
 }
 
 #[test]
@@ -338,6 +579,54 @@ fn a_feature_behaves_the_same_through_the_world() {
             assert_eq!(through, direct, "{type_id} {side}");
         }
     }
+}
+
+#[test]
+fn an_exporter_behaves_the_same_through_the_world() {
+    use api::Exporter;
+
+    assert_eq!(ImportedDump.exporters(), Dump.exporters());
+    // A plugin that names no feature or exporter is empty, and refuses a call.
+    assert!(<DumpExported as wf::Guest>::describe().is_empty());
+    assert!(<OffsetExported as wx::Guest>::exporters().is_empty());
+
+    let params = [api::ParamValue {
+        name: "scale".into(),
+        value: Quantity::si(QuantityKind::Ratio, 2.0),
+    }];
+    let choices = [api::ChoiceValue {
+        name: "unit".into(),
+        value: "metre".into(),
+    }];
+    let subject = api::Subject::Assembly(AssemblyId(Id(3)));
+    // `Dump` reads no snapshot, so any will do for the direct call.
+    struct Nothing;
+    impl api::Snapshot for Nothing {
+        fn parts(&mut self) -> Vec<api::PartInfo> {
+            Vec::new()
+        }
+        fn mesh(&mut self, _: PartId, _: &api::BodyRef) -> Result<api::Triangles, Diagnostic> {
+            unreachable!()
+        }
+        fn mass(&mut self, _: PartId) -> Result<api::Inertial, Diagnostic> {
+            unreachable!()
+        }
+        fn assemblies(&mut self) -> Vec<api::AssemblyInfo> {
+            Vec::new()
+        }
+    }
+    for id in ["test.dump", "test.other"] {
+        let direct = Dump.export(&mut Nothing, id, &subject, &params, &choices);
+        let through = ImportedDump.export(&mut Nothing, id, &subject, &params, &choices);
+        assert_eq!(through, direct, "{id}");
+    }
+    let refused = <OffsetExported as wx::Guest>::run(
+        "test.dump".into(),
+        subject.to_wit(),
+        params.to_vec().to_wit(),
+        choices.to_vec().to_wit(),
+    );
+    assert_eq!(refused.unwrap_err().code, "plugin.no-exporter");
 }
 
 /// Every type and function of the world, by interface. Each is covered
@@ -417,6 +706,32 @@ const COVERED: &[(&str, &[&str], &[&str])] = &[
         ],
         &["describe", "evaluate"],
     ),
+    (
+        "document",
+        &[
+            "rgb",
+            "material-info",
+            "body-ref",
+            "body-info",
+            "part-info",
+            "triangles",
+            "inertia-tensor",
+            "inertial",
+            "joint-kind",
+            "component-of",
+            "component-info",
+            "joint-placement",
+            "joint-state",
+            "joint-info",
+            "assembly-info",
+        ],
+        &["parts", "mesh", "mass", "assemblies"],
+    ),
+    (
+        "exchange",
+        &["subject-kind", "subject", "exporter-spec", "file"],
+        &["exporters", "run"],
+    ),
 ];
 
 #[test]
@@ -448,15 +763,16 @@ fn the_world_is_exactly_what_is_covered() {
             .map(|k| resolve.name_world_key(k))
             .collect::<BTreeSet<_>>()
     };
-    // `kernel` is imported for its own sake and by `feature`'s `use`;
-    // `types` only through the `use`s.
+    // `kernel` and `document` are imported for their own sake; `types` only
+    // through the `use`s.
+    let v = api::API_VERSION;
     assert_eq!(
         names(&world.imports),
-        BTreeSet::from(["arrix:plugin/kernel@0.6.0", "arrix:plugin/types@0.6.0"].map(String::from))
+        BTreeSet::from(["kernel", "document", "types"].map(|i| format!("arrix:plugin/{i}@{v}")))
     );
     assert_eq!(
         names(&world.exports),
-        BTreeSet::from(["arrix:plugin/feature@0.6.0".to_owned()])
+        BTreeSet::from(["feature", "exchange"].map(|i| format!("arrix:plugin/{i}@{v}")))
     );
 
     let mut found = BTreeSet::new();

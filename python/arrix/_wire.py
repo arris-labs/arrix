@@ -5,10 +5,13 @@
 
 from __future__ import annotations
 
+import base64
+import sys
+from array import array
 from dataclasses import dataclass
 from typing import Any
 
-API_VERSION = "0.6.0"
+API_VERSION = "0.7.0"
 
 
 Body = int
@@ -26,6 +29,40 @@ class Failure(Exception):
 
 class KernelError(Failure):
     """The host's kernel refused a call; the diagnostic is its."""
+
+
+class DocumentError(Failure):
+    """The host refused a snapshot read (a mesh it cannot make, a part with
+    no mass); the diagnostic is its."""
+
+
+assert array("f").itemsize == 4 and array("I").itemsize == 4
+_RUN_CODES = {"f32": "f", "u32": "I"}
+
+
+def run_encode(kind: str, values: Any) -> str:
+    """A run of `u8`, `f32` or `u32` as base64 of its little-endian bytes
+    (ADR-0022 section 5). Any sequence of numbers will do."""
+    if kind == "u8":
+        data = bytes(values)
+    else:
+        a = array(_RUN_CODES[kind], values)
+        if sys.byteorder == "big":
+            a.byteswap()
+        data = a.tobytes()
+    return base64.b64encode(data).decode("ascii")
+
+
+def run_decode(kind: str, text: str) -> Any:
+    """`bytes` for a `u8` run, an `array.array` for the others."""
+    data = base64.b64decode(text, validate=True)
+    if kind == "u8":
+        return data
+    a = array(_RUN_CODES[kind])
+    a.frombytes(data)
+    if sys.byteorder == "big":
+        a.byteswap()
+    return a
 
 
 @dataclass(frozen=True)
@@ -1005,6 +1042,461 @@ class FeatureOutput:
         )
 
 
+@dataclass(frozen=True)
+class Rgb:
+    """A colour: red, green and blue in 0 to 1."""
+    red: float
+    green: float
+    blue: float
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "red": self.red,
+            "green": self.green,
+            "blue": self.blue,
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> Rgb:
+        return Rgb(
+            red=v["red"],
+            green=v["green"],
+            blue=v["blue"],
+        )
+
+
+@dataclass(frozen=True)
+class MaterialInfo:
+    name: str
+    color: Rgb
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "color": self.color.to_json(),
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> MaterialInfo:
+        return MaterialInfo(
+            name=v["name"],
+            color=Rgb.from_json(v["color"]),
+        )
+
+
+@dataclass(frozen=True)
+class BodyRef:
+    """A final body of a part: the body slot a feature made."""
+    feature: str
+    slot: str
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "feature": self.feature,
+            "slot": self.slot,
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> BodyRef:
+        return BodyRef(
+            feature=v["feature"],
+            slot=v["slot"],
+        )
+
+
+@dataclass(frozen=True)
+class BodyInfo:
+    """`material` is none for a body of a part with no material."""
+    body: BodyRef
+    material: MaterialInfo | None
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "body": self.body.to_json(),
+            "material": None if self.material is None else self.material.to_json(),
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> BodyInfo:
+        return BodyInfo(
+            body=BodyRef.from_json(v["body"]),
+            material=None if v["material"] is None else MaterialInfo.from_json(v["material"]),
+        )
+
+
+@dataclass(frozen=True)
+class PartInfo:
+    id: str
+    name: str
+    bodies: list[BodyInfo]
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "bodies": [x0.to_json() for x0 in self.bodies],
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> PartInfo:
+        return PartInfo(
+            id=v["id"],
+            name=v["name"],
+            bodies=[BodyInfo.from_json(x0) for x0 in v["bodies"]],
+        )
+
+
+@dataclass(frozen=True)
+class Triangles:
+    """A refined mesh in the part's frame, chord 1e-4 m (ADR-0037 §4): three `f32` per vertex in `positions` and `normals`, three `u32` per triangle in `indices`, counter-clockwise seen from outside."""
+    positions: array[float]
+    normals: array[float]
+    indices: array[int]
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "positions": run_encode("f32", self.positions),
+            "normals": run_encode("f32", self.normals),
+            "indices": run_encode("u32", self.indices),
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> Triangles:
+        return Triangles(
+            positions=run_decode("f32", v["positions"]),
+            normals=run_decode("f32", v["normals"]),
+            indices=run_decode("u32", v["indices"]),
+        )
+
+
+@dataclass(frozen=True)
+class InertiaTensor:
+    """A symmetric inertia tensor, the entries of the matrix: `xy` is the negated product of inertia. kg m^2."""
+    xx: float
+    xy: float
+    xz: float
+    yy: float
+    yz: float
+    zz: float
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "xx": self.xx,
+            "xy": self.xy,
+            "xz": self.xz,
+            "yy": self.yy,
+            "yz": self.yz,
+            "zz": self.zz,
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> InertiaTensor:
+        return InertiaTensor(
+            xx=v["xx"],
+            xy=v["xy"],
+            xz=v["xz"],
+            yy=v["yy"],
+            yz=v["yz"],
+            zz=v["zz"],
+        )
+
+
+@dataclass(frozen=True)
+class Inertial:
+    """Mass in kg, the centre of mass in the part's frame, and the inertia about it with the part's axes (docs/DATA-MODEL.md §Evaluation)."""
+    mass: float
+    centroid: Vec3
+    inertia: InertiaTensor
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "mass": self.mass,
+            "centroid": self.centroid.to_json(),
+            "inertia": self.inertia.to_json(),
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> Inertial:
+        return Inertial(
+            mass=v["mass"],
+            centroid=Vec3.from_json(v["centroid"]),
+            inertia=InertiaTensor.from_json(v["inertia"]),
+        )
+
+
+class JointKind:
+    FIXED = "fixed"
+    REVOLUTE = "revolute"
+    PRISMATIC = "prismatic"
+    ALL = ("fixed", "revolute", "prismatic")
+
+
+@dataclass(frozen=True)
+class ComponentOf:
+    """One of `part`, `assembly`: `case` names it, `value` is its payload."""
+    case: str
+    value: Any = None
+
+    @staticmethod
+    def part(value: str) -> ComponentOf:
+        return ComponentOf("part", value)
+
+    @staticmethod
+    def assembly(value: str) -> ComponentOf:
+        return ComponentOf("assembly", value)
+
+    def to_json(self) -> dict[str, Any]:
+        if self.case == "part":
+            return {"part": self.value}
+        if self.case == "assembly":
+            return {"assembly": self.value}
+        raise ValueError(f"component-of has no case {self.case!r}")
+
+    @staticmethod
+    def from_json(v: Any) -> ComponentOf:
+        (case, payload), = v.items()
+        if case == "part":
+            return ComponentOf(case, payload)
+        if case == "assembly":
+            return ComponentOf(case, payload)
+        raise ValueError(f"component-of has no case {case!r}")
+
+
+@dataclass(frozen=True)
+class ComponentInfo:
+    """A component where its assembly places it. `path` is the component ids from the assembly down (a nested assembly's own components follow it); `pose` is where the origin and axes of its part or nested assembly land in the assembly's frame. `diagnostics` say why it is not where it was authored (`assembly.unplaced`)."""
+    path: list[str]
+    name: str
+    of: ComponentOf
+    pose: Frame
+    diagnostics: list[Diagnostic]
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "path": [x0 for x0 in self.path],
+            "name": self.name,
+            "of": self.of.to_json(),
+            "pose": self.pose.to_json(),
+            "diagnostics": [x0.to_json() for x0 in self.diagnostics],
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> ComponentInfo:
+        return ComponentInfo(
+            path=[x0 for x0 in v["path"]],
+            name=v["name"],
+            of=ComponentOf.from_json(v["of"]),
+            pose=Frame.from_json(v["pose"]),
+            diagnostics=[Diagnostic.from_json(x0) for x0 in v["diagnostics"]],
+        )
+
+
+@dataclass(frozen=True)
+class JointPlacement:
+    """Where a solved joint put its anchors, each in the frame of the component its path ends at. The motion is about their z axes (ADR-0029 §3). `value` is value + offset in SI, radians or metres, zero for a fixed joint."""
+    parent_anchor: Frame
+    child_anchor: Frame
+    value: float
+    diagnostics: list[Diagnostic]
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "parent-anchor": self.parent_anchor.to_json(),
+            "child-anchor": self.child_anchor.to_json(),
+            "value": self.value,
+            "diagnostics": [x0.to_json() for x0 in self.diagnostics],
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> JointPlacement:
+        return JointPlacement(
+            parent_anchor=Frame.from_json(v["parent-anchor"]),
+            child_anchor=Frame.from_json(v["child-anchor"]),
+            value=v["value"],
+            diagnostics=[Diagnostic.from_json(x0) for x0 in v["diagnostics"]],
+        )
+
+
+@dataclass(frozen=True)
+class JointState:
+    """One of `placed`, `failed`: `case` names it, `value` is its payload."""
+    case: str
+    value: Any = None
+
+    @staticmethod
+    def placed(value: JointPlacement) -> JointState:
+        return JointState("placed", value)
+
+    @staticmethod
+    def failed(value: Diagnostic) -> JointState:
+        return JointState("failed", value)
+
+    def to_json(self) -> dict[str, Any]:
+        if self.case == "placed":
+            return {"placed": self.value.to_json()}
+        if self.case == "failed":
+            return {"failed": self.value.to_json()}
+        raise ValueError(f"joint-state has no case {self.case!r}")
+
+    @staticmethod
+    def from_json(v: Any) -> JointState:
+        (case, payload), = v.items()
+        if case == "placed":
+            return JointState(case, JointPlacement.from_json(payload))
+        if case == "failed":
+            return JointState(case, Diagnostic.from_json(payload))
+        raise ValueError(f"joint-state has no case {case!r}")
+
+
+@dataclass(frozen=True)
+class JointInfo:
+    """`parent` and `child` are the paths of the components the anchors are on, from the assembly down. `limits` are lower and upper, SI."""
+    id: str
+    name: str
+    kind: JointKind
+    parent: list[str]
+    child: list[str]
+    limits: tuple[float, float] | None
+    state: JointState
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "kind": self.kind,
+            "parent": [x0 for x0 in self.parent],
+            "child": [x0 for x0 in self.child],
+            "limits": None if self.limits is None else [self.limits[0], self.limits[1]],
+            "state": self.state.to_json(),
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> JointInfo:
+        return JointInfo(
+            id=v["id"],
+            name=v["name"],
+            kind=v["kind"],
+            parent=[x0 for x0 in v["parent"]],
+            child=[x0 for x0 in v["child"]],
+            limits=None if v["limits"] is None else (v["limits"][0], v["limits"][1]),
+            state=JointState.from_json(v["state"]),
+        )
+
+
+@dataclass(frozen=True)
+class AssemblyInfo:
+    id: str
+    name: str
+    components: list[ComponentInfo]
+    joints: list[JointInfo]
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "components": [x0.to_json() for x0 in self.components],
+            "joints": [x0.to_json() for x0 in self.joints],
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> AssemblyInfo:
+        return AssemblyInfo(
+            id=v["id"],
+            name=v["name"],
+            components=[ComponentInfo.from_json(x0) for x0 in v["components"]],
+            joints=[JointInfo.from_json(x0) for x0 in v["joints"]],
+        )
+
+
+class SubjectKind:
+    PART = "part"
+    ASSEMBLY = "assembly"
+    ALL = ("part", "assembly")
+
+
+@dataclass(frozen=True)
+class Subject:
+    """One of `part`, `assembly`: `case` names it, `value` is its payload."""
+    case: str
+    value: Any = None
+
+    @staticmethod
+    def part(value: str) -> Subject:
+        return Subject("part", value)
+
+    @staticmethod
+    def assembly(value: str) -> Subject:
+        return Subject("assembly", value)
+
+    def to_json(self) -> dict[str, Any]:
+        if self.case == "part":
+            return {"part": self.value}
+        if self.case == "assembly":
+            return {"assembly": self.value}
+        raise ValueError(f"subject has no case {self.case!r}")
+
+    @staticmethod
+    def from_json(v: Any) -> Subject:
+        (case, payload), = v.items()
+        if case == "part":
+            return Subject(case, payload)
+        if case == "assembly":
+            return Subject(case, payload)
+        raise ValueError(f"subject has no case {case!r}")
+
+
+@dataclass(frozen=True)
+class ExporterSpec:
+    """`id` is `<plugin-id>.<name>`; `extension` is the main file's, without the dot. Options are a feature's fields, so a form is derived as for a feature."""
+    id: str
+    title: str
+    extension: str
+    subject: SubjectKind
+    params: list[ParamSpec]
+    choices: list[ChoiceSpec]
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "title": self.title,
+            "extension": self.extension,
+            "subject": self.subject,
+            "params": [x0.to_json() for x0 in self.params],
+            "choices": [x0.to_json() for x0 in self.choices],
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> ExporterSpec:
+        return ExporterSpec(
+            id=v["id"],
+            title=v["title"],
+            extension=v["extension"],
+            subject=v["subject"],
+            params=[ParamSpec.from_json(x0) for x0 in v["params"]],
+            choices=[ChoiceSpec.from_json(x0) for x0 in v["choices"]],
+        )
+
+
+@dataclass(frozen=True)
+class File:
+    """`name` is a relative path of `/`-separated parts, none empty, `.` or `..` (ADR-0037 §7). The first file of a result is the main one."""
+    name: str
+    bytes: bytes
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "bytes": run_encode("u8", self.bytes),
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> File:
+        return File(
+            name=v["name"],
+            bytes=run_decode("u8", v["bytes"]),
+        )
+
+
 class KernelStubs:
     """The host's `kernel` interface. A subclass supplies `_request`; a call the host refuses raises `KernelError`."""
 
@@ -1093,6 +1585,35 @@ class KernelStubs:
         return r["ok"]
 
 
+class DocumentStubs:
+    """The host's `document` interface. A subclass supplies `_request`; a call the host refuses raises `DocumentError`."""
+
+    def _request(self, method: str, params: dict[str, Any]) -> Any:
+        raise NotImplementedError
+
+    def parts(self) -> list[PartInfo]:
+        r = self._request("document.parts", {})
+        return [PartInfo.from_json(x0) for x0 in r]
+
+    def mesh(self, part: str, body: BodyRef) -> Triangles:
+        """The refined mesh of one final body of `part`."""
+        r = self._request("document.mesh", {"part": part, "body": body.to_json()})
+        if "err" in r:
+            raise DocumentError(Diagnostic.from_json(r["err"]))
+        return Triangles.from_json(r["ok"])
+
+    def mass(self, part: str) -> Inertial:
+        """The part's mass properties, or the `mass.*` diagnostic."""
+        r = self._request("document.mass", {"part": part})
+        if "err" in r:
+            raise DocumentError(Diagnostic.from_json(r["err"]))
+        return Inertial.from_json(r["ok"])
+
+    def assemblies(self) -> list[AssemblyInfo]:
+        r = self._request("document.assemblies", {})
+        return [AssemblyInfo.from_json(x0) for x0 in r]
+
+
 class FeatureStubs:
     """The plugin's `feature` interface: a subclass implements the methods, and `dispatch` serves a host request with them."""
 
@@ -1116,6 +1637,29 @@ class FeatureStubs:
         raise KeyError(method)
 
 
+class ExchangeStubs:
+    """The plugin's `exchange` interface: a subclass implements the methods, and `dispatch` serves a host request with them."""
+
+    def exporters(self) -> list[ExporterSpec]:
+        raise NotImplementedError
+
+    def run(self, exporter: str, subject: Subject, params: list[ParamValue], choices: list[ChoiceValue]) -> list[File]:
+        """Deterministic: a pure function of the snapshot and the options."""
+        raise NotImplementedError
+
+    def dispatch(self, method: str, params: dict[str, Any]) -> Any:
+        if method == "exchange.exporters":
+            r = self.exporters()
+            return [x0.to_json() for x0 in r]
+        if method == "exchange.run":
+            try:
+                r = self.run(params["exporter"], Subject.from_json(params["subject"]), [ParamValue.from_json(x0) for x0 in params["params"]], [ChoiceValue.from_json(x0) for x0 in params["choices"]])
+            except Failure as e:
+                return {"err": e.diagnostic.to_json()}
+            return {"ok": [x0.to_json() for x0 in r]}
+        raise KeyError(method)
+
+
 METHODS = {
     "kernel.extrude": "plugin-to-host",
     "kernel.revolve": "plugin-to-host",
@@ -1131,4 +1675,10 @@ METHODS = {
     "kernel.mirror": "plugin-to-host",
     "feature.describe": "host-to-plugin",
     "feature.evaluate": "host-to-plugin",
+    "document.parts": "plugin-to-host",
+    "document.mesh": "plugin-to-host",
+    "document.mass": "plugin-to-host",
+    "document.assemblies": "plugin-to-host",
+    "exchange.exporters": "host-to-plugin",
+    "exchange.run": "host-to-plugin",
 }

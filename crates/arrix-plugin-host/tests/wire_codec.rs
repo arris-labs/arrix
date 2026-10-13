@@ -9,8 +9,9 @@ use std::collections::BTreeSet;
 use std::fmt::Debug;
 
 use arrix_core::{
-    CurveKey, FeatureId, Frame, Id, ParamId, PersistentName, PluginId, Profile, ProfileLoop,
-    ProfileSegment, RecordId, RegionKey, SketchEntityId, SlotName,
+    AssemblyId, ComponentId, CurveKey, FeatureId, Frame, Id, JointId, ParamId, PartId,
+    PersistentName, PluginId, Profile, ProfileLoop, ProfileSegment, RecordId, RegionKey,
+    SketchEntityId, SlotName,
 };
 use arrix_plugin_api::{
     Axis, Body, ChoiceOption, ChoiceSpec, ChoiceValue, DVec2, DVec3, Diagnostic, FeatureOutput,
@@ -566,6 +567,8 @@ fn every_type_and_case_round_trips_and_keeps_its_schema() {
         wire::feature_output_from_json,
     );
 
+    document_samples(&mut r);
+
     let missing: BTreeSet<_> = schemas
         .expected_coverage()
         .difference(&r.check.seen)
@@ -575,6 +578,238 @@ fn every_type_and_case_round_trips_and_keeps_its_schema() {
         missing.is_empty(),
         "the samples never reach these types or cases of the world: {missing:?}"
     );
+}
+
+/// The `document` and `exchange` types: runs of `f32`, `u32` and `u8`
+/// among them.
+fn document_samples(r: &mut Round) {
+    use arrix_plugin_api as api;
+    let body = api::BodyRef {
+        feature: feature(3),
+        slot: slot("body"),
+    };
+    r.go(
+        "body-ref",
+        &body,
+        wire::body_ref_to_json,
+        wire::body_ref_from_json,
+    );
+    let material = api::MaterialInfo {
+        name: "Steel".into(),
+        color: api::Rgb {
+            red: 0.5,
+            green: 0.25,
+            blue: 1.0,
+        },
+    };
+    r.go(
+        "rgb",
+        &material.color,
+        wire::rgb_to_json,
+        wire::rgb_from_json,
+    );
+    r.go(
+        "material-info",
+        &material,
+        wire::material_info_to_json,
+        wire::material_info_from_json,
+    );
+    for material in [Some(material), None] {
+        r.go(
+            "body-info",
+            &api::BodyInfo {
+                body: body.clone(),
+                material,
+            },
+            wire::body_info_to_json,
+            wire::body_info_from_json,
+        );
+    }
+    r.go(
+        "part-info",
+        &api::PartInfo {
+            id: PartId(id(7)),
+            name: "Bracket".into(),
+            bodies: vec![],
+        },
+        wire::part_info_to_json,
+        wire::part_info_from_json,
+    );
+    for mesh in [
+        api::Triangles::default(),
+        api::Triangles {
+            positions: vec![0.0, 0.0, 0.0, 1e-3, 0.0, 0.0, 0.0, 1e-3, -2.5],
+            normals: vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0],
+            indices: vec![0, 1, 2, u32::MAX],
+        },
+    ] {
+        r.go(
+            "triangles",
+            &mesh,
+            wire::triangles_to_json,
+            wire::triangles_from_json,
+        );
+    }
+    let tensor = api::InertiaTensor {
+        xx: 1e-6,
+        xy: -1e-8,
+        xz: 2e-8,
+        yy: 2e-6,
+        yz: -3e-8,
+        zz: 3e-6,
+    };
+    r.go(
+        "inertia-tensor",
+        &tensor,
+        wire::inertia_tensor_to_json,
+        wire::inertia_tensor_from_json,
+    );
+    r.go(
+        "inertial",
+        &api::Inertial {
+            mass: 0.125,
+            centroid: v3(0.01, 0.0, -0.002),
+            inertia: tensor,
+        },
+        wire::inertial_to_json,
+        wire::inertial_from_json,
+    );
+    for kind in [
+        api::JointKind::Fixed,
+        api::JointKind::Revolute,
+        api::JointKind::Prismatic,
+    ] {
+        r.go(
+            "joint-kind",
+            &kind,
+            wire::joint_kind_to_json,
+            wire::joint_kind_from_json,
+        );
+    }
+    let component = ComponentId(id(14));
+    for of in [
+        api::ComponentOf::Part(PartId(id(1))),
+        api::ComponentOf::Assembly(AssemblyId(id(2))),
+    ] {
+        r.go(
+            "component-of",
+            &of,
+            wire::component_of_to_json,
+            wire::component_of_from_json,
+        );
+        r.go(
+            "component-info",
+            &api::ComponentInfo {
+                path: vec![component, ComponentId(id(15))],
+                name: "arm".into(),
+                of,
+                pose: tilted(),
+                diagnostics: vec![diagnostic()],
+            },
+            wire::component_info_to_json,
+            wire::component_info_from_json,
+        );
+    }
+    let placement = api::JointPlacement {
+        parent_anchor: tilted(),
+        child_anchor: Frame::WORLD_ZX,
+        value: 0.5,
+        diagnostics: vec![],
+    };
+    r.go(
+        "joint-placement",
+        &placement,
+        wire::joint_placement_to_json,
+        wire::joint_placement_from_json,
+    );
+    let states = [
+        api::JointState::Placed(placement),
+        api::JointState::Failed(diagnostic()),
+    ];
+    for state in &states {
+        r.go(
+            "joint-state",
+            state,
+            wire::joint_state_to_json,
+            wire::joint_state_from_json,
+        );
+    }
+    let joints: Vec<_> = states
+        .into_iter()
+        .enumerate()
+        .map(|(i, state)| api::JointInfo {
+            id: JointId(id(16 + i as u64)),
+            name: "hinge".into(),
+            kind: api::JointKind::Revolute,
+            parent: vec![],
+            child: vec![component],
+            limits: (i == 0).then_some([-1.5, 1.5]),
+            state,
+        })
+        .collect();
+    for joint in &joints {
+        r.go(
+            "joint-info",
+            joint,
+            wire::joint_info_to_json,
+            wire::joint_info_from_json,
+        );
+    }
+    r.go(
+        "assembly-info",
+        &api::AssemblyInfo {
+            id: AssemblyId(id(2)),
+            name: "Arm".into(),
+            components: vec![],
+            joints,
+        },
+        wire::assembly_info_to_json,
+        wire::assembly_info_from_json,
+    );
+
+    for kind in [api::SubjectKind::Part, api::SubjectKind::Assembly] {
+        r.go(
+            "subject-kind",
+            &kind,
+            wire::subject_kind_to_json,
+            wire::subject_kind_from_json,
+        );
+    }
+    for subject in [
+        api::Subject::Part(PartId(id(1))),
+        api::Subject::Assembly(AssemblyId(id(2))),
+    ] {
+        r.go(
+            "subject",
+            &subject,
+            wire::subject_to_json,
+            wire::subject_from_json,
+        );
+    }
+    r.go(
+        "exporter-spec",
+        &api::ExporterSpec {
+            id: "robotics.urdf".into(),
+            title: "URDF".into(),
+            extension: "urdf".into(),
+            subject: api::SubjectKind::Assembly,
+            params: vec![],
+            choices: vec![],
+        },
+        wire::exporter_spec_to_json,
+        wire::exporter_spec_from_json,
+    );
+    for bytes in [vec![], vec![0, 1, 254, 255]] {
+        r.go(
+            "file",
+            &api::ExportFile {
+                name: "meshes/a.stl".into(),
+                bytes,
+            },
+            wire::file_to_json,
+            wire::file_from_json,
+        );
+    }
 }
 
 #[test]

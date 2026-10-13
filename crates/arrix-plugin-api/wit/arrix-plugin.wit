@@ -5,7 +5,7 @@
 //
 // SI throughout: metres, radians, kilograms. No Arris type appears here.
 
-package arrix:plugin@0.6.0;
+package arrix:plugin@0.7.0;
 
 interface types {
   // An id: 64 bits, as `arrix-core`'s typed ids carry it.
@@ -217,7 +217,122 @@ interface feature {
   ) -> result<feature-output, diagnostic>;
 }
 
+// The evaluated document, read (docs/PLUGINS.md §One interface, ADR-0037):
+// parts, their final bodies' meshes, assemblies with solved poses and
+// joints, mass and inertia. Read-only, by function so a plugin fetches only
+// what it writes. Granted by `document-read`, and callable only while an
+// `exchange` call runs, against the generation that call was made on.
+interface document {
+  use types.{diagnostic, frame, id, vec3};
+
+  // A colour: red, green and blue in 0 to 1.
+  record rgb { red: f64, green: f64, blue: f64 }
+  record material-info { name: string, color: rgb }
+  // A final body of a part: the body slot a feature made.
+  record body-ref { feature: id, slot: string }
+  // `material` is none for a body of a part with no material.
+  record body-info { body: body-ref, material: option<material-info> }
+  record part-info { id: id, name: string, bodies: list<body-info> }
+
+  // A refined mesh in the part's frame, chord 1e-4 m (ADR-0037 §4): three
+  // `f32` per vertex in `positions` and `normals`, three `u32` per triangle
+  // in `indices`, counter-clockwise seen from outside.
+  record triangles { positions: list<f32>, normals: list<f32>, indices: list<u32> }
+
+  // A symmetric inertia tensor, the entries of the matrix: `xy` is the
+  // negated product of inertia. kg m^2.
+  record inertia-tensor { xx: f64, xy: f64, xz: f64, yy: f64, yz: f64, zz: f64 }
+  // Mass in kg, the centre of mass in the part's frame, and the inertia
+  // about it with the part's axes (docs/DATA-MODEL.md §Evaluation).
+  record inertial { mass: f64, centroid: vec3, inertia: inertia-tensor }
+
+  enum joint-kind { fixed, revolute, prismatic }
+  variant component-of { part(id), assembly(id) }
+  // A component where its assembly places it. `path` is the component ids
+  // from the assembly down (a nested assembly's own components follow it);
+  // `pose` is where the origin and axes of its part or nested assembly
+  // land in the assembly's frame. `diagnostics` say why it is not where it
+  // was authored (`assembly.unplaced`).
+  record component-info {
+    path: list<id>,
+    name: string,
+    of: component-of,
+    pose: frame,
+    diagnostics: list<diagnostic>,
+  }
+  // Where a solved joint put its anchors, each in the frame of the
+  // component its path ends at. The motion is about their z axes
+  // (ADR-0029 §3). `value` is value + offset in SI, radians or metres,
+  // zero for a fixed joint.
+  record joint-placement {
+    parent-anchor: frame,
+    child-anchor: frame,
+    value: f64,
+    diagnostics: list<diagnostic>,
+  }
+  variant joint-state { placed(joint-placement), failed(diagnostic) }
+  // `parent` and `child` are the paths of the components the anchors are
+  // on, from the assembly down. `limits` are lower and upper, SI.
+  record joint-info {
+    id: id,
+    name: string,
+    kind: joint-kind,
+    parent: list<id>,
+    child: list<id>,
+    limits: option<tuple<f64, f64>>,
+    state: joint-state,
+  }
+  record assembly-info {
+    id: id,
+    name: string,
+    components: list<component-info>,
+    joints: list<joint-info>,
+  }
+
+  parts: func() -> list<part-info>;
+  // The refined mesh of one final body of `part`.
+  mesh: func(part: id, body: body-ref) -> result<triangles, diagnostic>;
+  // The part's mass properties, or the `mass.*` diagnostic.
+  mass: func(part: id) -> result<inertial, diagnostic>;
+  assemblies: func() -> list<assembly-info>;
+}
+
+// Exporters (docs/PLUGINS.md §Contribution points, 4): a snapshot in
+// through `document`, files out. The host writes them.
+interface exchange {
+  use types.{diagnostic, id};
+  use feature.{choice-spec, choice-value, param-spec, param-value};
+
+  enum subject-kind { part, assembly }
+  variant subject { part(id), assembly(id) }
+  // `id` is `<plugin-id>.<name>`; `extension` is the main file's, without
+  // the dot. Options are a feature's fields, so a form is derived as for a
+  // feature.
+  record exporter-spec {
+    id: string,
+    title: string,
+    extension: string,
+    subject: subject-kind,
+    params: list<param-spec>,
+    choices: list<choice-spec>,
+  }
+  // `name` is a relative path of `/`-separated parts, none empty, `.` or
+  // `..` (ADR-0037 §7). The first file of a result is the main one.
+  record file { name: string, bytes: list<u8> }
+
+  exporters: func() -> list<exporter-spec>;
+  // Deterministic: a pure function of the snapshot and the options.
+  run: func(
+    exporter: string,
+    subject: subject,
+    params: list<param-value>,
+    choices: list<choice-value>,
+  ) -> result<list<file>, diagnostic>;
+}
+
 world plugin {
   import kernel;
+  import document;
   export feature;
+  export exchange;
 }

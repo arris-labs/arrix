@@ -10,11 +10,18 @@ use std::path::Path;
 use wit_parser::{Handle, Resolve, Type, TypeDefKind, TypeId};
 
 /// A type as it is written in a field, a parameter or a result.
+///
+/// A list of `u8`, `f32` or `u32` is a *run* (ADR-0022 §5): bulk numbers
+/// cross as one base64 string of their little-endian bytes.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Ty {
     Bool,
+    /// Only as the element of a run (`list<u8>`).
+    U8,
     U32,
     S64,
+    /// Only as the element of a run (`list<f32>`).
+    F32,
     F64,
     String,
     /// `types.id`: ArriX's 13-character id text (ADR-0022 §3).
@@ -26,6 +33,21 @@ pub enum Ty {
     Option(Box<Ty>),
     Tuple(Vec<Ty>),
     Result(Option<Box<Ty>>, Option<Box<Ty>>),
+}
+
+impl Ty {
+    /// The element type of a run: `u8`, `f32` or `u32`.
+    pub fn run(&self) -> Option<&'static str> {
+        match self {
+            Ty::List(t) => match **t {
+                Ty::U8 => Some("u8"),
+                Ty::F32 => Some("f32"),
+                Ty::U32 => Some("u32"),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -226,8 +248,10 @@ fn read_def(resolve: &Resolve, name: &str, kind: &TypeDefKind, iface: &str) -> D
 fn ty(resolve: &Resolve, t: &Type) -> Ty {
     match t {
         Type::Bool => Ty::Bool,
+        Type::U8 => Ty::U8,
         Type::U32 => Ty::U32,
         Type::S64 => Ty::S64,
+        Type::F32 => Ty::F32,
         Type::F64 => Ty::F64,
         Type::String => Ty::String,
         Type::Id(id) => ty_id(resolve, *id),

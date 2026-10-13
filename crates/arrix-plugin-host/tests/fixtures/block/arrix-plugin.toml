@@ -1,7 +1,7 @@
 [plugin]
 id = "block"
 version = "0.1.0"
-api = "^0.6"
+api = "^0.7"
 tier = 2
 title = "Block"
 licence = "MIT OR Apache-2.0"

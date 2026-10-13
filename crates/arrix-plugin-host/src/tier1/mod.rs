@@ -251,7 +251,10 @@ fn linker() -> Result<Linker<State>, wasmtime::Error> {
         .iter()
         .filter(|m| m.direction == Direction::PluginToHost)
     {
-        let name = m.name.strip_prefix("kernel.").expect("a kernel method");
+        // The `document` import is served in an export (ADR-0037, step 6).
+        let Some(name) = m.name.strip_prefix("kernel.") else {
+            continue;
+        };
         let method = m.name;
         kernel.func_new(name, move |mut store, ty, params, results| {
             let served = ask(&mut store, method, &ty, params);

@@ -21,6 +21,36 @@
       ],
       "type": "object"
     },
+    "assembly-info": {
+      "additionalProperties": false,
+      "properties": {
+        "components": {
+          "items": {
+            "$ref": "#/$defs/component-info"
+          },
+          "type": "array"
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "joints": {
+          "items": {
+            "$ref": "#/$defs/joint-info"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "components",
+        "joints"
+      ],
+      "type": "object"
+    },
     "axis": {
       "additionalProperties": false,
       "description": "A line in the world: a point on it and a direction (a revolve's axis, an `axis` input). A resolved input's direction is unit.",
@@ -44,6 +74,46 @@
       "minimum": 0,
       "type": "integer",
       "x-handle": "body"
+    },
+    "body-info": {
+      "additionalProperties": false,
+      "description": "`material` is none for a body of a part with no material.",
+      "properties": {
+        "body": {
+          "$ref": "#/$defs/body-ref"
+        },
+        "material": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/material-info"
+            }
+          ]
+        }
+      },
+      "required": [
+        "body"
+      ],
+      "type": "object"
+    },
+    "body-ref": {
+      "additionalProperties": false,
+      "description": "A final body of a part: the body slot a feature made.",
+      "properties": {
+        "feature": {
+          "$ref": "#/$defs/id"
+        },
+        "slot": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "feature",
+        "slot"
+      ],
+      "type": "object"
     },
     "choice-option": {
       "additionalProperties": false,
@@ -132,6 +202,69 @@
       ],
       "type": "object"
     },
+    "component-info": {
+      "additionalProperties": false,
+      "description": "A component where its assembly places it. `path` is the component ids from the assembly down (a nested assembly's own components follow it); `pose` is where the origin and axes of its part or nested assembly land in the assembly's frame. `diagnostics` say why it is not where it was authored (`assembly.unplaced`).",
+      "properties": {
+        "diagnostics": {
+          "items": {
+            "$ref": "#/$defs/diagnostic"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        },
+        "of": {
+          "$ref": "#/$defs/component-of"
+        },
+        "path": {
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "type": "array"
+        },
+        "pose": {
+          "$ref": "#/$defs/frame"
+        }
+      },
+      "required": [
+        "path",
+        "name",
+        "of",
+        "pose",
+        "diagnostics"
+      ],
+      "type": "object"
+    },
+    "component-of": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "part": {
+              "$ref": "#/$defs/id"
+            }
+          },
+          "required": [
+            "part"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "assembly": {
+              "$ref": "#/$defs/id"
+            }
+          },
+          "required": [
+            "assembly"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "diagnostic": {
       "additionalProperties": false,
       "description": "`code` is `segment(.segment)*`; `candidates` are ranked best first.",
@@ -164,6 +297,45 @@
         "message",
         "refs",
         "candidates"
+      ],
+      "type": "object"
+    },
+    "exporter-spec": {
+      "additionalProperties": false,
+      "description": "`id` is `<plugin-id>.<name>`; `extension` is the main file's, without the dot. Options are a feature's fields, so a form is derived as for a feature.",
+      "properties": {
+        "choices": {
+          "items": {
+            "$ref": "#/$defs/choice-spec"
+          },
+          "type": "array"
+        },
+        "extension": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "params": {
+          "items": {
+            "$ref": "#/$defs/param-spec"
+          },
+          "type": "array"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject-kind"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "extension",
+        "subject",
+        "params",
+        "choices"
       ],
       "type": "object"
     },
@@ -244,6 +416,26 @@
       ],
       "type": "object"
     },
+    "file": {
+      "additionalProperties": false,
+      "description": "`name` is a relative path of `/`-separated parts, none empty, `.` or `..` (ADR-0037 §7). The first file of a result is the main one.",
+      "properties": {
+        "bytes": {
+          "contentEncoding": "base64",
+          "description": "The little-endian bytes of a run of `u8`, as base64 (ADR-0022 §5).",
+          "type": "string",
+          "x-run": "u8"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "bytes"
+      ],
+      "type": "object"
+    },
     "frame": {
       "additionalProperties": false,
       "description": "A right-handed frame, Y = Z x X. A plane is its XY plane, its normal Z.",
@@ -269,6 +461,60 @@
       "description": "An id: 64 bits, as `arrix-core`'s typed ids carry it.",
       "pattern": "^[0-9A-F][0-9A-HJKMNP-TV-Z]{12}$",
       "type": "string"
+    },
+    "inertia-tensor": {
+      "additionalProperties": false,
+      "description": "A symmetric inertia tensor, the entries of the matrix: `xy` is the negated product of inertia. kg m^2.",
+      "properties": {
+        "xx": {
+          "type": "number"
+        },
+        "xy": {
+          "type": "number"
+        },
+        "xz": {
+          "type": "number"
+        },
+        "yy": {
+          "type": "number"
+        },
+        "yz": {
+          "type": "number"
+        },
+        "zz": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "xx",
+        "xy",
+        "xz",
+        "yy",
+        "yz",
+        "zz"
+      ],
+      "type": "object"
+    },
+    "inertial": {
+      "additionalProperties": false,
+      "description": "Mass in kg, the centre of mass in the part's frame, and the inertia about it with the part's axes (docs/DATA-MODEL.md §Evaluation).",
+      "properties": {
+        "centroid": {
+          "$ref": "#/$defs/vec3"
+        },
+        "inertia": {
+          "$ref": "#/$defs/inertia-tensor"
+        },
+        "mass": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "mass",
+        "centroid",
+        "inertia"
+      ],
+      "type": "object"
     },
     "input-kind": {
       "description": "What an input resolves to: a plane (a datum, a planar face, a world plane), a sketch region as a profile keyed by its entities, a body slot's version current at the feature (ADR-0007), an edge by name, a point (a sketch point or a vertex), an axis (a sketch line, a straight edge) or the tool a joining or cutting feature kept (ADR-0012, ADR-0013).",
@@ -406,6 +652,129 @@
         }
       ]
     },
+    "joint-info": {
+      "additionalProperties": false,
+      "description": "`parent` and `child` are the paths of the components the anchors are on, from the assembly down. `limits` are lower and upper, SI.",
+      "properties": {
+        "child": {
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "type": "array"
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "$ref": "#/$defs/joint-kind"
+        },
+        "limits": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            }
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "parent": {
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "type": "array"
+        },
+        "state": {
+          "$ref": "#/$defs/joint-state"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "parent",
+        "child",
+        "state"
+      ],
+      "type": "object"
+    },
+    "joint-kind": {
+      "enum": [
+        "fixed",
+        "revolute",
+        "prismatic"
+      ],
+      "type": "string"
+    },
+    "joint-placement": {
+      "additionalProperties": false,
+      "description": "Where a solved joint put its anchors, each in the frame of the component its path ends at. The motion is about their z axes (ADR-0029 §3). `value` is value + offset in SI, radians or metres, zero for a fixed joint.",
+      "properties": {
+        "child-anchor": {
+          "$ref": "#/$defs/frame"
+        },
+        "diagnostics": {
+          "items": {
+            "$ref": "#/$defs/diagnostic"
+          },
+          "type": "array"
+        },
+        "parent-anchor": {
+          "$ref": "#/$defs/frame"
+        },
+        "value": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "parent-anchor",
+        "child-anchor",
+        "value",
+        "diagnostics"
+      ],
+      "type": "object"
+    },
+    "joint-state": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "placed": {
+              "$ref": "#/$defs/joint-placement"
+            }
+          },
+          "required": [
+            "placed"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "failed": {
+              "$ref": "#/$defs/diagnostic"
+            }
+          },
+          "required": [
+            "failed"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "line-segment": {
       "additionalProperties": false,
       "description": "A planar region in (u, v) coordinates of `plane`, every curve keyed: side faces are rooted at a curve's key, so a key must be stable across evaluations for the same logical curve.",
@@ -441,6 +810,22 @@
         "volume",
         "area",
         "centroid"
+      ],
+      "type": "object"
+    },
+    "material-info": {
+      "additionalProperties": false,
+      "properties": {
+        "color": {
+          "$ref": "#/$defs/rgb"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "color"
       ],
       "type": "object"
     },
@@ -542,6 +927,29 @@
       "required": [
         "name",
         "value"
+      ],
+      "type": "object"
+    },
+    "part-info": {
+      "additionalProperties": false,
+      "properties": {
+        "bodies": {
+          "items": {
+            "$ref": "#/$defs/body-info"
+          },
+          "type": "array"
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "bodies"
       ],
       "type": "object"
     },
@@ -864,6 +1272,27 @@
       ],
       "type": "object"
     },
+    "rgb": {
+      "additionalProperties": false,
+      "description": "A colour: red, green and blue in 0 to 1.",
+      "properties": {
+        "blue": {
+          "type": "number"
+        },
+        "green": {
+          "type": "number"
+        },
+        "red": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "red",
+        "green",
+        "blue"
+      ],
+      "type": "object"
+    },
     "severity": {
       "enum": [
         "info",
@@ -975,6 +1404,41 @@
       ],
       "type": "object"
     },
+    "subject": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "part": {
+              "$ref": "#/$defs/id"
+            }
+          },
+          "required": [
+            "part"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "assembly": {
+              "$ref": "#/$defs/id"
+            }
+          },
+          "required": [
+            "assembly"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "subject-kind": {
+      "enum": [
+        "part",
+        "assembly"
+      ],
+      "type": "string"
+    },
     "tool": {
       "additionalProperties": false,
       "properties": {
@@ -998,6 +1462,36 @@
         "cut"
       ],
       "type": "string"
+    },
+    "triangles": {
+      "additionalProperties": false,
+      "description": "A refined mesh in the part's frame, chord 1e-4 m (ADR-0037 §4): three `f32` per vertex in `positions` and `normals`, three `u32` per triangle in `indices`, counter-clockwise seen from outside.",
+      "properties": {
+        "indices": {
+          "contentEncoding": "base64",
+          "description": "The little-endian bytes of a run of `u32`, as base64 (ADR-0022 §5).",
+          "type": "string",
+          "x-run": "u32"
+        },
+        "normals": {
+          "contentEncoding": "base64",
+          "description": "The little-endian bytes of a run of `f32`, as base64 (ADR-0022 §5).",
+          "type": "string",
+          "x-run": "f32"
+        },
+        "positions": {
+          "contentEncoding": "base64",
+          "description": "The little-endian bytes of a run of `f32`, as base64 (ADR-0022 §5).",
+          "type": "string",
+          "x-run": "f32"
+        }
+      },
+      "required": [
+        "positions",
+        "normals",
+        "indices"
+      ],
+      "type": "object"
     },
     "vec2": {
       "additionalProperties": false,
@@ -1036,8 +1530,8 @@
       "type": "object"
     }
   },
-  "$id": "arrix:plugin@0.6.0/schema",
+  "$id": "arrix:plugin@0.7.0/schema",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "Generated from wit/arrix-plugin.wit (ADR-0022). Do not edit.",
-  "title": "The wire's types, arrix:plugin@0.6.0"
+  "title": "The wire's types, arrix:plugin@0.7.0"
 }

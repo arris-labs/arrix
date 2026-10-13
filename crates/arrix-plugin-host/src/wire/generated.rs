@@ -4,10 +4,13 @@
 //! The codec of every plugin-API type that mirrors its WIT type (ADR-0022).
 
 use arrix_plugin_api::{
-    Axis, Body, ChoiceOption, ChoiceSpec, ChoiceValue, DVec2, DVec3, Diagnostic, DiagnosticCode,
-    FeatureOutput, FeatureTypeSpec, InputKind, InputSpec, InputValue, MassProperties, Motion,
-    OutputValue, ParamSpec, ParamValue, Point, Quantity, QuantityKind, ResolvedInput, Severity,
-    ShownWhen, SlotKind, SlotName, SlotOutput, SlotSpec, Tool, ToolOp,
+    AssemblyInfo, Axis, Body, BodyInfo, BodyRef, ChoiceOption, ChoiceSpec, ChoiceValue,
+    ComponentInfo, ComponentOf, DVec2, DVec3, Diagnostic, DiagnosticCode, ExportFile, ExporterSpec,
+    FeatureOutput, FeatureTypeSpec, InertiaTensor, Inertial, InputKind, InputSpec, InputValue,
+    JointInfo, JointKind, JointPlacement, JointState, MassProperties, MaterialInfo, Motion,
+    OutputValue, ParamSpec, ParamValue, PartInfo, Point, Quantity, QuantityKind, ResolvedInput,
+    Rgb, Severity, ShownWhen, SlotKind, SlotName, SlotOutput, SlotSpec, Subject, SubjectKind, Tool,
+    ToolOp, Triangles,
 };
 use serde_json::{Map, Value};
 
@@ -570,6 +573,395 @@ pub fn feature_output_from_json(v: &Value) -> Result<FeatureOutput, WireError> {
     })
 }
 
+pub fn rgb_to_json(v: &Rgb) -> Result<Value, WireError> {
+    let mut m = Map::new();
+    put(&mut m, "red", f64_to(&v.red))?;
+    put(&mut m, "green", f64_to(&v.green))?;
+    put(&mut m, "blue", f64_to(&v.blue))?;
+    Ok(Value::Object(m))
+}
+
+pub fn rgb_from_json(v: &Value) -> Result<Rgb, WireError> {
+    let m = object(v)?;
+    deny_unknown(m, &["red", "green", "blue"])?;
+    Ok(Rgb {
+        red: field(m, "red", f64_from)?,
+        green: field(m, "green", f64_from)?,
+        blue: field(m, "blue", f64_from)?,
+    })
+}
+
+pub fn material_info_to_json(v: &MaterialInfo) -> Result<Value, WireError> {
+    let mut m = Map::new();
+    put(&mut m, "name", string_to(&v.name))?;
+    put(&mut m, "color", rgb_to_json(&v.color))?;
+    Ok(Value::Object(m))
+}
+
+pub fn material_info_from_json(v: &Value) -> Result<MaterialInfo, WireError> {
+    let m = object(v)?;
+    deny_unknown(m, &["name", "color"])?;
+    Ok(MaterialInfo {
+        name: field(m, "name", string_from)?,
+        color: field(m, "color", rgb_from_json)?,
+    })
+}
+
+pub fn body_ref_to_json(v: &BodyRef) -> Result<Value, WireError> {
+    let mut m = Map::new();
+    put(&mut m, "feature", id_to(&v.feature))?;
+    put(&mut m, "slot", string_to(&v.slot.as_str()))?;
+    Ok(Value::Object(m))
+}
+
+pub fn body_ref_from_json(v: &Value) -> Result<BodyRef, WireError> {
+    let m = object(v)?;
+    deny_unknown(m, &["feature", "slot"])?;
+    Ok(BodyRef {
+        feature: field(m, "feature", id_from)?,
+        slot: field(m, "slot", |v| newtype_from(v, SlotName::new))?,
+    })
+}
+
+pub fn body_info_to_json(v: &BodyInfo) -> Result<Value, WireError> {
+    let mut m = Map::new();
+    put(&mut m, "body", body_ref_to_json(&v.body))?;
+    put(
+        &mut m,
+        "material",
+        option_to(&v.material, material_info_to_json),
+    )?;
+    Ok(Value::Object(m))
+}
+
+pub fn body_info_from_json(v: &Value) -> Result<BodyInfo, WireError> {
+    let m = object(v)?;
+    deny_unknown(m, &["body", "material"])?;
+    Ok(BodyInfo {
+        body: field(m, "body", body_ref_from_json)?,
+        material: opt_field(m, "material", material_info_from_json)?,
+    })
+}
+
+pub fn part_info_to_json(v: &PartInfo) -> Result<Value, WireError> {
+    let mut m = Map::new();
+    put(&mut m, "id", id_to(&v.id))?;
+    put(&mut m, "name", string_to(&v.name))?;
+    put(&mut m, "bodies", list_to(&v.bodies, body_info_to_json))?;
+    Ok(Value::Object(m))
+}
+
+pub fn part_info_from_json(v: &Value) -> Result<PartInfo, WireError> {
+    let m = object(v)?;
+    deny_unknown(m, &["id", "name", "bodies"])?;
+    Ok(PartInfo {
+        id: field(m, "id", id_from)?,
+        name: field(m, "name", string_from)?,
+        bodies: field(m, "bodies", |v| list_from(v, body_info_from_json))?,
+    })
+}
+
+pub fn triangles_to_json(v: &Triangles) -> Result<Value, WireError> {
+    let mut m = Map::new();
+    put(&mut m, "positions", run_f32_to(&v.positions))?;
+    put(&mut m, "normals", run_f32_to(&v.normals))?;
+    put(&mut m, "indices", run_u32_to(&v.indices))?;
+    Ok(Value::Object(m))
+}
+
+pub fn triangles_from_json(v: &Value) -> Result<Triangles, WireError> {
+    let m = object(v)?;
+    deny_unknown(m, &["positions", "normals", "indices"])?;
+    Ok(Triangles {
+        positions: field(m, "positions", run_f32_from)?,
+        normals: field(m, "normals", run_f32_from)?,
+        indices: field(m, "indices", run_u32_from)?,
+    })
+}
+
+pub fn inertia_tensor_to_json(v: &InertiaTensor) -> Result<Value, WireError> {
+    let mut m = Map::new();
+    put(&mut m, "xx", f64_to(&v.xx))?;
+    put(&mut m, "xy", f64_to(&v.xy))?;
+    put(&mut m, "xz", f64_to(&v.xz))?;
+    put(&mut m, "yy", f64_to(&v.yy))?;
+    put(&mut m, "yz", f64_to(&v.yz))?;
+    put(&mut m, "zz", f64_to(&v.zz))?;
+    Ok(Value::Object(m))
+}
+
+pub fn inertia_tensor_from_json(v: &Value) -> Result<InertiaTensor, WireError> {
+    let m = object(v)?;
+    deny_unknown(m, &["xx", "xy", "xz", "yy", "yz", "zz"])?;
+    Ok(InertiaTensor {
+        xx: field(m, "xx", f64_from)?,
+        xy: field(m, "xy", f64_from)?,
+        xz: field(m, "xz", f64_from)?,
+        yy: field(m, "yy", f64_from)?,
+        yz: field(m, "yz", f64_from)?,
+        zz: field(m, "zz", f64_from)?,
+    })
+}
+
+pub fn inertial_to_json(v: &Inertial) -> Result<Value, WireError> {
+    let mut m = Map::new();
+    put(&mut m, "mass", f64_to(&v.mass))?;
+    put(&mut m, "centroid", vec3_to_json(&v.centroid))?;
+    put(&mut m, "inertia", inertia_tensor_to_json(&v.inertia))?;
+    Ok(Value::Object(m))
+}
+
+pub fn inertial_from_json(v: &Value) -> Result<Inertial, WireError> {
+    let m = object(v)?;
+    deny_unknown(m, &["mass", "centroid", "inertia"])?;
+    Ok(Inertial {
+        mass: field(m, "mass", f64_from)?,
+        centroid: field(m, "centroid", vec3_from_json)?,
+        inertia: field(m, "inertia", inertia_tensor_from_json)?,
+    })
+}
+
+pub fn joint_kind_to_json(v: &JointKind) -> Result<Value, WireError> {
+    Ok(Value::from(match v {
+        JointKind::Fixed => "fixed",
+        JointKind::Revolute => "revolute",
+        JointKind::Prismatic => "prismatic",
+    }))
+}
+
+pub fn joint_kind_from_json(v: &Value) -> Result<JointKind, WireError> {
+    match str_from(v)? {
+        "fixed" => Ok(JointKind::Fixed),
+        "revolute" => Ok(JointKind::Revolute),
+        "prismatic" => Ok(JointKind::Prismatic),
+        other => Err(unknown_case(
+            "joint-kind",
+            other,
+            &["fixed", "revolute", "prismatic"],
+        )),
+    }
+}
+
+pub fn component_of_to_json(v: &ComponentOf) -> Result<Value, WireError> {
+    match v {
+        ComponentOf::Part(x) => variant_to("part", id_to(x)),
+        ComponentOf::Assembly(x) => variant_to("assembly", id_to(x)),
+    }
+}
+
+pub fn component_of_from_json(v: &Value) -> Result<ComponentOf, WireError> {
+    let (case, payload) = variant(v)?;
+    match case {
+        "part" => variant_payload("part", id_from(payload)).map(ComponentOf::Part),
+        "assembly" => variant_payload("assembly", id_from(payload)).map(ComponentOf::Assembly),
+        other => Err(unknown_case("component-of", other, &["part", "assembly"])),
+    }
+}
+
+pub fn component_info_to_json(v: &ComponentInfo) -> Result<Value, WireError> {
+    let mut m = Map::new();
+    put(&mut m, "path", list_to(&v.path, id_to))?;
+    put(&mut m, "name", string_to(&v.name))?;
+    put(&mut m, "of", component_of_to_json(&v.of))?;
+    put(&mut m, "pose", frame_to_json(&v.pose))?;
+    put(
+        &mut m,
+        "diagnostics",
+        list_to(&v.diagnostics, diagnostic_to_json),
+    )?;
+    Ok(Value::Object(m))
+}
+
+pub fn component_info_from_json(v: &Value) -> Result<ComponentInfo, WireError> {
+    let m = object(v)?;
+    deny_unknown(m, &["path", "name", "of", "pose", "diagnostics"])?;
+    Ok(ComponentInfo {
+        path: field(m, "path", |v| list_from(v, id_from))?,
+        name: field(m, "name", string_from)?,
+        of: field(m, "of", component_of_from_json)?,
+        pose: field(m, "pose", frame_from_json)?,
+        diagnostics: field(m, "diagnostics", |v| list_from(v, diagnostic_from_json))?,
+    })
+}
+
+pub fn joint_placement_to_json(v: &JointPlacement) -> Result<Value, WireError> {
+    let mut m = Map::new();
+    put(&mut m, "parent-anchor", frame_to_json(&v.parent_anchor))?;
+    put(&mut m, "child-anchor", frame_to_json(&v.child_anchor))?;
+    put(&mut m, "value", f64_to(&v.value))?;
+    put(
+        &mut m,
+        "diagnostics",
+        list_to(&v.diagnostics, diagnostic_to_json),
+    )?;
+    Ok(Value::Object(m))
+}
+
+pub fn joint_placement_from_json(v: &Value) -> Result<JointPlacement, WireError> {
+    let m = object(v)?;
+    deny_unknown(
+        m,
+        &["parent-anchor", "child-anchor", "value", "diagnostics"],
+    )?;
+    Ok(JointPlacement {
+        parent_anchor: field(m, "parent-anchor", frame_from_json)?,
+        child_anchor: field(m, "child-anchor", frame_from_json)?,
+        value: field(m, "value", f64_from)?,
+        diagnostics: field(m, "diagnostics", |v| list_from(v, diagnostic_from_json))?,
+    })
+}
+
+pub fn joint_state_to_json(v: &JointState) -> Result<Value, WireError> {
+    match v {
+        JointState::Placed(x) => variant_to("placed", joint_placement_to_json(x)),
+        JointState::Failed(x) => variant_to("failed", diagnostic_to_json(x)),
+    }
+}
+
+pub fn joint_state_from_json(v: &Value) -> Result<JointState, WireError> {
+    let (case, payload) = variant(v)?;
+    match case {
+        "placed" => {
+            variant_payload("placed", joint_placement_from_json(payload)).map(JointState::Placed)
+        }
+        "failed" => {
+            variant_payload("failed", diagnostic_from_json(payload)).map(JointState::Failed)
+        }
+        other => Err(unknown_case("joint-state", other, &["placed", "failed"])),
+    }
+}
+
+pub fn joint_info_to_json(v: &JointInfo) -> Result<Value, WireError> {
+    let mut m = Map::new();
+    put(&mut m, "id", id_to(&v.id))?;
+    put(&mut m, "name", string_to(&v.name))?;
+    put(&mut m, "kind", joint_kind_to_json(&v.kind))?;
+    put(&mut m, "parent", list_to(&v.parent, id_to))?;
+    put(&mut m, "child", list_to(&v.child, id_to))?;
+    put(
+        &mut m,
+        "limits",
+        option_to(&v.limits, |x| array_to(x, f64_to)),
+    )?;
+    put(&mut m, "state", joint_state_to_json(&v.state))?;
+    Ok(Value::Object(m))
+}
+
+pub fn joint_info_from_json(v: &Value) -> Result<JointInfo, WireError> {
+    let m = object(v)?;
+    deny_unknown(
+        m,
+        &["id", "name", "kind", "parent", "child", "limits", "state"],
+    )?;
+    Ok(JointInfo {
+        id: field(m, "id", id_from)?,
+        name: field(m, "name", string_from)?,
+        kind: field(m, "kind", joint_kind_from_json)?,
+        parent: field(m, "parent", |v| list_from(v, id_from))?,
+        child: field(m, "child", |v| list_from(v, id_from))?,
+        limits: opt_field(m, "limits", |v| array_from::<_, 2>(v, f64_from))?,
+        state: field(m, "state", joint_state_from_json)?,
+    })
+}
+
+pub fn assembly_info_to_json(v: &AssemblyInfo) -> Result<Value, WireError> {
+    let mut m = Map::new();
+    put(&mut m, "id", id_to(&v.id))?;
+    put(&mut m, "name", string_to(&v.name))?;
+    put(
+        &mut m,
+        "components",
+        list_to(&v.components, component_info_to_json),
+    )?;
+    put(&mut m, "joints", list_to(&v.joints, joint_info_to_json))?;
+    Ok(Value::Object(m))
+}
+
+pub fn assembly_info_from_json(v: &Value) -> Result<AssemblyInfo, WireError> {
+    let m = object(v)?;
+    deny_unknown(m, &["id", "name", "components", "joints"])?;
+    Ok(AssemblyInfo {
+        id: field(m, "id", id_from)?,
+        name: field(m, "name", string_from)?,
+        components: field(m, "components", |v| list_from(v, component_info_from_json))?,
+        joints: field(m, "joints", |v| list_from(v, joint_info_from_json))?,
+    })
+}
+
+pub fn subject_kind_to_json(v: &SubjectKind) -> Result<Value, WireError> {
+    Ok(Value::from(match v {
+        SubjectKind::Part => "part",
+        SubjectKind::Assembly => "assembly",
+    }))
+}
+
+pub fn subject_kind_from_json(v: &Value) -> Result<SubjectKind, WireError> {
+    match str_from(v)? {
+        "part" => Ok(SubjectKind::Part),
+        "assembly" => Ok(SubjectKind::Assembly),
+        other => Err(unknown_case("subject-kind", other, &["part", "assembly"])),
+    }
+}
+
+pub fn subject_to_json(v: &Subject) -> Result<Value, WireError> {
+    match v {
+        Subject::Part(x) => variant_to("part", id_to(x)),
+        Subject::Assembly(x) => variant_to("assembly", id_to(x)),
+    }
+}
+
+pub fn subject_from_json(v: &Value) -> Result<Subject, WireError> {
+    let (case, payload) = variant(v)?;
+    match case {
+        "part" => variant_payload("part", id_from(payload)).map(Subject::Part),
+        "assembly" => variant_payload("assembly", id_from(payload)).map(Subject::Assembly),
+        other => Err(unknown_case("subject", other, &["part", "assembly"])),
+    }
+}
+
+pub fn exporter_spec_to_json(v: &ExporterSpec) -> Result<Value, WireError> {
+    let mut m = Map::new();
+    put(&mut m, "id", string_to(&v.id))?;
+    put(&mut m, "title", string_to(&v.title))?;
+    put(&mut m, "extension", string_to(&v.extension))?;
+    put(&mut m, "subject", subject_kind_to_json(&v.subject))?;
+    put(&mut m, "params", list_to(&v.params, param_spec_to_json))?;
+    put(&mut m, "choices", list_to(&v.choices, choice_spec_to_json))?;
+    Ok(Value::Object(m))
+}
+
+pub fn exporter_spec_from_json(v: &Value) -> Result<ExporterSpec, WireError> {
+    let m = object(v)?;
+    deny_unknown(
+        m,
+        &["id", "title", "extension", "subject", "params", "choices"],
+    )?;
+    Ok(ExporterSpec {
+        id: field(m, "id", string_from)?,
+        title: field(m, "title", string_from)?,
+        extension: field(m, "extension", string_from)?,
+        subject: field(m, "subject", subject_kind_from_json)?,
+        params: field(m, "params", |v| list_from(v, param_spec_from_json))?,
+        choices: field(m, "choices", |v| list_from(v, choice_spec_from_json))?,
+    })
+}
+
+pub fn file_to_json(v: &ExportFile) -> Result<Value, WireError> {
+    let mut m = Map::new();
+    put(&mut m, "name", string_to(&v.name))?;
+    put(&mut m, "bytes", run_u8_to(&v.bytes))?;
+    Ok(Value::Object(m))
+}
+
+pub fn file_from_json(v: &Value) -> Result<ExportFile, WireError> {
+    let m = object(v)?;
+    deny_unknown(m, &["name", "bytes"])?;
+    Ok(ExportFile {
+        name: field(m, "name", string_from)?,
+        bytes: field(m, "bytes", run_u8_from)?,
+    })
+}
+
 /// Every function of the world, in its order.
 pub const METHODS: &[Method] = &[
     Method {
@@ -626,6 +1018,30 @@ pub const METHODS: &[Method] = &[
     },
     Method {
         name: "feature.evaluate",
+        direction: Direction::HostToPlugin,
+    },
+    Method {
+        name: "document.parts",
+        direction: Direction::PluginToHost,
+    },
+    Method {
+        name: "document.mesh",
+        direction: Direction::PluginToHost,
+    },
+    Method {
+        name: "document.mass",
+        direction: Direction::PluginToHost,
+    },
+    Method {
+        name: "document.assemblies",
+        direction: Direction::PluginToHost,
+    },
+    Method {
+        name: "exchange.exporters",
+        direction: Direction::HostToPlugin,
+    },
+    Method {
+        name: "exchange.run",
         direction: Direction::HostToPlugin,
     },
 ];

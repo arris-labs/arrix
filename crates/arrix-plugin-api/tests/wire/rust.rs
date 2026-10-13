@@ -50,6 +50,25 @@ const AUTO: &[(&str, &str)] = &[
     ("output-value", "OutputValue"),
     ("slot-output", "SlotOutput"),
     ("feature-output", "FeatureOutput"),
+    ("rgb", "Rgb"),
+    ("material-info", "MaterialInfo"),
+    ("body-ref", "BodyRef"),
+    ("body-info", "BodyInfo"),
+    ("part-info", "PartInfo"),
+    ("triangles", "Triangles"),
+    ("inertia-tensor", "InertiaTensor"),
+    ("inertial", "Inertial"),
+    ("joint-kind", "JointKind"),
+    ("component-of", "ComponentOf"),
+    ("component-info", "ComponentInfo"),
+    ("joint-placement", "JointPlacement"),
+    ("joint-state", "JointState"),
+    ("joint-info", "JointInfo"),
+    ("assembly-info", "AssemblyInfo"),
+    ("subject-kind", "SubjectKind"),
+    ("subject", "Subject"),
+    ("exporter-spec", "ExporterSpec"),
+    ("file", "ExportFile"),
 ];
 
 /// Codec by hand, in `wire/custom.rs`.
@@ -79,6 +98,7 @@ const NEWTYPE: &[(&str, &str, &str)] = &[
     ("diagnostic", "code", "DiagnosticCode"),
     ("slot-spec", "name", "SlotName"),
     ("slot-output", "name", "SlotName"),
+    ("body-ref", "slot", "SlotName"),
 ];
 
 /// A resource -> the Rust handle type.
@@ -210,6 +230,10 @@ fn to_fn(cx: &mut Cx, ty: &Ty, newtype: Option<&'static str>) -> String {
     }
     match ty {
         Ty::Bool => "bool_to".into(),
+        Ty::U8 | Ty::F32 => panic!(
+            "{} has a bare {ty:?}, which is only a run's element",
+            cx.type_name
+        ),
         Ty::U32 => "u32_to".into(),
         Ty::S64 => "s64_to".into(),
         Ty::F64 => "f64_to".into(),
@@ -217,6 +241,7 @@ fn to_fn(cx: &mut Cx, ty: &Ty, newtype: Option<&'static str>) -> String {
         Ty::Id => "id_to".into(),
         Ty::Named(n) => named_fn(cx, n, "to"),
         Ty::Handle(_) => "handle_to".into(),
+        Ty::List(_) if ty.run().is_some() => format!("|x| run_{}_to(x)", ty.run().unwrap()),
         Ty::List(t) => format!("|x| list_to(x, {})", to_fn(cx, t, None)),
         Ty::Option(t) => format!("|x| option_to(x, {})", to_fn(cx, t, None)),
         Ty::Tuple(ts) => {
@@ -233,6 +258,7 @@ fn to_call(cx: &mut Cx, ty: &Ty, newtype: Option<&'static str>, arg: &str) -> St
         return format!("string_to({arg}.as_str())");
     }
     match ty {
+        Ty::List(_) if ty.run().is_some() => format!("run_{}_to({arg})", ty.run().unwrap()),
         Ty::List(t) => format!("list_to({arg}, {})", to_fn(cx, t, None)),
         Ty::Option(t) => format!("option_to({arg}, {})", to_fn(cx, t, None)),
         Ty::Tuple(ts) => {
@@ -251,6 +277,10 @@ fn from_fn(cx: &mut Cx, ty: &Ty, newtype: Option<&'static str>) -> String {
     }
     match ty {
         Ty::Bool => "bool_from".into(),
+        Ty::U8 | Ty::F32 => panic!(
+            "{} has a bare {ty:?}, which is only a run's element",
+            cx.type_name
+        ),
         Ty::U32 => "u32_from".into(),
         Ty::S64 => "s64_from".into(),
         Ty::F64 => "f64_from".into(),
@@ -262,6 +292,7 @@ fn from_fn(cx: &mut Cx, ty: &Ty, newtype: Option<&'static str>) -> String {
             cx.rust_used.insert(rust);
             format!("|v| handle_from(v).map({rust}::from_handle)")
         }
+        Ty::List(_) if ty.run().is_some() => format!("run_{}_from", ty.run().unwrap()),
         Ty::List(t) => format!("|v| list_from(v, {})", from_fn(cx, t, None)),
         Ty::Option(t) => format!("|v| option_from(v, {})", from_fn(cx, t, None)),
         Ty::Tuple(ts) => {
@@ -284,6 +315,7 @@ fn from_call(cx: &mut Cx, ty: &Ty, arg: &str) -> String {
             cx.rust_used.insert(rust);
             format!("handle_from({arg}).map({rust}::from_handle)")
         }
+        Ty::List(_) if ty.run().is_some() => format!("run_{}_from({arg})", ty.run().unwrap()),
         Ty::List(t) => format!("list_from({arg}, {})", from_fn(cx, t, None)),
         Ty::Option(t) => format!("option_from({arg}, {})", from_fn(cx, t, None)),
         Ty::Tuple(ts) => {

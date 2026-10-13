@@ -116,12 +116,23 @@ fn reference(name: &str) -> Value {
 fn ty(t: &Ty) -> Value {
     match t {
         Ty::Bool => json!({ "type": "boolean" }),
+        Ty::U8 => json!({ "type": "integer", "minimum": 0, "maximum": u8::MAX }),
         Ty::U32 => json!({ "type": "integer", "minimum": 0, "maximum": u32::MAX }),
+        Ty::F32 => json!({ "type": "number" }),
         Ty::S64 => json!({ "type": "integer", "minimum": -SAFE_INT, "maximum": SAFE_INT }),
         Ty::F64 => json!({ "type": "number" }),
         Ty::String => json!({ "type": "string" }),
         Ty::Id => reference("id"),
         Ty::Named(name) | Ty::Handle(name) => reference(name),
+        Ty::List(_) if t.run().is_some() => json!({
+            "type": "string",
+            "contentEncoding": "base64",
+            "x-run": t.run(),
+            "description": format!(
+                "The little-endian bytes of a run of `{}`, as base64 (ADR-0022 §5).",
+                t.run().unwrap()
+            ),
+        }),
         Ty::List(t) => json!({ "type": "array", "items": ty(t) }),
         Ty::Option(t) => json!({ "anyOf": [{ "type": "null" }, ty(t)] }),
         Ty::Tuple(ts) => json!({

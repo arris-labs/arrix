@@ -5,7 +5,7 @@ the kernel's choke point, errors, testing and the gate. The charter is
 `SEED.md` §6; the document model is `docs/DATA-MODEL.md`, the plugin model
 `docs/PLUGINS.md`, the UI `docs/UI-RENDERING.md`, threads and the browser
 `docs/CONCURRENCY-WASM.md`. Built, as of C3 M1: every crate of §Crates
-(`arrix-plugin-api` is at 0.6.0), the protocol boundary, errors and
+(`arrix-plugin-api` is at 0.7.0), the protocol boundary, errors and
 diagnostics, the kernel choke point, the testing layers and the gates. Where
 a section says "not built", it is later than C1.
 
@@ -52,7 +52,7 @@ the same code on every target, ADR-0036) has, and so have `wit-bindgen` (0.62, i
 `generate!` compiles under it, and so does `arrix_plugin_api::
 export_plugin!` expanded in a plugin's crate, while `export!` expanded
 there directly does not (ADR-0035): the guest SDK needs no exception.
-`arrix-plugin-api` alone carries its own version (0.6.0); every other
+`arrix-plugin-api` alone carries its own version (0.7.0); every other
 crate is the workspace's 0.0.0.
 The binaries are `arrix` (`arrix-cli`) and `arrix-app`. No crate is
 published yet (`publish = false`); reserving names is the human's act.

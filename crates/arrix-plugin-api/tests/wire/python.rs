@@ -46,9 +46,11 @@ fn doc(out: &mut String, indent: &str, text: &str) {
 fn annotation(t: &Ty) -> String {
     match t {
         Ty::Bool => "bool".into(),
-        Ty::U32 | Ty::S64 => "int".into(),
+        Ty::U8 | Ty::U32 | Ty::S64 => "int".into(),
         Ty::Handle(_) => "Body".into(),
-        Ty::F64 => "float".into(),
+        Ty::F32 | Ty::F64 => "float".into(),
+        Ty::List(_) if t.run() == Some("u8") => "bytes".into(),
+        Ty::List(_) if t.run().is_some() => format!("array[{}]", annotation(inner(t))),
         Ty::String | Ty::Id => "str".into(),
         Ty::Named(n) => named_annotation(n),
         Ty::List(t) => format!("list[{}]", annotation(t)),
@@ -58,6 +60,14 @@ fn annotation(t: &Ty) -> String {
             ts.iter().map(annotation).collect::<Vec<_>>().join(", ")
         ),
         Ty::Result(ok, _) => ok.as_deref().map(annotation).unwrap_or("None".into()),
+    }
+}
+
+/// The element of a list type.
+fn inner(t: &Ty) -> &Ty {
+    match t {
+        Ty::List(t) => t,
+        other => panic!("{other:?} is no list"),
     }
 }
 
@@ -80,8 +90,12 @@ impl Names<'_> {
             Ty::Bool | Ty::U32 | Ty::S64 | Ty::F64 | Ty::String | Ty::Id | Ty::Handle(_) => {
                 v.into()
             }
+            Ty::U8 | Ty::F32 => panic!("a bare {t:?} is only a run's element"),
             Ty::Named(n) if self.is_enum(n) => v.into(),
             Ty::Named(_) => format!("{v}.to_json()"),
+            Ty::List(_) if t.run().is_some() => {
+                format!("run_encode(\"{}\", {v})", t.run().unwrap())
+            }
             Ty::List(t) => format!(
                 "[{} for x{d} in {v}]",
                 self.encode(t, &format!("x{d}"), d + 1)
@@ -106,8 +120,12 @@ impl Names<'_> {
             Ty::Bool | Ty::U32 | Ty::S64 | Ty::F64 | Ty::String | Ty::Id | Ty::Handle(_) => {
                 v.into()
             }
+            Ty::U8 | Ty::F32 => panic!("a bare {t:?} is only a run's element"),
             Ty::Named(n) if self.is_enum(n) => v.into(),
             Ty::Named(n) => format!("{}.from_json({v})", pascal(n)),
+            Ty::List(_) if t.run().is_some() => {
+                format!("run_decode(\"{}\", {v})", t.run().unwrap())
+            }
             Ty::List(t) => format!(
                 "[{} for x{d} in {v}]",
                 self.decode(t, &format!("x{d}"), d + 1)
@@ -135,6 +153,9 @@ pub fn generate(world: &World) -> String {
          # `UPDATE_SNAPSHOTS=1 cargo test -p arrix-plugin-api --test wire`.\n\
          \"\"\"The plugin API's types and stubs on the wire (ADR-0022), pure standard library.\"\"\"\n\n\
          from __future__ import annotations\n\n\
+         import base64\n\
+         import sys\n\
+         from array import array\n\
          from dataclasses import dataclass\n\
          from typing import Any\n\n",
     );
@@ -148,18 +169,27 @@ pub fn generate(world: &World) -> String {
             Def::Variant(cases) => variant(&mut out, &names, &t.name, &t.docs, cases),
         }
     }
-    let kernel: Vec<_> = world
-        .funcs
-        .iter()
-        .filter(|f| f.direction == Direction::PluginToHost)
-        .collect();
-    let feature: Vec<_> = world
-        .funcs
-        .iter()
-        .filter(|f| f.direction == Direction::HostToPlugin)
-        .collect();
-    kernel_stubs(&mut out, &names, &kernel);
-    feature_stubs(&mut out, &names, &feature);
+    for (interface, class, error) in [
+        ("kernel", "KernelStubs", "KernelError"),
+        ("document", "DocumentStubs", "DocumentError"),
+    ] {
+        let funcs: Vec<_> = world
+            .funcs
+            .iter()
+            .filter(|f| f.interface == interface)
+            .collect();
+        assert!(funcs.iter().all(|f| f.direction == Direction::PluginToHost));
+        service_stubs(&mut out, &names, interface, class, error, &funcs);
+    }
+    for (interface, class) in [("feature", "FeatureStubs"), ("exchange", "ExchangeStubs")] {
+        let funcs: Vec<_> = world
+            .funcs
+            .iter()
+            .filter(|f| f.interface == interface)
+            .collect();
+        assert!(funcs.iter().all(|f| f.direction == Direction::HostToPlugin));
+        plugin_stubs(&mut out, &names, interface, class, &funcs);
+    }
     let _ = writeln!(out, "METHODS = {{");
     for f in &world.funcs {
         let _ = writeln!(out, "    \"{}\": \"{}\",", f.method(), f.direction.text());
@@ -184,6 +214,40 @@ class Failure(Exception):
 
 class KernelError(Failure):
     """The host's kernel refused a call; the diagnostic is its."""
+
+
+class DocumentError(Failure):
+    """The host refused a snapshot read (a mesh it cannot make, a part with
+    no mass); the diagnostic is its."""
+
+
+assert array("f").itemsize == 4 and array("I").itemsize == 4
+_RUN_CODES = {"f32": "f", "u32": "I"}
+
+
+def run_encode(kind: str, values: Any) -> str:
+    """A run of `u8`, `f32` or `u32` as base64 of its little-endian bytes
+    (ADR-0022 section 5). Any sequence of numbers will do."""
+    if kind == "u8":
+        data = bytes(values)
+    else:
+        a = array(_RUN_CODES[kind], values)
+        if sys.byteorder == "big":
+            a.byteswap()
+        data = a.tobytes()
+    return base64.b64encode(data).decode("ascii")
+
+
+def run_decode(kind: str, text: str) -> Any:
+    """`bytes` for a `u8` run, an `array.array` for the others."""
+    data = base64.b64decode(text, validate=True)
+    if kind == "u8":
+        return data
+    a = array(_RUN_CODES[kind])
+    a.frombytes(data)
+    if sys.byteorder == "big":
+        a.byteswap()
+    return a
 
 
 "#;
@@ -321,25 +385,31 @@ fn result_parts(f: &Func) -> (&Ty, bool) {
     }
 }
 
-fn kernel_stubs(out: &mut String, names: &Names, funcs: &[&Func]) {
-    out.push_str(
-        "class KernelStubs:\n    \"\"\"The host's `kernel` interface. A subclass supplies `_request`; \
-         a call the host refuses raises `KernelError`.\"\"\"\n\n\
+fn service_stubs(
+    out: &mut String,
+    names: &Names,
+    interface: &str,
+    class: &str,
+    error: &str,
+    funcs: &[&Func],
+) {
+    let _ = write!(
+        out,
+        "class {class}:\n    \"\"\"The host's `{interface}` interface. A subclass supplies `_request`; \
+         a call the host refuses raises `{error}`.\"\"\"\n\n\
          \x20   def _request(self, method: str, params: dict[str, Any]) -> Any:\n\
          \x20       raise NotImplementedError\n\n",
     );
     for f in funcs {
-        let args = f
+        let args: String = f
             .params
             .iter()
-            .map(|(n, t)| format!("{}: {}", snake(n), annotation(t)))
-            .collect::<Vec<_>>()
-            .join(", ");
+            .map(|(n, t)| format!(", {}: {}", snake(n), annotation(t)))
+            .collect();
         let (ok, is_result) = result_parts(f);
-        assert!(is_result, "a kernel function returns a result");
         let _ = writeln!(
             out,
-            "    def {}(self, {args}) -> {}:",
+            "    def {}(self{args}) -> {}:",
             snake(&f.name),
             annotation(ok)
         );
@@ -350,19 +420,29 @@ fn kernel_stubs(out: &mut String, names: &Names, funcs: &[&Func]) {
             .map(|(n, t)| format!("\"{n}\": {}", names.encode(t, &snake(n), 0)))
             .collect::<Vec<_>>()
             .join(", ");
-        let _ = writeln!(
-            out,
-            "        r = self._request(\"{}\", {{{params}}})\n        if \"err\" in r:\n            raise KernelError(Diagnostic.from_json(r[\"err\"]))\n        return {}\n",
-            f.method(),
-            names.decode(ok, "r[\"ok\"]", 0)
-        );
+        if is_result {
+            let _ = writeln!(
+                out,
+                "        r = self._request(\"{}\", {{{params}}})\n        if \"err\" in r:\n            raise {error}(Diagnostic.from_json(r[\"err\"]))\n        return {}\n",
+                f.method(),
+                names.decode(ok, "r[\"ok\"]", 0)
+            );
+        } else {
+            let _ = writeln!(
+                out,
+                "        r = self._request(\"{}\", {{{params}}})\n        return {}\n",
+                f.method(),
+                names.decode(ok, "r", 0)
+            );
+        }
     }
     out.push('\n');
 }
 
-fn feature_stubs(out: &mut String, names: &Names, funcs: &[&Func]) {
-    out.push_str(
-        "class FeatureStubs:\n    \"\"\"The plugin's `feature` interface: a subclass implements the \
+fn plugin_stubs(out: &mut String, names: &Names, interface: &str, class: &str, funcs: &[&Func]) {
+    let _ = write!(
+        out,
+        "class {class}:\n    \"\"\"The plugin's `{interface}` interface: a subclass implements the \
          methods, and `dispatch` serves a host request with them.\"\"\"\n\n",
     );
     for f in funcs {

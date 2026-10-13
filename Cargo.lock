@@ -533,7 +533,7 @@ dependencies = [
 
 [[package]]
 name = "arrix-plugin-api"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "arrix-core",
  "arrix-plugin-api",
