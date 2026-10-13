@@ -391,9 +391,10 @@ fn part_names(dir: &Path) -> Vec<String> {
     part_ids(dir).into_keys().collect()
 }
 
-/// The accept document exported as `exchange.step` and imported again.
-fn exchange(source: &Path) -> (PathBuf, PathBuf) {
-    let file = scratch("exchange").with_extension("step");
+/// The accept document exported as `<name>.step` and imported again into
+/// `<name>`: a name per test, since tests run in parallel.
+fn exchange(source: &Path, name: &str) -> (PathBuf, PathBuf) {
+    let file = scratch(name).with_extension("step");
     run(&[
         "export".as_ref(),
         source.as_os_str(),
@@ -404,7 +405,7 @@ fn exchange(source: &Path) -> (PathBuf, PathBuf) {
         "-o".as_ref(),
         file.as_os_str(),
     ]);
-    let back = scratch("exchange");
+    let back = scratch(name);
     run(&[
         "import".as_ref(),
         file.as_os_str(),
@@ -451,7 +452,7 @@ fn the_assembly_leaves_as_step_in_metres_and_reads_back_the_same() {
     scenario_directory("assembly-exchange", &c.session.save());
     let source = workspace().join("tests/docs/assembly-exchange");
 
-    let (file, back) = exchange(&source);
+    let (file, back) = exchange(&source, "round-trip");
     let text = std::fs::read_to_string(&file).unwrap();
     assert!(text.contains("SI_UNIT($,.METRE.)"));
     // Five parts, six occurrences: the screw is one product placed twice.
@@ -760,7 +761,11 @@ fn held_to_open_cascade(file: &str, mine: (Vec<Occurrence>, Vec<Instance>)) {
 fn arrix_reads_the_exported_assembly_as_open_cascade_does() {
     let (c, _) = scenario();
     scenario_directory("assembly-exchange", &c.session.save());
-    let (file, back) = exchange(&workspace().join("tests/docs/assembly-exchange"));
+    // `exchange`: the stem `scripts/occt-read` keys the golden by.
+    let (file, back) = exchange(
+        &workspace().join("tests/docs/assembly-exchange"),
+        "exchange",
+    );
     held_to_open_cascade("exchange", arrix(&file, &back));
 }
 
