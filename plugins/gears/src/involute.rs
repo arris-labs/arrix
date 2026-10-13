@@ -3,10 +3,12 @@
 //! circular arcs within a stated tolerance of the true curve.
 //!
 //! Everything here is a pure function of its arguments, so the outline,
-//! and with it every curve key, is the same on every evaluation.
+//! and with it every curve key, is the same on every evaluation, and its
+//! trigonometry is the API's `math`, so it is the same at every tier.
 
 use std::f64::consts::PI;
 
+use arrix_plugin_api::math::{atan, cos, sin, tan};
 use arrix_plugin_api::{CurveKey, DVec2, Id, ProfileLoop, ProfileSegment};
 
 /// How far an arc may stray from the involute it stands for, as a fraction
@@ -49,7 +51,7 @@ struct Polar(f64, f64);
 
 impl Polar {
     fn point(self) -> DVec2 {
-        DVec2::new(self.0 * self.1.cos(), self.0 * self.1.sin())
+        DVec2::new(self.0 * cos(self.1), self.0 * sin(self.1))
     }
 
     /// Rotated by `angle` (mirrored first when `mirror`).
@@ -60,7 +62,7 @@ impl Polar {
 }
 
 fn inv(phi: f64) -> f64 {
-    phi.tan() - phi
+    tan(phi) - phi
 }
 
 /// One side of a tooth centred on angle 0, from the root side outwards:
@@ -78,7 +80,7 @@ impl Spur {
     }
 
     pub fn base_radius(&self) -> f64 {
-        self.pitch_radius() * self.pressure_angle.cos()
+        self.pitch_radius() * cos(self.pressure_angle)
     }
 
     pub fn tip_radius(&self) -> f64 {
@@ -98,7 +100,7 @@ impl Spur {
     fn involute(&self, t: f64) -> Polar {
         let rho = self.base_radius() * (1.0 + t * t).sqrt();
         let half = PI / (2.0 * f64::from(self.teeth)) + inv(self.pressure_angle);
-        Polar(rho, -(half - (t - t.atan())))
+        Polar(rho, -(half - (t - atan(t))))
     }
 
     fn roll(&self, rho: f64) -> f64 {

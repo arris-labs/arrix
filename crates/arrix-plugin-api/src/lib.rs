@@ -20,11 +20,15 @@
 //! (ADR-0013), and the part-feature operations of the kernel, 0.5 choices
 //! a feature type declares, fields shown only under a choice, and the
 //! choices an `evaluate` receives (ADR-0018).
+//!
+//! `math` is a plugin's transcendental math, the same bits at every tier
+//! (ADR-0036).
 
 mod feature;
 #[cfg(feature = "guest")]
 pub mod guest;
 mod kernel;
+pub mod math;
 
 pub use arrix_core::geom::{FrameError, ProfileError};
 pub use arrix_core::{

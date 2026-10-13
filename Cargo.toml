@@ -59,6 +59,9 @@ egui-wgpu = "0.36"
 # Plain math in `arrix-core` (docs/ARCHITECTURE.md §Crates): f64 vectors
 # with serde, no SIMD-dependent results.
 glam = { version = "0.33", features = ["serde"] }
+# A plugin's transcendental math, the same bits on every target
+# (ADR-0036): `arrix_plugin_api::math`.
+libm = "0.2"
 # The viewport's vertex and uniform layouts, cast to bytes for upload.
 bytemuck = { version = "1", features = ["derive"] }
 # The clock the camera's animations read, which std's does not give wasm32

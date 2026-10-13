@@ -120,7 +120,12 @@ stand on it.
   differs by target. Arris's `parallel` feature is byte-identical by its
   own contract; the tests run both ways.
 - A plugin's `evaluate` has the same obligation, checked by the test kit
-  (`docs/PLUGINS.md` §The test kit).
+  (`docs/PLUGINS.md` §The test kit), and its result does not depend on its
+  tier: `f64::sin` and its kin are the system's libm natively and Rust's
+  on wasm32, a last-place apart, so a plugin's transcendental math is
+  `arrix_plugin_api::math` (`libm`, compiled into the plugin), the same
+  code everywhere (ADR-0036). `sqrt` and the arithmetic are exact under
+  IEEE 754 and need nothing.
 - **Time budgets are not determinism.** A wall-clock timeout makes a
   result depend on the machine. Batch evaluation uses Arris's step budget
   (ask A3) where it exists; a wall-clock timeout is a last resort, and a

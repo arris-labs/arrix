@@ -223,6 +223,9 @@ change, reviewed like any other, never a private hook.
   - a superseded evaluation stops the component through an epoch deadline
     callback that polls the evaluator's interrupt flag
     (`kernel.interrupted`).
+  A plugin gives the same eval line, kernel calls and saved bytes at Tier
+  0 and Tier 1, to the bit, its math being the API's (ADR-0036;
+  `crates/arrix-plugin-host/tests/tier1_parity.rs` holds `gears` to it).
   In the browser, hosting components inside a wasm app is unsolved in the
   ecosystem; a document using a Tier 1 plugin opens there with its
   features frozen until an ADR decides otherwise (`SEED.md` §9).
@@ -320,7 +323,11 @@ the document.
   parameters, its resolved inputs and the plugin's version. No clock, no
   randomness, no reading files or the network. Memoisation, replay, frozen
   results and the kernel's fixture records all depend on it, and the test
-  kit evaluates twice to check it.
+  kit evaluates twice to check it. Its transcendental math is
+  `arrix_plugin_api::math` (`libm`, compiled into the plugin), never
+  `f64::sin` and its kin, which are the system's libm natively and Rust's
+  on wasm32, so its result does not depend on its tier (ADR-0036);
+  `plugins/gears/clippy.toml` enforces it with `disallowed-methods`.
 - **Parameter defaults**: a feature type declares each parameter's default
   in its `ParamSpec`, and a user may override it in `settings.toml`
   (`[defaults."<type>"]`, ADR-0015). That only seeds a new feature's form;
@@ -435,7 +442,8 @@ only, whatever the manifest says, because determinism demands it.
   The `guest` feature (Tier 1 SDK, ADR-0035) adds API without touching
   the world, so the crate and the WIT package stay at 0.6.0: the package
   version is the crate's, which a patch bump would ripple through every
-  wire file, the Python SDK and each component's import names.
+  wire file, the Python SDK and each component's import names. The
+  `math` module (ADR-0036) is additive in the same way.
   While it is `0.x`, a minor bump is breaking. Every change to it says its
   semver effect in the commit body (`.agents/rules/git.md`).
 - The host supports one API range at a time and says which in `arrix

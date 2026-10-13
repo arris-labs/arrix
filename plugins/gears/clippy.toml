@@ -1,0 +1,17 @@
+# A plugin's math is the API's, the same bits at every tier (ADR-0036,
+# docs/CONCURRENCY-WASM.md §Determinism): `f64`'s are the system's libm
+# natively and Rust's on wasm32.
+disallowed-methods = [
+    { path = "f64::sin", reason = "use arrix_plugin_api::math (ADR-0036)" },
+    { path = "f64::cos", reason = "use arrix_plugin_api::math (ADR-0036)" },
+    { path = "f64::tan", reason = "use arrix_plugin_api::math (ADR-0036)" },
+    { path = "f64::sin_cos", reason = "use arrix_plugin_api::math (ADR-0036)" },
+    { path = "f64::asin", reason = "use arrix_plugin_api::math (ADR-0036)" },
+    { path = "f64::acos", reason = "use arrix_plugin_api::math (ADR-0036)" },
+    { path = "f64::atan", reason = "use arrix_plugin_api::math (ADR-0036)" },
+    { path = "f64::atan2", reason = "use arrix_plugin_api::math (ADR-0036)" },
+    { path = "f64::exp", reason = "use arrix_plugin_api::math (ADR-0036)" },
+    { path = "f64::ln", reason = "use arrix_plugin_api::math (ADR-0036)" },
+    { path = "f64::powf", reason = "use arrix_plugin_api::math (ADR-0036)" },
+    { path = "f64::hypot", reason = "use arrix_plugin_api::math (ADR-0036)" },
+]

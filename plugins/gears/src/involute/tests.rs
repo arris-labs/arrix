@@ -1,5 +1,7 @@
 use std::f64::consts::PI;
 
+use arrix_plugin_api::math::sincos;
+
 use super::*;
 
 const MM: f64 = 1e-3;
@@ -26,8 +28,8 @@ fn segments(l: &ProfileLoop) -> (DVec2, &[ProfileSegment]) {
 fn true_involute(g: &Spur, t: f64) -> DVec2 {
     let rb = g.base_radius();
     let a = g.pressure_angle;
-    let theta0 = -PI / (2.0 * f64::from(g.teeth)) - (a.tan() - a);
-    let (s, c) = (theta0 + t).sin_cos();
+    let theta0 = -PI / (2.0 * f64::from(g.teeth)) - (tan(a) - a);
+    let (s, c) = sincos(theta0 + t);
     DVec2::new(rb * (c + t * s), rb * (s - t * c))
 }
 

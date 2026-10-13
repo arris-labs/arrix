@@ -21,6 +21,7 @@ guest = ["dep:wit-bindgen"]
 
 [dependencies]
 arrix-core.workspace = true
+libm.workspace = true
 schemars = { workspace = true, optional = true }
 serde.workspace = true
 wit-bindgen = { workspace = true, optional = true }
