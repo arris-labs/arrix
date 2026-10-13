@@ -1,0 +1,137 @@
+#!/usr/bin/env python3
+"""occt-read <file.step>...  Open CASCADE's reading of STEP files, as text.
+
+For each file, read with `STEPCAFControl_Reader` (names, colours and the
+product structure on), lengths in metres: one `occ` line per occurrence of
+the XCAF document's free shapes (depth, name, its placement in its parent
+as a 3x4 row-major matrix, `-` at a root, and its colour as sRGB, `-` when
+it has none) and one `inst` line per leaf part (the names from the root,
+joined by `/`, its volume and its centroid at the placement its path
+composes). What ArriX's own reading of the same file is held to
+(`crates/arrix-cli/tests/c2_accept.rs`, plans/c2-m3 step 12); its output for
+the accept's files is `crates/arrix-cli/tests/golden/c2-accept.occt.txt`.
+
+This runs on a machine that has Open CASCADE's Python bindings and never in
+CI. Any Python with `cadquery-ocp` 8.0 will do, for instance:
+
+    uv run --no-project --python 3.12 --with 'cadquery-ocp==8.0.1.*' \\
+        scripts/occt-read exchange.step nist-ftc-11.stp > golden.txt
+
+Exits 2 with `occt-read: ERROR <why>` on stderr when a file does not read.
+"""
+
+import importlib.metadata
+import sys
+from pathlib import Path
+
+try:
+    from OCP.BRepGProp import BRepGProp
+    from OCP.GProp import GProp_GProps
+    from OCP.IFSelect import IFSelect_RetDone
+    from OCP.Interface import Interface_Static
+    from OCP.Message import Message, Message_Gravity
+    from OCP.Quantity import Quantity_Color, Quantity_TOC_sRGB
+    from OCP.STEPCAFControl import STEPCAFControl_Reader
+    from OCP.TCollection import TCollection_ExtendedString
+    from OCP.TDF import TDF_Label
+    from OCP.TDataStd import TDataStd_Name
+    from OCP.TDocStd import TDocStd_Document
+    from OCP.TopLoc import TopLoc_Location
+    from OCP.XCAFApp import XCAFApp_Application
+    from OCP.XCAFDoc import XCAFDoc_ColorSurf, XCAFDoc_ColorTool, XCAFDoc_DocumentTool
+    from OCP.collections import Sequence_TDF_Label
+    from OCP.gp import gp_Trsf
+except ImportError as e:
+    raise SystemExit(f"occt-read: ERROR Open CASCADE (OCP) is not importable: {e}")
+
+
+def name_of(label) -> str:
+    attr = TDataStd_Name()
+    if label.FindAttribute(TDataStd_Name.GetID_s(), attr):
+        return attr.Get().ToExtString()
+    return ""
+
+
+def numbers(values) -> str:
+    return " ".join(f"{v:.12g}" if abs(v) > 1e-15 else "0" for v in values)
+
+
+def read(path: Path) -> list[str]:
+    for printer in list(Message.DefaultMessenger_s().Printers()):
+        printer.SetTraceLevel(Message_Gravity.Message_Fail)
+    app = XCAFApp_Application.GetApplication_s()
+    doc = TDocStd_Document(TCollection_ExtendedString("MDTV-XCAF"))
+    app.InitDocument(doc)
+    reader = STEPCAFControl_Reader()
+    reader.SetColorMode(True)
+    reader.SetNameMode(True)
+    # The reader converts to millimetres unless told otherwise, and only
+    # the reader's own set-up registers the parameter: set it after.
+    Interface_Static.SetCVal_s("xstep.cascade.unit", "M")
+    if reader.ReadFile(str(path)) != IFSelect_RetDone:
+        raise RuntimeError(f"STEP read failed for {path}")
+    if not reader.Transfer(doc):
+        raise RuntimeError("the XCAF transfer failed")
+    tool = XCAFDoc_DocumentTool.ShapeTool_s(doc.Main())
+    lines = [f"file {path.stem}"]
+
+    def visit(label, placement, world, depth, names):
+        colour = Quantity_Color()
+        has = XCAFDoc_ColorTool.GetColor_s(label, XCAFDoc_ColorSurf, colour)
+        name = name_of(label)
+        where = "-"
+        if placement is not None:
+            where = numbers(
+                [placement.Value(r, c) for r in (1, 2, 3) for c in (1, 2, 3, 4)]
+            )
+        paint = "-"
+        if has:
+            r, g, b = colour.Values(Quantity_TOC_sRGB)
+            paint = numbers([r, g, b])
+        lines.append(f"occ {depth} {name} placement={where} colour={paint}")
+        names = names + [name]
+        if tool.IsAssembly_s(label):
+            comps = Sequence_TDF_Label()
+            tool.GetComponents_s(label, comps)
+            for i in range(1, comps.Length() + 1):
+                comp = comps.Value(i)
+                ref = TDF_Label()
+                if not tool.GetReferredShape_s(comp, ref):
+                    continue
+                trsf = tool.GetLocation_s(comp).Transformation()
+                visit(ref, trsf, world.Multiplied(trsf), depth + 1, names)
+        else:
+            shape = tool.GetShape_s(label).Moved(TopLoc_Location(world))
+            props = GProp_GProps()
+            BRepGProp.VolumeProperties_s(shape, props)
+            c = props.CentreOfMass()
+            lines.append(
+                f"inst {'/'.join(names)} volume={props.Mass():.12g} "
+                f"centroid={numbers([c.X(), c.Y(), c.Z()])}"
+            )
+
+    roots = Sequence_TDF_Label()
+    tool.GetFreeShapes(roots)
+    for i in range(1, roots.Length() + 1):
+        visit(roots.Value(i), None, gp_Trsf(), 0, [])
+    return lines
+
+
+def main(argv: list[str]) -> int:
+    if not argv:
+        print(__doc__)
+        return 2
+    out = [f"# occt-read: cadquery-ocp {importlib.metadata.version('cadquery-ocp')}, lengths in metres"]
+    try:
+        for path in argv:
+            out += read(Path(path))
+    except Exception as e:
+        message = " ".join(str(e).split()) or type(e).__name__
+        print(f"occt-read: ERROR {message}", file=sys.stderr)
+        return 2
+    print("\n".join(out))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

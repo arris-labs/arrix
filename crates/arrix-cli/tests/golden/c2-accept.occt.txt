@@ -1,0 +1,18 @@
+# occt-read: cadquery-ocp 8.0.1.0.0, lengths in metres
+file exchange
+occ 0 Servo on bracket placement=- colour=-
+occ 1 Screw placement=1 0 0 -0.015 0 1 0 -0.01 0 0 1 0.005 colour=0.45000000386 0.45000000386 0.500000003429
+inst Servo on bracket/Screw volume=5.65486677646e-08 centroid=-0.015 -0.01 0.009
+occ 1 Horn placement=0.866025403784 -0.5 0 0.0341698729811 -0.5 -0.866025403784 0 0.00683012701892 0 0 -1 0.009 colour=0.199999998682 0.250000000672 0.599999994755
+inst Servo on bracket/Horn volume=1.36964600329e-06 centroid=0.0435875845441 -0.00438069397901 0.00638069397901
+occ 1 Vendor placement=0 -1 0 0.06 1 0 0 0 0 0 1 0 colour=0.800000010877 0.649999988539 0.199999998682
+inst Servo on bracket/Vendor volume=5.12938613642e-06 centroid=0.06 0 -0.00035126099807
+occ 1 Bracket placement=1 0 0 0 0 1 0 0 0 0 1 0 colour=0.750000000934 0.769999993182 0.800000010877
+inst Servo on bracket/Bracket volume=8.38940044125e-06 centroid=-0.000104852062929 0 0.0043999581704
+occ 1 Screw placement=1 0 0 -0.015 0 1 0 0.01 0 0 1 0.005 colour=0.45000000386 0.45000000386 0.500000003429
+inst Servo on bracket/Screw volume=5.65486677646e-08 centroid=-0.015 0.01 0.009
+occ 1 Servo placement=1 0 0 0.004 0 -1 0 0.01 0 0 -1 0.041 colour=0.199999998682 0.250000000672 0.599999994755
+inst Servo on bracket/Servo volume=2.85172566612e-05 centroid=0.023750146649 0 0.0228750733245
+file nist-ftc-11
+occ 0 nist_ftc_11_asme1 placement=- colour=0.749019635948 0.749019635948 0.584313743644
+inst nist_ftc_11_asme1 volume=5.12938613642e-06 centroid=0 0 -0.00035126099807
