@@ -95,6 +95,13 @@ sha2 = { version = "0.10", default-features = false }
 wit-bindgen = { version = "0.62", default-features = false, features = ["macros"] }
 wit-parser = "0.259"
 proptest = "1"
+# The Tier 1 probe (crates/arrix-plugin-host/tests/probe_tier1.rs, plans/
+# c3-m1 step 2): the component runtime, the componentiser of a core module
+# built by wit-bindgen, and the reader of its imports. Dev-only until the
+# Tier 1 host (ADR-0035).
+wasmtime = { version = "49", default-features = false, features = ["runtime", "cranelift", "component-model", "std"] }
+wit-component = "0.258"
+wasmparser = "0.258"
 # The wire spike (crates/arrix-cli/tests/wire_spike.rs, ADR-0022): the
 # encodings it measures JSON against. Dev-only, run by name.
 ciborium = "0.2"

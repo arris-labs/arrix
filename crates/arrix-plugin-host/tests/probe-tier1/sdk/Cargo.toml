@@ -1,0 +1,14 @@
+[package]
+name = "probe-sdk"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+arrix-plugin-api = { path = "../../../../arrix-plugin-api" }
+wit-bindgen = "0.62"
+
+# The workspace's lint holds here too: the glue's `unsafe` is expanded only in
+# the plugin's crate, from this crate's macro.
+[lints.rust]
+unsafe_code = "forbid"

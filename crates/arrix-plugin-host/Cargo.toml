@@ -20,4 +20,9 @@ thiserror.workspace = true
 toml.workspace = true
 
 [dev-dependencies]
+arrix-gears.workspace = true
 regex.workspace = true
+wasmparser.workspace = true
+wasmtime.workspace = true
+web-time.workspace = true
+wit-component.workspace = true

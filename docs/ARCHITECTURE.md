@@ -23,7 +23,7 @@ unless an ADR says otherwise.
 | `arrix-sketch` | the sketch model and `SketchEdit`, the constraint solver and diagnostics, regions and their keyed profiles, trim/extend/offset/mirror, inference (ported) | core | `serde`, `thiserror` |
 | `arrix-plugin-api` | the WIT world, its Rust traits and plain types; semver of its own | core | `wit-bindgen`, `wit-parser` (the equality test only, dev) |
 | `arrix-doc` | document, parameters and expressions, DAG, feature registry, commands, undo, evaluator, `.arrx`, the `arrix eval` line, the `PluginLoader` trait, the protocol's schemas (`schema` feature, as in core, sketch and plugin-api); reads no files (a `DocumentSource` hands it bytes) | core, kernel, sketch, plugin-api | `serde_json`, `blake3`, `miniz_oxide`, `crc32fast` |
-| `arrix-plugin-host` | tier 0/1/2 hosting, manifests, capabilities, the frozen fallback; the wire (ADR-0022): the JSON-RPC framing and a codec per plugin-API type, generated from the WIT by `arrix-plugin-api`'s `tests/wire.rs`; the Tier 2 host (`tier2`, native only: spawn, handshake, kernel callbacks, timeout, restart) | core, doc, plugin-api | `toml`, `semver`, `serde_json`, `wasmtime` (native, C3) |
+| `arrix-plugin-host` | tier 0/1/2 hosting, manifests, capabilities, the frozen fallback; the wire (ADR-0022): the JSON-RPC framing and a codec per plugin-API type, generated from the WIT by `arrix-plugin-api`'s `tests/wire.rs`; the Tier 2 host (`tier2`, native only: spawn, handshake, kernel callbacks, timeout, restart) | core, doc, plugin-api, and `arrix-gears` (its Tier 1 tests, dev) | `toml`, `semver`, `serde_json`, `wasmtime` (native, C3; for now the Tier 1 probe's, dev, with `wit-component` and `wasmparser`) |
 | `arrix-viewport` | wgpu scene, ID-buffer picking, overlays, camera (ported) | core | `wgpu`, `egui-wgpu`, `glam`, `bytemuck` |
 | `arrix-ui` | egui widgets over plain view types; the declarative-UI renderer | core, viewport, plugin-api (UI types only) | `egui` |
 | `arrix-config` | the user's configuration (ADR-0015): setting specs, the layered model (built-in defaults, then the user's directory), each file's diagnostics with its file and line; reads no files (a `ConfigSource` hands it bytes); never reaches the document or `evaluate`. Holds the settings, the command registry (`CommandSpec` as plain data), the keymap, the themes and the feature parameter defaults (their expression check is handed in by the caller, since this crate cannot depend on `arrix-doc`). Read by app and cli; not by `arrix-ui`, which gets plain view data | core, plugin-api | `toml`, `serde` |
@@ -37,7 +37,7 @@ Crates live in `crates/<name>/`, plugins in `plugins/<name>/` (package
 pinned once, in the root `Cargo.toml`'s `[workspace.dependencies]`:
 `arris` 0.8, and one egui minor for `egui`, `eframe`, `egui-wgpu` and the
 dev-only `egui_kittest` (0.36). The table's externals not yet in a
-manifest (`wgpu` directly, `wasmtime`)
+manifest (`wgpu` directly, `wasmtime` other than as a dev dependency)
 join with the code that needs them; `miniz_oxide` (0.9, deflate, no default
 features but `with-alloc`) and `crc32fast` (1) have, for the `.arrx` zip,
 which `arrix-doc` writes and reads itself (`crates/arrix-doc/src/zip.rs`,
