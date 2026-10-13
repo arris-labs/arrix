@@ -1,0 +1,308 @@
+{
+  "features": {
+    "30PTHZ1YTRN3Y": {
+      "id": "30PTHZ1YTRN3Y",
+      "inputs": {
+        "plane": {
+          "topo": "face:sweep.EBWK5C332393W.end-cap"
+        }
+      },
+      "name": "Bore sketch",
+      "params": {},
+      "sketch": {
+        "constraints": {
+          "47V1BWN2BB2DP": {
+            "constraint": {
+              "horizontal_distance": {
+                "a": "AXBTJZTZ70R34",
+                "b": "C0BCABT3TZTK2",
+                "value": 0.014
+              }
+            },
+            "expr": "w - 26 mm",
+            "id": "47V1BWN2BB2DP"
+          },
+          "CHTCCTTBK2R30": {
+            "constraint": {
+              "vertical_distance": {
+                "a": "AXBTJZTZ70R34",
+                "b": "C0BCABT3TZTK2",
+                "value": 0.0
+              }
+            },
+            "id": "CHTCCTTBK2R30"
+          }
+        },
+        "points": {
+          "AXBTJZTZ70R34": {
+            "fixed": true,
+            "x": 0.0,
+            "y": 0.0
+          },
+          "C0BCABT3TZTK2": {
+            "x": 0.014,
+            "y": 0.0
+          }
+        }
+      },
+      "suppressed": false,
+      "type_id": "core.sketch",
+      "type_version": 1
+    },
+    "32AH7RZ9GR4ET": {
+      "choices": {
+        "op": "fuse"
+      },
+      "id": "32AH7RZ9GR4ET",
+      "inputs": {
+        "target": {
+          "slot": {
+            "feature": "EBWK5C332393W",
+            "slot": "body"
+          }
+        },
+        "tools": [
+          {
+            "slot": {
+              "feature": "D04J62MBR1BVY",
+              "slot": "body"
+            }
+          }
+        ]
+      },
+      "name": "Join",
+      "params": {},
+      "suppressed": false,
+      "type_id": "core.boolean",
+      "type_version": 2
+    },
+    "7TZ1340B9RSMB": {
+      "choices": {
+        "extent": "through"
+      },
+      "id": "7TZ1340B9RSMB",
+      "inputs": {
+        "points": [
+          {
+            "sketch": {
+              "entity": "C0BCABT3TZTK2",
+              "feature": "30PTHZ1YTRN3Y"
+            }
+          }
+        ],
+        "target": {
+          "slot": {
+            "feature": "EBWK5C332393W",
+            "slot": "body"
+          }
+        }
+      },
+      "name": "Bore",
+      "params": {
+        "diameter": "4 mm"
+      },
+      "suppressed": false,
+      "type_id": "core.hole",
+      "type_version": 1
+    },
+    "8WKAAGKYC6HR8": {
+      "id": "8WKAAGKYC6HR8",
+      "inputs": {},
+      "name": "Sketch 0",
+      "params": {},
+      "sketch": {
+        "constraints": {
+          "1N0Q7KC2VBYQB": {
+            "constraint": {
+              "horizontal": {
+                "line": "7FJY4M4SW5M7P"
+              }
+            },
+            "id": "1N0Q7KC2VBYQB"
+          },
+          "24QP0FACN0SV1": {
+            "constraint": {
+              "horizontal": {
+                "line": "77MSVCSN1W8ET"
+              }
+            },
+            "id": "24QP0FACN0SV1"
+          },
+          "6KGX2ET47JMV9": {
+            "constraint": {
+              "vertical": {
+                "line": "3ZPNYGV5VXAGH"
+              }
+            },
+            "id": "6KGX2ET47JMV9"
+          },
+          "DY3WS4JHG2S1G": {
+            "constraint": {
+              "distance": {
+                "a": "08K1WTZT3RSGW",
+                "b": "ED620G2XB2AG2",
+                "value": 0.03
+              }
+            },
+            "id": "DY3WS4JHG2S1G"
+          },
+          "EP0TMVX54BCTE": {
+            "constraint": {
+              "distance": {
+                "a": "67JZ1WHCK43EQ",
+                "b": "08K1WTZT3RSGW",
+                "value": 0.04
+              }
+            },
+            "expr": "w",
+            "id": "EP0TMVX54BCTE"
+          },
+          "FBEJEPWMDTRSC": {
+            "constraint": {
+              "vertical": {
+                "line": "57Z6PA4YG5FQY"
+              }
+            },
+            "id": "FBEJEPWMDTRSC"
+          }
+        },
+        "entities": {
+          "3ZPNYGV5VXAGH": {
+            "line": {
+              "end": "ED620G2XB2AG2",
+              "start": "08K1WTZT3RSGW"
+            }
+          },
+          "57Z6PA4YG5FQY": {
+            "line": {
+              "end": "67JZ1WHCK43EQ",
+              "start": "9AEQBE1KKWAEB"
+            }
+          },
+          "77MSVCSN1W8ET": {
+            "line": {
+              "end": "08K1WTZT3RSGW",
+              "start": "67JZ1WHCK43EQ"
+            }
+          },
+          "7FJY4M4SW5M7P": {
+            "line": {
+              "end": "9AEQBE1KKWAEB",
+              "start": "ED620G2XB2AG2"
+            }
+          }
+        },
+        "points": {
+          "08K1WTZT3RSGW": {
+            "x": 0.02,
+            "y": -0.015
+          },
+          "67JZ1WHCK43EQ": {
+            "fixed": true,
+            "x": -0.02,
+            "y": -0.015
+          },
+          "9AEQBE1KKWAEB": {
+            "x": -0.02,
+            "y": 0.015
+          },
+          "ED620G2XB2AG2": {
+            "x": 0.02,
+            "y": 0.015
+          }
+        }
+      },
+      "suppressed": false,
+      "type_id": "core.sketch",
+      "type_version": 1
+    },
+    "97J2VX35NWS4N": {
+      "id": "97J2VX35NWS4N",
+      "inputs": {
+        "plane": {
+          "topo": "face:sweep.EBWK5C332393W.end-cap"
+        }
+      },
+      "name": "Plate top",
+      "params": {
+        "offset": "0 mm"
+      },
+      "suppressed": false,
+      "type_id": "core.datum-plane",
+      "type_version": 1
+    },
+    "D04J62MBR1BVY": {
+      "frozen": {
+        "input_hash": "8eeae7af2e78589e08cfeffd3faaabd01aec21d612c5360bd5d3b4e08f0a9b63",
+        "names": "fe90a7b10a9ec38679dff7cae1586ff461d833aa425d8171a5ee151521002e5b.json",
+        "plugin_version": "0.1.0",
+        "slots": {
+          "body": "cd67df0ac6517bb712ada902cfb655a19fc18d320e1a249376de8953cb14efda.arrisbody"
+        }
+      },
+      "id": "D04J62MBR1BVY",
+      "inputs": {
+        "plane": {
+          "slot": {
+            "feature": "97J2VX35NWS4N",
+            "slot": "plane"
+          }
+        }
+      },
+      "name": "Spur gear",
+      "params": {
+        "module": "m",
+        "teeth": "teeth",
+        "width": "8 mm"
+      },
+      "suppressed": false,
+      "type_id": "gears.spur",
+      "type_version": 1
+    },
+    "EBWK5C332393W": {
+      "choices": {
+        "mode": "new"
+      },
+      "id": "EBWK5C332393W",
+      "inputs": {
+        "region": {
+          "region": {
+            "feature": "8WKAAGKYC6HR8",
+            "key": {
+              "entities": [
+                "3ZPNYGV5VXAGH",
+                "57Z6PA4YG5FQY",
+                "77MSVCSN1W8ET",
+                "7FJY4M4SW5M7P"
+              ],
+              "sample": [
+                0,
+                0
+              ]
+            }
+          }
+        }
+      },
+      "name": "Plate",
+      "params": {
+        "distance": "t"
+      },
+      "suppressed": false,
+      "type_id": "core.extrude",
+      "type_version": 1
+    }
+  },
+  "history": [
+    "8WKAAGKYC6HR8",
+    "EBWK5C332393W",
+    "97J2VX35NWS4N",
+    "D04J62MBR1BVY",
+    "32AH7RZ9GR4ET",
+    "30PTHZ1YTRN3Y",
+    "7TZ1340B9RSMB"
+  ],
+  "id": "BC6X598GYWPZN",
+  "material": "9EX2HPW1JW5RY",
+  "name": "Bracket",
+  "rollback": null
+}

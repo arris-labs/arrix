@@ -25,3 +25,15 @@ Files `arrix-kernel`'s import and anchor probes read
   it to (`UPDATE_SNAPSHOTS=1` writes it again). The structure tests and
   `core.import-step`'s `frame: product` read it. Licence: this
   repository's.
+- `horn.step`, `screw.step`: the C2 accept's small parts, a 30 × 10 × 4 mm
+  bar with a shaft of radius 3 standing 6 on its top at (5, 5), and a
+  cylinder of radius 1.5 and height 8, in millimetres. Written by Arris
+  0.8.0's `step::write` from the recipes in
+  `crates/arrix-kernel/tests/exchange_fixtures.rs`, which holds them to it
+  (`UPDATE_SNAPSHOTS=1` writes them again). Licence: this repository's.
+- `nist-ftc-11.stp`: NIST's fully-toleranced test case 11, the AP203
+  geometry-only edition (`nist_ftc_11_asme1_rb.stp`), one solid in
+  millimetres: the accept's vendor part. Copied from Arris's corpus
+  (`tests/fixtures/real/nist-ftc-11/`), sha256 `a5abfea460499dc31bc812aca68917948a117565fea4f5a080e36eb32f39650d`,
+  from <https://www.nist.gov/document/nist-pmi-step-files>. Licence: NIST,
+  "can be used without any restrictions".

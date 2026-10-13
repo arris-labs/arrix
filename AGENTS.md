@@ -112,6 +112,7 @@ it before ticking a step:
   `arrix test <plugin-dir> [--schema]` runs the test kit (the plugin's
   `[test]` table, one JSON line per check); `eval --schema` and
   `arrix-app render --schema` print the other surfaces' schemas.
+- `cargo test -p arrix-cli --test c2_accept` is C2 M3's accept so far: `tests/docs/assembly-exchange` exported with `arrix export --assembly`, re-imported and held to its volumes, poses and masses (`eval_c2_accept.jsonl`).
 - `arrix eval` also takes several paths and directories, `--sweep
   <target>=<from>..<to>:<n>`, `--summary`, `--timings`, `--jobs <n>` and
   `--budget <steps>` (`docs/CONCURRENCY-WASM.md` §Batch evaluation).
