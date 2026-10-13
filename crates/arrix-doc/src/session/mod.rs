@@ -109,6 +109,10 @@ pub enum Request {
     Export {
         bodies: Vec<BodySlot>,
         format: ExportFormat,
+        /// Write this assembly with its structure (ADR-0032 §5) instead
+        /// of bodies: STEP only, `bodies` empty.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        assembly: Option<AssemblyId>,
     },
     /// Reads the product tree of the STEP file `bytes` on the worker
     /// (ADR-0032), answered `Reading`, the tree following as
@@ -306,7 +310,20 @@ pub trait Session {
     }
 
     fn export(&self, bodies: Vec<BodySlot>, format: ExportFormat) -> Result<Outcome, Rejected> {
-        self.request(Request::Export { bodies, format })
+        self.request(Request::Export {
+            bodies,
+            format,
+            assembly: None,
+        })
+    }
+
+    /// The assembly `assembly` as a STEP file with its product structure.
+    fn export_assembly(&self, assembly: AssemblyId) -> Result<Outcome, Rejected> {
+        self.request(Request::Export {
+            bodies: Vec::new(),
+            format: ExportFormat::Step,
+            assembly: Some(assembly),
+        })
     }
 
     fn read_step_tree(&self, tag: u64, bytes: Vec<u8>) -> Result<Outcome, Rejected> {

@@ -5,6 +5,7 @@
 
 mod assembly;
 mod export;
+mod export_tree;
 mod fixtures;
 mod frozen;
 #[cfg(test)]
@@ -44,7 +45,7 @@ use arrix_sketch::{ConstraintId, Sketch};
 use serde::{Deserialize, Serialize};
 
 pub use assembly::{AssemblyOutcome, JointOutcome, PlacedComponent};
-pub use export::{ExportError, ExportedFile, export};
+pub use export::{ExportError, ExportedFile, export, export_assembly};
 pub use fixtures::{FailedCall, Run, SavedRecipe, run};
 pub use hash::InputHash;
 pub use kinematics::place;
@@ -342,6 +343,9 @@ pub struct Evaluator {
     /// The bodies the latest finished evaluation ended with, and the
     /// meshes made of the versions the cache holds.
     finals: Vec<meshing::FinalBody>,
+    /// The assemblies the latest finished evaluation solved, for the
+    /// structured export.
+    placed: BTreeMap<AssemblyId, AssemblyOutcome>,
     meshes: BTreeMap<(KernelBody, MeshDetail), RenderMesh>,
     /// The kernel's unit-density properties of the versions the cache
     /// holds, for the mass pass.
@@ -364,6 +368,7 @@ impl Evaluator {
             frames: BTreeMap::new(),
             solved: BTreeMap::new(),
             finals: Vec::new(),
+            placed: BTreeMap::new(),
             meshes: BTreeMap::new(),
             unit: BTreeMap::new(),
             run: 0,
@@ -433,6 +438,7 @@ impl Evaluator {
         self.run += 1;
         self.frozen.clear();
         self.finals.clear();
+        self.placed.clear();
         let dag =
             Dag::build_with(doc, &self.registry).expect("a document is valid by construction");
         let params = Params::evaluate(doc, &dag);
@@ -471,6 +477,7 @@ impl Evaluator {
             return None;
         };
         self.finals = finals;
+        self.placed = assemblies.clone();
         self.collect();
         Some(Evaluation {
             params: params.values,

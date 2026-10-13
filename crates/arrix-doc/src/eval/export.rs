@@ -3,7 +3,7 @@
 //! user sees, in the document's order, through the kernel's recorded
 //! export.
 
-use arrix_core::{Diagnostic, ExportFormat, Severity};
+use arrix_core::{AssemblyId, Diagnostic, ExportFormat, Severity};
 
 use super::{BodySlot, EvalLine, Evaluator, FinalBody, host};
 use crate::open::{DocumentSource, OpenError, open};
@@ -50,7 +50,28 @@ pub fn export(
     })
 }
 
-fn error(code: &str, message: String) -> Diagnostic {
+/// Opens and evaluates like [`export`], then writes assembly `assembly`
+/// with its structure, as the evaluator's
+/// [`export_assembly`](Evaluator::export_assembly) does.
+pub fn export_assembly(
+    doc: &str,
+    source: &impl DocumentSource,
+    registry: &Registry,
+    assembly: AssemblyId,
+) -> Result<ExportedFile, ExportError> {
+    let document = open(source)?;
+    let mut evaluator = Evaluator::new(registry.clone());
+    let evaluation = evaluator.evaluate(&document);
+    let bytes = evaluator
+        .export_assembly(&document, assembly)
+        .map_err(ExportError::Export)?;
+    Ok(ExportedFile {
+        bytes,
+        line: evaluation.line(doc, &document),
+    })
+}
+
+pub(super) fn error(code: &str, message: String) -> Diagnostic {
     Diagnostic::new(Severity::Error, code, message).expect("a literal code is well-formed")
 }
 

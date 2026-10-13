@@ -11411,6 +11411,17 @@
         "properties": {
           "export": {
             "properties": {
+              "assembly": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/AssemblyId"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Write this assembly with its structure (ADR-0032 §5) instead\nof bodies: STEP only, `bodies` empty."
+              },
               "bodies": {
                 "items": {
                   "$ref": "#/$defs/BodySlot"

@@ -10,7 +10,7 @@ use std::collections::{BTreeSet, VecDeque};
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, TryRecvError};
 
-use arrix_core::{ExportFormat, MeshDetail, PartId};
+use arrix_core::{AssemblyId, ExportFormat, MeshDetail, PartId};
 use serde::{Deserialize, Serialize};
 
 use super::SessionEvent;
@@ -59,6 +59,7 @@ pub(super) struct PreviewJob {
 pub(super) struct ExportJob {
     pub bodies: Vec<BodySlot>,
     pub format: ExportFormat,
+    pub assembly: Option<AssemblyId>,
 }
 
 /// A STEP file's tree to read, as the worker takes it.

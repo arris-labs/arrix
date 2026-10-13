@@ -12,6 +12,7 @@ use arrix_doc::{BodySlot, Session};
 use arrix_viewport::Hit;
 
 use crate::ArrixApp;
+use crate::context::Context;
 use crate::documents::OpenDocument;
 
 /// The exports of one document in flight, and those heard and not yet
@@ -55,11 +56,20 @@ impl OpenDocument {
 
     /// Asks the session to write the selected bodies (all, with none
     /// selected) as `format` to `path` once it has them.
+    ///
+    /// In an assembly's context a STEP file is the assembly with its
+    /// product structure (ADR-0032 §5), whatever is selected.
     fn request_export(&mut self, path: PathBuf, format: ExportFormat) -> Result<(), String> {
-        let bodies = self.selected_bodies();
-        self.session()
-            .export(bodies, format)
-            .map_err(|e| e.to_string())?;
+        let asked = match (self.context(), format) {
+            (Some(Context::Assembly(assembly)), ExportFormat::Step) => {
+                self.session().export_assembly(assembly)
+            }
+            _ => {
+                let bodies = self.selected_bodies();
+                self.session().export(bodies, format)
+            }
+        };
+        asked.map_err(|e| e.to_string())?;
         self.exports.waiting.push_back(path);
         Ok(())
     }

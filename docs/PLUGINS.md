@@ -346,7 +346,9 @@ supplies an inverse.
   feature-history dataset replayed into ArriX is an importer
   (`SEED.md` §6.6).
 - **Exporter**: an evaluated snapshot, in; bytes, out. The host writes them
-  where the user chose. URDF, SDF and MJCF are the robotics plugin's.
+  where the user chose. URDF, SDF and MJCF are the robotics plugin's. The
+  core STEP importer and exporter carry the product structure both ways
+  (ADR-0032), through this same surface.
 
 A plugin never receives a path, only bytes and a file name, so an
 importer is the same on native, in the browser and on a remote server.

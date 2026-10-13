@@ -150,6 +150,7 @@ fn a_request_and_its_answer_cross_as_json() {
             slot: arrix_core::SlotName::new("body").unwrap(),
         }],
         format: ExportFormat::Step,
+        assembly: None,
     };
     crate::session::crosses(&request, "request");
 

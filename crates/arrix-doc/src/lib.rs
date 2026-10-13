@@ -56,8 +56,8 @@ pub use eval::{
     EvalEvent, EvalLine, EvalStatus, Evaluation, Evaluator, ExportError, ExportedFile, FailedCall,
     FeatureLine, FeatureOutcome, FinalBody, FrozenInfo, FrozenReason, InputHash, JointOutcome,
     MassLine, Masses, MaterialLine, ParamLine, PartMassLine, PlacedComponent, RegionView, Run,
-    SavedRecipe, SketchView, SlotView, Sweep, SweepError, SweepPoint, eval, export, place, run,
-    sweep,
+    SavedRecipe, SketchView, SlotView, Sweep, SweepError, SweepPoint, eval, export,
+    export_assembly, place, run, sweep,
 };
 pub use frozen::{BlobRef, Frozen, FrozenResult, InvalidBlobRef};
 pub use import_products::{ImportError, Imported, import_products};

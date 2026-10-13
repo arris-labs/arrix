@@ -219,6 +219,9 @@ pub enum KernelOp {
     /// The operand bodies, in operand order, written as `format`: the
     /// exact B-rep for STEP, the refined meshes for STL and OBJ.
     Export { format: ExportFormat },
+    /// The operand bodies written as a STEP product tree in metres
+    /// (ADR-0032 §5): `tree` names them by their place in the operands.
+    ExportProducts { tree: ExportTree },
     /// Solid number `solid` (from 1, in the reader's order) of the STEP
     /// file whose hash is `file`, read in metres; `feature` roots the
     /// names (`import.<feature>.<entity>`). `entity` is the solid's file
@@ -246,6 +249,34 @@ pub enum KernelOp {
     /// Body bytes read into the model; `bytes` is their hash. The operand
     /// list is empty: the bytes are the input.
     FromBytes { bytes: BodyHash },
+}
+
+/// The product tree `export_step_products` writes: plain data, the solids
+/// numbered as the operands are (from 0).
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct ExportTree {
+    pub roots: Vec<ExportNode>,
+}
+
+/// One use of a product in an [`ExportTree`].
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ExportNode {
+    /// Nodes that share a product are one product written once and placed
+    /// many times; they must agree in name, solids, colour and children.
+    pub product: Option<u64>,
+    pub name: String,
+    /// Where it sits in its parent's frame, in metres. A root's is not
+    /// written.
+    pub placement: Frame,
+    /// Red, green and blue in 0 to 1, the colour of its own solids.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub colour: Option<[f64; 3]>,
+    /// The solids it holds itself: operand numbers, each in its product's
+    /// own frame.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub solids: Vec<u32>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub children: Vec<ExportNode>,
 }
 
 /// Where an imported solid sits (ADR-0032 §1).

@@ -75,3 +75,11 @@ the instance differing. Eight orders under the kernel's 1e-6 m tolerance.
 - **One material per face colour**: a material is a part-level fact; a
   face colour is a look.
 - **Write millimetres**: ADR-0028 §5.
+
+## Update 2026-10-13
+
+The human answered plans/c2-m3 Open question 5 in §6: the component-name
+loss is accepted. An imported component is named for its product, and an
+exported one is an occurrence of its part's or assembly's name. A per-body
+material override is not written either: an occurrence's colour is the
+part's material's appearance. Nothing above is superseded.

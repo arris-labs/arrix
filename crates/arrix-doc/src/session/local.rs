@@ -244,8 +244,16 @@ fn serve(
                             Outcome::Previewing
                         })
                     }
-                    Request::Export { bodies, format } => {
-                        let _ = jobs.send(Job::Export(ExportJob { bodies, format }));
+                    Request::Export {
+                        bodies,
+                        format,
+                        assembly,
+                    } => {
+                        let _ = jobs.send(Job::Export(ExportJob {
+                            bodies,
+                            format,
+                            assembly,
+                        }));
                         Ok(Outcome::Exporting)
                     }
                     Request::ReadStepTree { tag, bytes } => {
@@ -475,7 +483,10 @@ fn export_queued(
             }
             *held = true;
         }
-        let bytes = evaluator.export(&job.bodies, job.format);
+        let bytes = match job.assembly {
+            Some(assembly) => evaluator.export_assembly(doc, assembly),
+            None => evaluator.export(&job.bodies, job.format),
+        };
         if matches!(&bytes, Err(d) if interrupted(d)) {
             return;
         }

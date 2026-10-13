@@ -182,16 +182,23 @@ no undo entry, and its events carry the client's `PreviewId`. One preview
 per session: a newer one, `ClearPreview` or an applied change ends it, and
 its events stop there.
 
-An **export** is a request and no command: `Request::Export { bodies, format
-}` (no bodies: every final body) is answered `Exporting`, makes no
+An **export** is a request and no command: `Request::Export { bodies, format,
+assembly }` (no bodies: every final body; an `assembly` with `format: Step`
+writes that assembly's product structure instead, ADR-0032 §5) is answered `Exporting`, makes no
 generation, no undo entry and no gesture, and `SessionEvent::Exported {
 generation, format, bytes }` follows with the file, or the diagnostic that
 says why there is none (`export.no-bodies`, `export.unknown-body`, a
 `kernel.export.*`). The worker writes it from the newest commit's
 evaluation, after that commit is evaluated and before any preview, however
 many previews or edits came before it; the bodies go in the document's
-order. Headless, `arrix_doc::export` opens, evaluates and writes the same
-file, with the evaluation's line beside it.
+order. Headless, `arrix_doc::export` (and `export_assembly`) opens,
+evaluates and writes the same file, with the evaluation's line beside it.
+An assembly's tree is a part a product written once, a component an
+occurrence at its solved pose in its parent, a nested assembly a
+sub-assembly, the part's final bodies its solids and its material's
+appearance their colour; a component the solve could not place is
+`export.unplaced`, never a guessed pose. A per-body material override and
+a component's own name are not written (ADR-0032 §6).
 
 A **STEP tree read** is a request and no command too: `Request::ReadStepTree
 { tag, bytes }` is answered `Reading` and `SessionEvent::StepTree { tag,
@@ -228,7 +235,9 @@ C2 M3 extends the door (ADR-0031, ADR-0032; not yet built):
 (built; the plugin API's `MassProperties` is unchanged),
 `read_step_structure` returns a plain product tree and `import_step_in`
 takes a frame (both built), and `export_step` and `export_step_products`
-write metres (A12, `arris` 0.8; `export_step` built), each a recorded call.
+write metres (A12, `arris` 0.8; both built), each a recorded call
+(`KernelOp::ExportProducts { tree }`, the tree plain data numbering its
+solids by operand).
 
 `arrix-kernel` is the only door to Arris (`SEED.md` §6.6). It exists for
 three reasons: to keep Arris's breaking enums out of the plugin API, to name

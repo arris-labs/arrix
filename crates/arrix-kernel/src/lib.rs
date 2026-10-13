@@ -39,8 +39,8 @@ pub use interrupt::Interrupt;
 pub use naming::BodyNames;
 pub use project::Projected;
 pub use record::{
-    ARRIS_VERSION, BodyHash, CallIndex, CallPrecision, FileBytes, FileHash, FileSolid, ImportFrame,
-    KernelCall, KernelOp,
+    ARRIS_VERSION, BodyHash, CallIndex, CallPrecision, ExportNode, ExportTree, FileBytes, FileHash,
+    FileSolid, ImportFrame, KernelCall, KernelOp,
 };
 pub use structure::{StepOccurrence, StepSolid, StepStructure};
 

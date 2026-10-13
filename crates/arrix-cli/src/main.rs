@@ -84,9 +84,9 @@ enum Command {
         #[arg(long, value_name = "STEPS")]
         budget: Option<u64>,
     },
-    /// Write a document's final bodies (or the `--body` ones) as a STEP,
-    /// STL or OBJ file, in metres (a STEP file
-    /// declares them). Exit status: 0 when written
+    /// Write a document's final bodies (or the `--body` ones), or with
+    /// `--assembly` an assembly's product structure, as a STEP, STL or OBJ
+    /// file, in metres (a STEP file declares them). Exit status: 0 when written
     /// from a clean document, 1 when written but some feature failed, 2
     /// when the document could not be read or exported.
     Export {
@@ -99,6 +99,11 @@ enum Command {
         /// name (repeatable); by default every final body.
         #[arg(long = "body", value_name = "FEATURE.SLOT")]
         bodies: Vec<String>,
+        /// Write this assembly (by id or name) with its product structure,
+        /// each part once and each component an occurrence at its solved
+        /// pose; STEP only, instead of the bodies.
+        #[arg(long, value_name = "ASSEMBLY", conflicts_with = "bodies")]
+        assembly: Option<String>,
         /// The file to write.
         #[arg(short, long, value_name = "FILE")]
         out: PathBuf,
@@ -244,6 +249,7 @@ fn main() -> ExitCode {
             doc,
             format,
             bodies,
+            assembly,
             out,
             plugins,
             without,
@@ -255,6 +261,7 @@ fn main() -> ExitCode {
                 Format::Obj => arrix_core::ExportFormat::Obj,
             },
             bodies: &bodies,
+            assembly: assembly.as_deref(),
             out: &out,
             plugins: &plugins,
             without: &without,

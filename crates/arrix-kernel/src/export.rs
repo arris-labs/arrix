@@ -6,13 +6,13 @@
 //! The writers are deterministic, so two exports of the same bodies are
 //! the same bytes.
 
-use arris::io::step::LengthUnit;
-use arris::io::step::{self, WriteOptions};
+use arris::io::step::{self, LengthUnit, Occurrence, ProductTree, Rgb, WriteOptions};
 use arris::io::{obj, stl};
 use arris::mesh::{MeshRequest, TriMesh};
 use arrix_core::{ExportFormat, MeshDetail};
 
-use crate::{CallIndex, Kernel, KernelBody, KernelError, KernelOp};
+use crate::convert;
+use crate::{CallIndex, ExportNode, ExportTree, Kernel, KernelBody, KernelError, KernelOp};
 
 /// The name an STL file gives its solid.
 const SOLID: &str = "arrix";
@@ -37,6 +37,32 @@ impl Kernel {
         };
         step::write_with(&self.model, &targets, &options)
             .map_err(|e| KernelError::export(call, "write", e.to_string()))
+    }
+
+    /// `bodies` as a STEP product structure declaring metres (Arris's
+    /// `write_products_with`, ADR-0032 §5): `tree` numbers its solids by
+    /// their place in `bodies`, each body in its product's own frame.
+    pub fn export_step_products(
+        &mut self,
+        bodies: &[KernelBody],
+        tree: &ExportTree,
+    ) -> Result<String, KernelError> {
+        let call = self.begin(KernelOp::ExportProducts { tree: tree.clone() }, bodies)?;
+        let mut targets = Vec::with_capacity(bodies.len());
+        for &body in bodies {
+            targets.push(self.entry(body)?.body);
+        }
+        let products = ProductTree {
+            roots: tree.roots.iter().map(occurrence).collect(),
+            faces: Vec::new(),
+        };
+        let options = WriteOptions {
+            length_unit: LengthUnit::Metre,
+        };
+        self.controlled(|m, control| {
+            step::write_products_with(m, &targets, &products, &options, control)
+        })
+        .map_err(|e| KernelError::export(call, "write", e.to_string()))
     }
 
     /// `bodies` as binary STL, their refined meshes in one solid.
@@ -80,5 +106,16 @@ impl Kernel {
             meshes.push(mesh);
         }
         Ok(meshes)
+    }
+}
+
+fn occurrence(node: &ExportNode) -> Occurrence {
+    Occurrence {
+        product: node.product,
+        name: node.name.clone(),
+        placement: Ok(convert::frame(&node.placement).as_isometry()),
+        colour: node.colour.map(Rgb),
+        solids: node.solids.iter().map(|&i| i as usize).collect(),
+        children: node.children.iter().map(occurrence).collect(),
     }
 }
