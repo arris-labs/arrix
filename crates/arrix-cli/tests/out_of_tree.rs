@@ -100,5 +100,9 @@ fn every_plugin_directory_passes_from_the_installed_arrix() {
 fn gears_and_robotics_pass_as_components_built_from_their_workspaces() {
     for dir in [tier1::gears(), tier1::robotics()] {
         passes(&dir);
+        // The author's `cargo test` entry runs the same checks.
+        arrix_plugin_test::run_tier1(&dir)
+            .unwrap_or_else(|d| panic!("{}", d.join("\n")))
+            .assert_passed();
     }
 }

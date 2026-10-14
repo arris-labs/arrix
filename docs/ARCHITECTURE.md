@@ -24,11 +24,12 @@ unless an ADR says otherwise.
 | `arrix-plugin-api` | the WIT world, its Rust traits and plain types; semver of its own | core | `libm` (`math`, ADR-0036), `wit-bindgen` (the `guest` feature, ADR-0035), `wit-parser` (the equality test only, dev) |
 | `arrix-doc` | document, parameters and expressions, DAG, feature registry, commands, undo, evaluator, `.arrx`, the `arrix eval` line, the `PluginLoader` trait, the protocol's schemas (`schema` feature, as in core, sketch and plugin-api); reads no files (a `DocumentSource` hands it bytes) | core, kernel, sketch, plugin-api | `serde_json`, `blake3`, `miniz_oxide`, `crc32fast` |
 | `arrix-plugin-host` | tier 0/1/2 hosting, manifests, capabilities, the frozen fallback; the wire (ADR-0022): the JSON-RPC framing and a codec per plugin-API type, generated from the WIT by `arrix-plugin-api`'s `tests/wire.rs`; the Tier 1 host (`tier1`, native only: wasmtime, a store per evaluation, fuel, epoch cancellation, ADR-0035), the Tier 2 host (`tier2`, native only: spawn, handshake, kernel callbacks, timeout, restart), and the directory loader (`DirLoader`, `register_dir`) | core, doc, plugin-api, and `arrix-gears` and `arrix-robotics` (its Tier 1 tests, dev) | `toml`, `semver`, `serde_json`, `wasmtime`, `wit-component`, `wasmparser` (native only) |
+| `arrix-plugin-test` | the plugin test kit (ADR-0026): the checks `arrix test` and a Rust plugin's own `cargo test` share (`run_tier0`, `run_tier1`); a document path as a source; a part, assembly or option as the command line names it | core, doc, plugin-host, plugin-api | `blake3`, `serde_json` |
 | `arrix-viewport` | wgpu scene, ID-buffer picking, overlays, camera (ported) | core | `wgpu`, `egui-wgpu`, `glam`, `bytemuck` |
 | `arrix-ui` | egui widgets over plain view types; the declarative-UI renderer | core, viewport, plugin-api (UI types only) | `egui` |
 | `arrix-config` | the user's configuration (ADR-0015): setting specs, the layered model (built-in defaults, then the user's directory), each file's diagnostics with its file and line; reads no files (a `ConfigSource` hands it bytes); never reaches the document or `evaluate`. Holds the settings, the command registry (`CommandSpec` as plain data), the keymap, the themes and the feature parameter defaults (their expression check is handed in by the caller, since this crate cannot depend on `arrix-doc`). Read by app and cli; not by `arrix-ui`, which gets plain view data | core, plugin-api | `toml`, `serde` |
 | `arrix-app` | the binary: the shell, the command registry, translation between document and view types; `arrix-app render`, the headless render (ADR-0025) | all of the above, and each compiled-in plugin (`arrix-gears`, `arrix-robotics`, its own Tier 0 list) | `eframe` |
-| `arrix-cli` | headless open / eval / export / run / test, and `serve` (`--stdio`, `--schema`; native only); its Tier 0 registration list | core, doc, plugin-host, kernel, plugin-api and sketch (its tests), and each compiled-in plugin (`arrix-gears`, `arrix-robotics`) | `clap` |
+| `arrix-cli` | headless open / eval / export / run / test, and `serve` (`--stdio`, `--schema`; native only); its Tier 0 registration list | core, doc, plugin-host, plugin-test, kernel, plugin-api and sketch (its tests), and each compiled-in plugin (`arrix-gears`, `arrix-robotics`) | `clap` |
 | `plugins/*` | first-party plugins, each a project of its own: `gears` (C1) and `robotics` (C3 M2: the URDF exporter, `robotics.urdf`) are Cargo workspaces, at Tier 0 and as Tier 1 components; `fasteners` (C3 M3) is a Python directory at Tier 2 | plugin-api **only** | — |
 | `python/arrix` | the Tier 2 SDK, pure stdlib, not a Cargo crate: `_wire.py` and `shapes.py` generated from the WIT, `@feature_type`, the `kernel` proxy, the stdio loop (`python -m arrix.plugin`); `arrix.session` (spawn and drive `arrix serve --stdio`) and `arrix.eval` (the eval lines), for an agent; `python/examples/standoff` is the sample plugin | — | — |
 
@@ -576,7 +577,7 @@ tests of **pre-push** cover it with no step of their own.
 1. `cargo test --workspace`
 2. `cargo test --workspace --all-features`
 3. `cargo build --target wasm32-unknown-unknown --workspace --exclude
-   arrix-cli`. `arrix-plugin-host`'s native tiers (C3) go behind a
+   arrix-cli --exclude arrix-plugin-test` (native only, like the CLI). `arrix-plugin-host`'s native tiers (C3) go behind a
    target cfg so the crate still builds.
    Then, for each Rust plugin, `cargo test --manifest-path
    plugins/<name>/Cargo.toml` and its Tier 1 module, `cargo build

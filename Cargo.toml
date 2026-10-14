@@ -7,6 +7,7 @@ members = [
     "crates/arrix-plugin-api",
     "crates/arrix-doc",
     "crates/arrix-plugin-host",
+    "crates/arrix-plugin-test",
     "crates/arrix-viewport",
     "crates/arrix-ui",
     "crates/arrix-config",
@@ -43,6 +44,7 @@ arrix-sketch = { path = "crates/arrix-sketch" }
 arrix-plugin-api = { path = "crates/arrix-plugin-api" }
 arrix-doc = { path = "crates/arrix-doc" }
 arrix-plugin-host = { path = "crates/arrix-plugin-host" }
+arrix-plugin-test = { path = "crates/arrix-plugin-test" }
 arrix-viewport = { path = "crates/arrix-viewport" }
 arrix-ui = { path = "crates/arrix-ui" }
 arrix-config = { path = "crates/arrix-config" }

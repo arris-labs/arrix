@@ -11,7 +11,7 @@ the snapshot read and exporters on all three tiers (§4), and the first
 plugins, `plugins/gears` with `gears.spur` and `plugins/robotics` with
 `robotics.urdf` (their crate docs state their geometry and conventions), at
 Tier 0 or as Tier 1 components.
-`arrix-plugin-test` comes with C3 M3 (ADR-0034).
+`arrix-plugin-test`, the kit as a Rust crate, is C3 M3's (ADR-0034).
 
 ## One interface, defined once
 
@@ -632,8 +632,16 @@ against the outline, the names a teeth edit keeps) stay in
 `crates/arrix-cli/tests/gears.rs` and `gear_naming.rs`, since a plugin
 depends on the API alone. The Python SDK has `python -m unittest`, run by
 `crates/arrix-plugin-host/tests/python_sdk.rs`, and the standoff's checks
-are in `crates/arrix-cli/tests/boundary_m1.rs`. `arrix-plugin-test`, the
-Rust kit for Tier 0 authors, comes with C3 beside the Tier 1 SDK.
+are in `crates/arrix-cli/tests/boundary_m1.rs`.
+
+**In Rust**: the checks above are the crate `arrix-plugin-test`'s, and
+`arrix test` calls it. A Rust plugin takes it as a dev-dependency (the layer
+lint's one new edge for a plugin) and runs the same checks from its own
+`cargo test`: `run_tier0(dir, MANIFEST, Tier0::Feature(Arc::new(Gears)))` for
+a plugin compiled in (`Tier0::Exporter`, `Tier0::Commands` for the others),
+and `run_tier1(dir)` for the component built from it. Both return a `Report`
+whose `assert_passed()` names every failed check. `plugins/gears/tests/kit.rs`
+and `plugins/robotics/tests/kit.rs` are the examples.
 
 An agent reaches all of it with the installed binaries and the SDK:
 `arrix.session` drives `arrix serve --stdio` and `arrix.eval` runs the

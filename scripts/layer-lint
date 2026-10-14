@@ -47,6 +47,9 @@ ALLOWED = {
         "arrix-gears",
         "arrix-robotics",
     },
+    # The test kit (ADR-0026): the checks `arrix test` and a plugin's own
+    # `cargo test` share; its Tier 0 tests compile a test plugin in.
+    "arrix-plugin-test": {"arrix-core", "arrix-doc", "arrix-plugin-api", "arrix-plugin-host"},
     "arrix-viewport": {"arrix-core"},
     "arrix-ui": {"arrix-core", "arrix-viewport", "arrix-plugin-api"},
     # The user's configuration (ADR-0015): plain data, no UI, no document.
@@ -71,6 +74,7 @@ ALLOWED = {
         "arrix-doc",
         "arrix-sketch",
         "arrix-plugin-host",
+        "arrix-plugin-test",
         "arrix-kernel",
         "arrix-plugin-api",
         "arrix-gears",
@@ -80,6 +84,8 @@ ALLOWED = {
 }
 # Every package under plugins/: the plugin API alone, first-party included.
 PLUGIN_ALLOWED = {"arrix-plugin-api"}
+# ... and the test kit, as a dev-dependency alone (plans/c3-m3 step 12).
+PLUGIN_DEV_ALLOWED = {"arrix-plugin-test"}
 
 # (the Tier 1 engine, ADR-0035, is `arrix-plugin-host`'s alone: `wasmtime`,
 # `wit-component` and `wasmparser`; a plugin names none of it either, the
@@ -137,10 +143,11 @@ def check_edges(packages):
         # A crate may dev-depend on itself to turn a feature on for its own
         # tests (arrix-plugin-api's `guest`); that is no edge.
         deps = {d["name"] for d in pkg["dependencies"]} - {name}
+        dev = {d["name"] for d in pkg["dependencies"] if d["kind"] == "dev"}
         graph[name] = deps & names
         is_plugin = package_dir(pkg).startswith("plugins/")
         if is_plugin:
-            allowed = PLUGIN_ALLOWED
+            allowed = PLUGIN_ALLOWED | (PLUGIN_DEV_ALLOWED & dev)
         elif name in ALLOWED:
             allowed = ALLOWED[name]
         else:
@@ -171,7 +178,6 @@ def check_edges(packages):
 ARRIS_RE = re.compile(r"\barris(_\w+)?\s*(::|;|\s+as\b)")
 UI_RE = re.compile(r"\b(egui\w*|eframe|wgpu\w*)\s*(::|;|\s+as\b)")
 DOC_RE = re.compile(r"\barrix_(doc|sketch)\b")
-PLUGIN_RE = re.compile(r"\barrix_(?!plugin_api\b)\w+")
 
 
 def path_rules(name):
@@ -184,7 +190,14 @@ def path_rules(name):
     if name.startswith("crates/arrix-ui/"):
         rules.append((DOC_RE, "arrix-ui never names a doc or sketch type"))
     if name.startswith("plugins/"):
-        rules.append((PLUGIN_RE, "a plugin names arrix_plugin_api alone"))
+        own = name.split("/")[1].replace("-", "_")
+        tests = "/tests/" in name
+        # A plugin's tests name the test kit and the plugin's own crate.
+        allowed = r"plugin_api\b|plugin_test\b|" + own + r"\b" if tests else r"plugin_api\b"
+        rules.append((
+            re.compile(r"\barrix_(?!" + allowed + r")\w+"),
+            "a plugin names arrix_plugin_api alone (its tests also arrix_plugin_test and the plugin's own crate)" if tests else "a plugin names arrix_plugin_api alone",
+        ))
     return rules
 
 

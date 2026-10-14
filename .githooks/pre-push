@@ -11,7 +11,7 @@ echo "pre-push: cargo test --all-features"
 cargo test --workspace --all-features
 
 echo "pre-push: wasm32 build"
-cargo build --target wasm32-unknown-unknown --workspace --exclude arrix-cli
+cargo build --target wasm32-unknown-unknown --workspace --exclude arrix-cli --exclude arrix-plugin-test
 
 # Each Rust plugin is a workspace of its own (plans/c3-m3 Findings 7): its
 # tests, and its Tier 1 module where its own guest test builds it.

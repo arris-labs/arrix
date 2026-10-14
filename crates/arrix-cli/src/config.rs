@@ -11,7 +11,7 @@ use arrix_plugin_api::FeatureTypeSpec;
 use arrix_plugin_host::Manifest;
 
 use crate::plugins;
-use crate::source::DirSource;
+use crate::source::ConfigDir;
 
 /// Everything `describe` and `check` work on.
 pub struct Loaded {
@@ -47,7 +47,7 @@ pub fn load(dir: Option<&Path>, plugin_dirs: &[PathBuf]) -> Result<Loaded, Strin
     let commands = CommandRegistry::new(&types);
     let config = match &dir {
         Some(dir) => Config::load(
-            &DirSource::new(dir),
+            &ConfigDir::new(dir),
             &commands,
             &types,
             &arrix_doc::expr::check_constant,

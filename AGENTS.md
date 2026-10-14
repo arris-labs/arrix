@@ -85,7 +85,7 @@ it before ticking a step:
   `scripts/size-lint`, `scripts/wasm-lint`, `scripts/layer-lint`.
 - `.githooks/pre-push`: `cargo test --workspace` (and `--all-features`),
   `cargo build --target wasm32-unknown-unknown --workspace --exclude
-  arrix-cli`, `scripts/gate-selftest`.
+  arrix-cli --exclude arrix-plugin-test`, `scripts/gate-selftest`.
 - `plugins/gears` and `plugins/robotics` are Cargo workspaces of their own:
   both hooks also run clippy, `cargo test` and the `guest` wasm32 build on
   each by `--manifest-path plugins/<name>/Cargo.toml`. `cargo test -p
@@ -118,7 +118,9 @@ it before ticking a step:
   unittest` run by `cargo test -p arrix-plugin-host --test python_sdk`, and
   `cargo test -p arrix-cli --test boundary_m1` is M1's accept.
   `arrix test <plugin-dir> [--schema]` runs the test kit (the plugin's
-  `[test]` table, one JSON line per check); `eval --schema` and
+  `[test]` table, one JSON line per check; the checks are the crate
+  `arrix-plugin-test`'s, which a Rust plugin's `cargo test` runs too:
+  `plugins/gears/tests/kit.rs`); `eval --schema` and
   `arrix-app render --schema` print the other surfaces' schemas.
 - A Tier 1 plugin is a Rust crate on `arrix-plugin-api` alone with its
   `guest` feature, a `cdylib` built `cargo build --release --target

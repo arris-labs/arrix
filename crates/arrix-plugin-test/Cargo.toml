@@ -1,0 +1,20 @@
+[package]
+name = "arrix-plugin-test"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+# The test kit (ADR-0026, plans/c3-m3 step 12): `arrix test` and a plugin's own
+# `cargo test` run these checks. A plugin may take it as a dev-dependency.
+[dependencies]
+arrix-core.workspace = true
+arrix-doc.workspace = true
+arrix-plugin-api.workspace = true
+arrix-plugin-host.workspace = true
+blake3.workspace = true
+serde_json.workspace = true

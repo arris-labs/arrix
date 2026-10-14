@@ -1,59 +1,22 @@
-//! A document directory on disk, as a [`DocumentSource`]. The CLI is
-//! native-only, so this is where the files are read.
+//! The config directory on disk, as a [`arrix_config::ConfigSource`]: the
+//! files are `settings.toml`, `keybindings.toml` and `themes/*.toml`, which a
+//! missing one leaves unset.
 
-use std::io::ErrorKind;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use arrix_doc::DocumentSource;
+use arrix_plugin_test::DirSource;
 
-pub struct DirSource {
-    root: PathBuf,
-}
+pub struct ConfigDir(DirSource);
 
-impl DirSource {
+impl ConfigDir {
     pub fn new(root: &Path) -> Self {
-        Self {
-            root: root.to_path_buf(),
-        }
-    }
-
-    fn path(&self, rel: &str) -> PathBuf {
-        rel.split('/')
-            .fold(self.root.clone(), |p, part| p.join(part))
+        Self(DirSource::new(root))
     }
 }
 
-impl DocumentSource for DirSource {
+impl arrix_config::ConfigSource for ConfigDir {
     fn read(&self, path: &str) -> std::io::Result<Option<Vec<u8>>> {
-        match std::fs::read(self.path(path)) {
-            Ok(bytes) => Ok(Some(bytes)),
-            Err(err) if err.kind() == ErrorKind::NotFound => Ok(None),
-            Err(err) => Err(err),
-        }
-    }
-
-    fn list(&self, dir: &str) -> std::io::Result<Vec<String>> {
-        let entries = match std::fs::read_dir(self.path(dir)) {
-            Ok(entries) => entries,
-            Err(err) if err.kind() == ErrorKind::NotFound => return Ok(Vec::new()),
-            Err(err) => return Err(err),
-        };
-        let mut names = Vec::new();
-        for entry in entries {
-            let entry = entry?;
-            if entry.file_type()?.is_file() {
-                names.push(entry.file_name().to_string_lossy().into_owned());
-            }
-        }
-        names.sort();
-        Ok(names)
-    }
-}
-
-/// The config directory read as one: the files are `settings.toml`,
-/// `keybindings.toml` and `themes/*.toml`, which a missing one leaves unset.
-impl arrix_config::ConfigSource for DirSource {
-    fn read(&self, path: &str) -> std::io::Result<Option<Vec<u8>>> {
-        DocumentSource::read(self, path)
+        DocumentSource::read(&self.0, path)
     }
 }

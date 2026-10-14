@@ -112,7 +112,7 @@ jobs:
             plugins/gears -> target
             plugins/robotics -> target
       - name: "gate: wasm32 build"
-        run: cargo build --target wasm32-unknown-unknown --workspace --exclude arrix-cli
+        run: cargo build --target wasm32-unknown-unknown --workspace --exclude arrix-cli --exclude arrix-plugin-test
       - name: "gate: guest build, plugins/gears"
         run: cargo build --release --target wasm32-unknown-unknown --features guest --manifest-path plugins/gears/Cargo.toml --target-dir plugins/gears/target/guest
       - name: "gate: guest build, plugins/robotics"

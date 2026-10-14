@@ -12,7 +12,7 @@ use arrix_doc::Registry;
 use arrix_plugin_host::{CommandFixture, Fixture, PickFixture, register_tier0_commands};
 
 use super::expand_twice_and_undo;
-use crate::load::Loaded;
+use crate::source::Loaded;
 
 #[path = "../../arrix-plugin-host/tests/plugins/place/src/place.rs"]
 mod place;

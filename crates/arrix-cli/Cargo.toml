@@ -14,6 +14,7 @@ arrix-core.workspace = true
 arrix-plugin-api.workspace = true
 arrix-doc = { workspace = true, features = ["schema"] }
 arrix-plugin-host.workspace = true
+arrix-plugin-test.workspace = true
 arrix-kernel.workspace = true
 arrix-gears.workspace = true
 arrix-robotics.workspace = true
