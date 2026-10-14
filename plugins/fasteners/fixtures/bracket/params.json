@@ -1,0 +1,22 @@
+{
+  "4SZ1VMCFJ1YDG": {
+    "expr": "60 mm",
+    "kind": "length",
+    "name": "w"
+  },
+  "7ERCZNPHZ7EQG": {
+    "expr": "20",
+    "kind": "count",
+    "name": "teeth"
+  },
+  "9Y57D946PD2FT": {
+    "expr": "1 mm",
+    "kind": "length",
+    "name": "m"
+  },
+  "D1BPZWKQ716XG": {
+    "expr": "5 mm",
+    "kind": "length",
+    "name": "t"
+  }
+}

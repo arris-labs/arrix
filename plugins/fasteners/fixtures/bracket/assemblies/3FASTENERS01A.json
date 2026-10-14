@@ -1,0 +1,18 @@
+{
+  "components": {
+    "3FASTENERS01B": {
+      "id": "3FASTENERS01B",
+      "name": "bracket",
+      "of": {
+        "part": "8E4ZYYF80N5EM"
+      },
+      "pose": {
+        "position": ["0 mm", "0 mm", "0 mm"],
+        "rpy": ["0 deg", "0 deg", "0 deg"]
+      }
+    }
+  },
+  "id": "3FASTENERS01A",
+  "joints": {},
+  "name": "plate"
+}

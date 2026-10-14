@@ -1,0 +1,18 @@
+{
+  "features": {
+    "5CREW0000002A": {
+      "choices": {"size": "M4"},
+      "id": "5CREW0000002A",
+      "inputs": {},
+      "name": "Socket head cap screw",
+      "params": {"length": "0 mm"},
+      "suppressed": false,
+      "type_id": "fasteners.socket-head",
+      "type_version": 1
+    }
+  },
+  "history": ["5CREW0000002A"],
+  "id": "5CREW0000001A",
+  "name": "M4x10",
+  "rollback": null
+}

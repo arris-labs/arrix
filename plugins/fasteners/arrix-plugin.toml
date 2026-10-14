@@ -1,0 +1,46 @@
+[plugin]
+id = "fasteners"
+version = "0.1.0"
+api = "^0.8"
+tier = 2
+title = "Fasteners"
+licence = "MIT OR Apache-2.0"
+
+[tier2]
+command = ["python3", "-m", "arrix.plugin", "fasteners"]
+
+[capabilities]
+kernel = true
+document-read = true
+document-write = true
+
+[contributes]
+features = ["fasteners.socket-head"]
+commands = ["fasteners.place"]
+ribbon = ["fasteners"]
+
+[test]
+documents = ["fixtures/screw"]
+fail = ["fixtures/oversize"]
+
+# Two of the bracket's three counterbored holes, the size from the hole.
+[[test.commands]]
+document = "fixtures/bracket"
+command = "fasteners.place"
+assembly = "plate"
+options = { length = "10 mm" }
+inputs = { holes = [
+  { path = ["bracket"], edge = "edge:sweep.6YGYXVGFE9Z3Z.end-cap/gen.CETME0KJFBN9F[face:sweep.6YGYXVGFE9Z3Z.end-cap,face:revolve.CETME0KJFBN9F.side.0000000000002]" },
+  { path = ["bracket"], edge = "edge:sweep.6YGYXVGFE9Z3Z.end-cap/gen.E635NVKB74361[face:sweep.6YGYXVGFE9Z3Z.end-cap,face:revolve.CETME0KJFBN9F.side.0000000000002/inst.E635NVKB74361.1]" },
+] }
+
+# The size given, a part reused for both screws.
+[[test.commands]]
+document = "fixtures/bracket"
+command = "fasteners.place"
+assembly = "plate"
+options = { length = "8 mm", size = "M3" }
+inputs = { holes = [
+  { path = ["bracket"], edge = "edge:sweep.6YGYXVGFE9Z3Z.end-cap/gen.CETME0KJFBN9F[face:sweep.6YGYXVGFE9Z3Z.end-cap,face:revolve.CETME0KJFBN9F.side.0000000000002]" },
+  { path = ["bracket"], edge = "edge:sweep.6YGYXVGFE9Z3Z.end-cap/gen.E635NVKB74361[face:sweep.6YGYXVGFE9Z3Z.end-cap,face:revolve.CETME0KJFBN9F.side.0000000000002/inst.E635NVKB74361.1]" },
+] }
