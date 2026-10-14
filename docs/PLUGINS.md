@@ -552,7 +552,8 @@ only, whatever the manifest says, because determinism demands it.
   wire file, the Python SDK and each component's import names. The
   `math` module (ADR-0036) is additive in the same way.
   While it is `0.x`, a minor bump is breaking. Every change to it says its
-  semver effect in the commit body (`.agents/rules/git.md`).
+  semver effect in the commit body (`.agents/rules/git.md`). What a 0.x minor may and
+  may not break is ADR-0039's.
 - The host supports one API range at a time and says which in `arrix
   --version`. A plugin whose `api` range does not overlap is not loaded;
   its features open frozen, with that reason.
