@@ -38,9 +38,19 @@ pub fn holes() -> Value {
 
 /// A session on the north star with `fasteners` loaded, past the handshake.
 pub fn serve() -> Serve {
+    serve_with(&[])
+}
+
+/// [`serve`] with the plugin directories `more` loaded too.
+pub fn serve_with(more: &[&Path]) -> Serve {
     let plugin = workspace().join("plugins/fasteners");
     let doc = workspace().join("tests/docs/north-star");
-    let mut s = Serve::spawn_with(&["--plugin", plugin.to_str().unwrap(), doc.to_str().unwrap()]);
+    let mut args = vec!["--plugin", plugin.to_str().unwrap()];
+    for dir in more {
+        args.extend(["--plugin", dir.to_str().unwrap()]);
+    }
+    args.push(doc.to_str().unwrap());
+    let mut s = Serve::spawn_with(&args);
     let hello = s.call("initialize", json!({"protocol": 1}));
     assert_eq!(hello["result"]["protocol"], 1, "{hello}");
     s
@@ -93,7 +103,12 @@ pub fn save(s: &mut Serve, dir: &Path) {
 
 /// The north star with its screws, saved into `dir`.
 pub fn screwed(dir: &Path) {
-    let mut s = serve();
+    screwed_with(dir, &[]);
+}
+
+/// [`screwed`] in a session with the plugin directories `more` loaded.
+pub fn screwed_with(dir: &Path, more: &[&Path]) {
+    let mut s = serve_with(more);
     let assembled = place(&mut s);
     for joint in assembled["outcome"]["joints"].as_object().unwrap().values() {
         assert_eq!(joint["status"], "ok", "{joint}");

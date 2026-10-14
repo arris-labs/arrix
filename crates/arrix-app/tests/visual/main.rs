@@ -4,6 +4,7 @@ mod accept;
 mod assembly_tab;
 mod assembly_view;
 mod c2_m2_accept;
+mod c3_accept;
 mod camera;
 mod coarse;
 mod component_form;
