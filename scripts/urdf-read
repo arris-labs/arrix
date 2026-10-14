@@ -1,0 +1,161 @@
+#!/usr/bin/env python3
+"""urdf-read [--at <joint>=<q>,...]... <file.urdf>...  Two readers' reading of URDF files, as text.
+
+For each file: its blake3, urdfdom's tree (`check_urdf`, one `tree` line
+per link with its parent), then yourdfpy's reading. One `link` line per
+link (its mass, `-` without an inertial) and one `joint` line per joint
+(type, parent, child, limits, `-` without). Then, for each `--at`
+configuration (a joint left out is at 0; no `--at` is all zeros), an `at`
+line and, in `base_link`'s frame, one `pose` line per link: the link's
+frame, its first visual's frame (where the part's geometry sits), its
+inertial's centre of mass, and its inertia tensor rotated into
+`base_link` (row-major), `-` without. One `frame` line per moving joint:
+the joint frame's origin and its axis. Frames are 3x4 row-major matrices.
+What ArriX's forward kinematics and mass pass are held to
+(`crates/arrix-cli/tests/c3_m2_urdf.rs`, plans/c3-m2 step 10); its output
+for the accept's arm is `crates/arrix-cli/tests/golden/c3-m2.urdf.txt`.
+
+This runs on a machine that has urdfdom's `check_urdf` on `PATH` and never
+in CI. conda-forge's `urdfdom` has it, and `uv` brings yourdfpy:
+
+    micromamba create -p /tmp/urdfdom -c conda-forge urdfdom=6.0.1
+    PATH=/tmp/urdfdom/bin:$PATH uv run --no-project --python 3.12 \\
+        --with 'yourdfpy==0.0.60' --with 'blake3==1.0.11' \\
+        scripts/urdf-read --at hinge=0,spin=0 --at hinge=0.7,spin=-1.2 \\
+        arm/Servo_on_bracket.urdf > golden.txt
+
+Exits 2 with `urdf-read: ERROR <why>` on stderr when a file does not read.
+"""
+
+import importlib.metadata
+import subprocess
+import sys
+from pathlib import Path
+
+try:
+    import blake3
+    import numpy as np
+    import yourdfpy
+except ImportError as e:
+    raise SystemExit(f"urdf-read: ERROR a reader is not importable: {e}")
+
+
+def numbers(values) -> str:
+    return " ".join(f"{v:.17g}" if abs(v) > 1e-15 else "0" for v in values)
+
+
+def frame(m) -> str:
+    return numbers(np.asarray(m)[:3, :4].reshape(-1))
+
+
+def urdfdom_tree(path: Path) -> list[str]:
+    run = subprocess.run(["check_urdf", str(path)], capture_output=True, text=True)
+    if run.returncode != 0:
+        why = (run.stderr or run.stdout).strip().splitlines()
+        raise RuntimeError(f"check_urdf refused {path}: {why[-1] if why else run.returncode}")
+    lines, stack = [], []
+    for line in run.stdout.splitlines():
+        if line.startswith("root Link: "):
+            root = line.split()[2]
+            stack = [root]
+            lines.append(f"tree {root} parent=-")
+        elif "child(" in line:
+            depth = (len(line) - len(line.lstrip(" "))) // 4
+            name = line.split()[-1]
+            del stack[depth:]
+            lines.append(f"tree {name} parent={stack[-1]}")
+            stack.append(name)
+    return lines
+
+
+def configuration(text: str) -> dict[str, float]:
+    out = {}
+    for pair in filter(None, text.split(",")):
+        name, _, q = pair.partition("=")
+        out[name.strip()] = float(q)
+    return out
+
+
+def read(path: Path, ats: list[dict[str, float]]) -> list[str]:
+    lines = [f"file {path.stem} blake3={blake3.blake3(path.read_bytes()).hexdigest()}"]
+    lines += urdfdom_tree(path)
+    robot = yourdfpy.URDF.load(
+        str(path),
+        load_meshes=False,
+        build_scene_graph=True,
+        build_collision_scene_graph=False,
+        load_collision_meshes=False,
+    )
+    base = robot.base_link
+    for name, link in robot.link_map.items():
+        mass = "-" if link.inertial is None else numbers([link.inertial.mass])
+        lines.append(f"link {name} mass={mass}")
+    moving = []
+    for name, joint in robot.joint_map.items():
+        limit = "-"
+        if joint.limit is not None and joint.type in ("revolute", "prismatic"):
+            limit = numbers([joint.limit.lower, joint.limit.upper])
+        lines.append(
+            f"joint {name} type={joint.type} parent={joint.parent} "
+            f"child={joint.child} limit={limit}"
+        )
+        if joint.type != "fixed":
+            moving.append(name)
+    for at in ats or [{}]:
+        unknown = sorted(set(at) - set(moving))
+        if unknown:
+            raise RuntimeError(f"no moving joint named {', '.join(unknown)}")
+        robot.update_cfg({j: at.get(j, 0.0) for j in robot.actuated_joint_names})
+        lines.append("at " + " ".join(f"{j}={numbers([at.get(j, 0.0)])}" for j in moving))
+        for name, link in robot.link_map.items():
+            world = robot.get_transform(frame_to=name, frame_from=base)
+            visual = com = inertia = "-"
+            if link.visuals:
+                origin = link.visuals[0].origin
+                visual = frame(world @ (np.eye(4) if origin is None else origin))
+            if link.inertial is not None:
+                origin = np.eye(4) if link.inertial.origin is None else link.inertial.origin
+                at_com = world @ origin
+                r = at_com[:3, :3]
+                com = numbers(at_com[:3, 3])
+                inertia = numbers((r @ link.inertial.inertia @ r.T).reshape(-1))
+            lines.append(
+                f"pose {name} link={frame(world)} visual={visual} com={com} inertia={inertia}"
+            )
+        for name in moving:
+            joint = robot.joint_map[name]
+            parent = robot.get_transform(frame_to=joint.parent, frame_from=base)
+            at_joint = parent @ joint.origin
+            axis = at_joint[:3, :3] @ np.asarray(joint.axis, dtype=float)
+            lines.append(f"frame {name} origin={numbers(at_joint[:3, 3])} axis={numbers(axis)}")
+    return lines
+
+
+def main(argv: list[str]) -> int:
+    ats, files = [], []
+    args = iter(argv)
+    for arg in args:
+        if arg == "--at":
+            ats.append(configuration(next(args, "")))
+        else:
+            files.append(arg)
+    if not files:
+        print(__doc__)
+        return 2
+    out = [
+        f"# urdf-read: urdfdom's check_urdf, yourdfpy {importlib.metadata.version('yourdfpy')}; "
+        "metres, kilograms, radians, in base_link"
+    ]
+    try:
+        for path in files:
+            out += read(Path(path), ats)
+    except Exception as e:
+        message = " ".join(str(e).split()) or type(e).__name__
+        print(f"urdf-read: ERROR {message}", file=sys.stderr)
+        return 2
+    print("\n".join(out))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
