@@ -38,7 +38,7 @@ Crates live in `crates/<name>/`, plugins in `plugins/<name>/` (package
 the root workspace (the root's `exclude`), with its own `Cargo.lock`,
 lints, `clippy.toml` and toolchain file, and `arrix-plugin-api` as a path
 dependency standing in for the published crate; the binaries still compile
-it in by path (plans/c3-m3 Findings 5). Its fixtures are in its own
+it in by path. Its fixtures are in its own
 directory, so it needs nothing else in the tree. External versions are
 pinned once, in the root `Cargo.toml`'s `[workspace.dependencies]`:
 `arris` 0.8, and one egui minor for `egui`, `eframe`, `egui-wgpu` and the

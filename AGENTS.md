@@ -34,12 +34,12 @@ Tier 2 Python plugins, `arrix serve --stdio`, headless `arrix-app render`,
 **C2 done 2026-10-13** (assemblies in the document and the app, STEP with
 product structure both ways in metres, materials and mass; ADR-0027 to
 ADR-0033; `arris` 0.8): `--test c2_accept`, held to Open CASCADE's reading.
-**C3 M1 done 2026-10-13** (Tier 1: wasmtime components, the Rust guest SDK,
-ADR-0034 to ADR-0036): `--test c3_m1`, `gears` identical at both tiers.
-**C3 M2 done 2026-10-14** (the snapshot read and exporters on all three
-tiers, `robotics.urdf`, `python/examples/bom`; ADR-0037, API 0.7.0):
-`--test c3_m2`, the URDF held to urdfdom and yourdfpy.
-**Next:** C3 M3, commands, `fasteners` and the north-star accept.
+**C3 done 2026-10-14** (Tier 1 wasmtime components and the Rust guest SDK,
+the snapshot read and exporters, plugin commands, `robotics.urdf`,
+`fasteners`, the plugins as projects of their own; ADR-0034 to ADR-0039,
+API 0.8.0): `--test c3_accept` (the north star) and `--test visual
+c3_accept`, the URDF held to urdfdom and yourdfpy.
+**Next:** `/close-cycle` C3.
 
 ## Rules that are not derivable from the code
 
@@ -122,6 +122,12 @@ it before ticking a step:
   `arrix-plugin-test`'s, which a Rust plugin's `cargo test` runs too:
   `plugins/gears/tests/kit.rs`); `eval --schema` and
   `arrix-app render --schema` print the other surfaces' schemas.
+- `cargo test -p arrix-cli --test c3_accept` is C3's accept: `arrix serve`
+  with `plugins/fasteners` (Python, Tier 2) and `robotics` (Tier 1) opens
+  `tests/docs/north-star`, `session.expand` runs `fasteners.place` on the
+  patterned holes' edges (then `submit`), the URDF is held to
+  `--test c3_accept_urdf`'s golden, and the saved document opened with
+  neither plugin keeps its bodies, frozen.
 - A Tier 1 plugin is a Rust crate on `arrix-plugin-api` alone with its
   `guest` feature, a `cdylib` built `cargo build --release --target
   wasm32-unknown-unknown --features guest`; its directory holds an

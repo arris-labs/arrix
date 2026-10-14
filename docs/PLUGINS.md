@@ -3,15 +3,17 @@
 The plugin model is ArriX's reason to exist (`SEED.md` §3, §6.3): one
 interface, versioned apart from the app, hosted three ways, and enough of it
 that first-party domains need nothing else. This document is the design of
-`arrix-plugin-api` and `arrix-plugin-host`. Built, as of C3 M3 step 4: the world and
+`arrix-plugin-api` and `arrix-plugin-host`. Built, as of C3: the world and
 its Rust traits at 0.8.0 (§One interface), the Rust guest SDK (`guest`
 feature, `export_plugin!`), manifests (§The manifest), Tier 0, Tier 1 and
-Tier 2 hosting (§Three tiers), the test kit (§The test kit, `arrix test`),
-the snapshot read and exporters on all three tiers (§4), and the first
-plugins, `plugins/gears` with `gears.spur` and `plugins/robotics` with
-`robotics.urdf` (their crate docs state their geometry and conventions), at
-Tier 0 or as Tier 1 components.
-`arrix-plugin-test`, the kit as a Rust crate, is C3 M3's (ADR-0034).
+Tier 2 hosting (§Three tiers), the test kit (§The test kit, `arrix test`,
+and `arrix-plugin-test` for a Rust plugin's own `cargo test`), the snapshot
+read and exporters (§4) and commands (§3) on all three tiers, and the first
+plugins: `plugins/gears` with `gears.spur`, `plugins/robotics` with
+`robotics.urdf`, and `plugins/fasteners` (Python, Tier 2) with
+`fasteners.socket-head` and the command `fasteners.place` (their crate or
+module docs state their geometry and conventions). Each is a project of its
+own (§Versioning).
 
 ## One interface, defined once
 
@@ -439,7 +441,7 @@ whole-record put or remove the core inverts without the plugin
 (ADR-0004, `docs/DATA-MODEL.md` §Commands and undo). A plugin never
 supplies an inverse.
 
-As designed for 0.8.0 (ADR-0038; built by plans/c3-m3):
+As built at 0.8.0 (ADR-0038):
 
 - **`commands`** exports the specs: id, title, ribbon group, `params`,
   `choices` and `inputs` as a feature type's, and `max-new`, the most ids
@@ -499,7 +501,8 @@ afterwards.
 
 **Declarative only**, rendered by the core (`docs/UI-RENDERING.md`
 §Declarative plugin UI): ribbon groups and buttons bound to the plugin's
-commands, a property form for each feature type and record kind, panels
+commands (built: a button opens a command form derived from the spec, whose
+OK expands then submits one command), a property form for each feature type and record kind, panels
 built from form widgets, context-menu entries, and viewport drawables
 (points, lines, frames, labels, meshes with a colour field, gizmos with
 typed drag handles). A plugin never names egui. Declarative UI crosses a
@@ -515,7 +518,7 @@ more.
 | Capability | Grants |
 |---|---|
 | `kernel` | the kernel host service |
-| `document-read` | the `document` snapshot read, during an `exchange` call only (ADR-0037), and during an `expand` call (ADR-0038, as designed) |
+| `document-read` | the `document` snapshot read, during an `exchange` call only (ADR-0037), and during an `expand` call (ADR-0038) |
 | `document-write` | issuing commands: a plugin without it has its command specs refused at registration (`plugin.capability`, ADR-0038) |
 | `files = "picked"` | bytes of files the user picked in a host dialog, for import; a save target for export |
 | `network` | none by default; a Tier 1 plugin never gets sockets without the user's approval |

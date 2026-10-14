@@ -1024,7 +1024,7 @@ whole-record put or remove, so the core inverts it without the plugin.
 A plugin never supplies an inverse, and the authority never runs plugin
 code, so undo works with the plugin absent.
 
-As built (ADR-0038, plans/c3-m3 step 5; the Tier 0 host), expansion is a request of
+As built (ADR-0038), expansion is a request of
 its own: `Request::Expand { command, context, params, choices, inputs,
 ids, base }` runs the plugin where the session's registry is, once `base`
 is evaluated (an older base is stale), and answers `Expanded { group }`

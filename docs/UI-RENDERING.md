@@ -408,7 +408,7 @@ type or version is missing, and a feature whose type is absent shows the
 names and values its record stores. A read-only form takes no edit
 intent.
 
-A **command form** (ADR-0038, built by plans/c3-m3 step 10) is the same
+A **command form** (ADR-0038) is the same
 renderer over a plugin command's spec. The command is in the command
 registry under its id, a button in its ribbon group on the plugin's tab; the
 registry takes a plugin's commands from the registry the document opens on
