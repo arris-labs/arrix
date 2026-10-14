@@ -421,6 +421,34 @@ whole-record put or remove the core inverts without the plugin
 (ADR-0004, `docs/DATA-MODEL.md` §Commands and undo). A plugin never
 supplies an inverse.
 
+As designed for 0.8.0 (ADR-0038; built by plans/c3-m3):
+
+- **`commands`** exports the specs: id, title, ribbon group, `params`,
+  `choices` and `inputs` as a feature type's, and `max-new`, the most ids
+  one expansion uses (64 when unset). An input is an `edge` alone for now.
+- **`expand(id, context, params, choices, inputs, ids)`** returns a
+  labelled group of command records: `add-part` with its features,
+  `add-feature`, `add-component`, `edit-component`, `add-joint`,
+  `edit-joint`, `add-material`, `assign-material`. The host translates it
+  into one `Command::Group`, refused whole as `command.invalid` naming the
+  malformed record. Ids come from `ids`, which the client mints; the
+  plugin takes them in order. Expansion is deterministic and the test kit
+  expands twice.
+- **The context** is the part or assembly the client looks at. A picked
+  edge arrives resolved in its frame: the component path, the persistent
+  name, the circle's centre, axis and radius or the line's ends, and the
+  outward normals of the planar faces it bounds. A plugin reads which
+  side a hole opens to from a face normal, never from a circle's axis,
+  whose sense is the kernel's choice.
+- **The snapshot** may be read during an expansion, under
+  `document-read`, against the base generation; each part lists its
+  features (type, name, choices, evaluated params), so a plugin finds the
+  parts it made.
+- **Two requests**: `Request::Expand` answers the group without applying
+  it, and the client submits it as an ordinary envelope on the same base,
+  which a `Preview` can evaluate first. The plugin runs where the session's
+  registry is, never on the apply path.
+
 ### 4. Importers and exporters
 
 - **Importer**: bytes of a file the user picked, in; commands, out. A
@@ -469,8 +497,8 @@ more.
 | Capability | Grants |
 |---|---|
 | `kernel` | the kernel host service |
-| `document-read` | the `document` snapshot read, during an `exchange` call only (ADR-0037) |
-| `document-write` | issuing commands |
+| `document-read` | the `document` snapshot read, during an `exchange` call only (ADR-0037), and during an `expand` call (ADR-0038, as designed) |
+| `document-write` | issuing commands: a plugin without it has its command specs refused at registration (`plugin.capability`, ADR-0038) |
 | `files = "picked"` | bytes of files the user picked in a host dialog, for import; a save target for export |
 | `network` | none by default; a Tier 1 plugin never gets sockets without the user's approval |
 

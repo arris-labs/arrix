@@ -1024,6 +1024,19 @@ whole-record put or remove, so the core inverts it without the plugin.
 A plugin never supplies an inverse, and the authority never runs plugin
 code, so undo works with the plugin absent.
 
+As designed (ADR-0038; built by plans/c3-m3), expansion is a request of
+its own: `Request::Expand { command, context, params, choices, inputs,
+ids, base }` runs the plugin where the session's registry is, once `base`
+is evaluated (an older base is stale), and answers `Expanded { group }`
+with no generation and no undo entry. The client then submits that group
+as an ordinary envelope on the same base, so a commit in between makes the
+submit stale, and a form's preview is the group's `Preview` (ADR-0019).
+`ids` are fresh ids the client mints (§Identifiers), the spec's `max-new`
+of them; a record naming an id outside them, an expression that does not
+parse or a feature type the registry lacks makes the group
+`command.invalid`, refused whole. The group's records are core commands
+only until `PluginData` lands.
+
 ## Sketches
 
 A sketch is the record of a `core.sketch` feature; its model and solver
