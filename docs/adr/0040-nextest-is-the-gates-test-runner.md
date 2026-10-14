@@ -46,6 +46,24 @@ terminal and none flaking.
   acceptance holds it to at most 150 s.
 - Contributors and CI need `cargo-nextest` (`cargo install cargo-nextest
   --locked`); the hook fails with that line when it is missing.
-- The serial group's exact membership, and any shared-directory race found
-  when binaries overlap (`target/visual-scratch`, `target/out-of-tree`,
-  `target/tier1-fixtures`), are written here by plan step 2.
+- **The `timing` group's membership**, from reading every test that
+  asserts wall-clock time (the probe, plan step 2): `arrix-cli`
+  `c1_benchmark` (every budget but the unasserted first coarse mesh) and
+  `tessellate` `the_slice_s_meshes_are_measured` (< 150 ms);
+  `arrix-plugin-host` `tier1_cancel`'s `the_interrupt_stops_a_looping_component_within_the_budget`;
+  `arrix-sketch` `solver_benchmarks` (`test_analytical_vs_fd_speedup_benchmark`,
+  `a_drag_frame_on_a_200_entity_sketch_is_within_its_budget`) and
+  `inference_probe` `a_verdict_on_the_plate_costs_under_a_frame`. Not in it:
+  `meshed`, `probe_world`, `wire_spike` and `kernel/interrupt` only print their
+  times, and the `elapsed().as_secs() < N` loops in `arrix-app` are 10 to 60 s
+  timeouts, not budgets.
+- **The probe**: the whole workspace under nextest at 4 threads, three runs
+  and a fourth beside 16 busy CPU loops (standing in for Arris's `fast`
+  profile at 16 threads), all green, 1325 tests, 150 to 179 s (the first run
+  included a rebuild) and 152 s loaded. The visual scenarios, `out_of_tree`
+  and the `tier1-fixtures` build overlapped in every run with no
+  shared-directory race, so no per-test directory is needed.
+- A target directory kept across a move of the checkout can hold test
+  binaries with the old absolute `CARGO_MANIFEST_DIR` baked in (45 tests
+  failed with `NotFound` until `cargo clean -p` of three crates); this is
+  local state, not a nextest effect.
