@@ -12,8 +12,10 @@ inertial's centre of mass, and its inertia tensor rotated into
 `base_link` (row-major), `-` without. One `frame` line per moving joint:
 the joint frame's origin and its axis. Frames are 3x4 row-major matrices.
 What ArriX's forward kinematics and mass pass are held to
-(`crates/arrix-cli/tests/c3_m2_urdf.rs`, plans/c3-m2 step 10); its output
-for the accept's arm is `crates/arrix-cli/tests/golden/c3-m2.urdf.txt`.
+(`crates/arrix-cli/tests/common/urdf.rs`): its output for C3 M2's arm is
+`crates/arrix-cli/tests/golden/c3-m2.urdf.txt` (`c3_m2_urdf.rs`), for the
+north star with its screws `c3-accept.urdf.txt` (`c3_accept_urdf.rs`,
+which leaves the URDF it reads in `target/tmp/c3-accept-urdf/urdf/`).
 
 This runs on a machine that has urdfdom's `check_urdf` on `PATH` and never
 in CI. conda-forge's `urdfdom` has it, and `uv` brings yourdfpy:

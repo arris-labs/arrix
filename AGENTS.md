@@ -137,8 +137,9 @@ it before ticking a step:
   or `core.step|stl|obj`): one file to `<path>`, several into that directory.
   `cargo test -p arrix-cli --test c3_m2` is C3 M2's accept (`plugins/robotics`,
   `tests/docs/arm`, `python/examples/bom`); `scripts/urdf-read <urdf>…`
-  writes the golden of `--test c3_m2_urdf` on a machine with urdfdom and
-  `uv` (never CI; its header says how).
+  writes the goldens of `--test c3_m2_urdf` and `--test c3_accept_urdf`
+  (the north star with screws placed) on a machine with urdfdom and `uv`
+  (never CI; its header says how).
 - `cargo test -p arrix-cli --test c2_accept` is C2's accept: `tests/docs/
   assembly-exchange` exported with `arrix export --assembly`, re-imported,
   and ArriX's reading of it and of the NIST vendor part held to Open

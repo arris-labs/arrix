@@ -5,8 +5,10 @@
 #![allow(dead_code)]
 
 pub mod build;
+pub mod north_star;
 pub mod serve_client;
 pub mod tier1;
+pub mod urdf;
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
