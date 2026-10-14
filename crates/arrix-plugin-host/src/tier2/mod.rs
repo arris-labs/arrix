@@ -12,16 +12,20 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use arrix_core::Diagnostic;
-use arrix_doc::{ExporterType, FeatureArgs, FeatureType, FeatureTypeId, Registry, TypeOutput};
+use arrix_core::{Diagnostic, Id};
+use arrix_doc::{
+    CommandType, ExporterType, FeatureArgs, FeatureType, FeatureTypeId, Registry, TypeOutput,
+};
 use arrix_plugin_api::{
-    API_VERSION, ChoiceValue, ExportFile, ExporterSpec, FeatureTypeSpec, Kernel, ParamValue,
-    Snapshot, Subject,
+    API_VERSION, ChoiceValue, CommandGroup, CommandInput, CommandSpec, Context, ExportFile,
+    ExporterSpec, FeatureTypeSpec, Kernel, ParamValue, Snapshot, Subject,
 };
 use serde_json::{Value, json};
 
 use crate::manifest::Manifest;
-use crate::tier0::{HostError, check, error, register_exporters, register_types};
+use crate::tier0::{
+    HostError, check, error, register_commands, register_exporters, register_types,
+};
 use crate::wire::rpc::{PROTOCOL_VERSION, Request, RpcError};
 use crate::wire::*;
 use process::{CallError, Process, Served};
@@ -86,7 +90,8 @@ impl Plugin {
 enum Serving<'a> {
     /// A feature's evaluation: the `kernel` interface.
     Kernel(&'a mut dyn Kernel),
-    /// An export: the `document` interface, from the snapshot.
+    /// An export or an expansion: the `document` interface, from the
+    /// snapshot.
     Document(&'a mut dyn Snapshot),
     /// A call that is not to be called back, such as a description.
     Nothing,
@@ -226,6 +231,49 @@ impl ExporterType for Tier2Exporter {
     }
 }
 
+/// One command of a Tier 2 plugin.
+struct Tier2Command {
+    spec: CommandSpec,
+    plugin: Arc<Mutex<Plugin>>,
+}
+
+impl CommandType for Tier2Command {
+    fn spec(&self) -> &CommandSpec {
+        &self.spec
+    }
+
+    /// The plugin's `commands.expand`, its `document` calls served from
+    /// `snapshot` while it runs (ADR-0038 §4).
+    fn expand(
+        &self,
+        snapshot: &mut dyn Snapshot,
+        context: &Context,
+        params: &[ParamValue],
+        choices: &[ChoiceValue],
+        inputs: &[CommandInput],
+        ids: &[Id],
+    ) -> Result<CommandGroup, Diagnostic> {
+        let during = format!("expanding {}", self.spec.id);
+        let mut plugin = self.plugin.lock().unwrap_or_else(|p| p.into_inner());
+        let protocol = |e: WireError| error("plugin.protocol", format!("{during}: {e}"));
+        let args = json!({
+            "command": self.spec.id,
+            "context": context_to_json(context).map_err(protocol)?,
+            "params": list_to(params, param_value_to_json).map_err(protocol)?,
+            "choices": list_to(choices, choice_value_to_json).map_err(protocol)?,
+            "inputs": list_to(inputs, command_input_to_json).map_err(protocol)?,
+            "ids": list_to(ids, id_to).map_err(protocol)?,
+        });
+        let result = plugin
+            .call("commands.expand", args, Serving::Document(snapshot))
+            .map_err(|e| e.diagnostic(&plugin.id(), &during))?;
+        serve::result_from(&result, command_group_from_json).map_err(|e| {
+            plugin.process = None;
+            protocol(e)
+        })?
+    }
+}
+
 /// Starts the Tier 2 plugin in `dir` (its `arrix-plugin.toml`, its
 /// command run there) and registers every feature type it describes, or
 /// none of them. The process stays up for the registry's types to call.
@@ -262,9 +310,14 @@ pub fn register_tier2(
             .map_err(|e| process(format!("its `exchange.exporters` is malformed: {e}")))?,
         Err(e) => return Err(process(e.diagnostic(&id, "describing").message)),
     };
+    let commands = match plugin.call("commands.commands", Value::Null, Serving::Nothing) {
+        Ok(v) => list_from(&v, command_spec_from_json)
+            .map_err(|e| process(format!("its `commands.commands` is malformed: {e}")))?,
+        Err(e) => return Err(process(e.diagnostic(&id, "describing").message)),
+    };
     let m = plugin.manifest.clone();
     let plugin = Arc::new(Mutex::new(plugin));
-    // Types and exporters register together, or neither does.
+    // Types, exporters and commands register together, or none do.
     let mut next = registry.clone();
     let mut ids = register_types(&mut next, &m, specs, |spec| {
         Arc::new(Tier2Type {
@@ -275,6 +328,12 @@ pub fn register_tier2(
     })?;
     ids.extend(register_exporters(&mut next, &m, exporters, |spec| {
         Arc::new(Tier2Exporter {
+            spec,
+            plugin: plugin.clone(),
+        })
+    })?);
+    ids.extend(register_commands(&mut next, &m, commands, |spec| {
+        Arc::new(Tier2Command {
             spec,
             plugin: plugin.clone(),
         })

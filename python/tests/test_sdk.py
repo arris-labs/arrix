@@ -122,6 +122,74 @@ class Exporters(unittest.TestCase):
         self.assertEqual(r["result"]["err"]["code"], "plugin.unknown-type")
 
 
+def expand_params(command, ids, edges=()):
+    return {
+        "command": command,
+        "context": {"assembly": "1A"},
+        "params": [{"name": "scale", "value": {"kind": "ratio", "si": 2.0}}],
+        "choices": [],
+        "inputs": [
+            {
+                "name": "edges",
+                "value": {
+                    "edge": {
+                        "path": [],
+                        "name": {"name": e, "version": 1},
+                        "curve": {"other": None},
+                        "face-normals": [],
+                    }
+                },
+            }
+            for e in edges
+        ],
+        "ids": ids,
+    }
+
+
+class Commands(unittest.TestCase):
+    def test_commands_are_listed_as_the_wire_has_them(self):
+        r, _ = FakeHost(self).call("commands.commands")
+        [spec] = r["result"]
+        self.assertEqual(spec["id"], "sample.stamp")
+        self.assertEqual(spec["group"], "Sample")
+        self.assertEqual(spec["max-new"], 2)
+        self.assertEqual(spec["inputs"][0]["kind"], "edge")
+        self.assertEqual(w.CommandSpec.from_json(spec).to_json(), spec)
+
+    def test_an_expansion_reads_the_snapshot_by_callback_and_takes_its_ids_in_order(self):
+        parts = lambda m, p: []  # noqa: E731
+        r, seen = FakeHost(self).call(
+            "commands.expand", expand_params("sample.stamp", ["000000000000A", "000000000000B"]), [parts]
+        )
+        self.assertEqual([m for m, _ in seen], ["document.parts"])
+        group = w.CommandGroup.from_json(r["result"]["ok"])
+        self.assertEqual(group.label, "Stamp")
+        [command] = group.commands
+        self.assertEqual(command.case, "add-material")
+        self.assertEqual(command.value.id, "000000000000A")
+        self.assertEqual(command.value.name, "assembly 0 x2.0 []")
+
+    def test_the_same_arguments_give_the_same_group(self):
+        host = FakeHost(self)
+        parts = lambda m, p: []  # noqa: E731
+        args = expand_params("sample.stamp", ["000000000000A"])
+        first, _ = host.call("commands.expand", args, [parts])
+        second, _ = host.call("commands.expand", args, [parts])
+        self.assertEqual(first["result"], second["result"])
+
+    def test_more_ids_than_it_was_given_is_a_diagnostic(self):
+        host = FakeHost(self)
+        parts = lambda m, p: []  # noqa: E731
+        args = expand_params("sample.stamp", ["000000000000A"])
+        args["choices"] = [{"name": "again", "value": "yes"}]
+        r, _ = host.call("commands.expand", args, [parts])
+        self.assertEqual(r["result"]["err"]["code"], "command.ids")
+
+    def test_a_command_the_plugin_lacks_is_a_diagnostic(self):
+        r, _ = FakeHost(self).call("commands.expand", expand_params("sample.nothing", []))
+        self.assertEqual(r["result"]["err"]["code"], "plugin.unknown-type")
+
+
 class Sdk(unittest.TestCase):
     def test_initialize_names_the_protocol_and_the_api(self):
         r, _ = FakeHost(self).call("initialize", {"protocol": 1, "api": w.API_VERSION})

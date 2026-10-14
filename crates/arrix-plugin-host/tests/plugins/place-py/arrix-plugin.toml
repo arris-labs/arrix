@@ -1,0 +1,21 @@
+# A Tier 2 test command (plans/c3-m3 step 8): `place.py` is the `place`
+# commands of `tests/plugins/place` in Python, which the host's tests hold
+# to the same group. `tests/tier2_commands.rs` stages it with the SDK on
+# `PYTHONPATH`.
+[plugin]
+id = "place"
+version = "0.1.0"
+api = "^0.8"
+tier = 2
+title = "Place"
+licence = "MIT OR Apache-2.0"
+
+[tier2]
+command = ["python3", "-m", "arrix.plugin", "place"]
+
+[capabilities]
+document-read = true
+document-write = true
+
+[contributes]
+commands = ["place.block", "place.panic", "place.rogue", "place.refuse"]

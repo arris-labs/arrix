@@ -32,6 +32,7 @@ from ._wire import (  # noqa: F401
     SubjectKind,
 )
 from ._eval import EVAL_FORMAT, EvalError, eval  # noqa: F401
+from .command import CommandArgs, command  # noqa: F401
 from .exchange import ExportArgs, exporter  # noqa: F401
 from .feature import Args, choice, diagnostic, feature_type, input, param, slot  # noqa: F401
 from .ids import key  # noqa: F401

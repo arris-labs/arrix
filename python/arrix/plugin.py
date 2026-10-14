@@ -15,6 +15,8 @@ from typing import IO, Any
 
 from . import _wire as w
 from . import exchange, feature
+from .command import expand as expand_command
+from .command import registered as registered_commands
 
 PROTOCOL = 1
 
@@ -37,7 +39,7 @@ class _Host(w.KernelStubs, w.DocumentStubs):
         return answer["result"]
 
 
-class _Runtime(w.FeatureStubs, w.ExchangeStubs):
+class _Runtime(w.FeatureStubs, w.ExchangeStubs, w.CommandsStubs):
     def __init__(self, host: _Host):
         self._kernel = host
         self._document = host
@@ -58,9 +60,11 @@ class _Runtime(w.FeatureStubs, w.ExchangeStubs):
 
 
     def dispatch(self, method: str, params: dict[str, Any]) -> Any:
-        # The two generated interfaces each dispatch their own methods.
+        # The generated interfaces each dispatch their own methods.
         if method.startswith("exchange."):
             return w.ExchangeStubs.dispatch(self, method, params)
+        if method.startswith("commands."):
+            return w.CommandsStubs.dispatch(self, method, params)
         return w.FeatureStubs.dispatch(self, method, params)
 
     def exporters(self) -> list[w.ExporterSpec]:
@@ -72,6 +76,20 @@ class _Runtime(w.FeatureStubs, w.ExchangeStubs):
         except w.Failure:
             raise
         except Exception as e:  # the exporter's own bug is its diagnostic
+            traceback.print_exc()
+            raise w.Failure(
+                feature.diagnostic("plugin.exception", f"{type(e).__name__}: {e}")
+            ) from e
+
+    def commands(self) -> list[w.CommandSpec]:
+        return registered_commands()
+
+    def expand(self, command_id, context, params, choices, inputs, ids) -> w.CommandGroup:
+        try:
+            return expand_command(self._document, command_id, context, params, choices, inputs, ids)
+        except w.Failure:
+            raise
+        except Exception as e:  # the command's own bug is its diagnostic
             traceback.print_exc()
             raise w.Failure(
                 feature.diagnostic("plugin.exception", f"{type(e).__name__}: {e}")

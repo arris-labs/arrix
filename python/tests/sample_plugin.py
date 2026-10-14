@@ -49,3 +49,27 @@ def dump(snapshot, args):
 @arrix.exporter("sample.mass", "Mass", "txt", subject=arrix.SubjectKind.PART)
 def mass(snapshot, args):
     return [("mass.txt", str(snapshot.mass(args.subject).mass).encode())]
+
+
+@arrix.command(
+    "sample.stamp",
+    "Stamp",
+    group="Sample",
+    params=[arrix.param("scale", "Scale", kind=arrix.QuantityKind.RATIO, default="1")],
+    inputs=[arrix.input("edges", "Edges", arrix.InputKind.EDGE, list=True)],
+    max_new=2,
+)
+def stamp(snapshot, args):
+    """One material per call, named after the parts and the picks."""
+    names = [p.name for p in snapshot.parts()]
+    picked = [e.name.to_json() for e in args.input("edges")]
+    material = arrix.wire.MaterialDraft(
+        args.new_id(),
+        f"{args.context.case} {len(picked)} x{args.params['scale']} {names}",
+        None,
+        arrix.wire.Rgb(0.5, 0.5, 0.5),
+    )
+    if args.choices.get("again"):
+        args.new_id()
+        args.new_id()
+    return "Stamp", [arrix.wire.PluginCommand.add_material(material)]

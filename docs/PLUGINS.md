@@ -259,7 +259,10 @@ change, reviewed like any other, never a private hook.
   export's snapshot (and refused as `plugin.capability` in an evaluation or
   outside a call); a component importing `document` without `document-read`
   is refused at load. `tests/tier1_export.rs` holds the `dump` exporter to
-  the same files at both tiers, to the byte.
+  the same files at both tiers, to the byte. A command is the same:
+  `commands.expand` in a fresh store, its `document` reads served from the
+  base generation's snapshot, and `tests/tier1_commands.rs` holds the
+  `place` test commands to the group they give at Tier 0, to the byte.
   In the browser, hosting components inside a wasm app is unsolved in the
   ecosystem; a document using a Tier 1 plugin opens there with its
   features frozen until an ADR decides otherwise (`SEED.md` §9).
@@ -277,7 +280,13 @@ change, reviewed like any other, never a private hook.
   evaluation, ends the call as `plugin.capability`; so does a `kernel.*`
   request during an export. The Python SDK's `@arrix.exporter` registers
   one (`python/examples/bom`, a CSV bill of materials), and `arrix.session`
-  has `export_with` and `exported_files`.
+  has `export_with` and `exported_files`. A command is the same:
+  `commands.expand`, `document.*` answered while it runs, and a plugin
+  without `document-write` refused where it describes its commands. The
+  SDK's `@arrix.command` registers one, called with the snapshot and
+  `CommandArgs` (the context, SI params, choices, resolved `edge` inputs and
+  `new_id()` over the host's ids); `tests/tier2_commands.rs` holds the
+  Python `place` commands to the Tier 0 group, to the byte.
 
 The Tier 2 wire is JSON-RPC 2.0, one object per line, its methods and
 shapes generated from the WIT world (ADR-0022): `kernel.extrude`,

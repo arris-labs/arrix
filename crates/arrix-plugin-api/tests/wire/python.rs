@@ -181,7 +181,11 @@ pub fn generate(world: &World) -> String {
         assert!(funcs.iter().all(|f| f.direction == Direction::PluginToHost));
         service_stubs(&mut out, &names, interface, class, error, &funcs);
     }
-    for (interface, class) in [("feature", "FeatureStubs"), ("exchange", "ExchangeStubs")] {
+    for (interface, class) in [
+        ("feature", "FeatureStubs"),
+        ("exchange", "ExchangeStubs"),
+        ("commands", "CommandsStubs"),
+    ] {
         let funcs: Vec<_> = world
             .funcs
             .iter()

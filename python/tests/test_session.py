@@ -36,6 +36,7 @@ def plate_commands(features=2):
 
 
 BOM = REPO / "python/examples/bom"
+PLACE = REPO / "crates/arrix-plugin-host/tests/plugins/place-py"
 EXCHANGE = REPO / "tests/docs/assembly-exchange"
 
 
@@ -89,6 +90,29 @@ class SessionTest(unittest.TestCase):
             and b"mass (g)" in s.exported_files(e)[0][1]
         )
         self.assertEqual(len(s.exported_files(grams)), 1)
+
+    def test_a_command_at_tier_2_expands_submits_and_undoes_as_one_gesture(self):
+        assembly = json.loads(next((EXCHANGE / "assemblies").glob("*.json")).read_text())["id"]
+        bracket = "C4VR764XTFX0Z"
+        edges = [
+            {"path": [bracket], "edge": f"edge:sweep.EBWK5C332393W.end-edge.{side}"}
+            for side in ("3ZPNYGV5VXAGH", "57Z6PA4YG5FQY")
+        ]
+        s = self.spawn(plugins=[PLACE], doc=EXCHANGE)
+        s.initialize()
+        base = 0
+        group = s.expand(
+            "place.block", context={"assembly": assembly}, base=base, inputs={"edges": edges}, count=5
+        )
+        self.assertIn("group", group)
+        self.assertEqual(len(group["group"]["commands"]), 5)
+        with self.assertRaises(arrix.session.CommandError) as refused:
+            s.expand("place.refuse", context={"assembly": assembly}, base=base, count=5)
+        self.assertEqual(refused.exception.code, "place.refused")
+        applied = s.run_command(
+            "place.block", base=base, context={"assembly": assembly}, inputs={"edges": edges}, count=5
+        )
+        self.assertIn("applied", applied)
 
     def test_events_iterate_in_order(self):
         s = self.spawn()

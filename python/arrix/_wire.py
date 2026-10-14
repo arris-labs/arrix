@@ -2356,6 +2356,29 @@ class ExchangeStubs:
         raise KeyError(method)
 
 
+class CommandsStubs:
+    """The plugin's `commands` interface: a subclass implements the methods, and `dispatch` serves a host request with them."""
+
+    def commands(self) -> list[CommandSpec]:
+        raise NotImplementedError
+
+    def expand(self, command: str, context: Context, params: list[ParamValue], choices: list[ChoiceValue], inputs: list[CommandInput], ids: list[str]) -> CommandGroup:
+        """Deterministic: a pure function of its arguments and the snapshot. `ids` are fresh, taken in order; `params` are evaluated."""
+        raise NotImplementedError
+
+    def dispatch(self, method: str, params: dict[str, Any]) -> Any:
+        if method == "commands.commands":
+            r = self.commands()
+            return [x0.to_json() for x0 in r]
+        if method == "commands.expand":
+            try:
+                r = self.expand(params["command"], Context.from_json(params["context"]), [ParamValue.from_json(x0) for x0 in params["params"]], [ChoiceValue.from_json(x0) for x0 in params["choices"]], [CommandInput.from_json(x0) for x0 in params["inputs"]], [x0 for x0 in params["ids"]])
+            except Failure as e:
+                return {"err": e.diagnostic.to_json()}
+            return {"ok": r.to_json()}
+        raise KeyError(method)
+
+
 METHODS = {
     "kernel.extrude": "plugin-to-host",
     "kernel.revolve": "plugin-to-host",
