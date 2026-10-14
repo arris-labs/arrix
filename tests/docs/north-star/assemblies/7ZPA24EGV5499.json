@@ -1,0 +1,92 @@
+{
+  "components": {
+    "F1Q8ZVP5WZSKC": {
+      "id": "F1Q8ZVP5WZSKC",
+      "name": "bracket",
+      "of": {
+        "part": "8E4ZYYF80N5EM"
+      },
+      "pose": {
+        "position": [
+          "0 mm",
+          "0 mm",
+          "0 mm"
+        ],
+        "rpy": [
+          "0 deg",
+          "0 deg",
+          "0 deg"
+        ]
+      }
+    },
+    "FBZB73GQ7R5Z0": {
+      "id": "FBZB73GQ7R5Z0",
+      "name": "servo",
+      "of": {
+        "part": "38HAZEAY2RV7B"
+      }
+    },
+    "FRDKPQPGN4XT2": {
+      "id": "FRDKPQPGN4XT2",
+      "name": "horn",
+      "of": {
+        "part": "5J5PYP305NBNF"
+      }
+    }
+  },
+  "id": "7ZPA24EGV5499",
+  "joints": {
+    "E394QKV3DS286": {
+      "child": {
+        "axis": "face:import.A49MPFBR2SQ3M.357",
+        "origin": "face:import.A49MPFBR2SQ3M.136",
+        "path": [
+          "FRDKPQPGN4XT2"
+        ]
+      },
+      "id": "E394QKV3DS286",
+      "kind": "revolute",
+      "limits": [
+        "-180 deg",
+        "180 deg"
+      ],
+      "name": "spin",
+      "offset": "0 deg",
+      "parent": {
+        "axis": "face:import.77HD2DP8RQW58.465",
+        "origin": "face:import.77HD2DP8RQW58.165",
+        "path": [
+          "FBZB73GQ7R5Z0"
+        ]
+      },
+      "value": "30 deg"
+    },
+    "EC2HEE1BT7K57": {
+      "child": {
+        "axis": "face:import.77HD2DP8RQW58.410",
+        "origin": "face:import.77HD2DP8RQW58.165",
+        "path": [
+          "FBZB73GQ7R5Z0"
+        ]
+      },
+      "flip": true,
+      "id": "EC2HEE1BT7K57",
+      "kind": "revolute",
+      "limits": [
+        "-90 deg",
+        "90 deg"
+      ],
+      "name": "hinge",
+      "offset": "0 deg",
+      "parent": {
+        "axis": "face:sweep.AFXQH9YAYRG2M.side.00000000000ZB",
+        "origin": "face:sweep.AFXQH9YAYRG2M.end-cap",
+        "path": [
+          "F1Q8ZVP5WZSKC"
+        ]
+      },
+      "value": "0 deg"
+    }
+  },
+  "name": "Servo on bracket"
+}

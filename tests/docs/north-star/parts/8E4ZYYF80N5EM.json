@@ -1,0 +1,520 @@
+{
+  "features": {
+    "0X6PVZ0NVH2QD": {
+      "choices": {
+        "op": "fuse"
+      },
+      "id": "0X6PVZ0NVH2QD",
+      "inputs": {
+        "target": {
+          "slot": {
+            "feature": "6YGYXVGFE9Z3Z",
+            "slot": "body"
+          }
+        },
+        "tools": [
+          {
+            "slot": {
+              "feature": "AFXQH9YAYRG2M",
+              "slot": "body"
+            }
+          }
+        ]
+      },
+      "name": "Join",
+      "params": {},
+      "suppressed": false,
+      "type_id": "core.boolean",
+      "type_version": 2
+    },
+    "1ESWWQ9SG4ABH": {
+      "id": "1ESWWQ9SG4ABH",
+      "inputs": {
+        "edges": [
+          {
+            "topo": "edge:sweep.6YGYXVGFE9Z3Z.end-edge.7FJY4M4SW5M7P"
+          },
+          {
+            "topo": "edge:sweep.6YGYXVGFE9Z3Z.end-edge.24QP0FACN0SV1"
+          }
+        ],
+        "target": {
+          "slot": {
+            "feature": "6YGYXVGFE9Z3Z",
+            "slot": "body"
+          }
+        }
+      },
+      "name": "Edges",
+      "params": {
+        "radius": "1 mm"
+      },
+      "suppressed": false,
+      "type_id": "core.fillet",
+      "type_version": 1
+    },
+    "3P5WW2QX0YH1X": {
+      "id": "3P5WW2QX0YH1X",
+      "inputs": {
+        "plane": {
+          "slot": {
+            "feature": "B5J0T9VXTRT22",
+            "slot": "plane"
+          }
+        }
+      },
+      "name": "Hole sketch",
+      "params": {},
+      "sketch": {
+        "entities": {
+          "CHTCCTTBK2R30": {
+            "line": {
+              "end": "47V1BWN2BB2DP",
+              "start": "C0BCABT3TZTK2"
+            }
+          }
+        },
+        "points": {
+          "47V1BWN2BB2DP": {
+            "x": 0.0,
+            "y": 0.01
+          },
+          "AXBTJZTZ70R34": {
+            "x": 0.02,
+            "y": -0.012
+          },
+          "C0BCABT3TZTK2": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        }
+      },
+      "suppressed": false,
+      "type_id": "core.sketch",
+      "type_version": 1
+    },
+    "6YGYXVGFE9Z3Z": {
+      "choices": {
+        "mode": "new"
+      },
+      "id": "6YGYXVGFE9Z3Z",
+      "inputs": {
+        "region": {
+          "region": {
+            "feature": "C9WZGTGDV08GQ",
+            "key": {
+              "entities": [
+                "1N0Q7KC2VBYQB",
+                "24QP0FACN0SV1",
+                "77MSVCSN1W8ET",
+                "7FJY4M4SW5M7P"
+              ],
+              "sample": [
+                0,
+                0
+              ]
+            }
+          }
+        }
+      },
+      "name": "Plate",
+      "params": {
+        "distance": "t"
+      },
+      "suppressed": false,
+      "type_id": "core.extrude",
+      "type_version": 1
+    },
+    "AFXQH9YAYRG2M": {
+      "frozen": {
+        "input_hash": "099ee34280d93dad34f59d240f99346bd6c2ab18d9101b03b5d838191eb54335",
+        "names": "b5523dadfd400d105d6209bd80380178ccc6ed8600b7a5987d70ee59a9455cbb.json",
+        "plugin_version": "0.1.0",
+        "slots": {
+          "body": "0381fee6ff00159503bc77f1bef5338d917ec30800d221a12c1f90060de6ba4c.arrisbody"
+        }
+      },
+      "id": "AFXQH9YAYRG2M",
+      "inputs": {
+        "plane": {
+          "slot": {
+            "feature": "B5J0T9VXTRT22",
+            "slot": "plane"
+          }
+        }
+      },
+      "name": "Spur gear",
+      "params": {
+        "module": "m",
+        "teeth": "teeth",
+        "width": "8 mm"
+      },
+      "suppressed": false,
+      "type_id": "gears.spur",
+      "type_version": 1
+    },
+    "AW38KFWA2VD5M": {
+      "choices": {
+        "mode": "cut"
+      },
+      "id": "AW38KFWA2VD5M",
+      "inputs": {
+        "region": {
+          "region": {
+            "feature": "FWKADKN4HQY86",
+            "key": {
+              "entities": [
+                "1E47YK867YFQ9",
+                "5QHBPFAZKF27Y",
+                "C5JXY5MQ72YAV",
+                "DHW5PXZNT47G6"
+              ],
+              "sample": [
+                -24000000,
+                0
+              ]
+            }
+          }
+        },
+        "target": {
+          "slot": {
+            "feature": "6YGYXVGFE9Z3Z",
+            "slot": "body"
+          }
+        }
+      },
+      "name": "Pocket",
+      "params": {
+        "distance": "-2 mm"
+      },
+      "suppressed": false,
+      "type_id": "core.extrude",
+      "type_version": 1
+    },
+    "B5J0T9VXTRT22": {
+      "id": "B5J0T9VXTRT22",
+      "inputs": {
+        "plane": {
+          "topo": "face:sweep.6YGYXVGFE9Z3Z.end-cap"
+        }
+      },
+      "name": "Top",
+      "params": {
+        "offset": "0 mm"
+      },
+      "suppressed": false,
+      "type_id": "core.datum-plane",
+      "type_version": 1
+    },
+    "C9WZGTGDV08GQ": {
+      "id": "C9WZGTGDV08GQ",
+      "inputs": {},
+      "name": "Plate sketch",
+      "params": {},
+      "sketch": {
+        "constraints": {
+          "3ZPNYGV5VXAGH": {
+            "constraint": {
+              "horizontal": {
+                "line": "77MSVCSN1W8ET"
+              }
+            },
+            "id": "3ZPNYGV5VXAGH"
+          },
+          "57Z6PA4YG5FQY": {
+            "constraint": {
+              "vertical": {
+                "line": "7FJY4M4SW5M7P"
+              }
+            },
+            "id": "57Z6PA4YG5FQY"
+          },
+          "6KGX2ET47JMV9": {
+            "constraint": {
+              "horizontal": {
+                "line": "24QP0FACN0SV1"
+              }
+            },
+            "id": "6KGX2ET47JMV9"
+          },
+          "DY3WS4JHG2S1G": {
+            "constraint": {
+              "distance": {
+                "a": "08K1WTZT3RSGW",
+                "b": "ED620G2XB2AG2",
+                "value": 0.04
+              }
+            },
+            "id": "DY3WS4JHG2S1G"
+          },
+          "EP0TMVX54BCTE": {
+            "constraint": {
+              "distance": {
+                "a": "67JZ1WHCK43EQ",
+                "b": "08K1WTZT3RSGW",
+                "value": 0.06
+              }
+            },
+            "expr": "w",
+            "id": "EP0TMVX54BCTE"
+          },
+          "FBEJEPWMDTRSC": {
+            "constraint": {
+              "vertical": {
+                "line": "1N0Q7KC2VBYQB"
+              }
+            },
+            "id": "FBEJEPWMDTRSC"
+          }
+        },
+        "entities": {
+          "1N0Q7KC2VBYQB": {
+            "line": {
+              "end": "67JZ1WHCK43EQ",
+              "start": "9AEQBE1KKWAEB"
+            }
+          },
+          "24QP0FACN0SV1": {
+            "line": {
+              "end": "9AEQBE1KKWAEB",
+              "start": "ED620G2XB2AG2"
+            }
+          },
+          "77MSVCSN1W8ET": {
+            "line": {
+              "end": "08K1WTZT3RSGW",
+              "start": "67JZ1WHCK43EQ"
+            }
+          },
+          "7FJY4M4SW5M7P": {
+            "line": {
+              "end": "ED620G2XB2AG2",
+              "start": "08K1WTZT3RSGW"
+            }
+          }
+        },
+        "points": {
+          "08K1WTZT3RSGW": {
+            "x": 0.03,
+            "y": -0.02
+          },
+          "67JZ1WHCK43EQ": {
+            "fixed": true,
+            "x": -0.03,
+            "y": -0.02
+          },
+          "9AEQBE1KKWAEB": {
+            "x": -0.03,
+            "y": 0.02
+          },
+          "ED620G2XB2AG2": {
+            "x": 0.03,
+            "y": 0.02
+          }
+        }
+      },
+      "suppressed": false,
+      "type_id": "core.sketch",
+      "type_version": 1
+    },
+    "CETME0KJFBN9F": {
+      "choices": {
+        "kind": "counterbore"
+      },
+      "id": "CETME0KJFBN9F",
+      "inputs": {
+        "points": [
+          {
+            "sketch": {
+              "entity": "AXBTJZTZ70R34",
+              "feature": "3P5WW2QX0YH1X"
+            }
+          }
+        ],
+        "target": {
+          "slot": {
+            "feature": "6YGYXVGFE9Z3Z",
+            "slot": "body"
+          }
+        }
+      },
+      "name": "Hole",
+      "params": {
+        "cb-depth": "2 mm",
+        "cb-diameter": "8 mm",
+        "depth": "4 mm",
+        "diameter": "4 mm"
+      },
+      "suppressed": false,
+      "type_id": "core.hole",
+      "type_version": 1
+    },
+    "E635NVKB74361": {
+      "id": "E635NVKB74361",
+      "inputs": {
+        "direction": {
+          "sketch": {
+            "entity": "CHTCCTTBK2R30",
+            "feature": "3P5WW2QX0YH1X"
+          }
+        },
+        "target": {
+          "slot": {
+            "feature": "6YGYXVGFE9Z3Z",
+            "slot": "body"
+          }
+        },
+        "tools": [
+          {
+            "feature": "CETME0KJFBN9F"
+          }
+        ]
+      },
+      "name": "Pattern",
+      "params": {
+        "count": "3",
+        "spacing": "10 mm"
+      },
+      "suppressed": false,
+      "type_id": "core.pattern-linear",
+      "type_version": 1
+    },
+    "FASQ12DMAVG59": {
+      "id": "FASQ12DMAVG59",
+      "inputs": {
+        "edges": [
+          {
+            "topo": "edge:sweep.AFXQH9YAYRG2M.start-edge.0000000000KH3"
+          }
+        ],
+        "target": {
+          "slot": {
+            "feature": "6YGYXVGFE9Z3Z",
+            "slot": "body"
+          }
+        }
+      },
+      "name": "Gear edge",
+      "params": {
+        "radius": "0.3 mm"
+      },
+      "suppressed": false,
+      "type_id": "core.fillet",
+      "type_version": 1
+    },
+    "FWKADKN4HQY86": {
+      "id": "FWKADKN4HQY86",
+      "inputs": {
+        "plane": {
+          "slot": {
+            "feature": "B5J0T9VXTRT22",
+            "slot": "plane"
+          }
+        }
+      },
+      "name": "Pocket sketch",
+      "params": {},
+      "sketch": {
+        "constraints": {
+          "1A7V0MZJ178EH": {
+            "constraint": {
+              "vertical": {
+                "line": "DHW5PXZNT47G6"
+              }
+            },
+            "id": "1A7V0MZJ178EH"
+          },
+          "79K4F9RQQK1MF": {
+            "constraint": {
+              "horizontal": {
+                "line": "1E47YK867YFQ9"
+              }
+            },
+            "id": "79K4F9RQQK1MF"
+          },
+          "8QAE71KRW88Y1": {
+            "constraint": {
+              "vertical": {
+                "line": "C5JXY5MQ72YAV"
+              }
+            },
+            "id": "8QAE71KRW88Y1"
+          },
+          "B2QSRYEZS07EC": {
+            "constraint": {
+              "horizontal": {
+                "line": "5QHBPFAZKF27Y"
+              }
+            },
+            "id": "B2QSRYEZS07EC"
+          }
+        },
+        "entities": {
+          "1E47YK867YFQ9": {
+            "line": {
+              "end": "EMKZZ54JZXNDZ",
+              "start": "0DJGAJPVYG9E7"
+            }
+          },
+          "5QHBPFAZKF27Y": {
+            "line": {
+              "end": "ADB85185VPXE1",
+              "start": "8CS5EZSW5XHNZ"
+            }
+          },
+          "C5JXY5MQ72YAV": {
+            "line": {
+              "end": "0DJGAJPVYG9E7",
+              "start": "ADB85185VPXE1"
+            }
+          },
+          "DHW5PXZNT47G6": {
+            "line": {
+              "end": "8CS5EZSW5XHNZ",
+              "start": "EMKZZ54JZXNDZ"
+            }
+          }
+        },
+        "points": {
+          "0DJGAJPVYG9E7": {
+            "x": -0.028,
+            "y": -0.006
+          },
+          "8CS5EZSW5XHNZ": {
+            "x": -0.02,
+            "y": 0.006
+          },
+          "ADB85185VPXE1": {
+            "x": -0.028,
+            "y": 0.006
+          },
+          "EMKZZ54JZXNDZ": {
+            "x": -0.02,
+            "y": -0.006
+          }
+        }
+      },
+      "suppressed": false,
+      "type_id": "core.sketch",
+      "type_version": 1
+    }
+  },
+  "history": [
+    "C9WZGTGDV08GQ",
+    "6YGYXVGFE9Z3Z",
+    "B5J0T9VXTRT22",
+    "FWKADKN4HQY86",
+    "AW38KFWA2VD5M",
+    "3P5WW2QX0YH1X",
+    "CETME0KJFBN9F",
+    "E635NVKB74361",
+    "1ESWWQ9SG4ABH",
+    "AFXQH9YAYRG2M",
+    "0X6PVZ0NVH2QD",
+    "FASQ12DMAVG59"
+  ],
+  "id": "8E4ZYYF80N5EM",
+  "material": "5M4P61BMFA5HZ",
+  "name": "Bracket",
+  "rollback": null
+}

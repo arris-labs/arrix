@@ -1,0 +1,24 @@
+{
+  "features": {
+    "77HD2DP8RQW58": {
+      "file": {
+        "blob": "473cf5bb7103419da3e9c9cbe755329658307de5cd3f9ff76c432660d210f5dd.step",
+        "name": "servo.step"
+      },
+      "id": "77HD2DP8RQW58",
+      "inputs": {},
+      "name": "Servo",
+      "params": {},
+      "suppressed": false,
+      "type_id": "core.import-step",
+      "type_version": 2
+    }
+  },
+  "history": [
+    "77HD2DP8RQW58"
+  ],
+  "id": "38HAZEAY2RV7B",
+  "material": "0FDSZ1MQ8AG42",
+  "name": "Servo",
+  "rollback": null
+}
