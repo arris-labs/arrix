@@ -15,14 +15,16 @@ and the visual tests (lavapipe) take gigabytes per parallel job.
   memory. A bare `cargo test --workspace` in the terminal is the mistake
   this rule exists for.
 - **Budget the two projects together**, not each at half. Measured on this
-  machine (32 CPUs, 61 GiB; `cargo test --workspace`, build warm): 8 test
-  threads took 434 s with a 27.5 GiB peak, 16 took 405 s with a 46 GiB peak
-  (it hit the 45 GiB `MemoryHigh`), and 32 was killed by oomd inside a
-  minute, alone. The test phase alone summed to 429 s at 8 threads and
-  293 s at 16 (1.5x for 1.7x the memory). So: **8 jobs and 8 test threads
-  while Arris's tests may be running, 16 only when they are not, never
-  more.** Set `--jobs`, `RUST_TEST_THREADS` and `RAYON_NUM_THREADS` to the
-  same number, in `~/.cargo/config.toml` or by hand.
+  machine (32 CPUs, 61 GiB; `cargo test --workspace`, build warm): the test
+  phase summed to 320 s at 2 threads, 280 s at 4, 293 s at 16 (an 8-thread
+  run, 428 s, was a cold-cache outlier), and 32 was killed by oomd inside a
+  minute, alone. The suite does not scale past about 4 test threads, so
+  **`RUST_TEST_THREADS=4`**, **`RAYON_NUM_THREADS=8`** and **`--jobs 8`**
+  for the compile while Arris's tests may be running, and never more than
+  16. Set them in `~/.cargo/config.toml` or by hand. (`scripts/heavy`'s
+  peak counts page cache, which fills `MemoryHigh`, so it says little about
+  the memory a run needs; the oomd journal is the real signal.) Build time
+  against `--jobs` is not measured.
 - A cold or wide compile is the heaviest phase (a first build, a toolchain
   or dependency bump): pass a lower `--jobs` for it, and don't overlap it
   with the other terminal's.
