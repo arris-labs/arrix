@@ -7,13 +7,14 @@ use std::any::Any;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::Arc;
 
-use arrix_core::{Diagnostic, Severity};
+use arrix_core::{Diagnostic, Id, Severity};
 use arrix_doc::{
-    ExporterType, FeatureArgs, FeatureType, FeatureTypeId, Registry, RegistryError, TypeOutput,
+    CommandType, ExporterType, FeatureArgs, FeatureType, FeatureTypeId, Registry, RegistryError,
+    TypeOutput,
 };
 use arrix_plugin_api::{
-    ChoiceValue, ExportFile, Exporter, ExporterSpec, Feature, FeatureTypeSpec, Kernel, ParamValue,
-    Snapshot, Subject,
+    ChoiceValue, CommandGroup, CommandInput, CommandSpec, Commands, Context, ExportFile, Exporter,
+    ExporterSpec, Feature, FeatureTypeSpec, Kernel, ParamValue, Snapshot, Subject,
 };
 
 use crate::manifest::{Manifest, ManifestError};
@@ -37,6 +38,8 @@ pub enum HostError {
     Namespace { plugin: String, type_id: String },
     #[error("plugin {plugin} describes exporters, and its manifest does not grant `document-read`")]
     Capability { plugin: String },
+    #[error("plugin {plugin} describes commands, and its manifest does not grant `document-write`")]
+    CommandCapability { plugin: String },
     #[error(transparent)]
     Registry(#[from] RegistryError),
     /// A Tier 1 or Tier 2 plugin that could not be loaded, started or
@@ -124,6 +127,48 @@ impl ExporterType for Tier0Exporter {
     }
 }
 
+/// One command of a Tier 0 plugin.
+struct Tier0Command {
+    spec: CommandSpec,
+    commands: Arc<dyn Commands>,
+}
+
+impl CommandType for Tier0Command {
+    fn spec(&self) -> &CommandSpec {
+        &self.spec
+    }
+
+    /// The plugin's `expand`, with a panic caught and made the command's
+    /// diagnostic. Native only.
+    fn expand(
+        &self,
+        snapshot: &mut dyn Snapshot,
+        context: &Context,
+        params: &[ParamValue],
+        choices: &[ChoiceValue],
+        inputs: &[CommandInput],
+        ids: &[Id],
+    ) -> Result<CommandGroup, Diagnostic> {
+        let run = AssertUnwindSafe(|| {
+            self.commands.expand(
+                snapshot,
+                &self.spec.id,
+                context,
+                params,
+                choices,
+                inputs,
+                ids,
+            )
+        });
+        catch_unwind(run).unwrap_or_else(|payload| {
+            Err(error(
+                "plugin.panic",
+                format!("{} panicked: {}", self.spec.id, panic_message(&*payload)),
+            ))
+        })
+    }
+}
+
 pub(crate) fn error(code: &str, message: String) -> Diagnostic {
     Diagnostic::new(Severity::Error, code, message).expect("a literal code is well-formed")
 }
@@ -172,6 +217,53 @@ pub fn register_tier0_exporters(
             exporter: exporter.clone(),
         })
     })
+}
+
+/// Registers every command a Tier 0 plugin describes, or none of them
+/// (ADR-0038). The manifest must grant `document-write`, declared as
+/// `document-read` is for exporters.
+pub fn register_tier0_commands(
+    registry: &mut Registry,
+    manifest: &str,
+    commands: Arc<dyn Commands>,
+) -> Result<Vec<FeatureTypeId>, HostError> {
+    let m = Manifest::parse(manifest)?;
+    check(&m, 0)?;
+    register_commands(registry, &m, commands.commands(), |spec| {
+        Arc::new(Tier0Command {
+            spec,
+            commands: commands.clone(),
+        })
+    })
+}
+
+/// Registers `specs`, each adapted by `adapt`, all under the plugin's
+/// namespace, or none of them. The manifest must grant `document-write`.
+pub(crate) fn register_commands(
+    registry: &mut Registry,
+    m: &Manifest,
+    specs: Vec<CommandSpec>,
+    adapt: impl Fn(CommandSpec) -> Arc<dyn CommandType>,
+) -> Result<Vec<FeatureTypeId>, HostError> {
+    if !specs.is_empty() && !m.capabilities.document_write {
+        return Err(HostError::CommandCapability {
+            plugin: m.id.to_string(),
+        });
+    }
+    let mut next = registry.clone();
+    let mut ids = Vec::new();
+    for spec in specs {
+        let id = FeatureTypeId::new(spec.id.clone()).map_err(RegistryError::from)?;
+        if id.plugin().as_ref() != Some(&m.id) {
+            return Err(HostError::Namespace {
+                plugin: m.id.to_string(),
+                type_id: spec.id,
+            });
+        }
+        ids.push(next.register_command(adapt(spec))?);
+    }
+    *registry = next;
+    Ok(ids)
 }
 
 /// Registers `specs`, each adapted by `adapt`, all under the plugin's

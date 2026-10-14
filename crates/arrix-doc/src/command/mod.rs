@@ -6,6 +6,9 @@
 mod apply;
 mod assemblies;
 mod materials;
+pub(crate) mod plugin;
+#[cfg(test)]
+mod plugin_tests;
 #[cfg(test)]
 mod tests;
 

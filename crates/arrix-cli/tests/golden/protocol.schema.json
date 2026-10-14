@@ -3778,6 +3778,32 @@
           }
         ]
       },
+      "Result_of_Command_or_Diagnostic": {
+        "oneOf": [
+          {
+            "properties": {
+              "Ok": {
+                "$ref": "#/$defs/Command"
+              }
+            },
+            "required": [
+              "Ok"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "Err": {
+                "$ref": "#/$defs/Diagnostic"
+              }
+            },
+            "required": [
+              "Err"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "Result_of_Placement_or_string": {
         "oneOf": [
           {
@@ -4564,6 +4590,27 @@
           "generation",
           "format",
           "bytes"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "The group a `Request::Expand` asked for, expanded on `generation`'s\nevaluation, or why the plugin or the host refused it. Not part of\nthe document: a replica ignores it.",
+        "properties": {
+          "generation": {
+            "$ref": "#/$defs/Generation"
+          },
+          "group": {
+            "$ref": "#/$defs/Result_of_Command_or_Diagnostic"
+          },
+          "kind": {
+            "const": "expanded",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "generation",
+          "group"
         ],
         "type": "object"
       },
@@ -7340,6 +7387,11 @@
       {
         "const": "exporting",
         "description": "An export was queued (`Request::Export`): nothing applied, and the\nfile follows on the subscription.",
+        "type": "string"
+      },
+      {
+        "const": "expanding",
+        "description": "A plugin command is being expanded (`Request::Expand`): nothing\napplied, and `SessionEvent::Expanded` follows.",
         "type": "string"
       },
       {
@@ -10376,6 +10428,24 @@
           }
         ]
       },
+      "EdgePick": {
+        "description": "One edge a client picked: its component path from the assembly down\n(empty in a part) and its name.",
+        "properties": {
+          "edge": {
+            "$ref": "#/$defs/PersistentName"
+          },
+          "path": {
+            "items": {
+              "$ref": "#/$defs/ComponentId"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "edge"
+        ],
+        "type": "object"
+      },
       "Entity": {
         "description": "A curve built on points. Lines and arcs own their ends as [`PointId`]s,\nso a shared vertex is coincident by identity, not only by constraint. A\ncircle's radius is a solver variable of its own.",
         "oneOf": [
@@ -10472,6 +10542,82 @@
             "type": "object"
           }
         ]
+      },
+      "ExpandContext": {
+        "description": "Where a plugin command runs: the part or assembly the client's tab\nlooks at (ADR-0038 §2), the frame its inputs arrive in.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "part": {
+                "$ref": "#/$defs/PartId"
+              }
+            },
+            "required": [
+              "part"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "assembly": {
+                "$ref": "#/$defs/AssemblyId"
+              }
+            },
+            "required": [
+              "assembly"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ExpandRequest": {
+        "description": "A plugin command to expand (ADR-0038 §8): its id (`<plugin>.<name>`),\nwhere it runs, its form as a feature's (`params` are expressions,\n`choices` words; what is not given is the spec's default), the edges\npicked for each input, the fresh ids it may take (at most its spec's\n`max-new`, 64 when none), and the generation the client's picks and\nids were made on.",
+        "properties": {
+          "base": {
+            "$ref": "#/$defs/Generation"
+          },
+          "choices": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "command": {
+            "type": "string"
+          },
+          "context": {
+            "$ref": "#/$defs/ExpandContext"
+          },
+          "ids": {
+            "items": {
+              "$ref": "#/$defs/Id"
+            },
+            "type": "array"
+          },
+          "inputs": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/$defs/EdgePick"
+              },
+              "type": "array"
+            },
+            "type": "object"
+          },
+          "params": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "command",
+          "context",
+          "base"
+        ],
+        "type": "object"
       },
       "ExportFormat": {
         "description": "A file format a part is exported as.",
@@ -11533,6 +11679,19 @@
         },
         "required": [
           "export"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "description": "Expands a plugin command (ADR-0038 §8) against the newest evaluated\ngeneration, which must be `base`: answered `Expanding`, the group\nfollowing as `Expanded` (a `Command::Group` the client then submits\nlike any command, or previews). Not a command: the document does\nnot change, no generation is made and nothing is undone.",
+        "properties": {
+          "expand": {
+            "$ref": "#/$defs/ExpandRequest"
+          }
+        },
+        "required": [
+          "expand"
         ],
         "type": "object"
       },

@@ -1,0 +1,101 @@
+{
+  "group": {
+    "label": "Place blocks",
+    "commands": [
+      {
+        "add_material": {
+          "material": {
+            "id": "00000000000ZB",
+            "name": "Placed steel",
+            "density": "7850 kg/m3",
+            "appearance": [
+              0.5,
+              0.5,
+              0.55
+            ]
+          }
+        }
+      },
+      {
+        "add_part": {
+          "part": {
+            "id": "00000000000Z9",
+            "name": "Block",
+            "history": [
+              "00000000000ZA"
+            ],
+            "features": {
+              "00000000000ZA": {
+                "id": "00000000000ZA",
+                "type_id": "core.datum-plane",
+                "type_version": 1,
+                "name": "block marker",
+                "params": {},
+                "choices": {
+                  "world": "xy"
+                },
+                "inputs": {},
+                "suppressed": false
+              }
+            },
+            "rollback": null
+          }
+        }
+      },
+      {
+        "assign_material": {
+          "part": "00000000000Z9",
+          "material": "00000000000ZB"
+        }
+      },
+      {
+        "add_component": {
+          "assembly": "6NDZZ2CNWB0X9",
+          "component": {
+            "id": "00000000000ZC",
+            "name": "block 1",
+            "of": {
+              "part": "00000000000Z9"
+            },
+            "pose": {
+              "position": [
+                "0.02 m",
+                "0.0 m",
+                "0.01 m"
+              ],
+              "rpy": [
+                "0.0 rad",
+                "0.0 rad",
+                "0.0 rad"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "add_component": {
+          "assembly": "6NDZZ2CNWB0X9",
+          "component": {
+            "id": "00000000000ZD",
+            "name": "block 2",
+            "of": {
+              "part": "00000000000Z9"
+            },
+            "pose": {
+              "position": [
+                "-0.02 m",
+                "0.0 m",
+                "0.01 m"
+              ],
+              "rpy": [
+                "0.0 rad",
+                "0.0 rad",
+                "0.0 rad"
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}

@@ -9,6 +9,8 @@
 //! caller; nothing here mints, so nothing here needs entropy.
 
 #[cfg(test)]
+mod expand_tests;
+#[cfg(test)]
 mod export_tests;
 #[cfg(test)]
 mod interrupt_tests;
@@ -31,7 +33,7 @@ use std::fmt;
 use std::sync::mpsc::Receiver;
 
 use arrix_core::{
-    AssemblyId, Diagnostic, ExportFormat, FeatureId, MeshDetail, ParamId, PartId, PluginId,
+    AssemblyId, Diagnostic, ExportFormat, FeatureId, Id, MeshDetail, ParamId, PartId, PluginId,
     Quantity, RenderMesh,
 };
 use arrix_plugin_api::FeatureTypeSpec;
@@ -41,9 +43,9 @@ pub use local::LocalSession;
 pub use plugins::PluginLoader;
 
 use crate::authority::{AuthorId, Change, CommandEnvelope, Generation, Outcome, Rejected};
-use crate::command::{CommandError, apply};
+use crate::command::{Command, CommandError, apply};
 use crate::document::{Document, FeatureTypeId};
-use crate::eval::{AssemblyOutcome, BodySlot, EvalEvent, FeatureOutcome, Masses};
+use crate::eval::{AssemblyOutcome, BodySlot, EdgePick, EvalEvent, FeatureOutcome, Masses};
 use crate::open::{MemorySource, open};
 use crate::save::save;
 use crate::step_tree::StepTree;
@@ -72,6 +74,38 @@ pub struct ExporterRequest {
     pub params: BTreeMap<String, String>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub choices: BTreeMap<String, String>,
+}
+
+/// Where a plugin command runs: the part or assembly the client's tab
+/// looks at (ADR-0038 §2), the frame its inputs arrive in.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum ExpandContext {
+    Part(PartId),
+    Assembly(AssemblyId),
+}
+
+/// A plugin command to expand (ADR-0038 §8): its id (`<plugin>.<name>`),
+/// where it runs, its form as a feature's (`params` are expressions,
+/// `choices` words; what is not given is the spec's default), the edges
+/// picked for each input, the fresh ids it may take (at most its spec's
+/// `max-new`, 64 when none), and the generation the client's picks and
+/// ids were made on.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub struct ExpandRequest {
+    pub command: String,
+    pub context: ExpandContext,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub params: BTreeMap<String, String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub choices: BTreeMap<String, String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub inputs: BTreeMap<String, Vec<EdgePick>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ids: Vec<Id>,
+    pub base: Generation,
 }
 
 /// A file an exporter wrote: a relative `/`-separated path, the main file
@@ -153,6 +187,12 @@ pub enum Request {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         exporter: Option<ExporterRequest>,
     },
+    /// Expands a plugin command (ADR-0038 §8) against the newest evaluated
+    /// generation, which must be `base`: answered `Expanding`, the group
+    /// following as `Expanded` (a `Command::Group` the client then submits
+    /// like any command, or previews). Not a command: the document does
+    /// not change, no generation is made and nothing is undone.
+    Expand(ExpandRequest),
     /// Reads the product tree of the STEP file `bytes` on the worker
     /// (ADR-0032), answered `Reading`, the tree following as
     /// `StepTree` under `tag`. Not a command: the document does not
@@ -303,6 +343,13 @@ pub enum SessionEvent {
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         files: Vec<ExportedFileEvent>,
     },
+    /// The group a `Request::Expand` asked for, expanded on `generation`'s
+    /// evaluation, or why the plugin or the host refused it. Not part of
+    /// the document: a replica ignores it.
+    Expanded {
+        generation: Generation,
+        group: Result<Command, Diagnostic>,
+    },
     /// The product tree a `Request::ReadStepTree` asked for, or why the
     /// file could not be read. Not part of the document: a replica
     /// ignores it.
@@ -371,6 +418,12 @@ pub trait Session {
             assembly: None,
             exporter: Some(exporter),
         })
+    }
+
+    /// The plugin command `request` (ADR-0038), its group following as
+    /// `Expanded`.
+    fn expand(&self, request: ExpandRequest) -> Result<Outcome, Rejected> {
+        self.request(Request::Expand(request))
     }
 
     /// The assembly `assembly` as a STEP file with its product structure.
@@ -543,6 +596,7 @@ impl Replica {
             | SessionEvent::Meshed { .. }
             | SessionEvent::Previewed { .. }
             | SessionEvent::PreviewMeshed { .. }
+            | SessionEvent::Expanded { .. }
             | SessionEvent::Exported { .. } => {}
         }
         Ok(())

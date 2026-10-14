@@ -6,11 +6,12 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use arrix_core::{Diagnostic, FeatureId, SlotName};
+use arrix_core::{Diagnostic, FeatureId, Id, SlotName};
 use arrix_kernel::Interrupt;
 use arrix_plugin_api::{
-    ChoiceValue, ExportFile, ExporterSpec, FeatureOutput, FeatureTypeSpec, InputKind, Kernel,
-    ParamValue, ResolvedInput, SlotKind, Snapshot, Subject,
+    ChoiceValue, CommandGroup, CommandInput, CommandSpec, Context, ExportFile, ExporterSpec,
+    FeatureOutput, FeatureTypeSpec, InputKind, Kernel, ParamValue, ResolvedInput, SlotKind,
+    Snapshot, Subject,
 };
 use arrix_sketch::Sketch;
 
@@ -40,6 +41,24 @@ pub trait ExporterType: Send + Sync {
         params: &[ParamValue],
         choices: &[ChoiceValue],
     ) -> Result<Vec<ExportFile>, Diagnostic>;
+}
+
+/// A command as the session sees it, built-in or plugin: the plugin API's
+/// `Commands` for one id (ADR-0038). It expands to a group of core-command
+/// records and does nothing else.
+pub trait CommandType: Send + Sync {
+    fn spec(&self) -> &CommandSpec;
+
+    /// Deterministic: a pure function of the snapshot and the arguments.
+    fn expand(
+        &self,
+        snapshot: &mut dyn Snapshot,
+        context: &Context,
+        params: &[ParamValue],
+        choices: &[ChoiceValue],
+        inputs: &[CommandInput],
+        ids: &[Id],
+    ) -> Result<CommandGroup, Diagnostic>;
 }
 
 /// A feature type as the evaluator sees it, built-in or plugin: the plugin
@@ -203,12 +222,17 @@ pub enum RegistryError {
     /// under a choice or a value the type does not declare (ADR-0018).
     #[error("feature type {id}'s form is inconsistent: {what}")]
     Form { id: FeatureTypeId, what: String },
+    /// A command whose form is inconsistent, or that takes an input of a
+    /// kind other than `edge` (ADR-0038 §1).
+    #[error("command {id} is refused: {what}")]
+    Command { id: FeatureTypeId, what: String },
 }
 
 #[derive(Clone, Default)]
 pub struct Registry {
     types: BTreeMap<FeatureTypeId, Arc<dyn FeatureType>>,
     exporters: BTreeMap<FeatureTypeId, Arc<dyn ExporterType>>,
+    commands: BTreeMap<FeatureTypeId, Arc<dyn CommandType>>,
 }
 
 impl Registry {
@@ -277,15 +301,57 @@ impl Registry {
         Ok(id)
     }
 
-    /// Leaves out every feature type and exporter `plugin` contributes, as
-    /// a build without it would. `false` when it contributed none.
+    /// Registers a command (ADR-0038) under its `<plugin>.<name>` id.
+    pub fn register_command(
+        &mut self,
+        ty: Arc<dyn CommandType>,
+    ) -> Result<FeatureTypeId, RegistryError> {
+        let id = FeatureTypeId::new(ty.spec().id.clone())?;
+        if self.commands.contains_key(&id) {
+            return Err(RegistryError::Duplicate(id));
+        }
+        let spec = ty.spec();
+        if let Some(what) = spec
+            .inputs
+            .iter()
+            .find(|i| i.kind != InputKind::Edge)
+            .map(|i| {
+                format!(
+                    "input `{}` is not an edge; commands take edges alone",
+                    i.name
+                )
+            })
+            .or_else(|| form_fault_of(&spec.params, &spec.choices, &spec.inputs))
+        {
+            return Err(RegistryError::Command { id, what });
+        }
+        self.commands.insert(id.clone(), ty);
+        Ok(id)
+    }
+
+    /// Leaves out every feature type, exporter and command `plugin`
+    /// contributes, as a build without it would. `false` when it
+    /// contributed none.
     pub fn remove_plugin(&mut self, plugin: &arrix_core::PluginId) -> bool {
-        let before = self.types.len() + self.exporters.len();
+        let count = |r: &Registry| r.types.len() + r.exporters.len() + r.commands.len();
+        let before = count(self);
         self.types
             .retain(|id, _| id.plugin().as_ref() != Some(plugin));
         self.exporters
             .retain(|id, _| id.plugin().as_ref() != Some(plugin));
-        self.types.len() + self.exporters.len() != before
+        self.commands
+            .retain(|id, _| id.plugin().as_ref() != Some(plugin));
+        count(self) != before
+    }
+
+    /// The command `id` (`<plugin>.<name>`).
+    pub fn command(&self, id: &str) -> Option<&Arc<dyn CommandType>> {
+        self.commands.get(&FeatureTypeId::new(id).ok()?)
+    }
+
+    /// The specs of every command, in id order.
+    pub fn command_specs(&self) -> Vec<CommandSpec> {
+        self.commands.values().map(|c| c.spec().clone()).collect()
     }
 
     /// The exporter `id` (`<plugin>.<name>`).
@@ -322,8 +388,17 @@ impl Registry {
 /// What is wrong with a type's choices and the fields shown under them,
 /// if anything.
 fn form_fault(spec: &FeatureTypeSpec) -> Option<String> {
-    for (i, c) in spec.choices.iter().enumerate() {
-        if spec.choices[..i].iter().any(|o| o.name == c.name) {
+    form_fault_of(&spec.params, &spec.choices, &spec.inputs)
+}
+
+/// As [`form_fault`], for the fields of a form alone.
+fn form_fault_of(
+    params: &[arrix_plugin_api::ParamSpec],
+    choices: &[arrix_plugin_api::ChoiceSpec],
+    inputs: &[arrix_plugin_api::InputSpec],
+) -> Option<String> {
+    for (i, c) in choices.iter().enumerate() {
+        if choices[..i].iter().any(|o| o.name == c.name) {
             return Some(format!("choice `{}` is declared twice", c.name));
         }
         if c.options.is_empty() {
@@ -338,14 +413,13 @@ fn form_fault(spec: &FeatureTypeSpec) -> Option<String> {
             ));
         }
     }
-    let shown = spec
-        .params
+    let shown = params
         .iter()
         .map(|p| (&p.name, &p.shown_when))
-        .chain(spec.inputs.iter().map(|i| (&i.name, &i.shown_when)));
+        .chain(inputs.iter().map(|i| (&i.name, &i.shown_when)));
     for (field, when) in shown {
         let Some(when) = when else { continue };
-        let Some(choice) = spec.choices.iter().find(|c| c.name == when.choice) else {
+        let Some(choice) = choices.iter().find(|c| c.name == when.choice) else {
             return Some(format!(
                 "`{field}` is shown under `{}`, which is not a choice",
                 when.choice

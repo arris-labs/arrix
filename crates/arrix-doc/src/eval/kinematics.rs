@@ -31,6 +31,16 @@ impl Rigid {
         }
     }
 
+    /// `p` carried by the motion.
+    pub(super) fn point(self, p: DVec3) -> DVec3 {
+        self.r * p + self.t
+    }
+
+    /// `v` turned by the motion, not moved.
+    pub(super) fn vector(self, v: DVec3) -> DVec3 {
+        self.r * v
+    }
+
     pub(super) fn frame(self) -> Frame {
         Frame::new(self.t, self.r.x_axis, self.r.z_axis)
             .expect("a rigid motion's axes make a frame")

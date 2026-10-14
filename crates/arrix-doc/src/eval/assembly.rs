@@ -366,7 +366,7 @@ impl Evaluator {
 
     /// The one body of `pool` that has `name`; none, or more than one, is
     /// `ref.lost` with the nearest names of the part as candidates.
-    fn find<'b>(
+    pub(super) fn find<'b>(
         &self,
         pool: &[&'b FinalBody],
         name: &PersistentName,

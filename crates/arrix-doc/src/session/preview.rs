@@ -63,6 +63,11 @@ pub(super) struct ExportJob {
     pub exporter: Option<super::ExporterRequest>,
 }
 
+/// A command to expand, as the worker takes it.
+pub(super) struct ExpandJob {
+    pub request: super::ExpandRequest,
+}
+
 /// A STEP file's tree to read, as the worker takes it.
 pub(super) struct StructureJob {
     pub tag: u64,
@@ -79,6 +84,7 @@ pub(super) enum Job {
     Preview(PreviewJob),
     ClearPreview,
     Export(ExportJob),
+    Expand(ExpandJob),
     Structure(StructureJob),
 }
 
@@ -97,6 +103,8 @@ pub(super) struct Queue<'a> {
     /// The exports asked for, oldest first: every one is answered, so a
     /// commit drops none.
     pub exports: VecDeque<ExportJob>,
+    /// The commands to expand, oldest first: every one is answered.
+    pub expands: VecDeque<ExpandJob>,
     /// The files whose structure is asked for, oldest first.
     pub structures: VecDeque<StructureJob>,
     pub gone: bool,
@@ -111,6 +119,7 @@ impl<'a> Queue<'a> {
             preview: None,
             preview_moved: false,
             exports: VecDeque::new(),
+            expands: VecDeque::new(),
             structures: VecDeque::new(),
             gone: false,
         }
@@ -136,6 +145,7 @@ impl<'a> Queue<'a> {
                 self.preview_moved = true;
             }
             Job::Export(job) => self.exports.push_back(job),
+            Job::Expand(job) => self.expands.push_back(job),
             Job::Structure(job) => self.structures.push_back(job),
         }
     }
@@ -155,10 +165,11 @@ impl<'a> Queue<'a> {
     }
 
     /// Waits until there is work, then takes everything queued; `false`
-    /// once the session thread has gone. Exports are work only when
-    /// `exports_ready`: a commit has been evaluated for them to write.
+    /// once the session thread has gone. Exports and expansions are work
+    /// only when `exports_ready`: a commit has been evaluated for them to
+    /// read.
     pub fn wait(&mut self, exports_ready: bool) -> bool {
-        let exports = exports_ready && !self.exports.is_empty();
+        let exports = exports_ready && !(self.exports.is_empty() && self.expands.is_empty());
         if self.commit.is_none() && self.preview.is_none() && !exports && self.structures.is_empty()
         {
             match self.rx.recv() {

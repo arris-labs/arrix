@@ -790,6 +790,7 @@ proptest! {
                 Outcome::NoOp => prop_assert_eq!(&a.document, &doc),
                 Outcome::Previewing
                 | Outcome::Exporting
+                | Outcome::Expanding
                 | Outcome::Reading
                 | Outcome::Loaded { .. } => {
                     unreachable!("a submit is never a preview, an export or a load")

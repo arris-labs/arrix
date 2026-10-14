@@ -4,6 +4,7 @@
 //! features for a newer snapshot (docs/CONCURRENCY-WASM.md §The evaluator).
 
 mod assembly;
+mod expand;
 mod export;
 mod export_tree;
 mod fixtures;
@@ -46,6 +47,7 @@ use arrix_sketch::{ConstraintId, Sketch};
 use serde::{Deserialize, Serialize};
 
 pub use assembly::{AssemblyOutcome, JointOutcome, PlacedComponent};
+pub use expand::{DEFAULT_MAX_NEW, EdgePick, Expansion};
 pub use export::{
     ExportError, ExportedFile, ExporterFiles, export, export_assembly, export_with_exporter,
 };

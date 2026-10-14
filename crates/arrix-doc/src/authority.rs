@@ -62,6 +62,9 @@ pub enum Outcome {
     /// An export was queued (`Request::Export`): nothing applied, and the
     /// file follows on the subscription.
     Exporting,
+    /// A plugin command is being expanded (`Request::Expand`): nothing
+    /// applied, and `SessionEvent::Expanded` follows.
+    Expanding,
     /// A STEP file's structure is being read (`Request::ReadStepTree`):
     /// nothing applied, and `SessionEvent::StepTree` follows.
     Reading,

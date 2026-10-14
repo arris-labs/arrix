@@ -400,6 +400,7 @@ impl OpenDocument {
                 Outcome::NoOp
                 | Outcome::Previewing
                 | Outcome::Exporting
+                | Outcome::Expanding
                 | Outcome::Reading
                 | Outcome::Loaded { .. },
             ) => Ok(false),

@@ -9,10 +9,10 @@ use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender, channel};
 
 use super::plugins::{PluginLoader, Plugins, RegistryChange};
-use super::preview::{self, ExportJob, Job, PreviewJob, Queue, StructureJob};
+use super::preview::{self, ExpandJob, ExportJob, Job, PreviewJob, Queue, StructureJob};
 use super::{
-    DocHash, EventStream, ExportSubject, ExportedFileEvent, ExporterRequest, PreviewTag, Request,
-    Session, SessionEvent, files,
+    DocHash, EventStream, ExpandContext, ExpandRequest, ExportSubject, ExportedFileEvent,
+    ExporterRequest, PreviewTag, Request, Session, SessionEvent, files,
 };
 use crate::authority::{Authority, Generation, Outcome, Rejected};
 use crate::eval::{EvalEvent, interrupted};
@@ -262,6 +262,17 @@ fn serve(
                         }));
                         Ok(Outcome::Exporting)
                     }
+                    Request::Expand(request) => {
+                        if request.base < authority.generation() {
+                            Err(Rejected::Stale {
+                                base: request.base,
+                                nodes: Vec::new(),
+                            })
+                        } else {
+                            let _ = jobs.send(Job::Expand(ExpandJob { request }));
+                            Ok(Outcome::Expanding)
+                        }
+                    }
                     Request::ReadStepTree { tag, bytes } => {
                         let _ = jobs.send(Job::Structure(StructureJob { tag, bytes }));
                         Ok(Outcome::Reading)
@@ -461,6 +472,14 @@ fn evaluate(mut evaluator: Evaluator, jobs: &Receiver<Job>, publish: &Sender<Msg
                 &mut queue,
                 publish,
             );
+        } else if let (false, Some((generation, doc))) = (queue.expands.is_empty(), &finished) {
+            expand_queued(
+                &mut evaluator,
+                (*generation, doc),
+                &mut held,
+                &mut queue,
+                publish,
+            );
         } else if let Some(job) = queue.preview.take() {
             held = false;
             let mut send = |event| {
@@ -513,6 +532,89 @@ fn export_queued(
         let _ = publish.send(Msg::Publish(event));
         queue.exports.pop_front();
     }
+}
+
+/// Answers the expansions queued, oldest first, from the newest finished
+/// commit `(generation, doc)`, evaluated again first when a preview has
+/// run since. One asked on another generation than that is refused as
+/// stale; one asked on a newer one waits for it. An expansion stopped by
+/// a newer commit stays queued.
+fn expand_queued(
+    evaluator: &mut Evaluator,
+    (generation, doc): (Generation, &Arc<Document>),
+    held: &mut bool,
+    queue: &mut Queue,
+    publish: &Sender<Msg>,
+) {
+    while let Some(job) = queue.expands.front() {
+        let base = job.request.base;
+        if base > generation {
+            return;
+        }
+        let group = if base < generation {
+            Err(Diagnostic::new(
+                Severity::Error,
+                "command.stale",
+                format!("the command was asked on generation {base:?}, and the document is at {generation:?}"),
+            )
+            .expect("a literal code is well-formed"))
+        } else {
+            if !*held {
+                if evaluator.evaluate_while(doc, |_| true).is_none() {
+                    return;
+                }
+                *held = true;
+            }
+            expand(evaluator, doc, &job.request)
+        };
+        if matches!(&group, Err(d) if interrupted(d)) {
+            return;
+        }
+        let event = SessionEvent::Expanded { generation, group };
+        let _ = publish.send(Msg::Publish(event));
+        queue.expands.pop_front();
+    }
+}
+
+/// Runs the command `request` names on `doc`, evaluated again first
+/// (cached, and the plugin reads the evaluation it was made on).
+fn expand(
+    evaluator: &mut Evaluator,
+    doc: &Arc<Document>,
+    request: &ExpandRequest,
+) -> Result<crate::command::Command, Diagnostic> {
+    let Some(command) = evaluator.registry().command(&request.command).cloned() else {
+        return Err(Diagnostic::new(
+            Severity::Error,
+            "command.unknown",
+            format!("no command `{}`", request.command),
+        )
+        .expect("a literal code is well-formed"));
+    };
+    let Some(evaluation) = evaluator.evaluate_while(doc, |_| true) else {
+        return Err(Diagnostic::new(
+            Severity::Error,
+            "kernel.interrupted",
+            "the expansion was stopped".to_string(),
+        )
+        .expect("a literal code is well-formed"));
+    };
+    let context = match request.context {
+        ExpandContext::Part(p) => arrix_plugin_api::Context::Part(p),
+        ExpandContext::Assembly(a) => arrix_plugin_api::Context::Assembly(a),
+    };
+    evaluator.expand(
+        doc,
+        &evaluation,
+        &crate::eval::Expansion {
+            command: command.as_ref(),
+            context,
+            params: &request.params,
+            choices: &request.choices,
+            picks: &request.inputs,
+            ids: &request.ids,
+        },
+    )
 }
 
 /// Runs the exporter `request` names on `doc`, evaluated again first

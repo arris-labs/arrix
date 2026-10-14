@@ -209,6 +209,23 @@ appearance their colour; a component the solve could not place is
 `export.unplaced`, never a guessed pose. A per-body material override and
 a component's own name are not written (ADR-0032 §6).
 
+An **expansion** (ADR-0038) is a request and no command too:
+`Request::Expand(ExpandRequest { command, context: part | assembly, params,
+choices, inputs, ids, base })` is answered `Expanding`, makes no generation
+and no undo entry, and `SessionEvent::Expanded { generation, group }`
+follows with one `Command::Group`, or the diagnostic that says why there is
+none (`command.unknown`, `command.context`, `command.input`,
+`command.unknown-input`, `command.pick`, `command.ids`, `command.invalid`, a
+`feature.*` for an option, the plugin's own). An `inputs` pick is an
+`EdgePick { path, edge }`; the worker resolves it against the evaluation
+into the command's input (the component's solved pose, and one recorded
+`edge_geometry` call, ADR-0038 §3), runs the plugin there, then checks and
+translates the records it answers (`arrix_doc::command::plugin`). A `base`
+older than the session's generation is `Rejected::Stale` at once; one the
+evaluation has passed by the time the worker reaches it is `command.stale`.
+The client submits the group as an ordinary envelope. Headless it is
+`Evaluator::expand`.
+
 A **STEP tree read** is a request and no command too: `Request::ReadStepTree
 { tag, bytes }` is answered `Reading` and `SessionEvent::StepTree { tag,
 tree }` follows with the file's product tree (`StepTree`: occurrences with

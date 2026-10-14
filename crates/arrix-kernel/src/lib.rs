@@ -14,6 +14,7 @@
 mod anchor;
 mod bytes;
 mod convert;
+mod edge_geometry;
 mod error;
 mod export;
 mod fixture;
@@ -33,6 +34,7 @@ use arrix_core::{Axis, DVec3, FeatureId, Frame, PersistentName, Profile, TopoKin
 
 pub use arrix_core::Motion;
 pub use bytes::{BodyBytes, NameEntry, NameTable};
+pub use edge_geometry::{EdgeCurve, EdgeGeometry};
 pub use error::KernelError;
 pub use fixture::{FixtureError, FixtureRecipe};
 pub use interrupt::Interrupt;

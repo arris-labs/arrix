@@ -46,11 +46,11 @@ pub fn check_export_name(name: &str) -> Result<(), Diagnostic> {
 }
 
 /// The snapshot of one finished evaluation of `doc`.
-struct DocSnapshot<'a> {
-    evaluator: &'a mut Evaluator,
-    doc: &'a Document,
-    evaluation: &'a Evaluation,
-    params: Params,
+pub(super) struct DocSnapshot<'a> {
+    pub(super) evaluator: &'a mut Evaluator,
+    pub(super) doc: &'a Document,
+    pub(super) evaluation: &'a Evaluation,
+    pub(super) params: Params,
 }
 
 impl DocSnapshot<'_> {
@@ -328,27 +328,32 @@ fn assembly_info(
 /// An exporter's options as the host evaluates them: each named param's
 /// expression (the spec's default when not given) to a quantity of its
 /// kind, each choice its given word or default (ADR-0037 §6).
-fn options(
-    spec: &api::ExporterSpec,
+pub(super) fn options(
+    form: Form,
     params: &Params,
     given_params: &BTreeMap<String, String>,
     given_choices: &BTreeMap<String, String>,
 ) -> Result<(Vec<ParamValue>, Vec<ChoiceValue>), Diagnostic> {
+    let Form {
+        id,
+        params: param_specs,
+        choices: choice_specs,
+    } = form;
     let unknown = |name: &str| {
         error(
             "feature.unknown-field",
-            format!("{} has no option `{name}`", spec.id),
+            format!("{id} has no option `{name}`"),
         )
     };
     for name in given_params.keys() {
-        if !spec.params.iter().any(|p| &p.name == name)
-            && !spec.choices.iter().any(|c| &c.name == name)
+        if !param_specs.iter().any(|p| &p.name == name)
+            && !choice_specs.iter().any(|c| &c.name == name)
         {
             return Err(unknown(name));
         }
     }
     let mut out_params = Vec::new();
-    for p in &spec.params {
+    for p in param_specs {
         let text = given_params.get(&p.name).unwrap_or(&p.default);
         let expr = Expr::parse(text).map_err(|e| e.diagnostic())?;
         let q = params.quantity(&expr, p.kind)?;
@@ -358,13 +363,13 @@ fn options(
         });
     }
     let mut out_choices = Vec::new();
-    for c in &spec.choices {
+    for c in choice_specs {
         let word = given_choices.get(&c.name).or(c.default.as_ref());
         let Some(word) = word else { continue };
         if !c.options.iter().any(|o| &o.name == word) {
             return Err(error(
                 "feature.choice",
-                format!("`{word}` is no option of `{}` of {}", c.name, spec.id),
+                format!("`{word}` is no option of `{}` of {id}", c.name),
             ));
         }
         out_choices.push(ChoiceValue {
@@ -373,11 +378,19 @@ fn options(
         });
     }
     for name in given_choices.keys() {
-        if !spec.choices.iter().any(|c| &c.name == name) {
+        if !choice_specs.iter().any(|c| &c.name == name) {
             return Err(unknown(name));
         }
     }
     Ok((out_params, out_choices))
+}
+
+/// The fields of a form that options are read against: an exporter's or a
+/// command's.
+pub(super) struct Form<'a> {
+    pub id: &'a str,
+    pub params: &'a [api::ParamSpec],
+    pub choices: &'a [api::ChoiceSpec],
 }
 
 impl Evaluator {
@@ -419,7 +432,12 @@ impl Evaluator {
         let dag =
             Dag::build_with(doc, &self.registry).expect("a document is valid by construction");
         let values = Params::evaluate(doc, &dag);
-        let (params, choices) = options(spec, &values, params, choices)?;
+        let form = Form {
+            id: &spec.id,
+            params: &spec.params,
+            choices: &spec.choices,
+        };
+        let (params, choices) = options(form, &values, params, choices)?;
         let mut snapshot = DocSnapshot {
             evaluator: self,
             doc,

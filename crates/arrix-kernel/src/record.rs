@@ -201,6 +201,9 @@ pub enum KernelOp {
     VertexPoint { vertex: PersistentName },
     /// The line a straight edge of the operand body lies on.
     EdgeAxis { edge: PersistentName },
+    /// The geometry of an edge of the operand body: its curve and the
+    /// outward normals of the planar faces it bounds (ADR-0038 §3).
+    EdgeGeometry { edge: PersistentName },
     /// An assembly anchor's frame on the operand body: z and a point from
     /// `axis`, a face or an edge, moved onto the planar face `origin`
     /// (ADR-0029 §3).

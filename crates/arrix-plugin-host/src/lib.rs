@@ -23,7 +23,7 @@ pub use loader::{DirLoader, manifest_in, register_dir};
 pub use manifest::{
     Capabilities, Contributes, ExportFixture, Files, Fixture, Manifest, ManifestError, TestFixtures,
 };
-pub use tier0::{HostError, register_tier0, register_tier0_exporters};
+pub use tier0::{HostError, register_tier0, register_tier0_commands, register_tier0_exporters};
 #[cfg(not(target_arch = "wasm32"))]
 pub use tier1::{DEFAULT_FUEL, register_tier1};
 #[cfg(not(target_arch = "wasm32"))]

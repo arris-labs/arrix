@@ -283,6 +283,7 @@ impl FixtureRecipe {
             | KernelOp::FaceFrame { .. }
             | KernelOp::VertexPoint { .. }
             | KernelOp::EdgeAxis { .. }
+            | KernelOp::EdgeGeometry { .. }
             | KernelOp::AnchorFrame { .. }
             | KernelOp::MassProperties
             | KernelOp::Tessellate { .. }
@@ -496,6 +497,7 @@ impl Out {
             | KernelOp::FaceFrame { .. }
             | KernelOp::VertexPoint { .. }
             | KernelOp::EdgeAxis { .. }
+            | KernelOp::EdgeGeometry { .. }
             | KernelOp::AnchorFrame { .. }
             | KernelOp::MassProperties
             | KernelOp::Tessellate { .. }
@@ -584,6 +586,7 @@ fn op_word(op: &KernelOp) -> &'static str {
         KernelOp::FaceFrame { .. } => "face_frame",
         KernelOp::VertexPoint { .. } => "vertex_point",
         KernelOp::EdgeAxis { .. } => "edge_axis",
+        KernelOp::EdgeGeometry { .. } => "edge_geometry",
         KernelOp::AnchorFrame { .. } => "anchor_frame",
         KernelOp::MassProperties => "mass_properties",
         KernelOp::Tessellate { .. } => "tessellate",
