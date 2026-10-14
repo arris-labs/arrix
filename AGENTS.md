@@ -24,8 +24,7 @@ skills for the idea → plan → work → retire → close-cycle pipeline live i
 
 ## Current state
 
-**Seeded 2026-09-26.** `SEED.md` agreed; the docs system scaffolded; the
-design docs of `SEED.md` §10.2 written.
+**Seeded 2026-09-26.** `SEED.md` agreed; the docs system and design docs written.
 **C1 done 2026-10-08** (ADR-0004 to ADR-0020; `arris` 0.5, 0.6 after): its
 accept is `--test c1_accept`, its budgets `--test c1_benchmark` (the first
 coarse mesh misses, an Arris finding), the app's `--test visual m3_accept`.
@@ -37,8 +36,10 @@ product structure both ways in metres, materials and mass; ADR-0027 to
 ADR-0033; `arris` 0.8): `--test c2_accept`, held to Open CASCADE's reading.
 **C3 M1 done 2026-10-13** (Tier 1: wasmtime components, the Rust guest SDK,
 ADR-0034 to ADR-0036): `--test c3_m1`, `gears` identical at both tiers.
-**Next:** C3 M2, a plugin reads an assembly (the snapshot read, exporters,
-`robotics`); then M3, commands, `fasteners` and the north-star accept.
+**C3 M2 done 2026-10-14** (the snapshot read and exporters on all three
+tiers, `robotics.urdf`, `python/examples/bom`; ADR-0037, API 0.7.0):
+`--test c3_m2`, the URDF held to urdfdom and yourdfpy.
+**Next:** C3 M3, commands, `fasteners` and the north-star accept.
 
 ## Rules that are not derivable from the code
 
@@ -124,6 +125,13 @@ it before ticking a step:
   `cargo test -p arrix-cli --test c3_m1` is C3 M1's accept, `--test
   tier1_surfaces` the CLI's surfaces; the host's tests build the fixtures
   in `target/tier1-fixtures`.
+- `arrix export <doc> --exporter <id> [--assembly <a> | --part <p>]
+  [--option <name>=<expr>]… -o <path> [--force]` runs an exporter (a plugin's
+  or `core.step|stl|obj`): one file to `<path>`, several into that directory.
+  `cargo test -p arrix-cli --test c3_m2` is C3 M2's accept (`plugins/robotics`,
+  `tests/docs/arm`, `python/examples/bom`); `scripts/urdf-read <urdf>…`
+  writes the golden of `--test c3_m2_urdf` on a machine with urdfdom and
+  `uv` (never CI; its header says how).
 - `cargo test -p arrix-cli --test c2_accept` is C2's accept: `tests/docs/
   assembly-exchange` exported with `arrix export --assembly`, re-imported,
   and ArriX's reading of it and of the NIST vendor part held to Open

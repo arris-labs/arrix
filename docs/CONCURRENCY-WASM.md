@@ -133,6 +133,9 @@ stand on it.
   `arrix_plugin_api::math` (`libm`, compiled into the plugin), the same
   code everywhere (ADR-0036). `sqrt` and the arithmetic are exact under
   IEEE 754 and need nothing.
+- An export is the same: a pure function of the snapshot and its options,
+  run twice by the test kit and identical to the byte at every tier
+  (ADR-0037; `robotics.urdf` at Tier 0 and as a component, `--test c3_m2`).
 - **Time budgets are not determinism.** A wall-clock timeout makes a
   result depend on the machine. A Tier 1 component's fuel (ADR-0035 §5)
   is the same kind of budget for its own code, counted in wasm

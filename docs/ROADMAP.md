@@ -150,7 +150,8 @@ library screws into a bracket's picked holes as components, a Rust plugin
 hosted as a wasm component exports URDF that another reader loads, and the
 file opens with neither plugin, frozen, still following a width edit.*
 
-**Status: open; M1 (Tier 1) done 2026-10-13, M2 next.** Detailed by
+**Status: open; M1 (Tier 1) done 2026-10-13, M2 (the snapshot read,
+exporters, `robotics`) done 2026-10-14, M3 next.** Detailed by
 ADR-0034. The risk to retire: the plugin API holds across
 every boundary. A Rust plugin runs sandboxed exactly as it runs compiled
 in, and two real domains need nothing but the public API.

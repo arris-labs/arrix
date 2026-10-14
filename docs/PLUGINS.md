@@ -3,12 +3,14 @@
 The plugin model is ArriX's reason to exist (`SEED.md` §3, §6.3): one
 interface, versioned apart from the app, hosted three ways, and enough of it
 that first-party domains need nothing else. This document is the design of
-`arrix-plugin-api` and `arrix-plugin-host`. Built, as of C3 M1: the world and
+`arrix-plugin-api` and `arrix-plugin-host`. Built, as of C3 M2: the world and
 its Rust traits at 0.7.0 (§One interface), the Rust guest SDK (`guest`
 feature, `export_plugin!`), manifests (§The manifest), Tier 0, Tier 1 and
 Tier 2 hosting (§Three tiers), the test kit (§The test kit, `arrix test`),
-and the first plugin, `plugins/gears` with `gears.spur` (its crate docs
-state its geometry and tolerance), at Tier 0 or as a Tier 1 component.
+the snapshot read and exporters on all three tiers (§4), and the first
+plugins, `plugins/gears` with `gears.spur` and `plugins/robotics` with
+`robotics.urdf` (their crate docs state their geometry and conventions), at
+Tier 0 or as Tier 1 components.
 `arrix-plugin-test` comes with C3 M3 (ADR-0034).
 
 ## One interface, defined once
@@ -147,8 +149,7 @@ world plugin {
   snapshot reads) and the `commands`, `exchange`, `analysis` and `ui`
   exports as the first plugin needs each.
 
-**The snapshot read and exporters** (ADR-0037, designed for 0.7.0, built
-in C3 M2): the world gains `interface document` and `interface exchange`,
+**The snapshot read and exporters** (ADR-0037, 0.7.0): the world gains `interface document` and `interface exchange`,
 one world, so a plugin implements what it contributes and the SDK supplies
 the rest empty. `world plugin { import kernel; import document; export
 feature; export exchange; }`.
