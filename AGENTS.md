@@ -185,7 +185,9 @@ it before ticking a step:
   [--context <part|assembly>] [--size WxH] [--plugin <dir>]…` renders a
   document headless (needs lavapipe).
 - Either hook runs by hand as `.githooks/pre-commit` or
-  `.githooks/pre-push`. `scripts/size-lint --list` shows offenders past
+  `.githooks/pre-push`; both re-exec under `scripts/heavy`, which runs any
+  heavy command in a memory-limited scope so an oomd kill spares the
+  terminal (`.agents/rules/resources.md`). `scripts/size-lint --list` shows offenders past
   the allowlist.
 
 ## Local reference checkouts

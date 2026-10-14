@@ -149,12 +149,12 @@ STEP_RE = re.compile(r"^\s*-\s")
 
 def hook_commands(tree):
     """The commands the hooks run: every line but the shebang, comments,
-    `echo`, `set` and `cd`."""
+    `echo`, `set`, `cd` and the re-exec under `scripts/heavy`."""
     out = []
     for hook in HOOKS:
         for line in (tree / hook).read_text().splitlines():
             line = line.strip()
-            if line and not line.startswith("#") and not re.match(r"(echo|set|cd)\b", line):
+            if line and not line.startswith("#") and not re.match(r'(echo|set|cd)\b|\[ -n "\$ARRIX_HEAVY" \]', line):
                 out.append(line)
     return out
 

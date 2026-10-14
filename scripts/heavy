@@ -1,0 +1,46 @@
+#!/bin/sh
+# Runs a heavy command (a test suite, the pre-push gate) in a scope of its
+# own, so a memory squeeze throttles or kills the run and never the terminal
+# that started it (.agents/rules/resources.md §Memory).
+#
+# systemd-oomd kills a whole terminal scope when the user session's memory
+# pressure stays high; here the run is the scope's only content, with
+# MemoryHigh to throttle it before the pressure builds and MemoryMax as a
+# ceiling, at nice 10. The scope's peak memory is printed when it ends.
+#
+# Usage:
+#     scripts/heavy cargo test -p arrix-app
+#     HEAVY_HIGH=24G HEAVY_MAX=30G scripts/heavy .githooks/pre-push
+#
+# Defaults are a share of MemTotal (high 40%, max 55%), leaving the rest to
+# the other terminal (Arris's tests). Without systemd-run --user (CI, macOS,
+# WSL) or when already inside a scope of this script, the command runs as is.
+set -e
+
+if [ "$#" -eq 0 ]; then
+    echo "usage: scripts/heavy <command> [args…]" >&2
+    exit 2
+fi
+
+if [ -n "$ARRIX_HEAVY" ] || ! command -v systemd-run >/dev/null 2>&1 ||
+    ! systemd-run --user --scope --quiet true >/dev/null 2>&1; then
+    exec "$@"
+fi
+
+total_kb=$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)
+high=${HEAVY_HIGH:-$((total_kb * 40 / 100))K}
+max=${HEAVY_MAX:-$((total_kb * 55 / 100))K}
+
+# The inner shell reports the scope's own peak, then returns the command's
+# status. A kill of the scope (MemoryMax or oomd) shows as 137.
+exec systemd-run --user --scope --quiet --collect \
+    -p MemoryAccounting=yes -p "MemoryHigh=$high" -p "MemoryMax=$max" \
+    -E ARRIX_HEAVY=1 \
+    nice -n 10 sh -c '
+        "$@"; status=$?
+        cg=/sys/fs/cgroup$(cut -d: -f3 /proc/self/cgroup)
+        if [ -r "$cg/memory.peak" ]; then
+            echo "heavy: peak memory $(($(cat "$cg/memory.peak") / 1048576)) MiB" >&2
+        fi
+        exit $status
+    ' heavy "$@"

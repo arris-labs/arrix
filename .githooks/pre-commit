@@ -2,6 +2,9 @@
 # The fast half of the gate (docs/ARCHITECTURE.md §Gates), mirrored by CI.
 # Installed once per clone or worktree: git config core.hooksPath .githooks
 set -e
+# Runs in a scope of its own, so memory pressure never takes the terminal
+# with it (scripts/heavy, .agents/rules/resources.md §Memory).
+[ -n "$ARRIX_HEAVY" ] || exec "$(git rev-parse --show-toplevel)/scripts/heavy" "$0" "$@"
 cd "$(git rev-parse --show-toplevel)"
 
 echo "pre-commit: cargo fmt --check"
