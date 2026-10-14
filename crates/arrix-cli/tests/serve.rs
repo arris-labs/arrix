@@ -277,3 +277,41 @@ fn a_client_hears_the_opening_generations_outcomes_without_a_change() {
     );
     assert!(events.iter().all(|e| e["kind"] != "applied"));
 }
+
+/// A command the session lacks is answered, not dropped: `session.expand`
+/// is `expanding` and an `expanded` event follows with the diagnostic. The
+/// commands of a plugin are `tier1_surfaces.rs`'s and the SDK's (plans/c3-m3
+/// steps 7 and 8).
+#[test]
+fn a_command_expansion_is_a_request_and_an_event() {
+    let mut s = Serve::start();
+    let initialized = &s.heard[0]["result"]["methods"];
+    assert!(initialized["session.expand"].is_object(), "{initialized}");
+    let queued = s.session(
+        "expand",
+        json!({
+            "command": "nobody.nothing",
+            "context": {"part": "0000000000001"},
+            "inputs": {"edges": [{"edge": "edge:revolve.0000000000001.side.0000000000002"}]},
+            "ids": ["0000000000002"],
+            "base": 0
+        }),
+    );
+    assert_eq!(queued["ok"], "expanding", "{queued}");
+    let answer = s.hear_event(|e| e["kind"] == "expanded");
+    assert_eq!(answer["generation"], 0);
+    assert_eq!(
+        answer["group"]["Err"]["code"], "command.unknown",
+        "{answer}"
+    );
+
+    // A base the session has passed is refused at once, as a result's err.
+    for (base, command) in plate().into_iter().enumerate() {
+        s.submit(ME, base as u64, command);
+    }
+    let stale = s.session(
+        "expand",
+        json!({"command": "nobody.nothing", "context": {"part": "0000000000001"}, "base": 0}),
+    );
+    assert_eq!(stale["err"]["stale"]["base"], 0, "{stale}");
+}

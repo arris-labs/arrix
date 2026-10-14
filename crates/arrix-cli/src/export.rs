@@ -10,7 +10,7 @@ use std::process::ExitCode;
 
 use arrix_core::{AssemblyId, ExportFormat, FeatureId, PartId, SlotName};
 use arrix_doc::{BodySlot, Document, Registry};
-use arrix_plugin_api::{ExportFile, ExporterSpec, Subject, SubjectKind};
+use arrix_plugin_api::{ExportFile, Subject, SubjectKind};
 
 use crate::load::{Loaded, registry_for};
 
@@ -136,7 +136,7 @@ fn plugin_export(
         }
         (SubjectKind::Part, _, _) => return Err(format!("{id} exports a part: give --part")),
     };
-    let (params, choices) = split_options(spec, args.options)?;
+    let (params, choices) = split_options(&spec.choices, args.options)?;
     let exported =
         arrix_doc::export_with_exporter(name, source, registry, id, subject, &params, &choices)
             .map_err(|e| format!("{name}: {e}"))?;
@@ -155,7 +155,7 @@ fn plugin_export(
 /// `feature.unknown-field`).
 #[allow(clippy::type_complexity)]
 pub(crate) fn split_options(
-    spec: &ExporterSpec,
+    choices_of_form: &[arrix_plugin_api::ChoiceSpec],
     options: &[String],
 ) -> Result<(BTreeMap<String, String>, BTreeMap<String, String>), String> {
     let (mut params, mut choices) = (BTreeMap::new(), BTreeMap::new());
@@ -163,7 +163,7 @@ pub(crate) fn split_options(
         let (key, value) = option
             .split_once('=')
             .ok_or_else(|| format!("--option {option}: expected <name>=<value>"))?;
-        let into = if spec.choices.iter().any(|c| c.name == key) {
+        let into = if choices_of_form.iter().any(|c| c.name == key) {
             &mut choices
         } else {
             &mut params
@@ -278,7 +278,7 @@ pub(crate) fn assembly_id(document: &Document, spec: &str) -> Result<AssemblyId,
 #[cfg(test)]
 mod tests {
     use super::*;
-    use arrix_plugin_api::{ChoiceOption, ChoiceSpec};
+    use arrix_plugin_api::{ChoiceOption, ChoiceSpec, ExporterSpec};
 
     fn file(name: &str, bytes: &[u8]) -> ExportFile {
         ExportFile {
@@ -347,11 +347,11 @@ mod tests {
     #[test]
     fn an_option_is_a_choice_when_the_spec_has_one_of_that_name() {
         let given = ["style=a".to_owned(), "effort=2 N".to_owned()];
-        let (params, choices) = split_options(&spec(), &given).unwrap();
+        let (params, choices) = split_options(&spec().choices, &given).unwrap();
         assert_eq!(choices["style"], "a");
         assert_eq!(params["effort"], "2 N");
-        assert!(split_options(&spec(), &["style".to_owned()]).is_err());
+        assert!(split_options(&spec().choices, &["style".to_owned()]).is_err());
         let twice = ["a=1".to_owned(), "a=2".to_owned()];
-        assert!(split_options(&spec(), &twice).is_err());
+        assert!(split_options(&spec().choices, &twice).is_err());
     }
 }

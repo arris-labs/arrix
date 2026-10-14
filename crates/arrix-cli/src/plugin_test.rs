@@ -4,15 +4,18 @@
 //! JSON line per check. The report's `format` is versioned like the eval
 //! line's; `--schema` prints its JSON Schema.
 
+use std::collections::BTreeMap;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+use arrix_core::{ComponentId, Id};
 use arrix_doc::{
-    DocumentSource, EvalLine, Evaluator, FeatureLine, MemorySource, Registry, open, save,
+    Command, ComponentOf, DEFAULT_MAX_NEW, Document, DocumentSource, EdgePick, EvalLine, Evaluator,
+    Expansion, FeatureLine, MemorySource, Registry, apply, open, save,
 };
-use arrix_plugin_api::Subject;
-use arrix_plugin_host::{ExportFixture, MANIFEST, Manifest};
+use arrix_plugin_api::{Context, Subject};
+use arrix_plugin_host::{CommandFixture, ExportFixture, MANIFEST, Manifest};
 use serde::Serialize;
 
 use crate::export::{assembly_id, part_id, split_options};
@@ -137,12 +140,14 @@ impl Kit {
             Manifest::parse(&text).map_err(|e| vec![format!("{shown}: {}", one_line(&e))])?;
         let mut diagnostics = Vec::new();
         let exported = manifest.test.exports.iter().map(|e| &e.document);
+        let commanded = manifest.test.commands.iter().map(|c| &c.document);
         for fixture in manifest
             .test
             .documents
             .iter()
             .chain(&manifest.test.fail)
             .chain(exported)
+            .chain(commanded)
         {
             if !args.dir.join(&fixture.path).exists() {
                 diagnostics.push(format!(
@@ -211,6 +216,13 @@ impl Kit {
                 result: self.export_twice(export),
             });
         }
+        for command in &self.manifest.test.commands {
+            out.push(Check {
+                check: "command",
+                doc: command.document.path.clone(),
+                result: self.command_twice(command),
+            });
+        }
         out.extend(self.migration(&manifest_file));
         for fixture in &self.manifest.test.fail {
             out.push(Check {
@@ -277,10 +289,28 @@ impl Kit {
                 "the plugin registers the exporter `{id}`, which the manifest's `contributes.exporters` does not list"
             ));
         }
+        let commands: Vec<String> = registry
+            .command_specs()
+            .into_iter()
+            .map(|c| c.id)
+            .filter(|id| self.owns(id))
+            .collect();
+        let declared = &self.manifest.contributes.commands;
+        if let Some(id) = declared.iter().find(|id| !commands.contains(id)) {
+            return Err(format!(
+                "the manifest contributes the command `{id}`, which the plugin does not register"
+            ));
+        }
+        if let Some(id) = commands.iter().find(|id| !declared.contains(id)) {
+            return Err(format!(
+                "the plugin registers the command `{id}`, which the manifest's `contributes.commands` does not list"
+            ));
+        }
         Ok(format!(
-            "{} feature type(s) and {} exporter(s) register with a valid spec",
+            "{} feature type(s), {} exporter(s) and {} command(s) register with a valid spec",
             registered.len(),
-            exporters.len()
+            exporters.len(),
+            commands.len()
         ))
     }
 
@@ -308,7 +338,7 @@ impl Kit {
             .iter()
             .map(|(k, v)| format!("{k}={v}"))
             .collect();
-        let (params, choices) = split_options(exporter.spec(), &options)?;
+        let (params, choices) = split_options(&exporter.spec().choices, &options)?;
         let run = || {
             arrix_doc::export_with_exporter(
                 &export.document.path,
@@ -355,6 +385,21 @@ impl Kit {
             first.len(),
             listed.join("; ")
         ))
+    }
+
+    /// A command of the manifest expands twice, each on a fresh registry
+    /// and evaluation, to identical groups; the group applies to the
+    /// fixture, and its inverse takes the document back to the fixture's
+    /// bytes (ADR-0038 §6).
+    fn command_twice(&self, fixture: &CommandFixture) -> Result<String, String> {
+        if !self.owns(&fixture.command) {
+            return Err(format!(
+                "`{}` is not a command of this plugin",
+                fixture.command
+            ));
+        }
+        let source = self.fixture_source(&fixture.document.path)?;
+        expand_twice_and_undo(&|| self.fresh(), &source, fixture)
     }
 
     /// Every `type_version` a spec declares, from 1 up, has a fixture
@@ -571,6 +616,140 @@ impl Kit {
     }
 }
 
+/// The kit's command check over any way of making a fresh registry: the
+/// fixture's command expands twice to the same group, which applies and
+/// undoes to the fixture's bytes.
+pub(crate) fn expand_twice_and_undo(
+    fresh: &dyn Fn() -> Result<Registry, String>,
+    source: &impl DocumentSource,
+    fixture: &CommandFixture,
+) -> Result<String, String> {
+    let id = fixture.command.as_str();
+    let document = open(source).map_err(|e| e.to_string())?;
+    let registry = fresh()?;
+    let Some(command) = registry.command(id) else {
+        return Err(format!("the plugin registers no command `{id}`"));
+    };
+    let context = match (&fixture.assembly, &fixture.part) {
+        (Some(a), None) => Context::Assembly(assembly_id(&document, a)?),
+        (None, Some(p)) => Context::Part(part_id(&document, p)?),
+        _ => return Err("a command names its `assembly` or its `part`, one of them".into()),
+    };
+    let options: Vec<String> = fixture
+        .options
+        .iter()
+        .map(|(k, v)| format!("{k}={v}"))
+        .collect();
+    let (params, choices) = split_options(&command.spec().choices, &options)?;
+    let mut picks = BTreeMap::new();
+    for (name, list) in &fixture.inputs {
+        let mut one = Vec::new();
+        for pick in list {
+            one.push(EdgePick {
+                path: component_path(&document, context, &pick.path)?,
+                edge: pick
+                    .edge
+                    .parse()
+                    .map_err(|e| format!("input `{name}`: {}: {e}", pick.edge))?,
+            });
+        }
+        picks.insert(name.clone(), one);
+    }
+    let ids = kit_ids(command.spec().max_new);
+    let run = || -> Result<Command, String> {
+        let registry = fresh()?;
+        let command = registry
+            .command(id)
+            .ok_or_else(|| format!("the plugin registers no command `{id}`"))?
+            .clone();
+        let mut evaluator = Evaluator::new(registry);
+        let evaluation = evaluator.evaluate(&document);
+        evaluator
+            .expand(
+                &document,
+                &evaluation,
+                &Expansion {
+                    command: command.as_ref(),
+                    context,
+                    params: &params,
+                    choices: &choices,
+                    picks: &picks,
+                    ids: &ids,
+                },
+            )
+            .map_err(|d| format!("{}: {}", d.code.as_str(), d.message))
+    };
+    let (first, second) = (run()?, run()?);
+    if first != second {
+        return Err("two expansions differ".into());
+    }
+    let applied = apply(&document, &first).map_err(|e| format!("the group is refused: {e}"))?;
+    let back = apply(&applied.document, &applied.inverse)
+        .map_err(|e| format!("the group's inverse is refused: {e}"))?;
+    if let Some(what) = differ(&save(&document), &save(&back.document)) {
+        return Err(format!(
+            "undoing the group does not restore the document: {what}"
+        ));
+    }
+    let records = match &first {
+        Command::Group { commands, .. } => commands.len(),
+        _ => 1,
+    };
+    Ok(format!(
+        "two expansions give the same group of {records} record(s); it applies, and undoes to the fixture's bytes"
+    ))
+}
+
+/// The ids a kit expansion mints with: fixed, so two runs are one.
+fn kit_ids(max_new: Option<u32>) -> Vec<Id> {
+    let n = max_new.map_or(DEFAULT_MAX_NEW, |n| n as usize);
+    (1..=n as u64).map(|i| Id(0x5EED_0000_0000 + i)).collect()
+}
+
+/// A picked edge's components, each a name or an id in the assembly the
+/// level before it ends in (a part has none).
+fn component_path(
+    document: &Document,
+    context: Context,
+    path: &[String],
+) -> Result<Vec<ComponentId>, String> {
+    let Context::Assembly(mut at) = context else {
+        return if path.is_empty() {
+            Ok(Vec::new())
+        } else {
+            Err("a pick in a part has no component path".into())
+        };
+    };
+    let mut out = Vec::new();
+    for step in path {
+        let assembly = document
+            .assemblies()
+            .get(&at)
+            .ok_or_else(|| format!("no assembly {at}"))?;
+        let by_id = step
+            .parse::<ComponentId>()
+            .ok()
+            .filter(|id| assembly.components.contains_key(id));
+        let mut named = assembly
+            .components
+            .values()
+            .filter(|c| &c.name == step)
+            .map(|c| c.id);
+        let id = match (by_id, named.next(), named.next()) {
+            (Some(id), _, _) | (None, Some(id), None) => id,
+            (None, Some(_), Some(_)) => {
+                return Err(format!("`{step}` names several components; use its id"));
+            }
+            (None, None, _) => return Err(format!("no component `{step}` in {}", assembly.name)),
+        };
+        out.push(id);
+        if let ComponentOf::Assembly(next) = assembly.components[&id].of {
+            at = next;
+        }
+    }
+    Ok(out)
+}
+
 /// A manifest error on one line, as the diagnostic carries it.
 fn one_line(e: &dyn std::fmt::Display) -> String {
     e.to_string().split('\n').collect::<Vec<_>>().join(" ")
@@ -652,3 +831,7 @@ fn replayable(json: &str) -> Result<usize, String> {
         _ => Err("the recipe's result is not one of its steps".into()),
     }
 }
+
+#[cfg(test)]
+#[path = "plugin_test_tests.rs"]
+mod tests;

@@ -19,6 +19,7 @@ import base64
 import json
 import os
 import queue
+import secrets
 import subprocess
 import threading
 import time
@@ -59,6 +60,19 @@ class Rejected(SessionError):
         if isinstance(self.reason, dict) and len(self.reason) == 1:
             return next(iter(self.reason))
         return str(self.reason)
+
+
+class CommandError(SessionError):
+    """A plugin command that could not be expanded: `diagnostic` is the
+    host's or the plugin's (`command.invalid`, `command.stale`, ...)."""
+
+    def __init__(self, diagnostic: dict):
+        super().__init__(f"{diagnostic.get('code')}: {diagnostic.get('message')}")
+        self.diagnostic = diagnostic
+
+    @property
+    def code(self) -> str:
+        return str(self.diagnostic.get("code"))
 
 
 class ServeExited(SessionError):
@@ -171,6 +185,57 @@ class Session:
         return self._request(
             "export", {"bodies": [], "format": "step", "exporter": request}
         )
+
+    def expand(
+        self,
+        command: str,
+        *,
+        context: dict,
+        base: int,
+        params: Optional[dict[str, str]] = None,
+        choices: Optional[dict[str, str]] = None,
+        inputs: Optional[dict[str, Sequence[dict]]] = None,
+        ids: Optional[Sequence[str]] = None,
+        count: int = 64,
+    ) -> dict:
+        """Expands the plugin command `command` (`<plugin>.<name>`, ADR-0038)
+        against generation `base` and returns the group, a command to submit
+        as it is. `context` is `{"part": id}` or `{"assembly": id}`; `params`
+        are expressions and `choices` words; `inputs` maps an input's name
+        to its picked edges, each `{"path": [component ids], "edge": name}`;
+        `ids` are fresh ids for the records it makes, `count` of them minted
+        here when not given. A stale `base` raises `Rejected`, a command the
+        session or the plugin refuses `CommandError`."""
+        request: dict[str, Any] = {"command": command, "context": context, "base": base}
+        if params:
+            request["params"] = dict(params)
+        if choices:
+            request["choices"] = dict(choices)
+        if inputs:
+            request["inputs"] = {k: list(v) for k, v in inputs.items()}
+        request["ids"] = list(ids) if ids is not None else [_fresh_id() for _ in range(count)]
+        asked = sum(1 for e in self.heard if e.get("kind") == "expanded")
+        self._request("expand", request)
+        seen = 0
+
+        def nth(event: dict) -> bool:
+            nonlocal seen
+            if event.get("kind") != "expanded":
+                return False
+            seen += 1
+            return seen == asked + 1
+
+        event = self.wait_event(nth)
+        if "Err" in event["group"]:
+            raise CommandError(event["group"]["Err"])
+        return event["group"]["Ok"]
+
+    def run_command(self, command: str, *, base: int, author: str = ME, **form: Any) -> dict:
+        """Expands `command` (see `expand`; `form` is its other arguments)
+        and submits the group on the same `base`, as one gesture and one
+        undo entry. The outcome is `submit`'s."""
+        group = self.expand(command, base=base, **form)
+        return self.submit(group, base=base, author=author)
 
     def load_plugin(self, directory: str | os.PathLike) -> dict:
         """Loads the Tier 2 plugin directory `directory` into the session."""
@@ -338,6 +403,13 @@ class Session:
             code = None
         time.sleep(0.05)
         return ServeExited(code, "".join(self._stderr))
+
+
+def _fresh_id() -> str:
+    """A random id's text (ADR-0022 §3): the first character at most `F`."""
+    from .ids import key
+
+    return key(secrets.randbits(64))
 
 
 def _read_lines(stream, lines: queue.Queue) -> None:

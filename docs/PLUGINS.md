@@ -327,6 +327,7 @@ network = false
 
 [contributes]                # informative; the plugin's exports are the authority
 features = ["gears.spur"]
+commands = ["gears.place"]   # command ids (ADR-0038)
 ribbon = ["gears"]
 
 [test]                       # §The test kit; optional
@@ -338,6 +339,13 @@ document = "fixtures/arm"
 exporter = "robotics.urdf"
 assembly = "arm"                          # or `part = "…"`, by name or id
 options = { effort = "10" }               # as `arrix export --option`
+
+[[test.commands]]                         # a command expanded on a fixture, twice
+document = "fixtures/plate"
+command = "fasteners.place"
+assembly = "plate"                        # or `part = "…"`, by name or id
+options = { length = "10 mm" }            # a form's expressions and words
+inputs = { holes = [{ path = ["plate"], edge = "edge:sweep.…" }] }   # the picks, by input
 ```
 
 `[test]` is read by `arrix test` and by nothing else. A fixture that is not
@@ -594,6 +602,14 @@ directories of plugins the fixtures depend on.
   files (ADR-0037 §9); the detail names the files, their sizes and hashes.
   **Spec** also holds the manifest's `contributes.exporters` to the
   exporters the plugin registers.
+- **Commands**: each `[[test.commands]]` entry expands its command twice,
+  each on a fresh registry and evaluation, to identical groups (ADR-0038
+  §6); the group applies to the fixture, and its inverse takes the document
+  back to the fixture's bytes. A pick's `path` is the components from the
+  assembly down, by name or id. **Spec** also holds `contributes.commands`
+  to the commands the plugin registers. `arrix describe` lists them
+  (`plugin_commands`), `arrix serve` expands them (`session.expand`), and
+  `arrix.session` has `expand` and `run_command`.
 - **Kernel failures**: each `fail` fixture fails with a `kernel.*`
   category and leaves a call record that replays (`SEED.md` §6.6).
 

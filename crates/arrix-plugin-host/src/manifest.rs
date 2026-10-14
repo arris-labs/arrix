@@ -64,6 +64,32 @@ pub struct ExportFixture {
     pub options: std::collections::BTreeMap<String, String>,
 }
 
+/// One edge a `[[test.commands]]` entry picks: the components from the
+/// assembly down (names or ids; empty in a part) and the edge's persistent
+/// name.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PickFixture {
+    #[serde(default)]
+    pub path: Vec<String>,
+    pub edge: String,
+}
+
+/// One `[[test.commands]]` entry: a fixture document, a command of the
+/// plugin, the assembly or part it runs in (by name or id), its options as
+/// a form gives them and the edges picked for each input (ADR-0038). The
+/// kit expands it twice to identical groups, applies the group and undoes
+/// it to the fixture's bytes.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CommandFixture {
+    pub document: Fixture,
+    pub command: String,
+    pub assembly: Option<String>,
+    pub part: Option<String>,
+    pub options: std::collections::BTreeMap<String, String>,
+    pub inputs: std::collections::BTreeMap<String, Vec<PickFixture>>,
+}
+
 /// The `[test]` table (docs/PLUGINS.md §The test kit).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct TestFixtures {
@@ -73,6 +99,9 @@ pub struct TestFixtures {
     pub fail: Vec<Fixture>,
     /// Exports that must run twice to identical files.
     pub exports: Vec<ExportFixture>,
+    /// Commands that must expand twice to identical groups, and apply and
+    /// undo.
+    pub commands: Vec<CommandFixture>,
 }
 
 /// What a plugin may reach (docs/PLUGINS.md §Capabilities). Everything is
@@ -105,6 +134,8 @@ pub struct Contributes {
     pub features: Vec<String>,
     /// Exporter ids (ADR-0037).
     pub exporters: Vec<String>,
+    /// Command ids (ADR-0038).
+    pub commands: Vec<String>,
     pub ribbon: Vec<String>,
 }
 
@@ -128,6 +159,20 @@ struct RawTest {
     documents: Vec<toml::Spanned<String>>,
     fail: Vec<toml::Spanned<String>>,
     exports: Vec<RawExport>,
+    commands: Vec<RawCommand>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawCommand {
+    document: toml::Spanned<String>,
+    command: String,
+    assembly: Option<String>,
+    part: Option<String>,
+    #[serde(default)]
+    options: std::collections::BTreeMap<String, String>,
+    #[serde(default)]
+    inputs: std::collections::BTreeMap<String, Vec<PickFixture>>,
 }
 
 #[derive(Deserialize)]
@@ -287,6 +332,19 @@ impl Manifest {
                         options: e.options,
                     })
                     .collect(),
+                commands: raw
+                    .test
+                    .commands
+                    .into_iter()
+                    .map(|c| CommandFixture {
+                        document: fixture(c.document),
+                        command: c.command,
+                        assembly: c.assembly,
+                        part: c.part,
+                        options: c.options,
+                        inputs: c.inputs,
+                    })
+                    .collect(),
             },
         })
     }
@@ -351,6 +409,39 @@ features = ["gears.spur"]
         assert_eq!(at(&m.test.fail), [("f".into(), first + 3)]);
         assert!(matches!(
             Manifest::parse(&format!("{GEARS}\n[test]\nbogus = 1\n")),
+            Err(ManifestError::Toml(_))
+        ));
+    }
+
+    #[test]
+    fn reads_a_command_fixture_with_its_picks() {
+        let m = Manifest::parse(&format!(
+            "{GEARS}\n[[test.commands]]\ndocument = \"plate\"\ncommand = \"gears.place\"\n\
+             assembly = \"Plate\"\noptions = {{ length = \"10 mm\" }}\n\
+             inputs = {{ holes = [{{ path = [\"plate\"], edge = \"edge:a\" }}, {{ edge = \"edge:b\" }}] }}\n"
+        ))
+        .unwrap();
+        let [c] = &m.test.commands[..] else {
+            panic!("{:?}", m.test.commands)
+        };
+        assert_eq!(c.document.path, "plate");
+        assert_eq!(c.document.line, GEARS.lines().count() as u32 + 3);
+        assert_eq!(
+            (c.command.as_str(), c.assembly.as_deref()),
+            ("gears.place", Some("Plate"))
+        );
+        assert_eq!(c.part, None);
+        assert_eq!(c.options["length"], "10 mm");
+        let picks = &c.inputs["holes"];
+        assert_eq!(picks[0].path, ["plate"]);
+        assert_eq!(picks[1].path, Vec::<String>::new());
+        assert_eq!(picks[1].edge, "edge:b");
+        // An unknown key in a pick is a diagnostic like any other.
+        assert!(matches!(
+            Manifest::parse(&format!(
+                "{GEARS}\n[[test.commands]]\ndocument = \"p\"\ncommand = \"c.d\"\n\
+                 inputs = {{ holes = [{{ edge = \"e\", bogus = 1 }}] }}\n"
+            )),
             Err(ManifestError::Toml(_))
         ));
     }

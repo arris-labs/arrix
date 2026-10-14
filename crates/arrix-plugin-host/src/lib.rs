@@ -21,7 +21,8 @@ pub mod wire;
 #[cfg(not(target_arch = "wasm32"))]
 pub use loader::{DirLoader, manifest_in, register_dir};
 pub use manifest::{
-    Capabilities, Contributes, ExportFixture, Files, Fixture, Manifest, ManifestError, TestFixtures,
+    Capabilities, CommandFixture, Contributes, ExportFixture, Files, Fixture, Manifest,
+    ManifestError, PickFixture, TestFixtures,
 };
 pub use tier0::{HostError, register_tier0, register_tier0_commands, register_tier0_exporters};
 #[cfg(not(target_arch = "wasm32"))]

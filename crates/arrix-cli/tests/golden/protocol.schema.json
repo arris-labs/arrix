@@ -4677,6 +4677,9 @@
     "session.clear_preview": {
       "request": "clear_preview"
     },
+    "session.expand": {
+      "request": "expand"
+    },
     "session.export": {
       "request": "export"
     },

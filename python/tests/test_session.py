@@ -139,6 +139,29 @@ class SessionTest(unittest.TestCase):
         with self.assertRaises(Rejected):
             s.load_plugin(out / "nowhere")
 
+    def test_a_command_the_session_lacks_is_a_command_error_and_a_stale_base_is_rejected(self):
+        # The plugin commands are exercised in the Tier 1 and Tier 2 suites
+        # (plans/c3-m3 steps 7 and 8); here the plumbing: the request, the
+        # `expanded` event, the id minting and the stale base.
+        s = self.spawn()
+        s.initialize()
+        context = {"assembly": "6NDZZ2CNWB0X9"}
+        picks = {"edges": [{"path": [], "edge": "edge:revolve.0000000000001.side.0000000000002"}]}
+        with self.assertRaises(arrix.session.CommandError) as caught:
+            s.expand("nobody.nothing", context=context, base=0, inputs=picks)
+        self.assertEqual(caught.exception.code, "command.unknown")
+        # A second ask hears its own answer, not the first's.
+        with self.assertRaises(arrix.session.CommandError) as again:
+            s.expand("nobody.other", context=context, base=0, ids=["0000000000002"])
+        self.assertEqual(again.exception.code, "command.unknown")
+        self.assertEqual(
+            sum(1 for e in s.heard if e.get("kind") == "expanded"), 2, "one answer per ask"
+        )
+        s.submit(plate_commands()[0][0], base=0)
+        with self.assertRaises(Rejected) as stale:
+            s.run_command("nobody.nothing", base=0, context=context)
+        self.assertEqual(stale.exception.kind, "stale")
+
     def test_serve_exiting_is_reported(self):
         s = self.spawn(doc="/nonexistent/doc")
         with self.assertRaises(ServeExited) as caught:

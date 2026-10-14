@@ -77,6 +77,7 @@ pub fn describe(loaded: &Loaded) -> Value {
         commands,
         types,
         exporters,
+        plugin_commands,
         tier2,
         config,
     } = loaded;
@@ -183,6 +184,7 @@ pub fn describe(loaded: &Loaded) -> Value {
             })
         }))
         .collect();
+    let plugin_command_list: Vec<_> = plugin_commands.iter().map(plugin_command_json).collect();
     json!({
         "schema": SCHEMA,
         "config_dir": dir.as_ref().map(|d| d.display().to_string()),
@@ -200,7 +202,39 @@ pub fn describe(loaded: &Loaded) -> Value {
         },
         "feature_types": feature_types,
         "exporters": exporter_list,
+        "plugin_commands": plugin_command_list,
         "diagnostics": config.diagnostics,
+    })
+}
+
+/// A plugin's command (ADR-0038): where it sits and its form.
+fn plugin_command_json(c: &arrix_plugin_api::CommandSpec) -> Value {
+    let params: Vec<_> = c
+        .params
+        .iter()
+        .map(|p| json!({"name": p.name, "title": p.title, "kind": p.kind, "default": p.default}))
+        .collect();
+    let choices: Vec<_> = c
+        .choices
+        .iter()
+        .map(|ch| {
+            let options: Vec<_> = ch.options.iter().map(|o| o.name.as_str()).collect();
+            json!({"name": ch.name, "title": ch.title, "default": ch.default, "options": options})
+        })
+        .collect();
+    let inputs: Vec<_> = c
+        .inputs
+        .iter()
+        .map(|i| json!({"name": i.name, "title": i.title, "kind": i.kind, "list": i.list}))
+        .collect();
+    json!({
+        "id": c.id,
+        "title": c.title,
+        "group": c.group,
+        "params": params,
+        "choices": choices,
+        "inputs": inputs,
+        "max_new": c.max_new,
     })
 }
 
@@ -300,6 +334,48 @@ fn render(d: &Value) -> String {
                 text(&c["name"]),
                 options.join(", "),
                 text(&c["default"])
+            );
+        }
+    }
+    for c in d["plugin_commands"].as_array().into_iter().flatten() {
+        let _ = writeln!(
+            out,
+            "\ncommand {} ({}): in the group {}",
+            text(&c["id"]),
+            text(&c["title"]),
+            text(&c["group"])
+        );
+        for i in c["inputs"].as_array().into_iter().flatten() {
+            let list = if i["list"] == true { " (a list)" } else { "" };
+            let _ = writeln!(
+                out,
+                "  {:<16} picks {}{list}",
+                text(&i["name"]),
+                text(&i["kind"])
+            );
+        }
+        for p in c["params"].as_array().into_iter().flatten() {
+            let _ = writeln!(
+                out,
+                "  {:<16} {}  (default {})",
+                text(&p["name"]),
+                text(&p["kind"]),
+                text(&p["default"])
+            );
+        }
+        for ch in c["choices"].as_array().into_iter().flatten() {
+            let options: Vec<_> = ch["options"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(text)
+                .collect();
+            let _ = writeln!(
+                out,
+                "  {:<16} one of {}  (default {})",
+                text(&ch["name"]),
+                options.join(", "),
+                text(&ch["default"])
             );
         }
     }
