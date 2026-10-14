@@ -1,6 +1,7 @@
 //! `robotics` as a Tier 1 component's core module (ADR-0035): built for
-//! `wasm32-unknown-unknown` with `--features guest`, in the target
-//! directory of the Tier 1 test plugins (`target/tier1-fixtures`), and
+//! `wasm32-unknown-unknown` with `--features guest` from this workspace's
+//! manifest, in a target directory of its own (`target/guest`: the outer
+//! `cargo test` holds `target`'s lock), and
 //! checked to export the world's `exchange` interface.
 //! `arrix-plugin-host`'s Tier 1 tests instantiate it.
 
@@ -9,19 +10,17 @@ use std::process::Command;
 
 #[test]
 fn robotics_builds_as_a_core_module_exporting_the_exchange_world() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let target_dir = root.join("target/tier1-fixtures");
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let target_dir = manifest_dir.join("target/guest");
     let status = Command::new(env!("CARGO"))
         .args(["build", "--release", "--target", "wasm32-unknown-unknown"])
-        .args([
-            "-p",
-            "arrix-robotics",
-            "--features",
-            "guest",
-            "--target-dir",
-        ])
+        .args(["--features", "guest", "--manifest-path"])
+        .arg(manifest_dir.join("Cargo.toml"))
+        .arg("--target-dir")
         .arg(&target_dir)
-        .current_dir(&root)
+        .current_dir(manifest_dir)
+        .env_remove("RUSTFLAGS")
+        .env_remove("CARGO_ENCODED_RUSTFLAGS")
         .status()
         .expect("cargo runs");
     assert!(status.success(), "robotics builds for wasm32 with `guest`");

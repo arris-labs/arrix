@@ -1,0 +1,24 @@
+{
+  "features": {
+    "08R5XFB8MME4Q": {
+      "file": {
+        "blob": "a9cb486b86b9c479b9738c7ebb3dc80efbcb4c647639c9897f50f1b1dbe7a912.step",
+        "name": "screw.step"
+      },
+      "id": "08R5XFB8MME4Q",
+      "inputs": {},
+      "name": "Screw",
+      "params": {},
+      "suppressed": false,
+      "type_id": "core.import-step",
+      "type_version": 2
+    }
+  },
+  "history": [
+    "08R5XFB8MME4Q"
+  ],
+  "id": "1P2FZ8HX2QT11",
+  "material": "1KC9EEHQBK3CY",
+  "name": "Screw",
+  "rollback": null
+}

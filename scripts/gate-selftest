@@ -14,7 +14,9 @@ manifest's `[dependencies]`, a crate root's items).
 It also checks that CI runs the hooks' commands: the steps of
 `.github/workflows/ci.yml` named `gate: …` must run exactly the commands of
 `.githooks/pre-commit` and `pre-push`, each as often, so the two cannot
-drift; and that the check fails on a planted drift of either side.
+drift; that the hooks run each Rust plugin under `plugins/`, a workspace of
+its own (plans/c3-m3 Findings 7), by its clippy, tests and guest build; and
+that the check fails on a planted drift of either kind.
 
 Usage:
     scripts/gate-selftest
@@ -95,7 +97,7 @@ CASES = [
         "a second arrix-* dependency in a plugin",
         "layer-lint",
         "plugins/gears/Cargo.toml",
-        "arrix-core.workspace = true\n",
+        'arrix-core = { path = "../../crates/arrix-core" }\n',
         1,
     ),
     (
@@ -111,8 +113,8 @@ CASES = [
 HOOKS = (".githooks/pre-commit", ".githooks/pre-push")
 CI = ".github/workflows/ci.yml"
 
-# (name, file, text replaced, replacement): each must make CI and the hooks
-# disagree.
+# (name, file, text replaced, replacement): each must make the gate drift.
+# A replaced text of None writes the file whole.
 DRIFT_CASES = [
     (
         "a hook command CI does not run",
@@ -131,6 +133,12 @@ DRIFT_CASES = [
         CI,
         "        run: cargo test --workspace --all-features\n",
         "        run: cargo test --workspace\n",
+    ),
+    (
+        "a plugin workspace the hooks do not run",
+        "plugins/extra/Cargo.toml",
+        None,
+        '[package]\nname = "arrix-extra"\nversion = "0.0.0"\n\n[workspace]\n',
     ),
 ]
 
@@ -175,6 +183,32 @@ def ci_drift(tree):
     ]
 
 
+def plugin_commands(manifest):
+    """The commands the hooks run for the Rust plugin at `manifest`."""
+    at = manifest.parent.as_posix()
+    return [
+        f"cargo clippy --manifest-path {manifest.as_posix()} --all-targets --all-features -- -D warnings",
+        f"cargo test --manifest-path {manifest.as_posix()}",
+        "cargo build --release --target wasm32-unknown-unknown --features guest "
+        f"--manifest-path {manifest.as_posix()} --target-dir {at}/target/guest",
+    ]
+
+
+def plugin_drift(tree):
+    """The commands a Rust plugin's workspace needs that the hooks lack."""
+    hooks = set(hook_commands(tree))
+    out = []
+    for manifest in sorted(tree.glob("plugins/*/Cargo.toml")):
+        for command in plugin_commands(manifest.relative_to(tree)):
+            if command not in hooks:
+                out.append(f"no hook runs {command!r}")
+    return out
+
+
+def gate_drift(tree):
+    return ci_drift(tree) + plugin_drift(tree)
+
+
 def tree_files():
     out = subprocess.run(
         ["git", "ls-files", "-co", "--exclude-standard", "-z"],
@@ -207,20 +241,25 @@ def main():
             if r.returncode != 0:
                 print(f"gate-selftest: {lint} fails on the clean tree:\n{r.stderr}", file=sys.stderr)
                 return 1
-        drift = ci_drift(clean)
+        drift = gate_drift(clean)
         if drift:
-            print(f"gate-selftest: {CI} and the hooks disagree:", file=sys.stderr)
+            print(f"gate-selftest: {CI}, the hooks and the plugins disagree:", file=sys.stderr)
             for d in drift:
                 print(f"- {d}", file=sys.stderr)
             return 1
         print(f"  ok  {CI} runs exactly the hooks' {len(hook_commands(clean))} commands")
+        print(f"  ok  the hooks run each of the {len(list(clean.glob('plugins/*/Cargo.toml')))} plugin workspaces")
         for i, (name, file, old, new) in enumerate(DRIFT_CASES):
             tree = Path(tmp) / f"drift{i}"
             shutil.copytree(clean, tree)
-            text = (tree / file).read_text()
-            assert old in text, f"drift case {name!r}: {old!r} not in {file}"
-            (tree / file).write_text(text.replace(old, new, 1))
-            ok = bool(ci_drift(tree))
+            if old is None:
+                (tree / file).parent.mkdir(parents=True, exist_ok=True)
+                (tree / file).write_text(new)
+            else:
+                text = (tree / file).read_text()
+                assert old in text, f"drift case {name!r}: {old!r} not in {file}"
+                (tree / file).write_text(text.replace(old, new, 1))
+            ok = bool(gate_drift(tree))
             print(f"  {'ok ' if ok else 'BAD'} the CI check fails on: {name}")
             if not ok:
                 failures.append(f"{name}: the CI check saw no drift")

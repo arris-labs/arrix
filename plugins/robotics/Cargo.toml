@@ -1,13 +1,17 @@
 [package]
 name = "arrix-robotics"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-repository.workspace = true
-publish.workspace = true
+version = "0.0.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/arris-labs/arrix"
+publish = false
 
-[lints]
-workspace = true
+# A workspace of its own, out of the root's (plans/c3-m3 Findings 5): its own
+# lock file and lints, as a plugin in a repository of its own has.
+[workspace]
+
+[lints.rust]
+unsafe_code = "forbid"
 
 # `rlib` is Tier 0 (compiled in); `cdylib` is the Tier 1 component's core
 # module, built for wasm32-unknown-unknown with `--features guest`
@@ -19,4 +23,6 @@ crate-type = ["rlib", "cdylib"]
 guest = ["arrix-plugin-api/guest"]
 
 [dependencies]
-arrix-plugin-api.workspace = true
+# A path standing in for the published crate (ADR-0034), which an
+# out-of-tree plugin names by version.
+arrix-plugin-api = { path = "../../crates/arrix-plugin-api" }

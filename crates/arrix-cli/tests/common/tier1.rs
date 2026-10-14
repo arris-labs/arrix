@@ -15,15 +15,25 @@ use super::{copy_tree, workspace};
 /// directory of its own (`arrix test` reads the fixtures beside the
 /// manifest).
 pub fn gears() -> PathBuf {
-    let built = build::gears();
-    let dir = built.with_file_name("gears-with-fixtures");
+    with_fixtures(build::gears(), "gears")
+}
+
+/// `robotics` at Tier 1 with the fixtures its `[test]` table names.
+pub fn robotics() -> PathBuf {
+    with_fixtures(build::robotics(), "robotics")
+}
+
+/// The Tier 1 directory `built` of `plugins/<name>`, with that plugin's
+/// `fixtures` beside its manifest, in a directory of its own.
+fn with_fixtures(built: &std::path::Path, name: &str) -> PathBuf {
+    let dir = built.with_file_name(format!("{name}-with-fixtures"));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    for file in ["arrix-plugin.toml", "gears.wasm"] {
-        std::fs::copy(built.join(file), dir.join(file)).unwrap();
+    for file in ["arrix-plugin.toml".to_owned(), format!("{name}.wasm")] {
+        std::fs::copy(built.join(&file), dir.join(&file)).unwrap();
     }
     copy_tree(
-        &workspace().join("plugins/gears/fixtures"),
+        &workspace().join(format!("plugins/{name}/fixtures")),
         &dir.join("fixtures"),
     );
     dir

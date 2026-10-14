@@ -86,8 +86,13 @@ it before ticking a step:
 - `.githooks/pre-push`: `cargo test --workspace` (and `--all-features`),
   `cargo build --target wasm32-unknown-unknown --workspace --exclude
   arrix-cli`, `scripts/gate-selftest`.
+- `plugins/gears` and `plugins/robotics` are Cargo workspaces of their own:
+  both hooks also run clippy, `cargo test` and the `guest` wasm32 build on
+  each by `--manifest-path plugins/<name>/Cargo.toml`. `cargo test -p
+  arrix-cli --test out_of_tree` installs `arrix` into `target/out-of-tree`
+  and runs `arrix test` from it on every plugin directory.
 - CI (`.github/workflows/ci.yml`) runs the same commands; `gate-selftest`
-  fails if the two lists drift.
+  fails if the two lists drift or a plugin workspace is left out.
 - The visual harness (`docs/UI-RENDERING.md` §Visual debugging, the
   `visual-debug` skill): `cargo test -p arrix-app --test visual` runs the
   scenarios against their text goldens; `cargo test -p arrix-app --test

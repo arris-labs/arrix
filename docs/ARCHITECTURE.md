@@ -11,8 +11,9 @@ a section says "not built", it is later than C1.
 
 ## Crates and the layer rule
 
-One Cargo workspace, edition 2024, resolver 3, stable toolchain with the
-`wasm32-unknown-unknown` target. Every crate is `#![forbid(unsafe_code)]`
+One Cargo workspace for the crates, edition 2024, resolver 3, stable
+toolchain with the `wasm32-unknown-unknown` target; each Rust plugin under
+`plugins/` is a workspace of its own (below). Every crate is `#![forbid(unsafe_code)]`
 unless an ADR says otherwise.
 
 | Crate | Holds | May depend on (workspace) | Notable external |
@@ -28,11 +29,16 @@ unless an ADR says otherwise.
 | `arrix-config` | the user's configuration (ADR-0015): setting specs, the layered model (built-in defaults, then the user's directory), each file's diagnostics with its file and line; reads no files (a `ConfigSource` hands it bytes); never reaches the document or `evaluate`. Holds the settings, the command registry (`CommandSpec` as plain data), the keymap, the themes and the feature parameter defaults (their expression check is handed in by the caller, since this crate cannot depend on `arrix-doc`). Read by app and cli; not by `arrix-ui`, which gets plain view data | core, plugin-api | `toml`, `serde` |
 | `arrix-app` | the binary: the shell, the command registry, translation between document and view types; `arrix-app render`, the headless render (ADR-0025) | all of the above, and each compiled-in plugin (`arrix-gears`, `arrix-robotics`, its own Tier 0 list) | `eframe` |
 | `arrix-cli` | headless open / eval / export / run / test, and `serve` (`--stdio`, `--schema`; native only); its Tier 0 registration list | core, doc, plugin-host, kernel, plugin-api and sketch (its tests), and each compiled-in plugin (`arrix-gears`, `arrix-robotics`) | `clap` |
-| `plugins/*` | first-party plugins: `gears` (C1), `robotics` (C3 M2: the URDF exporter, `robotics.urdf`, at Tier 0 and as a Tier 1 component) | plugin-api **only** | — |
+| `plugins/*` | first-party plugins, each a project of its own: `gears` (C1) and `robotics` (C3 M2: the URDF exporter, `robotics.urdf`) are Cargo workspaces, at Tier 0 and as Tier 1 components; `fasteners` (C3 M3) is a Python directory at Tier 2 | plugin-api **only** | — |
 | `python/arrix` | the Tier 2 SDK, pure stdlib, not a Cargo crate: `_wire.py` and `shapes.py` generated from the WIT, `@feature_type`, the `kernel` proxy, the stdio loop (`python -m arrix.plugin`); `arrix.session` (spawn and drive `arrix serve --stdio`) and `arrix.eval` (the eval lines), for an agent; `python/examples/standoff` is the sample plugin | — | — |
 
 Crates live in `crates/<name>/`, plugins in `plugins/<name>/` (package
-`arrix-<name>`: `plugins/gears` is `arrix-gears`). External versions are
+`arrix-<name>`: `plugins/gears` is `arrix-gears`). A Rust plugin is out of
+the root workspace (the root's `exclude`), with its own `Cargo.lock`,
+lints, `clippy.toml` and toolchain file, and `arrix-plugin-api` as a path
+dependency standing in for the published crate; the binaries still compile
+it in by path (plans/c3-m3 Findings 5). Its fixtures are in its own
+directory, so it needs nothing else in the tree. External versions are
 pinned once, in the root `Cargo.toml`'s `[workspace.dependencies]`:
 `arris` 0.8, and one egui minor for `egui`, `eframe`, `egui-wgpu` and the
 dev-only `egui_kittest` (0.36). The table's externals not yet in a
@@ -531,7 +537,9 @@ tests of **pre-push** cover it with no step of their own.
 **pre-commit** (fast):
 
 1. `cargo fmt --all -- --check`
-2. `cargo clippy --workspace --all-targets --all-features -- -D warnings`
+2. `cargo clippy --workspace --all-targets --all-features -- -D warnings`,
+   then the same by `--manifest-path plugins/<name>/Cargo.toml` for each
+   Rust plugin (`cargo fmt --all` reaches them as path dependencies)
 3. `scripts/size-lint`: at most 1,500 lines per file and 200 per function
    in `crates/` and `plugins/` (`SEED.md` §8.2). Integration tests are
    skipped; an inline `mod tests` and a `tests.rs` file are exempt from the
@@ -549,7 +557,8 @@ tests of **pre-push** cover it with no step of their own.
    is test code. The permitted places are one
    table at the top of the script.
 5. `scripts/layer-lint`: the layer rules above, two ways. **Edges**:
-   every package's declared dependencies (`cargo metadata --no-deps`, so a
+   every package's declared dependencies (`cargo metadata --no-deps` of
+   the root and of each plugin workspace, so a
    rename is seen through; dev and build dependencies included) against
    the allowed-edges table of §Crates, kept in the script; a crate the
    table does not name fails until it is added; `arris*` only in
@@ -569,6 +578,14 @@ tests of **pre-push** cover it with no step of their own.
 3. `cargo build --target wasm32-unknown-unknown --workspace --exclude
    arrix-cli`. `arrix-plugin-host`'s native tiers (C3) go behind a
    target cfg so the crate still builds.
+   Then, for each Rust plugin, `cargo test --manifest-path
+   plugins/<name>/Cargo.toml` and its Tier 1 module, `cargo build
+   --release --target wasm32-unknown-unknown --features guest` into
+   `plugins/<name>/target/guest`, where its own guest test builds it.
+   `crates/arrix-cli/tests/out_of_tree.rs`, in step 1, installs `arrix`
+   into `target/out-of-tree` and runs `arrix test` from it on a copy of
+   every plugin directory, and on `gears` and `robotics` built as
+   components from their own workspaces.
 4. `scripts/gate-selftest`: each lint run on a copy of the tree with a
    deliberate violation planted (an oversize function, `Instant::now` in a
    core crate, `std::fs` in `arrix-doc`, a thread spawned in
@@ -578,7 +595,8 @@ tests of **pre-push** cover it with no step of their own.
    crate), which must fail it, and with the exemptions each lint promises
    (test code, the audit marker, a comment), which must pass. It also
    checks that CI's `gate: …` steps run exactly the hooks' commands, each
-   as often, and that the check fails on a planted drift of either side.
+   as often, that the hooks run each Rust plugin's three commands, and
+   that the check fails on a planted drift of either kind.
 
 `arrix-app`'s product render is held to the visual harness by a test,
 too: `render_parity`, a module of `cargo test -p arrix-app --test visual`,

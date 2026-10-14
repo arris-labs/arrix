@@ -558,10 +558,15 @@ only, whatever the manifest says, because determinism demands it.
   its features open frozen, with that reason.
 - The plugin's own `version` is part of every feature's input hash, so
   upgrading a plugin re-evaluates its features.
-- First-party plugins are in-tree (`plugins/`) until C3, where a breaking
-  API change is one commit across all of them. At C3 they move to their
-  own repositories under `arris-labs` (ADR-0003), which proves the out-of-tree path
-  third parties use (`SEED.md` §9).
+- First-party plugins are in the tree (`plugins/`), each a project of its
+  own as of C3 M3: the Rust ones are Cargo workspaces on `arrix-plugin-api`
+  alone (a path standing in for the published crate), the Python ones
+  directories needing the SDK alone, and every one passes `arrix test`
+  from an installed `arrix` (`--test out_of_tree`). A breaking API change
+  is still one commit across them. Their own repositories under
+  `arris-labs` (ADR-0003) are the human's act after C3's accept
+  (ADR-0034), which proves the out-of-tree path third parties use
+  (`SEED.md` §9).
 
 ## Frozen fallback
 

@@ -5,7 +5,8 @@ and the layer rule, §Gates).
 Two checks, because each catches what the other cannot:
 
 1. **Edges.** Every workspace package's declared dependencies (normal, dev
-   and build, from `cargo metadata --no-deps`, so a `package = …` rename
+   and build, from `cargo metadata --no-deps` of the root and of each
+   plugin workspace under `plugins/`, so a `package = …` rename
    is seen through) against the allowed-edges table below. A crate the
    table does not name fails until it is added, so the rules cover it from
    its first commit. Because `arrix-ui` may depend only on crates that do
@@ -99,15 +100,28 @@ def is_ui_dep(name):
     return name in ("egui", "eframe") or name.startswith(("egui-", "egui_", "wgpu"))
 
 
-def metadata():
+def metadata(manifest=None):
+    args = ["--manifest-path", str(manifest)] if manifest else []
     out = subprocess.run(
-        ["cargo", "metadata", "--no-deps", "--format-version", "1"],
+        ["cargo", "metadata", "--no-deps", "--format-version", "1", *args],
         cwd=ROOT,
         check=True,
         capture_output=True,
         text=True,
     ).stdout
     return json.loads(out)["packages"]
+
+
+def all_packages():
+    """The root workspace's packages and those of each plugin under
+    `plugins/` that is a workspace of its own (plans/c3-m3 Findings 7),
+    which the root's metadata no longer lists."""
+    packages = metadata()
+    seen = {Path(p["manifest_path"]).resolve() for p in packages}
+    for manifest in sorted((ROOT / "plugins").glob("*/Cargo.toml")):
+        if manifest.resolve() not in seen:
+            packages += metadata(manifest)
+    return packages
 
 
 def package_dir(pkg):
@@ -188,7 +202,7 @@ def check_paths():
 
 
 def main():
-    violations = check_edges(metadata()) + check_paths()
+    violations = check_edges(all_packages()) + check_paths()
     return report(
         "layer-lint",
         violations,

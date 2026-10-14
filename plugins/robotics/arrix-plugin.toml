@@ -13,9 +13,10 @@ document-read = true
 [contributes]
 exporters = ["robotics.urdf"]
 
-# The accept's document (docs/PLUGINS.md §The test kit), run twice to
+# C3 M2's accept document, `tests/docs/arm`, copied in so the project needs
+# nothing outside it (docs/PLUGINS.md §The test kit); run twice to
 # identical files.
 [[test.exports]]
-document = "../../tests/docs/arm"
+document = "fixtures/arm"
 exporter = "robotics.urdf"
 assembly = "Servo on bracket"

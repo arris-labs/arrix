@@ -1,0 +1,148 @@
+{
+  "components": {
+    "1FQK0FQ03Z16X": {
+      "id": "1FQK0FQ03Z16X",
+      "name": "right screw",
+      "of": {
+        "part": "1P2FZ8HX2QT11"
+      },
+      "pose": {
+        "position": [
+          "-15 mm",
+          "-10 mm",
+          "5 mm"
+        ],
+        "rpy": [
+          "0 deg",
+          "0 deg",
+          "0 deg"
+        ]
+      }
+    },
+    "4GM777SG0Q2K8": {
+      "id": "4GM777SG0Q2K8",
+      "name": "horn",
+      "of": {
+        "part": "82GRC5NB6745K"
+      }
+    },
+    "ACF5C6ZNQV1MW": {
+      "id": "ACF5C6ZNQV1MW",
+      "name": "vendor",
+      "of": {
+        "part": "2VB455MTX7CM4"
+      },
+      "pose": {
+        "position": [
+          "60 mm",
+          "0 mm",
+          "0 mm"
+        ],
+        "rpy": [
+          "0 deg",
+          "0 deg",
+          "90 deg"
+        ]
+      }
+    },
+    "C4VR764XTFX0Z": {
+      "id": "C4VR764XTFX0Z",
+      "name": "bracket",
+      "of": {
+        "part": "BC6X598GYWPZN"
+      },
+      "pose": {
+        "position": [
+          "0 mm",
+          "0 mm",
+          "0 mm"
+        ],
+        "rpy": [
+          "0 deg",
+          "0 deg",
+          "0 deg"
+        ]
+      }
+    },
+    "D3R8R4JY3BKPH": {
+      "id": "D3R8R4JY3BKPH",
+      "name": "left screw",
+      "of": {
+        "part": "1P2FZ8HX2QT11"
+      },
+      "pose": {
+        "position": [
+          "-15 mm",
+          "10 mm",
+          "5 mm"
+        ],
+        "rpy": [
+          "0 deg",
+          "0 deg",
+          "0 deg"
+        ]
+      }
+    },
+    "FEJ0R7MAVP776": {
+      "id": "FEJ0R7MAVP776",
+      "name": "servo",
+      "of": {
+        "part": "ESTFRCC4SPS9K"
+      }
+    }
+  },
+  "id": "6NDZZ2CNWB0X9",
+  "joints": {
+    "0G7W8ZGKFDKEV": {
+      "child": {
+        "axis": "face:import.6ABRADVD9YM8C.410",
+        "origin": "face:import.6ABRADVD9YM8C.165",
+        "path": [
+          "FEJ0R7MAVP776"
+        ]
+      },
+      "id": "0G7W8ZGKFDKEV",
+      "kind": "revolute",
+      "limits": [
+        "-90 deg",
+        "90 deg"
+      ],
+      "name": "hinge",
+      "offset": "0 deg",
+      "parent": {
+        "axis": "face:revolve.7TZ1340B9RSMB.side.0000000000002/gen.7TZ1340B9RSMB[face:revolve.7TZ1340B9RSMB.side.0000000000002]",
+        "origin": "face:sweep.EBWK5C332393W.end-cap",
+        "path": [
+          "C4VR764XTFX0Z"
+        ]
+      },
+      "value": "angle"
+    },
+    "0M0FHYS0BH8QE": {
+      "child": {
+        "axis": "face:import.0TW075W7AR03N.357",
+        "origin": "face:import.0TW075W7AR03N.136",
+        "path": [
+          "4GM777SG0Q2K8"
+        ]
+      },
+      "id": "0M0FHYS0BH8QE",
+      "kind": "revolute",
+      "limits": [
+        "-180 deg",
+        "180 deg"
+      ],
+      "name": "spin",
+      "offset": "0 deg",
+      "parent": {
+        "axis": "face:import.6ABRADVD9YM8C.465",
+        "origin": "face:import.6ABRADVD9YM8C.165",
+        "path": [
+          "FEJ0R7MAVP776"
+        ]
+      },
+      "value": "30 deg"
+    }
+  },
+  "name": "Servo on bracket"
+}

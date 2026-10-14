@@ -12,9 +12,11 @@ members = [
     "crates/arrix-config",
     "crates/arrix-app",
     "crates/arrix-cli",
-    "plugins/gears",
-    "plugins/robotics",
 ]
+# The first-party Rust plugins are workspaces of their own, as an out-of-tree
+# plugin is (plans/c3-m3 Findings 5); the gate runs each by `--manifest-path`
+# (docs/ARCHITECTURE.md §Gates).
+exclude = ["plugins/gears", "plugins/robotics"]
 
 [workspace.package]
 version = "0.0.0"
@@ -45,7 +47,8 @@ arrix-viewport = { path = "crates/arrix-viewport" }
 arrix-ui = { path = "crates/arrix-ui" }
 arrix-config = { path = "crates/arrix-config" }
 # First-party Tier 0 plugins, named only by the binaries' registration
-# lists (docs/PLUGINS.md §Three tiers).
+# lists (docs/PLUGINS.md §Three tiers); each is a workspace of its own,
+# compiled in from its path.
 arrix-gears = { path = "plugins/gears" }
 arrix-robotics = { path = "plugins/robotics" }
 

@@ -32,8 +32,17 @@ jobs:
       - name: toolchain from rust-toolchain.toml
         run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            plugins/gears -> target
+            plugins/robotics -> target
       - name: "gate: clippy"
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - name: "gate: clippy, plugins/gears"
+        run: cargo clippy --manifest-path plugins/gears/Cargo.toml --all-targets --all-features -- -D warnings
+      - name: "gate: clippy, plugins/robotics"
+        run: cargo clippy --manifest-path plugins/robotics/Cargo.toml --all-targets --all-features -- -D warnings
 
   lints:
     runs-on: ubuntu-24.04
@@ -64,10 +73,19 @@ jobs:
       - name: lavapipe, the reference adapter
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends mesa-vulkan-drivers
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            plugins/gears -> target
+            plugins/robotics -> target
       - name: "gate: tests"
         run: cargo test --workspace
       - name: "gate: tests, all features"
         run: cargo test --workspace --all-features
+      - name: "gate: tests, plugins/gears"
+        run: cargo test --manifest-path plugins/gears/Cargo.toml
+      - name: "gate: tests, plugins/robotics"
+        run: cargo test --manifest-path plugins/robotics/Cargo.toml
       # Before, after and diff images against the parent: on a push the
       # previous commit, on a pull request the base branch.
       - name: baseline images of a failed scenario
@@ -88,5 +106,14 @@ jobs:
       - name: toolchain from rust-toolchain.toml
         run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            plugins/gears -> target
+            plugins/robotics -> target
       - name: "gate: wasm32 build"
         run: cargo build --target wasm32-unknown-unknown --workspace --exclude arrix-cli
+      - name: "gate: guest build, plugins/gears"
+        run: cargo build --release --target wasm32-unknown-unknown --features guest --manifest-path plugins/gears/Cargo.toml --target-dir plugins/gears/target/guest
+      - name: "gate: guest build, plugins/robotics"
+        run: cargo build --release --target wasm32-unknown-unknown --features guest --manifest-path plugins/robotics/Cargo.toml --target-dir plugins/robotics/target/guest

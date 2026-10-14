@@ -21,7 +21,7 @@ fn target_dir() -> PathBuf {
 }
 
 /// Builds `package` for wasm32 with `--features guest` (`args` say where
-/// it is: `-p <name>` in the workspace, or `--manifest-path`) and returns
+/// it is: `--manifest-path`, or `-p <name>` in the root's workspace) and returns
 /// its core module.
 pub fn build(args: &[&str], package: &str) -> Vec<u8> {
     build_with(args, package, "guest")
@@ -80,22 +80,32 @@ pub fn plugin_dir_with(name: &str, manifest: &str, module: &[u8], tier1: &str) -
     dir
 }
 
-/// `gears` at Tier 1, built once per test process.
+/// `gears` at Tier 1, built once per test process from its own workspace
+/// (its lock file, as an out-of-tree author builds it).
 pub fn gears() -> &'static Path {
     static DIR: OnceLock<PathBuf> = OnceLock::new();
     DIR.get_or_init(|| {
-        let module = build(&["-p", "arrix-gears"], "arrix-gears");
+        let manifest = root().join("plugins/gears/Cargo.toml");
+        let module = build(
+            &["--manifest-path", manifest.to_str().unwrap()],
+            "arrix-gears",
+        );
         let manifest =
             std::fs::read_to_string(root().join("plugins/gears/arrix-plugin.toml")).unwrap();
         plugin_dir("gears", &manifest, &module)
     })
 }
 
-/// `robotics` at Tier 1, built once per test process.
+/// `robotics` at Tier 1, built once per test process from its own
+/// workspace.
 pub fn robotics() -> &'static Path {
     static DIR: OnceLock<PathBuf> = OnceLock::new();
     DIR.get_or_init(|| {
-        let module = build(&["-p", "arrix-robotics"], "arrix-robotics");
+        let manifest = root().join("plugins/robotics/Cargo.toml");
+        let module = build(
+            &["--manifest-path", manifest.to_str().unwrap()],
+            "arrix-robotics",
+        );
         let manifest =
             std::fs::read_to_string(root().join("plugins/robotics/arrix-plugin.toml")).unwrap();
         plugin_dir("robotics", &manifest, &module)

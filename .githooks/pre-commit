@@ -10,6 +10,12 @@ cargo fmt --all -- --check
 echo "pre-commit: cargo clippy -D warnings"
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 
+# Each Rust plugin is a workspace of its own (plans/c3-m3 Findings 7).
+echo "pre-commit: cargo clippy, plugins/gears"
+cargo clippy --manifest-path plugins/gears/Cargo.toml --all-targets --all-features -- -D warnings
+echo "pre-commit: cargo clippy, plugins/robotics"
+cargo clippy --manifest-path plugins/robotics/Cargo.toml --all-targets --all-features -- -D warnings
+
 echo "pre-commit: size-lint"
 scripts/size-lint
 
