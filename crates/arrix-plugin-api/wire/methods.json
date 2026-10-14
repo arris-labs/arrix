@@ -1,5 +1,5 @@
 {
-  "api": "0.7.0",
+  "api": "0.8.0",
   "description": "Generated from wit/arrix-plugin.wit (ADR-0022). Do not edit. Each method's params and result are schemas over schema.json's $defs.",
   "methods": [
     {
@@ -878,6 +878,99 @@
                   "$ref": "schema.json#/$defs/file"
                 },
                 "type": "array"
+              }
+            },
+            "required": [
+              "ok"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "err": {
+                "$ref": "schema.json#/$defs/diagnostic"
+              }
+            },
+            "required": [
+              "err"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    {
+      "direction": "host-to-plugin",
+      "method": "commands.commands",
+      "params": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "result": {
+        "items": {
+          "$ref": "schema.json#/$defs/command-spec"
+        },
+        "type": "array"
+      }
+    },
+    {
+      "description": "Deterministic: a pure function of its arguments and the snapshot. `ids` are fresh, taken in order; `params` are evaluated.",
+      "direction": "host-to-plugin",
+      "method": "commands.expand",
+      "params": {
+        "additionalProperties": false,
+        "properties": {
+          "choices": {
+            "items": {
+              "$ref": "schema.json#/$defs/choice-value"
+            },
+            "type": "array"
+          },
+          "command": {
+            "type": "string"
+          },
+          "context": {
+            "$ref": "schema.json#/$defs/context"
+          },
+          "ids": {
+            "items": {
+              "$ref": "schema.json#/$defs/id"
+            },
+            "type": "array"
+          },
+          "inputs": {
+            "items": {
+              "$ref": "schema.json#/$defs/command-input"
+            },
+            "type": "array"
+          },
+          "params": {
+            "items": {
+              "$ref": "schema.json#/$defs/param-value"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "command",
+          "context",
+          "params",
+          "choices",
+          "inputs",
+          "ids"
+        ],
+        "type": "object"
+      },
+      "result": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "ok": {
+                "$ref": "schema.json#/$defs/command-group"
               }
             },
             "required": [

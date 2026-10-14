@@ -9,7 +9,7 @@ use std::collections::BTreeSet;
 use std::fmt::Debug;
 
 use arrix_core::{
-    AssemblyId, ComponentId, CurveKey, FeatureId, Frame, Id, JointId, ParamId, PartId,
+    AssemblyId, ComponentId, CurveKey, FeatureId, Frame, Id, JointId, MaterialId, ParamId, PartId,
     PersistentName, PluginId, Profile, ProfileLoop, ProfileSegment, RecordId, RegionKey,
     SketchEntityId, SlotName,
 };
@@ -568,6 +568,7 @@ fn every_type_and_case_round_trips_and_keeps_its_schema() {
     );
 
     document_samples(&mut r);
+    command_samples(&mut r);
 
     let missing: BTreeSet<_> = schemas
         .expected_coverage()
@@ -577,6 +578,332 @@ fn every_type_and_case_round_trips_and_keeps_its_schema() {
     assert!(
         missing.is_empty(),
         "the samples never reach these types or cases of the world: {missing:?}"
+    );
+}
+
+/// The `commands` types, and the feature a snapshot's part lists.
+fn command_samples(r: &mut Round) {
+    use arrix_plugin_api as api;
+    r.go(
+        "feature-info",
+        &api::FeatureInfo {
+            id: feature(18),
+            type_id: "core.extrude".into(),
+            name: "Extrude 1".into(),
+            choices: vec![ChoiceValue {
+                name: "mode".into(),
+                value: "join".into(),
+            }],
+            params: vec![ParamValue {
+                name: "depth".into(),
+                value: Quantity::si(QuantityKind::Length, 0.01),
+            }],
+        },
+        wire::feature_info_to_json,
+        wire::feature_info_from_json,
+    );
+    let params = vec![ParamSpec {
+        name: "length".into(),
+        title: "Length".into(),
+        kind: QuantityKind::Length,
+        default: "10 mm".into(),
+        shown_when: shown(),
+    }];
+    r.go(
+        "command-spec",
+        &api::CommandSpec {
+            id: "fasteners.place".into(),
+            title: "Place screws".into(),
+            group: "Fasteners".into(),
+            params,
+            choices: vec![],
+            inputs: vec![InputSpec {
+                name: "holes".into(),
+                title: "Holes".into(),
+                kind: InputKind::Edge,
+                list: true,
+                shown_when: None,
+            }],
+            max_new: Some(32),
+        },
+        wire::command_spec_to_json,
+        wire::command_spec_from_json,
+    );
+    for context in [
+        api::Context::Part(PartId(id(1))),
+        api::Context::Assembly(AssemblyId(id(2))),
+    ] {
+        r.go(
+            "context",
+            &context,
+            wire::context_to_json,
+            wire::context_from_json,
+        );
+    }
+    let circle = api::CircleEdge {
+        centre: v3(0.01, 0.02, 0.003),
+        axis: v3(0.0, 0.0, -1.0),
+        radius: 0.0015,
+    };
+    let line = api::LineEdge {
+        start: v3(0.0, 0.0, 0.0),
+        end: v3(0.0, 0.1, 0.0),
+    };
+    r.go(
+        "circle-edge",
+        &circle,
+        wire::circle_edge_to_json,
+        wire::circle_edge_from_json,
+    );
+    r.go(
+        "line-edge",
+        &line,
+        wire::line_edge_to_json,
+        wire::line_edge_from_json,
+    );
+    for curve in [
+        api::EdgeCurve::Circle(circle),
+        api::EdgeCurve::Line(line),
+        api::EdgeCurve::Other,
+    ] {
+        r.go(
+            "edge-curve",
+            &curve,
+            wire::edge_curve_to_json,
+            wire::edge_curve_from_json,
+        );
+        let edge = api::ResolvedEdge {
+            path: vec![ComponentId(id(3)), ComponentId(id(4))],
+            name: name("edge:revolve.0000000000001.side.0000000000002"),
+            curve,
+            face_normals: vec![v3(0.0, 0.0, 1.0), v3(0.0, 0.6, 0.8)],
+        };
+        r.go(
+            "resolved-edge",
+            &edge,
+            wire::resolved_edge_to_json,
+            wire::resolved_edge_from_json,
+        );
+        let value = api::CommandInputValue::Edge(edge);
+        r.go(
+            "command-input-value",
+            &value,
+            wire::command_input_value_to_json,
+            wire::command_input_value_from_json,
+        );
+        r.go(
+            "command-input",
+            &api::CommandInput {
+                name: "holes".into(),
+                value,
+            },
+            wire::command_input_to_json,
+            wire::command_input_from_json,
+        );
+    }
+
+    let si = api::Expression::Si(Quantity::si(QuantityKind::Length, 0.004));
+    let text = api::Expression::Text("width / 2".into());
+    for e in [&si, &text] {
+        r.go(
+            "expression",
+            e,
+            wire::expression_to_json,
+            wire::expression_from_json,
+        );
+    }
+    r.go(
+        "named-expression",
+        &api::NamedExpression {
+            name: "depth".into(),
+            expression: si.clone(),
+        },
+        wire::named_expression_to_json,
+        wire::named_expression_from_json,
+    );
+    for many in [false, true] {
+        r.go(
+            "named-input",
+            &api::NamedInput {
+                name: "edges".into(),
+                refs: refs(),
+                many,
+            },
+            wire::named_input_to_json,
+            wire::named_input_from_json,
+        );
+    }
+    let draft = api::FeatureDraft {
+        id: feature(21),
+        type_id: "core.extrude".into(),
+        name: "Head".into(),
+        params: vec![api::NamedExpression {
+            name: "depth".into(),
+            expression: text.clone(),
+        }],
+        choices: vec![ChoiceValue {
+            name: "mode".into(),
+            value: "new".into(),
+        }],
+        inputs: vec![api::NamedInput {
+            name: "profile".into(),
+            refs: vec![Ref::Feature(feature(22))],
+            many: false,
+        }],
+    };
+    r.go(
+        "feature-draft",
+        &draft,
+        wire::feature_draft_to_json,
+        wire::feature_draft_from_json,
+    );
+    let part_draft = api::PartDraft {
+        id: PartId(id(24)),
+        name: "M3x10".into(),
+        features: vec![draft.clone()],
+        material: Some(MaterialId(id(26))),
+    };
+    r.go(
+        "part-draft",
+        &part_draft,
+        wire::part_draft_to_json,
+        wire::part_draft_from_json,
+    );
+    let add_feature = api::AddFeature {
+        part: PartId(id(24)),
+        at: Some(1),
+        feature: draft,
+    };
+    r.go(
+        "add-feature",
+        &add_feature,
+        wire::add_feature_to_json,
+        wire::add_feature_from_json,
+    );
+    let pose = api::Pose {
+        position: [si.clone(), text.clone(), si.clone()],
+        rpy: [text.clone(), si.clone(), text.clone()],
+    };
+    r.go("pose", &pose, wire::pose_to_json, wire::pose_from_json);
+    let component = api::ComponentDraft {
+        id: ComponentId(id(23)),
+        name: "M3x10 1".into(),
+        of: api::ComponentOf::Part(PartId(id(24))),
+        pose: Some(pose),
+    };
+    r.go(
+        "component-draft",
+        &component,
+        wire::component_draft_to_json,
+        wire::component_draft_from_json,
+    );
+    let component_change = api::ComponentChange {
+        assembly: AssemblyId(id(27)),
+        component,
+    };
+    r.go(
+        "component-change",
+        &component_change,
+        wire::component_change_to_json,
+        wire::component_change_from_json,
+    );
+    let anchor = api::Anchor {
+        path: vec![ComponentId(id(3))],
+        axis: name("edge:revolve.0000000000001.side.0000000000002"),
+        origin: Some(name("face:sweep.0000000000007.side.0000000000009")),
+    };
+    r.go(
+        "anchor",
+        &anchor,
+        wire::anchor_to_json,
+        wire::anchor_from_json,
+    );
+    let joint = api::JointDraft {
+        id: JointId(id(25)),
+        name: "fixed".into(),
+        kind: api::JointKind::Fixed,
+        parent: anchor.clone(),
+        child: api::Anchor {
+            origin: None,
+            ..anchor
+        },
+        value: si.clone(),
+        offset: text.clone(),
+        limits: Some([si.clone(), text.clone()]),
+        flip: true,
+    };
+    r.go(
+        "joint-draft",
+        &joint,
+        wire::joint_draft_to_json,
+        wire::joint_draft_from_json,
+    );
+    let joint_change = api::JointChange {
+        assembly: AssemblyId(id(27)),
+        joint,
+    };
+    r.go(
+        "joint-change",
+        &joint_change,
+        wire::joint_change_to_json,
+        wire::joint_change_from_json,
+    );
+    let material = api::MaterialDraft {
+        id: MaterialId(id(26)),
+        name: "Steel".into(),
+        density: Some(text),
+        color: api::Rgb {
+            red: 0.5,
+            green: 0.5,
+            blue: 0.5,
+        },
+    };
+    r.go(
+        "material-draft",
+        &material,
+        wire::material_draft_to_json,
+        wire::material_draft_from_json,
+    );
+    let assign = api::AssignMaterial {
+        part: PartId(id(24)),
+        body: Some(api::BodyRef {
+            feature: feature(21),
+            slot: slot("body"),
+        }),
+        material: None,
+    };
+    r.go(
+        "assign-material",
+        &assign,
+        wire::assign_material_to_json,
+        wire::assign_material_from_json,
+    );
+    let commands = vec![
+        api::PluginCommand::AddPart(part_draft),
+        api::PluginCommand::AddFeature(add_feature),
+        api::PluginCommand::AddComponent(component_change.clone()),
+        api::PluginCommand::EditComponent(component_change),
+        api::PluginCommand::AddJoint(joint_change.clone()),
+        api::PluginCommand::EditJoint(joint_change),
+        api::PluginCommand::AddMaterial(material),
+        api::PluginCommand::AssignMaterial(assign),
+    ];
+    for command in &commands {
+        r.go(
+            "plugin-command",
+            command,
+            wire::plugin_command_to_json,
+            wire::plugin_command_from_json,
+        );
+    }
+    r.go(
+        "command-group",
+        &api::CommandGroup {
+            label: "Place screws".into(),
+            commands,
+        },
+        wire::command_group_to_json,
+        wire::command_group_from_json,
     );
 }
 
@@ -631,6 +958,7 @@ fn document_samples(r: &mut Round) {
             id: PartId(id(7)),
             name: "Bracket".into(),
             bodies: vec![],
+            features: vec![],
         },
         wire::part_info_to_json,
         wire::part_info_from_json,

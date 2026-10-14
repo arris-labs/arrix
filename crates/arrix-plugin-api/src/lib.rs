@@ -11,7 +11,7 @@
 //! the method table, generated from the WIT (ADR-0022) and held fresh by
 //! `tests/wire.rs`.
 //!
-//! Built so far (0.7.0): the `types`, `kernel` (extrude, revolve, fuse,
+//! Built so far (0.8.0): the `types`, `kernel` (extrude, revolve, fuse,
 //! cut, common, fillet, chamfer, copy, mirror, names, face frames, mass
 //! properties), `feature`, `document` and `exchange` interfaces; 0.2 added region references and
 //! region inputs (ADR-0006), 0.3 body inputs, slots that modify them, and
@@ -20,11 +20,13 @@
 //! (ADR-0013), and the part-feature operations of the kernel, 0.5 choices
 //! a feature type declares, fields shown only under a choice, and the
 //! choices an `evaluate` receives (ADR-0018), 0.6 the `density` quantity
-//! kind (ADR-0031), 0.7 the snapshot read and exporters (ADR-0037).
+//! kind (ADR-0031), 0.7 the snapshot read and exporters (ADR-0037), 0.8 commands, resolved
+//! edge inputs and the snapshot part's features (ADR-0038).
 //!
 //! `math` is a plugin's transcendental math, the same bits at every tier
 //! (ADR-0036).
 
+mod command;
 mod exchange;
 mod feature;
 #[cfg(feature = "guest")]
@@ -36,9 +38,16 @@ mod snapshot;
 pub use arrix_core::geom::{FrameError, ProfileError};
 pub use arrix_core::{
     AssemblyId, Axis, ComponentId, CurveKey, DVec2, DVec3, Diagnostic, DiagnosticCode, FeatureId,
-    Frame, Id, InvalidCode, InvalidPluginId, InvalidSlotName, JointId, Motion, NameError, ParamId,
-    PartId, PersistentName, PluginId, Profile, ProfileLoop, ProfileSegment, Quantity, QuantityKind,
-    RecordId, Ref, RegionKey, Severity, SketchEntityId, SlotName, TopoKind, Unit,
+    Frame, Id, InvalidCode, InvalidPluginId, InvalidSlotName, JointId, MaterialId, Motion,
+    NameError, ParamId, PartId, PersistentName, PluginId, Profile, ProfileLoop, ProfileSegment,
+    Quantity, QuantityKind, RecordId, Ref, RegionKey, Severity, SketchEntityId, SlotName, TopoKind,
+    Unit,
+};
+pub use command::{
+    AddFeature, Anchor, AssignMaterial, CircleEdge, CommandGroup, CommandInput, CommandInputValue,
+    CommandSpec, Commands, ComponentChange, ComponentDraft, Context, EdgeCurve, Expression,
+    FeatureDraft, JointChange, JointDraft, LineEdge, MaterialDraft, NamedExpression, NamedInput,
+    PartDraft, PluginCommand, Pose, ResolvedEdge,
 };
 pub use exchange::{ExportFile, Exporter, ExporterSpec, Subject, SubjectKind};
 pub use feature::{
@@ -48,9 +57,9 @@ pub use feature::{
 };
 pub use kernel::{Body, Kernel, MassProperties};
 pub use snapshot::{
-    AssemblyInfo, BodyInfo, BodyRef, ComponentInfo, ComponentOf, InertiaTensor, Inertial,
-    JointInfo, JointKind, JointPlacement, JointState, MaterialInfo, PartInfo, Rgb, Snapshot,
-    Triangles,
+    AssemblyInfo, BodyInfo, BodyRef, ComponentInfo, ComponentOf, FeatureInfo, InertiaTensor,
+    Inertial, JointInfo, JointKind, JointPlacement, JointState, MaterialInfo, PartInfo, Rgb,
+    Snapshot, Triangles,
 };
 
 /// This API's version: the crate's, and the WIT package's.

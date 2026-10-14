@@ -32,7 +32,7 @@ fn robotics_builds_as_a_core_module_exporting_the_exchange_world() {
     let has = |name: &str| wasm.windows(name.len()).any(|w| w == name.as_bytes());
     for export in ["exporters", "export"] {
         assert!(
-            has(&format!("arrix:plugin/exchange@0.7.0#{export}")),
+            has(&format!("arrix:plugin/exchange@0.8.0#{export}")),
             "exports {export}"
         );
     }

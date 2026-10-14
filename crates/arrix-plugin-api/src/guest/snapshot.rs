@@ -113,22 +113,70 @@ impl Mirror for api::BodyInfo {
     }
 }
 
+impl Mirror for api::FeatureInfo {
+    type Wit = wit_doc::FeatureInfo;
+    fn to_wit(&self) -> wit_doc::FeatureInfo {
+        let api::FeatureInfo {
+            id,
+            type_id,
+            name,
+            choices,
+            params,
+        } = self;
+        wit_doc::FeatureInfo {
+            id: id.0.0,
+            type_id: type_id.clone(),
+            name: name.clone(),
+            choices: choices.to_wit(),
+            params: params.to_wit(),
+        }
+    }
+    fn from_wit(w: wit_doc::FeatureInfo) -> Self {
+        let wit_doc::FeatureInfo {
+            id,
+            type_id,
+            name,
+            choices,
+            params,
+        } = w;
+        api::FeatureInfo {
+            id: FeatureId(Id(id)),
+            type_id,
+            name,
+            choices: Vec::from_wit(choices),
+            params: Vec::from_wit(params),
+        }
+    }
+}
+
 impl Mirror for api::PartInfo {
     type Wit = wit_doc::PartInfo;
     fn to_wit(&self) -> wit_doc::PartInfo {
-        let api::PartInfo { id, name, bodies } = self;
+        let api::PartInfo {
+            id,
+            name,
+            bodies,
+            features,
+        } = self;
         wit_doc::PartInfo {
             id: id.0.0,
             name: name.clone(),
             bodies: bodies.to_wit(),
+            features: features.to_wit(),
         }
     }
     fn from_wit(w: wit_doc::PartInfo) -> Self {
-        let wit_doc::PartInfo { id, name, bodies } = w;
+        let wit_doc::PartInfo {
+            id,
+            name,
+            bodies,
+            features,
+        } = w;
         api::PartInfo {
             id: PartId(Id(id)),
             name,
             bodies: Vec::from_wit(bodies),
+            features: Vec::from_wit(features),
         }
     }
 }

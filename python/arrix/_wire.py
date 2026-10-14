@@ -11,7 +11,7 @@ from array import array
 from dataclasses import dataclass
 from typing import Any
 
-API_VERSION = "0.7.0"
+API_VERSION = "0.8.0"
 
 
 Body = int
@@ -595,6 +595,128 @@ class Point:
 
 
 @dataclass(frozen=True)
+class Rgb:
+    """A colour: red, green and blue in 0 to 1."""
+    red: float
+    green: float
+    blue: float
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "red": self.red,
+            "green": self.green,
+            "blue": self.blue,
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> Rgb:
+        return Rgb(
+            red=v["red"],
+            green=v["green"],
+            blue=v["blue"],
+        )
+
+
+@dataclass(frozen=True)
+class BodyRef:
+    """A final body of a part: the body slot a feature made."""
+    feature: str
+    slot: str
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "feature": self.feature,
+            "slot": self.slot,
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> BodyRef:
+        return BodyRef(
+            feature=v["feature"],
+            slot=v["slot"],
+        )
+
+
+class JointKind:
+    FIXED = "fixed"
+    REVOLUTE = "revolute"
+    PRISMATIC = "prismatic"
+    ALL = ("fixed", "revolute", "prismatic")
+
+
+@dataclass(frozen=True)
+class ComponentOf:
+    """One of `part`, `assembly`: `case` names it, `value` is its payload."""
+    # What a component places.
+    case: str
+    value: Any = None
+
+    @staticmethod
+    def part(value: str) -> ComponentOf:
+        return ComponentOf("part", value)
+
+    @staticmethod
+    def assembly(value: str) -> ComponentOf:
+        return ComponentOf("assembly", value)
+
+    def to_json(self) -> dict[str, Any]:
+        if self.case == "part":
+            return {"part": self.value}
+        if self.case == "assembly":
+            return {"assembly": self.value}
+        raise ValueError(f"component-of has no case {self.case!r}")
+
+    @staticmethod
+    def from_json(v: Any) -> ComponentOf:
+        (case, payload), = v.items()
+        if case == "part":
+            return ComponentOf(case, payload)
+        if case == "assembly":
+            return ComponentOf(case, payload)
+        raise ValueError(f"component-of has no case {case!r}")
+
+
+@dataclass(frozen=True)
+class ParamValue:
+    """A parameter's expression, evaluated by the host to SI."""
+    name: str
+    value: Quantity
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "value": self.value.to_json(),
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> ParamValue:
+        return ParamValue(
+            name=v["name"],
+            value=Quantity.from_json(v["value"]),
+        )
+
+
+@dataclass(frozen=True)
+class ChoiceValue:
+    """A choice's word, the record's or the spec's default; a choice unset with no default is not given."""
+    name: str
+    value: str
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "value": self.value,
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> ChoiceValue:
+        return ChoiceValue(
+            name=v["name"],
+            value=v["value"],
+        )
+
+
+@dataclass(frozen=True)
 class Motion:
     """A proper rigid motion: the body turns by `angle` about the axis through the world origin along `axis`, then moves by `translation`."""
     translation: Vec3
@@ -816,46 +938,6 @@ class FeatureTypeSpec:
         )
 
 
-@dataclass(frozen=True)
-class ParamValue:
-    """A parameter's expression, evaluated by the host to SI."""
-    name: str
-    value: Quantity
-
-    def to_json(self) -> dict[str, Any]:
-        return {
-            "name": self.name,
-            "value": self.value.to_json(),
-        }
-
-    @staticmethod
-    def from_json(v: Any) -> ParamValue:
-        return ParamValue(
-            name=v["name"],
-            value=Quantity.from_json(v["value"]),
-        )
-
-
-@dataclass(frozen=True)
-class ChoiceValue:
-    """A choice's word, the record's or the spec's default; a choice unset with no default is not given."""
-    name: str
-    value: str
-
-    def to_json(self) -> dict[str, Any]:
-        return {
-            "name": self.name,
-            "value": self.value,
-        }
-
-    @staticmethod
-    def from_json(v: Any) -> ChoiceValue:
-        return ChoiceValue(
-            name=v["name"],
-            value=v["value"],
-        )
-
-
 class ToolOp:
     """A body input is a handle of the plugin's own to the slot's version, dropped when it is done: an owned handle rather than a borrow, which wit-bindgen's Rust guests cannot take inside a list (ADR-0008). The tool a feature that joins or cuts applied, kept so a pattern or a mirror can copy it, and the operation it was applied with. As an input it is the source feature's, an owned handle; as an output it is the body the feature built, given up."""
     FUSE = "fuse"
@@ -1043,29 +1125,6 @@ class FeatureOutput:
 
 
 @dataclass(frozen=True)
-class Rgb:
-    """A colour: red, green and blue in 0 to 1."""
-    red: float
-    green: float
-    blue: float
-
-    def to_json(self) -> dict[str, Any]:
-        return {
-            "red": self.red,
-            "green": self.green,
-            "blue": self.blue,
-        }
-
-    @staticmethod
-    def from_json(v: Any) -> Rgb:
-        return Rgb(
-            red=v["red"],
-            green=v["green"],
-            blue=v["blue"],
-        )
-
-
-@dataclass(frozen=True)
 class MaterialInfo:
     name: str
     color: Rgb
@@ -1081,26 +1140,6 @@ class MaterialInfo:
         return MaterialInfo(
             name=v["name"],
             color=Rgb.from_json(v["color"]),
-        )
-
-
-@dataclass(frozen=True)
-class BodyRef:
-    """A final body of a part: the body slot a feature made."""
-    feature: str
-    slot: str
-
-    def to_json(self) -> dict[str, Any]:
-        return {
-            "feature": self.feature,
-            "slot": self.slot,
-        }
-
-    @staticmethod
-    def from_json(v: Any) -> BodyRef:
-        return BodyRef(
-            feature=v["feature"],
-            slot=v["slot"],
         )
 
 
@@ -1125,16 +1164,48 @@ class BodyInfo:
 
 
 @dataclass(frozen=True)
+class FeatureInfo:
+    """A history feature, evaluated (ADR-0038 §4): its type, name, the choices it holds (the record's or the spec's defaults) and its params in SI."""
+    id: str
+    type_id: str
+    name: str
+    choices: list[ChoiceValue]
+    params: list[ParamValue]
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "type-id": self.type_id,
+            "name": self.name,
+            "choices": [x0.to_json() for x0 in self.choices],
+            "params": [x0.to_json() for x0 in self.params],
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> FeatureInfo:
+        return FeatureInfo(
+            id=v["id"],
+            type_id=v["type-id"],
+            name=v["name"],
+            choices=[ChoiceValue.from_json(x0) for x0 in v["choices"]],
+            params=[ParamValue.from_json(x0) for x0 in v["params"]],
+        )
+
+
+@dataclass(frozen=True)
 class PartInfo:
+    """`features` are the part's history, in order."""
     id: str
     name: str
     bodies: list[BodyInfo]
+    features: list[FeatureInfo]
 
     def to_json(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "name": self.name,
             "bodies": [x0.to_json() for x0 in self.bodies],
+            "features": [x0.to_json() for x0 in self.features],
         }
 
     @staticmethod
@@ -1143,6 +1214,7 @@ class PartInfo:
             id=v["id"],
             name=v["name"],
             bodies=[BodyInfo.from_json(x0) for x0 in v["bodies"]],
+            features=[FeatureInfo.from_json(x0) for x0 in v["features"]],
         )
 
 
@@ -1222,44 +1294,6 @@ class Inertial:
             centroid=Vec3.from_json(v["centroid"]),
             inertia=InertiaTensor.from_json(v["inertia"]),
         )
-
-
-class JointKind:
-    FIXED = "fixed"
-    REVOLUTE = "revolute"
-    PRISMATIC = "prismatic"
-    ALL = ("fixed", "revolute", "prismatic")
-
-
-@dataclass(frozen=True)
-class ComponentOf:
-    """One of `part`, `assembly`: `case` names it, `value` is its payload."""
-    case: str
-    value: Any = None
-
-    @staticmethod
-    def part(value: str) -> ComponentOf:
-        return ComponentOf("part", value)
-
-    @staticmethod
-    def assembly(value: str) -> ComponentOf:
-        return ComponentOf("assembly", value)
-
-    def to_json(self) -> dict[str, Any]:
-        if self.case == "part":
-            return {"part": self.value}
-        if self.case == "assembly":
-            return {"assembly": self.value}
-        raise ValueError(f"component-of has no case {self.case!r}")
-
-    @staticmethod
-    def from_json(v: Any) -> ComponentOf:
-        (case, payload), = v.items()
-        if case == "part":
-            return ComponentOf(case, payload)
-        if case == "assembly":
-            return ComponentOf(case, payload)
-        raise ValueError(f"component-of has no case {case!r}")
 
 
 @dataclass(frozen=True)
@@ -1497,6 +1531,668 @@ class File:
         )
 
 
+@dataclass(frozen=True)
+class CommandSpec:
+    """`id` is `<plugin-id>.<name>`; `group` the ribbon group it sits in on the plugin's tab. `params`, `choices` and `inputs` are a feature type's specs and derive a form as for a feature; an input's kind is `edge` alone at 0.8. `max-new` is the most ids one expansion uses (64 if none)."""
+    id: str
+    title: str
+    group: str
+    params: list[ParamSpec]
+    choices: list[ChoiceSpec]
+    inputs: list[InputSpec]
+    max_new: int | None
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "title": self.title,
+            "group": self.group,
+            "params": [x0.to_json() for x0 in self.params],
+            "choices": [x0.to_json() for x0 in self.choices],
+            "inputs": [x0.to_json() for x0 in self.inputs],
+            "max-new": None if self.max_new is None else self.max_new,
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> CommandSpec:
+        return CommandSpec(
+            id=v["id"],
+            title=v["title"],
+            group=v["group"],
+            params=[ParamSpec.from_json(x0) for x0 in v["params"]],
+            choices=[ChoiceSpec.from_json(x0) for x0 in v["choices"]],
+            inputs=[InputSpec.from_json(x0) for x0 in v["inputs"]],
+            max_new=None if v["max-new"] is None else v["max-new"],
+        )
+
+
+@dataclass(frozen=True)
+class Context:
+    """One of `part`, `assembly`: `case` names it, `value` is its payload."""
+    # What the client's tab looks at, and the frame inputs arrive in.
+    case: str
+    value: Any = None
+
+    @staticmethod
+    def part(value: str) -> Context:
+        return Context("part", value)
+
+    @staticmethod
+    def assembly(value: str) -> Context:
+        return Context("assembly", value)
+
+    def to_json(self) -> dict[str, Any]:
+        if self.case == "part":
+            return {"part": self.value}
+        if self.case == "assembly":
+            return {"assembly": self.value}
+        raise ValueError(f"context has no case {self.case!r}")
+
+    @staticmethod
+    def from_json(v: Any) -> Context:
+        (case, payload), = v.items()
+        if case == "part":
+            return Context(case, payload)
+        if case == "assembly":
+            return Context(case, payload)
+        raise ValueError(f"context has no case {case!r}")
+
+
+@dataclass(frozen=True)
+class CircleEdge:
+    """An edge input, resolved against the base generation: `path` is the component ids from the assembly down (empty in a part), `name` the edge, `curve` its geometry in the context's frame, and `face-normals` the outward normals of the planar faces it bounds, in the order of their names."""
+    centre: Vec3
+    axis: Vec3
+    radius: float
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "centre": self.centre.to_json(),
+            "axis": self.axis.to_json(),
+            "radius": self.radius,
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> CircleEdge:
+        return CircleEdge(
+            centre=Vec3.from_json(v["centre"]),
+            axis=Vec3.from_json(v["axis"]),
+            radius=v["radius"],
+        )
+
+
+@dataclass(frozen=True)
+class LineEdge:
+    start: Vec3
+    end: Vec3
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "start": self.start.to_json(),
+            "end": self.end.to_json(),
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> LineEdge:
+        return LineEdge(
+            start=Vec3.from_json(v["start"]),
+            end=Vec3.from_json(v["end"]),
+        )
+
+
+@dataclass(frozen=True)
+class EdgeCurve:
+    """One of `circle`, `line`, `other`: `case` names it, `value` is its payload."""
+    case: str
+    value: Any = None
+
+    @staticmethod
+    def circle(value: CircleEdge) -> EdgeCurve:
+        return EdgeCurve("circle", value)
+
+    @staticmethod
+    def line(value: LineEdge) -> EdgeCurve:
+        return EdgeCurve("line", value)
+
+    @staticmethod
+    def other() -> EdgeCurve:
+        return EdgeCurve("other")
+
+    def to_json(self) -> dict[str, Any]:
+        if self.case == "circle":
+            return {"circle": self.value.to_json()}
+        if self.case == "line":
+            return {"line": self.value.to_json()}
+        if self.case == "other":
+            return {"other": None}
+        raise ValueError(f"edge-curve has no case {self.case!r}")
+
+    @staticmethod
+    def from_json(v: Any) -> EdgeCurve:
+        (case, payload), = v.items()
+        if case == "circle":
+            return EdgeCurve(case, CircleEdge.from_json(payload))
+        if case == "line":
+            return EdgeCurve(case, LineEdge.from_json(payload))
+        if case == "other":
+            return EdgeCurve(case, None)
+        raise ValueError(f"edge-curve has no case {case!r}")
+
+
+@dataclass(frozen=True)
+class ResolvedEdge:
+    path: list[str]
+    name: PersistentRef
+    curve: EdgeCurve
+    face_normals: list[Vec3]
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "path": [x0 for x0 in self.path],
+            "name": self.name.to_json(),
+            "curve": self.curve.to_json(),
+            "face-normals": [x0.to_json() for x0 in self.face_normals],
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> ResolvedEdge:
+        return ResolvedEdge(
+            path=[x0 for x0 in v["path"]],
+            name=PersistentRef.from_json(v["name"]),
+            curve=EdgeCurve.from_json(v["curve"]),
+            face_normals=[Vec3.from_json(x0) for x0 in v["face-normals"]],
+        )
+
+
+@dataclass(frozen=True)
+class CommandInputValue:
+    """One of `edge`: `case` names it, `value` is its payload."""
+    case: str
+    value: Any = None
+
+    @staticmethod
+    def edge(value: ResolvedEdge) -> CommandInputValue:
+        return CommandInputValue("edge", value)
+
+    def to_json(self) -> dict[str, Any]:
+        if self.case == "edge":
+            return {"edge": self.value.to_json()}
+        raise ValueError(f"command-input-value has no case {self.case!r}")
+
+    @staticmethod
+    def from_json(v: Any) -> CommandInputValue:
+        (case, payload), = v.items()
+        if case == "edge":
+            return CommandInputValue(case, ResolvedEdge.from_json(payload))
+        raise ValueError(f"command-input-value has no case {case!r}")
+
+
+@dataclass(frozen=True)
+class CommandInput:
+    """A `list` input arrives as one `command-input` per element."""
+    name: str
+    value: CommandInputValue
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "value": self.value.to_json(),
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> CommandInput:
+        return CommandInput(
+            name=v["name"],
+            value=CommandInputValue.from_json(v["value"]),
+        )
+
+
+@dataclass(frozen=True)
+class Expression:
+    """One of `si`, `text`: `case` names it, `value` is its payload."""
+    # A value in a record: SI, or an expression's text the host parses.
+    case: str
+    value: Any = None
+
+    @staticmethod
+    def si(value: Quantity) -> Expression:
+        return Expression("si", value)
+
+    @staticmethod
+    def text(value: str) -> Expression:
+        return Expression("text", value)
+
+    def to_json(self) -> dict[str, Any]:
+        if self.case == "si":
+            return {"si": self.value.to_json()}
+        if self.case == "text":
+            return {"text": self.value}
+        raise ValueError(f"expression has no case {self.case!r}")
+
+    @staticmethod
+    def from_json(v: Any) -> Expression:
+        (case, payload), = v.items()
+        if case == "si":
+            return Expression(case, Quantity.from_json(payload))
+        if case == "text":
+            return Expression(case, payload)
+        raise ValueError(f"expression has no case {case!r}")
+
+
+@dataclass(frozen=True)
+class NamedExpression:
+    name: str
+    expression: Expression
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "expression": self.expression.to_json(),
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> NamedExpression:
+        return NamedExpression(
+            name=v["name"],
+            expression=Expression.from_json(v["expression"]),
+        )
+
+
+@dataclass(frozen=True)
+class NamedInput:
+    """An input of a drafted feature: its references; `many` for a list input."""
+    name: str
+    refs: list[Reference]
+    many: bool
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "refs": [x0.to_json() for x0 in self.refs],
+            "many": self.many,
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> NamedInput:
+        return NamedInput(
+            name=v["name"],
+            refs=[Reference.from_json(x0) for x0 in v["refs"]],
+            many=v["many"],
+        )
+
+
+@dataclass(frozen=True)
+class FeatureDraft:
+    """A feature as a plugin drafts it; the host fills the type's version."""
+    id: str
+    type_id: str
+    name: str
+    params: list[NamedExpression]
+    choices: list[ChoiceValue]
+    inputs: list[NamedInput]
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "type-id": self.type_id,
+            "name": self.name,
+            "params": [x0.to_json() for x0 in self.params],
+            "choices": [x0.to_json() for x0 in self.choices],
+            "inputs": [x0.to_json() for x0 in self.inputs],
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> FeatureDraft:
+        return FeatureDraft(
+            id=v["id"],
+            type_id=v["type-id"],
+            name=v["name"],
+            params=[NamedExpression.from_json(x0) for x0 in v["params"]],
+            choices=[ChoiceValue.from_json(x0) for x0 in v["choices"]],
+            inputs=[NamedInput.from_json(x0) for x0 in v["inputs"]],
+        )
+
+
+@dataclass(frozen=True)
+class PartDraft:
+    id: str
+    name: str
+    features: list[FeatureDraft]
+    material: str | None
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "features": [x0.to_json() for x0 in self.features],
+            "material": None if self.material is None else self.material,
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> PartDraft:
+        return PartDraft(
+            id=v["id"],
+            name=v["name"],
+            features=[FeatureDraft.from_json(x0) for x0 in v["features"]],
+            material=None if v["material"] is None else v["material"],
+        )
+
+
+@dataclass(frozen=True)
+class AddFeature:
+    """Appended to the part's history when `at` is none."""
+    part: str
+    at: int | None
+    feature: FeatureDraft
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "part": self.part,
+            "at": None if self.at is None else self.at,
+            "feature": self.feature.to_json(),
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> AddFeature:
+        return AddFeature(
+            part=v["part"],
+            at=None if v["at"] is None else v["at"],
+            feature=FeatureDraft.from_json(v["feature"]),
+        )
+
+
+@dataclass(frozen=True)
+class Pose:
+    """A position (three lengths) and URDF's fixed-axis roll, pitch and yaw (three angles)."""
+    position: tuple[Expression, Expression, Expression]
+    rpy: tuple[Expression, Expression, Expression]
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "position": [self.position[0].to_json(), self.position[1].to_json(), self.position[2].to_json()],
+            "rpy": [self.rpy[0].to_json(), self.rpy[1].to_json(), self.rpy[2].to_json()],
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> Pose:
+        return Pose(
+            position=(Expression.from_json(v["position"][0]), Expression.from_json(v["position"][1]), Expression.from_json(v["position"][2])),
+            rpy=(Expression.from_json(v["rpy"][0]), Expression.from_json(v["rpy"][1]), Expression.from_json(v["rpy"][2])),
+        )
+
+
+@dataclass(frozen=True)
+class ComponentDraft:
+    id: str
+    name: str
+    of: ComponentOf
+    pose: Pose | None
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "of": self.of.to_json(),
+            "pose": None if self.pose is None else self.pose.to_json(),
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> ComponentDraft:
+        return ComponentDraft(
+            id=v["id"],
+            name=v["name"],
+            of=ComponentOf.from_json(v["of"]),
+            pose=None if v["pose"] is None else Pose.from_json(v["pose"]),
+        )
+
+
+@dataclass(frozen=True)
+class ComponentChange:
+    assembly: str
+    component: ComponentDraft
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "assembly": self.assembly,
+            "component": self.component.to_json(),
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> ComponentChange:
+        return ComponentChange(
+            assembly=v["assembly"],
+            component=ComponentDraft.from_json(v["component"]),
+        )
+
+
+@dataclass(frozen=True)
+class Anchor:
+    """Where a joint attaches: `axis` and `origin` name a face or an edge of the part the path ends at (ADR-0029)."""
+    path: list[str]
+    axis: PersistentRef
+    origin: PersistentRef | None
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "path": [x0 for x0 in self.path],
+            "axis": self.axis.to_json(),
+            "origin": None if self.origin is None else self.origin.to_json(),
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> Anchor:
+        return Anchor(
+            path=[x0 for x0 in v["path"]],
+            axis=PersistentRef.from_json(v["axis"]),
+            origin=None if v["origin"] is None else PersistentRef.from_json(v["origin"]),
+        )
+
+
+@dataclass(frozen=True)
+class JointDraft:
+    id: str
+    name: str
+    kind: JointKind
+    parent: Anchor
+    child: Anchor
+    value: Expression
+    offset: Expression
+    limits: tuple[Expression, Expression] | None
+    flip: bool
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "kind": self.kind,
+            "parent": self.parent.to_json(),
+            "child": self.child.to_json(),
+            "value": self.value.to_json(),
+            "offset": self.offset.to_json(),
+            "limits": None if self.limits is None else [self.limits[0].to_json(), self.limits[1].to_json()],
+            "flip": self.flip,
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> JointDraft:
+        return JointDraft(
+            id=v["id"],
+            name=v["name"],
+            kind=v["kind"],
+            parent=Anchor.from_json(v["parent"]),
+            child=Anchor.from_json(v["child"]),
+            value=Expression.from_json(v["value"]),
+            offset=Expression.from_json(v["offset"]),
+            limits=None if v["limits"] is None else (Expression.from_json(v["limits"][0]), Expression.from_json(v["limits"][1])),
+            flip=v["flip"],
+        )
+
+
+@dataclass(frozen=True)
+class JointChange:
+    assembly: str
+    joint: JointDraft
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "assembly": self.assembly,
+            "joint": self.joint.to_json(),
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> JointChange:
+        return JointChange(
+            assembly=v["assembly"],
+            joint=JointDraft.from_json(v["joint"]),
+        )
+
+
+@dataclass(frozen=True)
+class MaterialDraft:
+    id: str
+    name: str
+    density: Expression | None
+    color: Rgb
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "density": None if self.density is None else self.density.to_json(),
+            "color": self.color.to_json(),
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> MaterialDraft:
+        return MaterialDraft(
+            id=v["id"],
+            name=v["name"],
+            density=None if v["density"] is None else Expression.from_json(v["density"]),
+            color=Rgb.from_json(v["color"]),
+        )
+
+
+@dataclass(frozen=True)
+class AssignMaterial:
+    """Sets what a part, or one of its final bodies, is made of; none clears."""
+    part: str
+    body: BodyRef | None
+    material: str | None
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "part": self.part,
+            "body": None if self.body is None else self.body.to_json(),
+            "material": None if self.material is None else self.material,
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> AssignMaterial:
+        return AssignMaterial(
+            part=v["part"],
+            body=None if v["body"] is None else BodyRef.from_json(v["body"]),
+            material=None if v["material"] is None else v["material"],
+        )
+
+
+@dataclass(frozen=True)
+class PluginCommand:
+    """One of `add-part`, `add-feature`, `add-component`, `edit-component`, `add-joint`, `edit-joint`, `add-material`, `assign-material`: `case` names it, `value` is its payload."""
+    case: str
+    value: Any = None
+
+    @staticmethod
+    def add_part(value: PartDraft) -> PluginCommand:
+        return PluginCommand("add-part", value)
+
+    @staticmethod
+    def add_feature(value: AddFeature) -> PluginCommand:
+        return PluginCommand("add-feature", value)
+
+    @staticmethod
+    def add_component(value: ComponentChange) -> PluginCommand:
+        return PluginCommand("add-component", value)
+
+    @staticmethod
+    def edit_component(value: ComponentChange) -> PluginCommand:
+        return PluginCommand("edit-component", value)
+
+    @staticmethod
+    def add_joint(value: JointChange) -> PluginCommand:
+        return PluginCommand("add-joint", value)
+
+    @staticmethod
+    def edit_joint(value: JointChange) -> PluginCommand:
+        return PluginCommand("edit-joint", value)
+
+    @staticmethod
+    def add_material(value: MaterialDraft) -> PluginCommand:
+        return PluginCommand("add-material", value)
+
+    @staticmethod
+    def assign_material(value: AssignMaterial) -> PluginCommand:
+        return PluginCommand("assign-material", value)
+
+    def to_json(self) -> dict[str, Any]:
+        if self.case == "add-part":
+            return {"add-part": self.value.to_json()}
+        if self.case == "add-feature":
+            return {"add-feature": self.value.to_json()}
+        if self.case == "add-component":
+            return {"add-component": self.value.to_json()}
+        if self.case == "edit-component":
+            return {"edit-component": self.value.to_json()}
+        if self.case == "add-joint":
+            return {"add-joint": self.value.to_json()}
+        if self.case == "edit-joint":
+            return {"edit-joint": self.value.to_json()}
+        if self.case == "add-material":
+            return {"add-material": self.value.to_json()}
+        if self.case == "assign-material":
+            return {"assign-material": self.value.to_json()}
+        raise ValueError(f"plugin-command has no case {self.case!r}")
+
+    @staticmethod
+    def from_json(v: Any) -> PluginCommand:
+        (case, payload), = v.items()
+        if case == "add-part":
+            return PluginCommand(case, PartDraft.from_json(payload))
+        if case == "add-feature":
+            return PluginCommand(case, AddFeature.from_json(payload))
+        if case == "add-component":
+            return PluginCommand(case, ComponentChange.from_json(payload))
+        if case == "edit-component":
+            return PluginCommand(case, ComponentChange.from_json(payload))
+        if case == "add-joint":
+            return PluginCommand(case, JointChange.from_json(payload))
+        if case == "edit-joint":
+            return PluginCommand(case, JointChange.from_json(payload))
+        if case == "add-material":
+            return PluginCommand(case, MaterialDraft.from_json(payload))
+        if case == "assign-material":
+            return PluginCommand(case, AssignMaterial.from_json(payload))
+        raise ValueError(f"plugin-command has no case {case!r}")
+
+
+@dataclass(frozen=True)
+class CommandGroup:
+    label: str
+    commands: list[PluginCommand]
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "label": self.label,
+            "commands": [x0.to_json() for x0 in self.commands],
+        }
+
+    @staticmethod
+    def from_json(v: Any) -> CommandGroup:
+        return CommandGroup(
+            label=v["label"],
+            commands=[PluginCommand.from_json(x0) for x0 in v["commands"]],
+        )
+
+
 class KernelStubs:
     """The host's `kernel` interface. A subclass supplies `_request`; a call the host refuses raises `KernelError`."""
 
@@ -1681,4 +2377,6 @@ METHODS = {
     "document.assemblies": "plugin-to-host",
     "exchange.exporters": "host-to-plugin",
     "exchange.run": "host-to-plugin",
+    "commands.commands": "host-to-plugin",
+    "commands.expand": "host-to-plugin",
 }

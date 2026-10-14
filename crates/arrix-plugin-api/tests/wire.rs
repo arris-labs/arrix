@@ -40,6 +40,10 @@ fn outputs(world: &model::World) -> Vec<(PathBuf, String)> {
             "crates/arrix-plugin-host/src/wire/generated.rs".into(),
             rust::generate(world),
         ),
+        (
+            "crates/arrix-plugin-host/src/wire/generated_commands.rs".into(),
+            rust::generate_commands(world),
+        ),
     ]
 }
 

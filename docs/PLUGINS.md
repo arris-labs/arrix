@@ -3,8 +3,8 @@
 The plugin model is ArriX's reason to exist (`SEED.md` §3, §6.3): one
 interface, versioned apart from the app, hosted three ways, and enough of it
 that first-party domains need nothing else. This document is the design of
-`arrix-plugin-api` and `arrix-plugin-host`. Built, as of C3 M2: the world and
-its Rust traits at 0.7.0 (§One interface), the Rust guest SDK (`guest`
+`arrix-plugin-api` and `arrix-plugin-host`. Built, as of C3 M3 step 4: the world and
+its Rust traits at 0.8.0 (§One interface), the Rust guest SDK (`guest`
 feature, `export_plugin!`), manifests (§The manifest), Tier 0, Tier 1 and
 Tier 2 hosting (§Three tiers), the test kit (§The test kit, `arrix test`),
 the snapshot read and exporters on all three tiers (§4), and the first
@@ -27,11 +27,11 @@ API's version. From it come:
 - the **Python SDK** (`python/arrix`): stubs generated from the world, and
   a thin runtime speaking the Tier 2 wire protocol.
 
-The world as it stands at 0.7.0 (the file is the authority; comments and
-field lists are elided here; `document` and `exchange` follow it):
+The world as it stands at 0.8.0 (the file is the authority; comments and
+field lists are elided here; `document`, `exchange` and `commands` follow it):
 
 ```wit
-package arrix:plugin@0.7.0;
+package arrix:plugin@0.8.0;
 
 interface types {                                    // SI; no Arris type anywhere
   type id = u64;                                     // arrix-core's typed ids
@@ -84,6 +84,7 @@ world plugin {
   import document;
   export feature;
   export exchange;
+  export commands;     // commands() -> list<command-spec>; expand(...) -> result<command-group, diagnostic>
 }
 ```
 
@@ -152,7 +153,7 @@ world plugin {
 **The snapshot read and exporters** (ADR-0037, 0.7.0): the world gains `interface document` and `interface exchange`,
 one world, so a plugin implements what it contributes and the SDK supplies
 the rest empty. `world plugin { import kernel; import document; export
-feature; export exchange; }`.
+feature; export exchange; }` (0.8.0 adds `export commands`, ADR-0038).
 
 - `document` is read-only and granted by `document-read`. By function:
   the parts (final bodies, material name and colour), each body's refined
@@ -525,7 +526,9 @@ only, whatever the manifest says, because determinism demands it.
   `mirror`; 0.5.0 (breaking) the choices a type declares, `shown-when`,
   and the choices `evaluate` receives (ADR-0018); 0.6.0 (breaking) the
   `density` quantity kind (ADR-0031); 0.7.0 (breaking) the `document`
-  import and the `exchange` export (ADR-0037).
+  import and the `exchange` export (ADR-0037); 0.8.0 (breaking) the
+  `commands` export, `param-value` and `choice-value` moved to `types`, and
+  `part-info`'s `features` (ADR-0038).
   The `guest` feature (Tier 1 SDK, ADR-0035) adds API without touching
   the world, so the crate and the WIT package stayed at 0.6.0 then: the package
   version is the crate's, which a patch bump would ripple through every

@@ -6,6 +6,8 @@ use arrix_core::{
     AssemblyId, ComponentId, DVec3, Diagnostic, FeatureId, Frame, JointId, PartId, SlotName,
 };
 
+use crate::{ChoiceValue, ParamValue};
+
 /// A colour: red, green and blue in 0 to 1.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Rgb {
@@ -34,11 +36,26 @@ pub struct BodyInfo {
     pub material: Option<MaterialInfo>,
 }
 
+/// A history feature, evaluated (ADR-0038 §4): a plugin finds the parts it
+/// made by their features, not by name.
+#[derive(Clone, Debug, PartialEq)]
+pub struct FeatureInfo {
+    pub id: FeatureId,
+    pub type_id: String,
+    pub name: String,
+    /// The choices the feature holds: the record's, or the spec's defaults.
+    pub choices: Vec<ChoiceValue>,
+    /// Its params in SI.
+    pub params: Vec<ParamValue>,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct PartInfo {
     pub id: PartId,
     pub name: String,
     pub bodies: Vec<BodyInfo>,
+    /// The part's history, in order.
+    pub features: Vec<FeatureInfo>,
 }
 
 /// A refined mesh in the part's frame, the refined chord (1e-4 of the body's box

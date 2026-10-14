@@ -51,7 +51,7 @@ def write_plugin():
             [plugin]
             id = "boss"
             version = "0.1.0"
-            api = "^0.7"
+            api = "^0.8"
             tier = 2
             title = "Boss"
             licence = "MIT OR Apache-2.0"

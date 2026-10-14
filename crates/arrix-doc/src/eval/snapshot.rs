@@ -53,6 +53,53 @@ struct DocSnapshot<'a> {
     params: Params,
 }
 
+impl DocSnapshot<'_> {
+    /// A part's history, each feature with its choices (the record's, or
+    /// the spec's default) and the params the evaluation can read, in SI
+    /// (ADR-0038 §4). A param that fails to evaluate is left out, as is
+    /// everything a type the registry lacks would have declared.
+    fn features(&self, part: &crate::document::Part) -> Vec<api::FeatureInfo> {
+        part.history
+            .iter()
+            .filter_map(|id| part.features.get(id))
+            .map(|record| {
+                let spec = self.evaluator.registry().get(&record.type_id);
+                let mut params = Vec::new();
+                let mut choices = Vec::new();
+                if let Some(spec) = spec.map(|t| t.spec()) {
+                    for p in &spec.params {
+                        let expr = match record.params.get(&p.name) {
+                            Some(e) => Some(e.clone()),
+                            None => Expr::parse(&p.default).ok(),
+                        };
+                        if let Some(Ok(value)) = expr.map(|e| self.params.quantity(&e, p.kind)) {
+                            params.push(ParamValue {
+                                name: p.name.clone(),
+                                value,
+                            });
+                        }
+                    }
+                    for c in &spec.choices {
+                        if let Some(value) = record.choices.get(&c.name).or(c.default.as_ref()) {
+                            choices.push(ChoiceValue {
+                                name: c.name.clone(),
+                                value: value.clone(),
+                            });
+                        }
+                    }
+                }
+                api::FeatureInfo {
+                    id: record.id,
+                    type_id: record.type_id.to_string(),
+                    name: record.name.clone(),
+                    choices,
+                    params,
+                }
+            })
+            .collect()
+    }
+}
+
 impl Snapshot for DocSnapshot<'_> {
     fn parts(&mut self) -> Vec<api::PartInfo> {
         let finals = self.evaluator.final_bodies();
@@ -93,6 +140,7 @@ impl Snapshot for DocSnapshot<'_> {
                         }
                     })
                     .collect(),
+                features: self.features(part),
             })
             .collect()
     }

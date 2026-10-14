@@ -5,8 +5,8 @@
 use std::fmt;
 
 use arrix_core::{
-    AssemblyId, ComponentId, CurveKey, FeatureId, Id, JointId, ParamId, PartId, RecordId,
-    SketchEntityId,
+    AssemblyId, ComponentId, CurveKey, FeatureId, Id, JointId, MaterialId, ParamId, PartId,
+    RecordId, SketchEntityId,
 };
 use arrix_plugin_api::Body;
 use base64::Engine as _;
@@ -119,7 +119,8 @@ typed_wire_ids!(
     PartId,
     AssemblyId,
     ComponentId,
-    JointId
+    JointId,
+    MaterialId
 );
 
 pub fn id_to<T: WireId>(x: &T) -> Wire<Value> {

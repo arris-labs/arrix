@@ -69,6 +69,31 @@ const AUTO: &[(&str, &str)] = &[
     ("subject", "Subject"),
     ("exporter-spec", "ExporterSpec"),
     ("file", "ExportFile"),
+    ("feature-info", "FeatureInfo"),
+    ("command-spec", "CommandSpec"),
+    ("context", "Context"),
+    ("circle-edge", "CircleEdge"),
+    ("line-edge", "LineEdge"),
+    ("edge-curve", "EdgeCurve"),
+    ("resolved-edge", "ResolvedEdge"),
+    ("command-input-value", "CommandInputValue"),
+    ("command-input", "CommandInput"),
+    ("expression", "Expression"),
+    ("named-expression", "NamedExpression"),
+    ("named-input", "NamedInput"),
+    ("feature-draft", "FeatureDraft"),
+    ("part-draft", "PartDraft"),
+    ("add-feature", "AddFeature"),
+    ("pose", "Pose"),
+    ("component-draft", "ComponentDraft"),
+    ("component-change", "ComponentChange"),
+    ("anchor", "Anchor"),
+    ("joint-draft", "JointDraft"),
+    ("joint-change", "JointChange"),
+    ("material-draft", "MaterialDraft"),
+    ("assign-material", "AssignMaterial"),
+    ("plugin-command", "PluginCommand"),
+    ("command-group", "CommandGroup"),
 ];
 
 /// Codec by hand, in `wire/custom.rs`.
@@ -104,12 +129,30 @@ const NEWTYPE: &[(&str, &str, &str)] = &[
 /// A resource -> the Rust handle type.
 const HANDLES: &[(&str, &str)] = &[("body", "Body")];
 
+/// The interface whose types get a file of their own, so no generated file
+/// passes the size lint.
+const SPLIT: &str = "commands";
+
+/// The codec of the types outside [`SPLIT`], and the method table.
 pub fn generate(world: &World) -> String {
     check_tables(world);
+    file(world, false)
+}
+
+/// The codec of the types of [`SPLIT`].
+pub fn generate_commands(world: &World) -> String {
+    file(world, true)
+}
+
+fn file(world: &World, commands: bool) -> String {
     let mut body = String::new();
     let mut custom_used = BTreeSet::new();
     let mut rust_used: BTreeSet<&str> = BTreeSet::new();
-    for t in &world.types {
+    for t in world
+        .types
+        .iter()
+        .filter(|t| (t.interface == SPLIT) == commands)
+    {
         let Some(rust) = AUTO.iter().find(|(w, _)| *w == t.name).map(|(_, r)| *r) else {
             continue;
         };
@@ -133,17 +176,28 @@ pub fn generate(world: &World) -> String {
          wit/arrix-plugin.wit.\n// Do not edit; regenerate with \
          `UPDATE_SNAPSHOTS=1 cargo test -p arrix-plugin-api --test wire`.\n\n",
     );
-    out.push_str(
-        "//! The codec of every plugin-API type that mirrors its WIT type (ADR-0022).\n\n",
-    );
-    let _ = writeln!(
-        out,
-        "use arrix_plugin_api::{{{}}};",
-        rust_used.iter().copied().collect::<Vec<_>>().join(", ")
-    );
+    if commands {
+        out.push_str("//! The codec of the `commands` interface's types (ADR-0022, ADR-0038).\n\n");
+    } else {
+        out.push_str(
+            "//! The codec of every plugin-API type that mirrors its WIT type (ADR-0022).\n\n",
+        );
+    }
+    if !rust_used.is_empty() {
+        let _ = writeln!(
+            out,
+            "use arrix_plugin_api::{{{}}};",
+            rust_used.iter().copied().collect::<Vec<_>>().join(", ")
+        );
+    }
     out.push_str("use serde_json::{Map, Value};\n\n");
     out.push_str("use super::prim::*;\n");
-    out.push_str("use super::{Direction, Method, WireError};\n");
+    if commands {
+        out.push_str("use super::generated::*;\n");
+        out.push_str("use super::WireError;\n");
+    } else {
+        out.push_str("use super::{Direction, Method, WireError};\n");
+    }
     if !custom_used.is_empty() {
         let names: Vec<String> = custom_used
             .iter()
@@ -152,7 +206,9 @@ pub fn generate(world: &World) -> String {
         let _ = writeln!(out, "use super::custom::{{{}}};\n", names.join(", "));
     }
     out.push_str(&body);
-    methods(&mut out, world);
+    if !commands {
+        methods(&mut out, world);
+    }
     rustfmt(&out)
 }
 

@@ -18,7 +18,7 @@ use dump::Dump;
 
 fn manifest(capabilities: &str) -> String {
     format!(
-        "[plugin]\nid = \"dump\"\nversion = \"0.1.0\"\napi = \"^0.7\"\ntier = 0\ntitle = \"Dump\"\n\
+        "[plugin]\nid = \"dump\"\nversion = \"0.1.0\"\napi = \"^0.8\"\ntier = 0\ntitle = \"Dump\"\n\
          licence = \"MIT OR Apache-2.0\"\n[capabilities]\n{capabilities}\n"
     )
 }

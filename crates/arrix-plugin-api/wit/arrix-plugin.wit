@@ -5,7 +5,7 @@
 //
 // SI throughout: metres, radians, kilograms. No Arris type appears here.
 
-package arrix:plugin@0.7.0;
+package arrix:plugin@0.8.0;
 
 interface types {
   // An id: 64 bits, as `arrix-core`'s typed ids carry it.
@@ -72,6 +72,20 @@ interface types {
   // A point input: where it is in the world, and, for a sketch point, the
   // normal of the sketch's plane.
   record point { at: vec3, normal: option<vec3> }
+  // A colour: red, green and blue in 0 to 1.
+  record rgb { red: f64, green: f64, blue: f64 }
+  // A final body of a part: the body slot a feature made.
+  record body-ref { feature: id, slot: string }
+  enum joint-kind { fixed, revolute, prismatic }
+  // What a component places.
+  variant component-of { part(id), assembly(id) }
+
+  // A parameter's expression, evaluated by the host to SI.
+  record param-value { name: string, value: quantity }
+  // A choice's word, the record's or the spec's default; a choice unset
+  // with no default is not given.
+  record choice-value { name: string, value: string }
+
   // A proper rigid motion: the body turns by `angle` about the axis through
   // the world origin along `axis`, then moves by `translation`.
   record motion { translation: vec3, axis: vec3, angle: f64 }
@@ -118,7 +132,10 @@ interface kernel {
 
 // Feature types (docs/PLUGINS.md §Contribution points, 1).
 interface feature {
-  use types.{axis, diagnostic, frame, persistent-ref, point, profile, quantity, quantity-kind};
+  use types.{
+    axis, choice-value, diagnostic, frame, param-value, persistent-ref, point, profile, quantity,
+    quantity-kind,
+  };
   use kernel.{body};
 
   // A field shown only while the type's choice `choice` holds one of
@@ -177,11 +194,6 @@ interface feature {
     outputs: list<slot-spec>,
   }
 
-  // A parameter's expression, evaluated by the host to SI.
-  record param-value { name: string, value: quantity }
-  // A choice's word, the record's or the spec's default; a choice unset
-  // with no default is not given.
-  record choice-value { name: string, value: string }
   // A body input is a handle of the plugin's own to the slot's version,
   // dropped when it is done: an owned handle rather than a borrow, which
   // wit-bindgen's Rust guests cannot take inside a list (ADR-0008).
@@ -221,18 +233,27 @@ interface feature {
 // parts, their final bodies' meshes, assemblies with solved poses and
 // joints, mass and inertia. Read-only, by function so a plugin fetches only
 // what it writes. Granted by `document-read`, and callable only while an
-// `exchange` call runs, against the generation that call was made on.
+// `exchange` or `commands` call runs, against the generation that call was
+// made on.
 interface document {
-  use types.{diagnostic, frame, id, vec3};
+  use types.{
+    body-ref, choice-value, component-of, diagnostic, frame, id, joint-kind, param-value, rgb, vec3,
+  };
 
-  // A colour: red, green and blue in 0 to 1.
-  record rgb { red: f64, green: f64, blue: f64 }
   record material-info { name: string, color: rgb }
-  // A final body of a part: the body slot a feature made.
-  record body-ref { feature: id, slot: string }
   // `material` is none for a body of a part with no material.
   record body-info { body: body-ref, material: option<material-info> }
-  record part-info { id: id, name: string, bodies: list<body-info> }
+  // A history feature, evaluated (ADR-0038 §4): its type, name, the choices
+  // it holds (the record's or the spec's defaults) and its params in SI.
+  record feature-info {
+    id: id,
+    type-id: string,
+    name: string,
+    choices: list<choice-value>,
+    params: list<param-value>,
+  }
+  // `features` are the part's history, in order.
+  record part-info { id: id, name: string, bodies: list<body-info>, features: list<feature-info> }
 
   // A refined mesh in the part's frame, the refined chord (1e-4 of the body's box diagonal, as STL export, ADR-0037 §4): three
   // `f32` per vertex in `positions` and `normals`, three `u32` per triangle
@@ -246,8 +267,6 @@ interface document {
   // about it with the part's axes (docs/DATA-MODEL.md §Evaluation).
   record inertial { mass: f64, centroid: vec3, inertia: inertia-tensor }
 
-  enum joint-kind { fixed, revolute, prismatic }
-  variant component-of { part(id), assembly(id) }
   // A component where its assembly places it. `path` is the component ids
   // from the assembly down (a nested assembly's own components follow it);
   // `pose` is where the origin and axes of its part or nested assembly
@@ -300,8 +319,8 @@ interface document {
 // Exporters (docs/PLUGINS.md §Contribution points, 4): a snapshot in
 // through `document`, files out. The host writes them.
 interface exchange {
-  use types.{diagnostic, id};
-  use feature.{choice-spec, choice-value, param-spec, param-value};
+  use types.{choice-value, diagnostic, id, param-value};
+  use feature.{choice-spec, param-spec};
 
   enum subject-kind { part, assembly }
   variant subject { part(id), assembly(id) }
@@ -330,9 +349,137 @@ interface exchange {
   ) -> result<list<file>, diagnostic>;
 }
 
+// Commands (docs/PLUGINS.md §Contribution points, 3; ADR-0038): a gesture the
+// plugin expands into one group of core commands, which the session submits
+// and inverts like any other. The records are plain mirrors of the core
+// commands a plugin may issue; the host checks and translates them.
+interface commands {
+  use types.{
+    body-ref, choice-value, component-of, diagnostic, id, joint-kind, param-value, persistent-ref,
+    quantity, reference, rgb, vec3,
+  };
+  use feature.{choice-spec, input-spec, param-spec};
+
+  // `id` is `<plugin-id>.<name>`; `group` the ribbon group it sits in on the
+  // plugin's tab. `params`, `choices` and `inputs` are a feature type's
+  // specs and derive a form as for a feature; an input's kind is `edge`
+  // alone at 0.8. `max-new` is the most ids one expansion uses (64 if none).
+  record command-spec {
+    id: string,
+    title: string,
+    group: string,
+    params: list<param-spec>,
+    choices: list<choice-spec>,
+    inputs: list<input-spec>,
+    max-new: option<u32>,
+  }
+
+  // What the client's tab looks at, and the frame inputs arrive in.
+  variant context { part(id), assembly(id) }
+
+  // An edge input, resolved against the base generation: `path` is the
+  // component ids from the assembly down (empty in a part), `name` the
+  // edge, `curve` its geometry in the context's frame, and `face-normals`
+  // the outward normals of the planar faces it bounds, in the order of
+  // their names.
+  record circle-edge { centre: vec3, axis: vec3, radius: f64 }
+  record line-edge { start: vec3, end: vec3 }
+  variant edge-curve { circle(circle-edge), line(line-edge), other }
+  record resolved-edge {
+    path: list<id>,
+    name: persistent-ref,
+    curve: edge-curve,
+    face-normals: list<vec3>,
+  }
+  variant command-input-value { edge(resolved-edge) }
+  // A `list` input arrives as one `command-input` per element.
+  record command-input { name: string, value: command-input-value }
+
+  // A value in a record: SI, or an expression's text the host parses.
+  variant expression { si(quantity), text(string) }
+  record named-expression { name: string, expression: expression }
+  // An input of a drafted feature: its references; `many` for a list input.
+  record named-input { name: string, refs: list<reference>, many: bool }
+
+  // A feature as a plugin drafts it; the host fills the type's version.
+  record feature-draft {
+    id: id,
+    type-id: string,
+    name: string,
+    params: list<named-expression>,
+    choices: list<choice-value>,
+    inputs: list<named-input>,
+  }
+  record part-draft {
+    id: id,
+    name: string,
+    features: list<feature-draft>,
+    material: option<id>,
+  }
+  // Appended to the part's history when `at` is none.
+  record add-feature { part: id, at: option<u32>, feature: feature-draft }
+
+  // A position (three lengths) and URDF's fixed-axis roll, pitch and yaw
+  // (three angles).
+  record pose {
+    position: tuple<expression, expression, expression>,
+    rpy: tuple<expression, expression, expression>,
+  }
+  record component-draft {
+    id: id,
+    name: string,
+    of: component-of,
+    pose: option<pose>,
+  }
+  record component-change { assembly: id, component: component-draft }
+  // Where a joint attaches: `axis` and `origin` name a face or an edge of
+  // the part the path ends at (ADR-0029).
+  record anchor { path: list<id>, axis: persistent-ref, origin: option<persistent-ref> }
+  record joint-draft {
+    id: id,
+    name: string,
+    kind: joint-kind,
+    parent: anchor,
+    child: anchor,
+    value: expression,
+    offset: expression,
+    limits: option<tuple<expression, expression>>,
+    flip: bool,
+  }
+  record joint-change { assembly: id, joint: joint-draft }
+  record material-draft { id: id, name: string, density: option<expression>, color: rgb }
+  // Sets what a part, or one of its final bodies, is made of; none clears.
+  record assign-material { part: id, body: option<body-ref>, material: option<id> }
+
+  variant plugin-command {
+    add-part(part-draft),
+    add-feature(add-feature),
+    add-component(component-change),
+    edit-component(component-change),
+    add-joint(joint-change),
+    edit-joint(joint-change),
+    add-material(material-draft),
+    assign-material(assign-material),
+  }
+  record command-group { label: string, commands: list<plugin-command> }
+
+  commands: func() -> list<command-spec>;
+  // Deterministic: a pure function of its arguments and the snapshot.
+  // `ids` are fresh, taken in order; `params` are evaluated.
+  expand: func(
+    command: string,
+    context: context,
+    params: list<param-value>,
+    choices: list<choice-value>,
+    inputs: list<command-input>,
+    ids: list<id>,
+  ) -> result<command-group, diagnostic>;
+}
+
 world plugin {
   import kernel;
   import document;
   export feature;
   export exchange;
+  export commands;
 }

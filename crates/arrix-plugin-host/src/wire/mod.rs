@@ -4,7 +4,8 @@
 //! - [`rpc`]: the framing, shared by the Tier 2 host and `arrix serve`:
 //!   requests, responses, errors, and a line reader with a length limit.
 //! - the codec: a pair of functions per type of the world between the
-//!   plugin API's Rust types and `serde_json::Value`. `generated.rs` is
+//!   plugin API's Rust types and `serde_json::Value`. `generated.rs` and
+//!   `generated_commands.rs` (the `commands` interface's) are
 //!   written by `arrix-plugin-api`'s `tests/wire.rs`; [`custom`] holds the
 //!   types whose Rust form checks what it holds (a frame, a name, a
 //!   reference, a profile), by hand, held to the same schemas by this
@@ -14,11 +15,13 @@
 
 mod custom;
 mod generated;
+mod generated_commands;
 mod prim;
 pub mod rpc;
 
 pub use custom::*;
 pub use generated::*;
+pub use generated_commands::*;
 pub use prim::*;
 
 /// Which side of the pipe serves a method.

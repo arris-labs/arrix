@@ -23,8 +23,9 @@ use std::marker::PhantomData;
 
 use arrix_core::{Diagnostic, Severity};
 
-use crate::{Exporter, Feature};
+use crate::{Commands, Exporter, Feature};
 
+mod command;
 mod convert;
 mod kernel;
 mod snapshot;
@@ -47,19 +48,21 @@ pub mod bindings {
     });
 
     pub use arrix::plugin::{document, kernel, types};
-    pub use exports::arrix::plugin::{exchange, feature};
+    pub use exports::arrix::plugin::{commands, exchange, feature};
 }
 
 use bindings::arrix::plugin::types as wt;
+use bindings::commands as wc;
 use bindings::exchange as wx;
 use bindings::feature as wf;
 
 /// What [`export_plugin!`](crate::export_plugin) names of a plugin: the
-/// glue of its features and of its exporters, each [`NoFeatures`] or
-/// [`NoExporters`] when it names none.
+/// glue of its features, exporters and commands, each [`NoFeatures`],
+/// [`NoExporters`] or [`NoCommands`] when it names none.
 pub trait Plugin {
     type Features: FeatureGlue;
     type Exporters: ExporterGlue;
+    type Commands: CommandGlue;
 }
 
 /// A plugin's [`Feature`], named by the macro.
@@ -70,6 +73,11 @@ pub trait FeatureSource {
 /// A plugin's [`Exporter`], named by the macro.
 pub trait ExporterSource {
     fn exporter() -> &'static dyn Exporter;
+}
+
+/// A plugin's [`Commands`], named by the macro.
+pub trait CommandSource {
+    fn commands() -> &'static dyn Commands;
 }
 
 /// The world's `feature` export over a plugin's features.
@@ -94,6 +102,20 @@ pub trait ExporterGlue {
         params: Vec<wf::ParamValue>,
         choices: Vec<wf::ChoiceValue>,
     ) -> Result<Vec<wx::File>, wt::Diagnostic>;
+}
+
+/// The world's `commands` export over a plugin's commands.
+pub trait CommandGlue {
+    fn commands() -> Vec<wc::CommandSpec>;
+
+    fn expand(
+        command: String,
+        context: wc::Context,
+        params: Vec<wt::ParamValue>,
+        choices: Vec<wt::ChoiceValue>,
+        inputs: Vec<wc::CommandInput>,
+        ids: Vec<u64>,
+    ) -> Result<wc::CommandGroup, wt::Diagnostic>;
 }
 
 fn nothing(code: &str, what: &str) -> wt::Diagnostic {
@@ -135,6 +157,26 @@ impl ExporterGlue for NoExporters {
         _: Vec<wf::ChoiceValue>,
     ) -> Result<Vec<wx::File>, wt::Diagnostic> {
         Err(nothing("plugin.no-exporter", "exporters"))
+    }
+}
+
+/// A plugin with no commands. Calls no import.
+pub struct NoCommands;
+
+impl CommandGlue for NoCommands {
+    fn commands() -> Vec<wc::CommandSpec> {
+        Vec::new()
+    }
+
+    fn expand(
+        _: String,
+        _: wc::Context,
+        _: Vec<wt::ParamValue>,
+        _: Vec<wt::ChoiceValue>,
+        _: Vec<wc::CommandInput>,
+        _: Vec<u64>,
+    ) -> Result<wc::CommandGroup, wt::Diagnostic> {
+        Err(nothing("plugin.no-command", "commands"))
     }
 }
 
@@ -200,7 +242,41 @@ impl<S: ExporterSource> ExporterGlue for WithExporters<S> {
     }
 }
 
-/// The world's `feature` and `exchange` exports over a [`Plugin`].
+/// The glue of a plugin's [`Commands`]: each expansion reads the host's
+/// snapshot through [`WitSnapshot`].
+pub struct WithCommands<S>(PhantomData<S>);
+
+impl<S: CommandSource> CommandGlue for WithCommands<S> {
+    fn commands() -> Vec<wc::CommandSpec> {
+        S::commands().commands().to_wit()
+    }
+
+    fn expand(
+        command: String,
+        context: wc::Context,
+        params: Vec<wt::ParamValue>,
+        choices: Vec<wt::ChoiceValue>,
+        inputs: Vec<wc::CommandInput>,
+        ids: Vec<u64>,
+    ) -> Result<wc::CommandGroup, wt::Diagnostic> {
+        let ids: Vec<_> = ids.into_iter().map(arrix_core::Id).collect();
+        S::commands()
+            .expand(
+                &mut WitSnapshot,
+                &command,
+                &crate::Context::from_wit(context),
+                &Vec::from_wit(params),
+                &Vec::from_wit(choices),
+                &Vec::from_wit(inputs),
+                &ids,
+            )
+            .map(|group| group.to_wit())
+            .map_err(|d| d.to_wit())
+    }
+}
+
+/// The world's `feature`, `exchange` and `commands` exports over a
+/// [`Plugin`].
 pub struct Exported<P>(PhantomData<P>);
 
 impl<P: Plugin> wf::Guest for Exported<P> {
@@ -233,33 +309,32 @@ impl<P: Plugin> wx::Guest for Exported<P> {
     }
 }
 
-/// Exports a plugin as the world's `feature` and `exchange` interfaces,
-/// once per cdylib. `export_plugin!(Spur)` names a unit struct implementing
-/// [`Feature`]; `export_plugin!(features = Spur, exporters = Urdf)` names a
-/// [`Feature`], an [`Exporter`] or both. What it does not name is empty.
+impl<P: Plugin> wc::Guest for Exported<P> {
+    fn commands() -> Vec<wc::CommandSpec> {
+        P::Commands::commands()
+    }
+
+    fn expand(
+        command: String,
+        context: wc::Context,
+        params: Vec<wt::ParamValue>,
+        choices: Vec<wt::ChoiceValue>,
+        inputs: Vec<wc::CommandInput>,
+        ids: Vec<u64>,
+    ) -> Result<wc::CommandGroup, wt::Diagnostic> {
+        P::Commands::expand(command, context, params, choices, inputs, ids)
+    }
+}
+
+/// Exports a plugin as the world's `feature`, `exchange` and `commands`
+/// interfaces, once per cdylib. `export_plugin!(Spur)` names a unit struct
+/// implementing [`Feature`]; `export_plugin!(features = Spur, exporters =
+/// Urdf, commands = Place)` names any of a [`Feature`], an [`Exporter`] and
+/// [`Commands`], in that order. What it does not name is empty.
 #[macro_export]
 macro_rules! export_plugin {
-    (features = $feature:path, exporters = $exporter:path $(,)?) => {
-        $crate::export_plugin!(@feature $feature);
-        $crate::export_plugin!(@exporter $exporter);
-        $crate::export_plugin!(@world
-            $crate::guest::WithFeatures<__ArrixFeature>,
-            $crate::guest::WithExporters<__ArrixExporter>
-        );
-    };
-    (features = $feature:path $(,)?) => {
-        $crate::export_plugin!(@feature $feature);
-        $crate::export_plugin!(@world
-            $crate::guest::WithFeatures<__ArrixFeature>,
-            $crate::guest::NoExporters
-        );
-    };
-    (exporters = $exporter:path $(,)?) => {
-        $crate::export_plugin!(@exporter $exporter);
-        $crate::export_plugin!(@world
-            $crate::guest::NoFeatures,
-            $crate::guest::WithExporters<__ArrixExporter>
-        );
+    (@feature) => {
+        type __ArrixFeatures = $crate::guest::NoFeatures;
     };
     (@feature $feature:path) => {
         struct __ArrixFeature;
@@ -268,6 +343,10 @@ macro_rules! export_plugin {
                 &$feature
             }
         }
+        type __ArrixFeatures = $crate::guest::WithFeatures<__ArrixFeature>;
+    };
+    (@exporter) => {
+        type __ArrixExporters = $crate::guest::NoExporters;
     };
     (@exporter $exporter:path) => {
         struct __ArrixExporter;
@@ -276,17 +355,52 @@ macro_rules! export_plugin {
                 &$exporter
             }
         }
+        type __ArrixExporters = $crate::guest::WithExporters<__ArrixExporter>;
     };
-    (@world $features:ty, $exporters:ty) => {
+    (@command) => {
+        type __ArrixCommands = $crate::guest::NoCommands;
+    };
+    (@command $command:path) => {
+        struct __ArrixCommand;
+        impl $crate::guest::CommandSource for __ArrixCommand {
+            fn commands() -> &'static dyn $crate::Commands {
+                &$command
+            }
+        }
+        type __ArrixCommands = $crate::guest::WithCommands<__ArrixCommand>;
+    };
+    (@go [$($f:tt)*] [$($e:tt)*] [$($c:tt)*]) => {
+        $crate::export_plugin!(@feature $($f)*);
+        $crate::export_plugin!(@exporter $($e)*);
+        $crate::export_plugin!(@command $($c)*);
         struct __ArrixPlugin;
         impl $crate::guest::Plugin for __ArrixPlugin {
-            type Features = $features;
-            type Exporters = $exporters;
+            type Features = __ArrixFeatures;
+            type Exporters = __ArrixExporters;
+            type Commands = __ArrixCommands;
         }
         type __ArrixExported = $crate::guest::Exported<__ArrixPlugin>;
         $crate::guest::bindings::__arrix_export_world!(
             __ArrixExported with_types_in $crate::guest::bindings
         );
+    };
+    (@go [$($f:tt)*] [$($e:tt)*] [$($c:tt)*] features = $v:path $(, $($rest:tt)*)?) => {
+        $crate::export_plugin!(@go [$v] [$($e)*] [$($c)*] $($($rest)*)?);
+    };
+    (@go [$($f:tt)*] [$($e:tt)*] [$($c:tt)*] exporters = $v:path $(, $($rest:tt)*)?) => {
+        $crate::export_plugin!(@go [$($f)*] [$v] [$($c)*] $($($rest)*)?);
+    };
+    (@go [$($f:tt)*] [$($e:tt)*] [$($c:tt)*] commands = $v:path $(, $($rest:tt)*)?) => {
+        $crate::export_plugin!(@go [$($f)*] [$($e)*] [$v] $($($rest)*)?);
+    };
+    (features = $($rest:tt)*) => {
+        $crate::export_plugin!(@go [] [] [] features = $($rest)*);
+    };
+    (exporters = $($rest:tt)*) => {
+        $crate::export_plugin!(@go [] [] [] exporters = $($rest)*);
+    };
+    (commands = $($rest:tt)*) => {
+        $crate::export_plugin!(@go [] [] [] commands = $($rest)*);
     };
     ($feature:path $(,)?) => {
         $crate::export_plugin!(features = $feature);

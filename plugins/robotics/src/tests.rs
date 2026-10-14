@@ -86,6 +86,7 @@ fn part_info(n: u64, name: &str) -> PartInfo {
                 },
             }),
         }],
+        features: vec![],
     }
 }
 

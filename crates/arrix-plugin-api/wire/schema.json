@@ -1,5 +1,64 @@
 {
   "$defs": {
+    "add-feature": {
+      "additionalProperties": false,
+      "description": "Appended to the part's history when `at` is none.",
+      "properties": {
+        "at": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "maximum": 4294967295,
+              "minimum": 0,
+              "type": "integer"
+            }
+          ]
+        },
+        "feature": {
+          "$ref": "#/$defs/feature-draft"
+        },
+        "part": {
+          "$ref": "#/$defs/id"
+        }
+      },
+      "required": [
+        "part",
+        "feature"
+      ],
+      "type": "object"
+    },
+    "anchor": {
+      "additionalProperties": false,
+      "description": "Where a joint attaches: `axis` and `origin` name a face or an edge of the part the path ends at (ADR-0029).",
+      "properties": {
+        "axis": {
+          "$ref": "#/$defs/persistent-ref"
+        },
+        "origin": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/persistent-ref"
+            }
+          ]
+        },
+        "path": {
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "path",
+        "axis"
+      ],
+      "type": "object"
+    },
     "arc-segment": {
       "additionalProperties": false,
       "description": "A circular arc through `via` to `to`.",
@@ -48,6 +107,39 @@
         "name",
         "components",
         "joints"
+      ],
+      "type": "object"
+    },
+    "assign-material": {
+      "additionalProperties": false,
+      "description": "Sets what a part, or one of its final bodies, is made of; none clears.",
+      "properties": {
+        "body": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/body-ref"
+            }
+          ]
+        },
+        "material": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/id"
+            }
+          ]
+        },
+        "part": {
+          "$ref": "#/$defs/id"
+        }
+      },
+      "required": [
+        "part"
       ],
       "type": "object"
     },
@@ -182,6 +274,27 @@
       ],
       "type": "object"
     },
+    "circle-edge": {
+      "additionalProperties": false,
+      "description": "An edge input, resolved against the base generation: `path` is the component ids from the assembly down (empty in a part), `name` the edge, `curve` its geometry in the context's frame, and `face-normals` the outward normals of the planar faces it bounds, in the order of their names.",
+      "properties": {
+        "axis": {
+          "$ref": "#/$defs/vec3"
+        },
+        "centre": {
+          "$ref": "#/$defs/vec3"
+        },
+        "radius": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "centre",
+        "axis",
+        "radius"
+      ],
+      "type": "object"
+    },
     "circle-loop": {
       "additionalProperties": false,
       "properties": {
@@ -199,6 +312,158 @@
         "key",
         "center",
         "radius"
+      ],
+      "type": "object"
+    },
+    "command-group": {
+      "additionalProperties": false,
+      "properties": {
+        "commands": {
+          "items": {
+            "$ref": "#/$defs/plugin-command"
+          },
+          "type": "array"
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "label",
+        "commands"
+      ],
+      "type": "object"
+    },
+    "command-input": {
+      "additionalProperties": false,
+      "description": "A `list` input arrives as one `command-input` per element.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/command-input-value"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "type": "object"
+    },
+    "command-input-value": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "edge": {
+              "$ref": "#/$defs/resolved-edge"
+            }
+          },
+          "required": [
+            "edge"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "command-spec": {
+      "additionalProperties": false,
+      "description": "`id` is `<plugin-id>.<name>`; `group` the ribbon group it sits in on the plugin's tab. `params`, `choices` and `inputs` are a feature type's specs and derive a form as for a feature; an input's kind is `edge` alone at 0.8. `max-new` is the most ids one expansion uses (64 if none).",
+      "properties": {
+        "choices": {
+          "items": {
+            "$ref": "#/$defs/choice-spec"
+          },
+          "type": "array"
+        },
+        "group": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "inputs": {
+          "items": {
+            "$ref": "#/$defs/input-spec"
+          },
+          "type": "array"
+        },
+        "max-new": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "maximum": 4294967295,
+              "minimum": 0,
+              "type": "integer"
+            }
+          ]
+        },
+        "params": {
+          "items": {
+            "$ref": "#/$defs/param-spec"
+          },
+          "type": "array"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "group",
+        "params",
+        "choices",
+        "inputs"
+      ],
+      "type": "object"
+    },
+    "component-change": {
+      "additionalProperties": false,
+      "properties": {
+        "assembly": {
+          "$ref": "#/$defs/id"
+        },
+        "component": {
+          "$ref": "#/$defs/component-draft"
+        }
+      },
+      "required": [
+        "assembly",
+        "component"
+      ],
+      "type": "object"
+    },
+    "component-draft": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "type": "string"
+        },
+        "of": {
+          "$ref": "#/$defs/component-of"
+        },
+        "pose": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/pose"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "of"
       ],
       "type": "object"
     },
@@ -238,6 +503,36 @@
       "type": "object"
     },
     "component-of": {
+      "description": "What a component places.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "part": {
+              "$ref": "#/$defs/id"
+            }
+          },
+          "required": [
+            "part"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "assembly": {
+              "$ref": "#/$defs/id"
+            }
+          },
+          "required": [
+            "assembly"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "context": {
+      "description": "What the client's tab looks at, and the frame inputs arrive in.",
       "oneOf": [
         {
           "additionalProperties": false,
@@ -300,6 +595,46 @@
       ],
       "type": "object"
     },
+    "edge-curve": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "circle": {
+              "$ref": "#/$defs/circle-edge"
+            }
+          },
+          "required": [
+            "circle"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "line": {
+              "$ref": "#/$defs/line-edge"
+            }
+          },
+          "required": [
+            "line"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "other": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "other"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "exporter-spec": {
       "additionalProperties": false,
       "description": "`id` is `<plugin-id>.<name>`; `extension` is the main file's, without the dot. Options are a feature's fields, so a form is derived as for a feature.",
@@ -336,6 +671,112 @@
         "subject",
         "params",
         "choices"
+      ],
+      "type": "object"
+    },
+    "expression": {
+      "description": "A value in a record: SI, or an expression's text the host parses.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "si": {
+              "$ref": "#/$defs/quantity"
+            }
+          },
+          "required": [
+            "si"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "feature-draft": {
+      "additionalProperties": false,
+      "description": "A feature as a plugin drafts it; the host fills the type's version.",
+      "properties": {
+        "choices": {
+          "items": {
+            "$ref": "#/$defs/choice-value"
+          },
+          "type": "array"
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "inputs": {
+          "items": {
+            "$ref": "#/$defs/named-input"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        },
+        "params": {
+          "items": {
+            "$ref": "#/$defs/named-expression"
+          },
+          "type": "array"
+        },
+        "type-id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "type-id",
+        "name",
+        "params",
+        "choices",
+        "inputs"
+      ],
+      "type": "object"
+    },
+    "feature-info": {
+      "additionalProperties": false,
+      "description": "A history feature, evaluated (ADR-0038 §4): its type, name, the choices it holds (the record's or the spec's defaults) and its params in SI.",
+      "properties": {
+        "choices": {
+          "items": {
+            "$ref": "#/$defs/choice-value"
+          },
+          "type": "array"
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "type": "string"
+        },
+        "params": {
+          "items": {
+            "$ref": "#/$defs/param-value"
+          },
+          "type": "array"
+        },
+        "type-id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "type-id",
+        "name",
+        "choices",
+        "params"
       ],
       "type": "object"
     },
@@ -652,6 +1093,82 @@
         }
       ]
     },
+    "joint-change": {
+      "additionalProperties": false,
+      "properties": {
+        "assembly": {
+          "$ref": "#/$defs/id"
+        },
+        "joint": {
+          "$ref": "#/$defs/joint-draft"
+        }
+      },
+      "required": [
+        "assembly",
+        "joint"
+      ],
+      "type": "object"
+    },
+    "joint-draft": {
+      "additionalProperties": false,
+      "properties": {
+        "child": {
+          "$ref": "#/$defs/anchor"
+        },
+        "flip": {
+          "type": "boolean"
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "$ref": "#/$defs/joint-kind"
+        },
+        "limits": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "$ref": "#/$defs/expression"
+                },
+                {
+                  "$ref": "#/$defs/expression"
+                }
+              ],
+              "type": "array"
+            }
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "offset": {
+          "$ref": "#/$defs/expression"
+        },
+        "parent": {
+          "$ref": "#/$defs/anchor"
+        },
+        "value": {
+          "$ref": "#/$defs/expression"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "parent",
+        "child",
+        "value",
+        "offset",
+        "flip"
+      ],
+      "type": "object"
+    },
     "joint-info": {
       "additionalProperties": false,
       "description": "`parent` and `child` are the paths of the components the anchors are on, from the assembly down. `limits` are lower and upper, SI.",
@@ -775,6 +1292,22 @@
         }
       ]
     },
+    "line-edge": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "$ref": "#/$defs/vec3"
+        },
+        "start": {
+          "$ref": "#/$defs/vec3"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "type": "object"
+    },
     "line-segment": {
       "additionalProperties": false,
       "description": "A planar region in (u, v) coordinates of `plane`, every curve keyed: side faces are rooted at a curve's key, so a key must be stable across evaluations for the same logical curve.",
@@ -813,6 +1346,36 @@
       ],
       "type": "object"
     },
+    "material-draft": {
+      "additionalProperties": false,
+      "properties": {
+        "color": {
+          "$ref": "#/$defs/rgb"
+        },
+        "density": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/expression"
+            }
+          ]
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "color"
+      ],
+      "type": "object"
+    },
     "material-info": {
       "additionalProperties": false,
       "properties": {
@@ -847,6 +1410,46 @@
         "translation",
         "axis",
         "angle"
+      ],
+      "type": "object"
+    },
+    "named-expression": {
+      "additionalProperties": false,
+      "properties": {
+        "expression": {
+          "$ref": "#/$defs/expression"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "expression"
+      ],
+      "type": "object"
+    },
+    "named-input": {
+      "additionalProperties": false,
+      "description": "An input of a drafted feature: its references; `many` for a list input.",
+      "properties": {
+        "many": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "refs": {
+          "items": {
+            "$ref": "#/$defs/reference"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "refs",
+        "many"
       ],
       "type": "object"
     },
@@ -930,12 +1533,52 @@
       ],
       "type": "object"
     },
+    "part-draft": {
+      "additionalProperties": false,
+      "properties": {
+        "features": {
+          "items": {
+            "$ref": "#/$defs/feature-draft"
+          },
+          "type": "array"
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "material": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/id"
+            }
+          ]
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "features"
+      ],
+      "type": "object"
+    },
     "part-info": {
       "additionalProperties": false,
+      "description": "`features` are the part's history, in order.",
       "properties": {
         "bodies": {
           "items": {
             "$ref": "#/$defs/body-info"
+          },
+          "type": "array"
+        },
+        "features": {
+          "items": {
+            "$ref": "#/$defs/feature-info"
           },
           "type": "array"
         },
@@ -949,7 +1592,8 @@
       "required": [
         "id",
         "name",
-        "bodies"
+        "bodies",
+        "features"
       ],
       "type": "object"
     },
@@ -984,6 +1628,106 @@
         "encoded"
       ],
       "type": "object"
+    },
+    "plugin-command": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "add-part": {
+              "$ref": "#/$defs/part-draft"
+            }
+          },
+          "required": [
+            "add-part"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "add-feature": {
+              "$ref": "#/$defs/add-feature"
+            }
+          },
+          "required": [
+            "add-feature"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "add-component": {
+              "$ref": "#/$defs/component-change"
+            }
+          },
+          "required": [
+            "add-component"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "edit-component": {
+              "$ref": "#/$defs/component-change"
+            }
+          },
+          "required": [
+            "edit-component"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "add-joint": {
+              "$ref": "#/$defs/joint-change"
+            }
+          },
+          "required": [
+            "add-joint"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "edit-joint": {
+              "$ref": "#/$defs/joint-change"
+            }
+          },
+          "required": [
+            "edit-joint"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "add-material": {
+              "$ref": "#/$defs/material-draft"
+            }
+          },
+          "required": [
+            "add-material"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "assign-material": {
+              "$ref": "#/$defs/assign-material"
+            }
+          },
+          "required": [
+            "assign-material"
+          ],
+          "type": "object"
+        }
+      ]
     },
     "plugin-ref": {
       "additionalProperties": false,
@@ -1021,6 +1765,49 @@
       },
       "required": [
         "at"
+      ],
+      "type": "object"
+    },
+    "pose": {
+      "additionalProperties": false,
+      "description": "A position (three lengths) and URDF's fixed-axis roll, pitch and yaw (three angles).",
+      "properties": {
+        "position": {
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "$ref": "#/$defs/expression"
+            },
+            {
+              "$ref": "#/$defs/expression"
+            },
+            {
+              "$ref": "#/$defs/expression"
+            }
+          ],
+          "type": "array"
+        },
+        "rpy": {
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "$ref": "#/$defs/expression"
+            },
+            {
+              "$ref": "#/$defs/expression"
+            },
+            {
+              "$ref": "#/$defs/expression"
+            }
+          ],
+          "type": "array"
+        }
+      },
+      "required": [
+        "position",
+        "rpy"
       ],
       "type": "object"
     },
@@ -1253,6 +2040,36 @@
         "feature",
         "entities",
         "sample"
+      ],
+      "type": "object"
+    },
+    "resolved-edge": {
+      "additionalProperties": false,
+      "properties": {
+        "curve": {
+          "$ref": "#/$defs/edge-curve"
+        },
+        "face-normals": {
+          "items": {
+            "$ref": "#/$defs/vec3"
+          },
+          "type": "array"
+        },
+        "name": {
+          "$ref": "#/$defs/persistent-ref"
+        },
+        "path": {
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "path",
+        "name",
+        "curve",
+        "face-normals"
       ],
       "type": "object"
     },
@@ -1530,8 +2347,8 @@
       "type": "object"
     }
   },
-  "$id": "arrix:plugin@0.7.0/schema",
+  "$id": "arrix:plugin@0.8.0/schema",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "Generated from wit/arrix-plugin.wit (ADR-0022). Do not edit.",
-  "title": "The wire's types, arrix:plugin@0.7.0"
+  "title": "The wire's types, arrix:plugin@0.8.0"
 }

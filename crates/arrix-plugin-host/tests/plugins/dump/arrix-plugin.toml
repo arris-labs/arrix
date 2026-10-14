@@ -2,7 +2,7 @@
 [plugin]
 id = "dump"
 version = "0.1.0"
-api = "^0.7"
+api = "^0.8"
 tier = 0
 title = "Dump"
 licence = "MIT OR Apache-2.0"

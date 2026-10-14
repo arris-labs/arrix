@@ -10,7 +10,8 @@
 //!    trips at run time.
 //! 2. **Functions.** `feature`'s `Guest` is implemented by forwarding to a
 //!    Rust `Feature`, and a Rust `Feature` by forwarding to the `Guest`;
-//!    the same for `exchange`'s `Guest` and a Rust `Exporter`; the Rust
+//!    the same for `exchange`'s `Guest` and a Rust `Exporter`, and for
+//!    `commands`' `Guest` and a Rust `Commands`; the Rust
 //!    `Kernel` and `Snapshot` are implemented over the world's imports. A
 //!    method or function added on either side fails to compile.
 //! 3. **Inventory.** The world as parsed is exactly the types and functions
@@ -23,10 +24,13 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use arrix_plugin_api as api;
-use arrix_plugin_api::guest::bindings::exports::arrix::plugin::{exchange as wx, feature as wf};
+use arrix_plugin_api::guest::bindings::exports::arrix::plugin::{
+    commands as wc, exchange as wx, feature as wf,
+};
 use arrix_plugin_api::guest::{
-    Exported, ExporterSource, FeatureSource, Mirror, NoExporters, NoFeatures, Plugin, WitKernel,
-    WitSnapshot, WithExporters, WithFeatures, input_to_wit, output_from_wit,
+    CommandSource, Exported, ExporterSource, FeatureSource, Mirror, NoCommands, NoExporters,
+    NoFeatures, Plugin, WitKernel, WitSnapshot, WithCommands, WithExporters, WithFeatures,
+    input_to_wit, output_from_wit,
 };
 use arrix_plugin_api::{
     AssemblyId, Axis, ComponentId, CurveKey, DVec2, DVec3, Diagnostic, FeatureId, Frame, Id,
@@ -142,6 +146,7 @@ struct OffsetPlugin;
 impl Plugin for OffsetPlugin {
     type Features = WithFeatures<Offset>;
     type Exporters = NoExporters;
+    type Commands = NoCommands;
 }
 
 type OffsetExported = Exported<OffsetPlugin>;
@@ -216,6 +221,7 @@ struct DumpPlugin;
 impl Plugin for DumpPlugin {
     type Features = NoFeatures;
     type Exporters = WithExporters<Dump>;
+    type Commands = NoCommands;
 }
 
 type DumpExported = Exported<DumpPlugin>;
@@ -245,6 +251,136 @@ impl api::Exporter for ImportedDump {
             choices.to_vec().to_wit(),
         )
         .map(Vec::from_wit)
+        .map_err(Diagnostic::from_wit)
+    }
+}
+
+/// A test command: a block part on each picked edge, one component each.
+struct Place;
+
+fn place_spec() -> api::CommandSpec {
+    api::CommandSpec {
+        id: "test.place".into(),
+        title: "Place".into(),
+        group: "Test".into(),
+        params: vec![api::ParamSpec {
+            name: "size".into(),
+            title: "Size".into(),
+            kind: QuantityKind::Length,
+            default: "5 mm".into(),
+            shown_when: None,
+        }],
+        choices: vec![],
+        inputs: vec![api::InputSpec {
+            name: "edges".into(),
+            title: "Edges".into(),
+            kind: api::InputKind::Edge,
+            list: true,
+            shown_when: None,
+        }],
+        max_new: Some(8),
+    }
+}
+
+impl api::Commands for Place {
+    fn commands(&self) -> Vec<api::CommandSpec> {
+        vec![place_spec()]
+    }
+
+    fn expand(
+        &self,
+        _snapshot: &mut dyn api::Snapshot,
+        command: &str,
+        context: &api::Context,
+        params: &[api::ParamValue],
+        _choices: &[api::ChoiceValue],
+        inputs: &[api::CommandInput],
+        ids: &[Id],
+    ) -> Result<api::CommandGroup, Diagnostic> {
+        let refuse = |code: &str, what: &str| {
+            Err(Diagnostic::new(Severity::Error, code, what.to_owned()).unwrap())
+        };
+        if command != "test.place" {
+            return refuse("test.place.unknown", command);
+        }
+        let api::Context::Assembly(assembly) = *context else {
+            return refuse("test.place.context", "an assembly is needed");
+        };
+        let mut ids = ids.iter().copied();
+        let mut commands = Vec::new();
+        for input in inputs {
+            let api::CommandInputValue::Edge(edge) = &input.value;
+            let (Some(part), Some(component)) = (ids.next(), ids.next()) else {
+                return refuse("test.place.ids", "out of ids");
+            };
+            commands.push(api::PluginCommand::AddPart(api::PartDraft {
+                id: PartId(part),
+                name: "block".into(),
+                features: vec![],
+                material: None,
+            }));
+            commands.push(api::PluginCommand::AddComponent(api::ComponentChange {
+                assembly,
+                component: api::ComponentDraft {
+                    id: ComponentId(component),
+                    name: format!("block {}", edge.name),
+                    of: api::ComponentOf::Part(PartId(part)),
+                    pose: None,
+                },
+            }));
+        }
+        let _ = params;
+        Ok(api::CommandGroup {
+            label: "Place".into(),
+            commands,
+        })
+    }
+}
+
+impl CommandSource for Place {
+    fn commands() -> &'static dyn api::Commands {
+        &Place
+    }
+}
+
+struct PlacePlugin;
+
+impl Plugin for PlacePlugin {
+    type Features = NoFeatures;
+    type Exporters = NoExporters;
+    type Commands = WithCommands<Place>;
+}
+
+type PlaceExported = Exported<PlacePlugin>;
+
+/// A Rust `Commands` implemented by forwarding to the world's export, as
+/// the host sees a Tier 1 plugin.
+struct ImportedPlace;
+
+impl api::Commands for ImportedPlace {
+    fn commands(&self) -> Vec<api::CommandSpec> {
+        Vec::from_wit(<PlaceExported as wc::Guest>::commands())
+    }
+
+    fn expand(
+        &self,
+        _snapshot: &mut dyn api::Snapshot,
+        command: &str,
+        context: &api::Context,
+        params: &[api::ParamValue],
+        choices: &[api::ChoiceValue],
+        inputs: &[api::CommandInput],
+        ids: &[Id],
+    ) -> Result<api::CommandGroup, Diagnostic> {
+        <PlaceExported as wc::Guest>::expand(
+            command.to_owned(),
+            context.to_wit(),
+            params.to_vec().to_wit(),
+            choices.to_vec().to_wit(),
+            inputs.to_vec().to_wit(),
+            ids.iter().map(|i| i.0).collect(),
+        )
+        .map(api::CommandGroup::from_wit)
         .map_err(Diagnostic::from_wit)
     }
 }
@@ -455,6 +591,19 @@ fn document_types_round_trip() {
     round_trip(&api::PartInfo {
         id: part,
         name: "Bracket".into(),
+        features: vec![api::FeatureInfo {
+            id: FeatureId(Id(18)),
+            type_id: "core.extrude".into(),
+            name: "Extrude 1".into(),
+            choices: vec![api::ChoiceValue {
+                name: "mode".into(),
+                value: "join".into(),
+            }],
+            params: vec![api::ParamValue {
+                name: "depth".into(),
+                value: Quantity::si(QuantityKind::Length, 0.01),
+            }],
+        }],
         bodies: vec![
             api::BodyInfo {
                 body: body.clone(),
@@ -551,6 +700,155 @@ fn document_types_round_trip() {
         name: "meshes/link.stl".into(),
         bytes: vec![0, 1, 254, 255],
     });
+    command_types_round_trip();
+}
+
+fn command_types_round_trip() {
+    round_trip(&place_spec());
+    round_trip(&api::Context::Part(PartId(Id(1))));
+    round_trip(&api::Context::Assembly(AssemblyId(Id(2))));
+    let edge: PersistentName = format!("edge:revolve.{}.side.{}", Id(7), Id(9))
+        .parse()
+        .unwrap();
+    for curve in [
+        api::EdgeCurve::Circle(api::CircleEdge {
+            centre: DVec3::new(0.01, 0.02, 0.003),
+            axis: DVec3::new(0.0, 0.0, -1.0),
+            radius: 0.0015,
+        }),
+        api::EdgeCurve::Line(api::LineEdge {
+            start: DVec3::ZERO,
+            end: DVec3::new(0.0, 0.1, 0.0),
+        }),
+        api::EdgeCurve::Other,
+    ] {
+        round_trip(&api::CommandInput {
+            name: "edges".into(),
+            value: api::CommandInputValue::Edge(api::ResolvedEdge {
+                path: vec![ComponentId(Id(3)), ComponentId(Id(4))],
+                name: edge.clone(),
+                curve,
+                face_normals: vec![DVec3::Z, DVec3::new(0.0, 0.6, 0.8)],
+            }),
+        });
+    }
+
+    let si = api::Expression::Si(Quantity::si(QuantityKind::Length, 0.004));
+    let text = api::Expression::Text("width / 2".into());
+    let feature = api::FeatureDraft {
+        id: FeatureId(Id(21)),
+        type_id: "core.extrude".into(),
+        name: "Head".into(),
+        params: vec![
+            api::NamedExpression {
+                name: "depth".into(),
+                expression: si.clone(),
+            },
+            api::NamedExpression {
+                name: "offset".into(),
+                expression: text.clone(),
+            },
+        ],
+        choices: vec![api::ChoiceValue {
+            name: "mode".into(),
+            value: "new".into(),
+        }],
+        inputs: vec![
+            api::NamedInput {
+                name: "profile".into(),
+                refs: vec![Ref::Feature(FeatureId(Id(22)))],
+                many: false,
+            },
+            api::NamedInput {
+                name: "edges".into(),
+                refs: vec![Ref::Topo(edge.clone()), Ref::Topo(edge.clone())],
+                many: true,
+            },
+        ],
+    };
+    let component = api::ComponentDraft {
+        id: ComponentId(Id(23)),
+        name: "M3x10 1".into(),
+        of: api::ComponentOf::Part(PartId(Id(24))),
+        pose: Some(api::Pose {
+            position: [si.clone(), text.clone(), si.clone()],
+            rpy: [text.clone(), si.clone(), text.clone()],
+        }),
+    };
+    let anchor = |path: Vec<ComponentId>, origin| api::Anchor {
+        path,
+        axis: edge.clone(),
+        origin,
+    };
+    let joint = api::JointDraft {
+        id: JointId(Id(25)),
+        name: "M3x10 1 fixed".into(),
+        kind: api::JointKind::Fixed,
+        parent: anchor(vec![ComponentId(Id(3))], None),
+        child: anchor(vec![ComponentId(Id(23))], Some(edge.clone())),
+        value: si.clone(),
+        offset: text.clone(),
+        limits: Some([si.clone(), text.clone()]),
+        flip: true,
+    };
+    let group = api::CommandGroup {
+        label: "Place screws".into(),
+        commands: vec![
+            api::PluginCommand::AddPart(api::PartDraft {
+                id: PartId(Id(24)),
+                name: "M3x10".into(),
+                features: vec![feature.clone()],
+                material: Some(api::MaterialId(Id(26))),
+            }),
+            api::PluginCommand::AddFeature(api::AddFeature {
+                part: PartId(Id(24)),
+                at: Some(1),
+                feature,
+            }),
+            api::PluginCommand::AddComponent(api::ComponentChange {
+                assembly: AssemblyId(Id(27)),
+                component: component.clone(),
+            }),
+            api::PluginCommand::EditComponent(api::ComponentChange {
+                assembly: AssemblyId(Id(27)),
+                component: api::ComponentDraft {
+                    pose: None,
+                    ..component
+                },
+            }),
+            api::PluginCommand::AddJoint(api::JointChange {
+                assembly: AssemblyId(Id(27)),
+                joint: joint.clone(),
+            }),
+            api::PluginCommand::EditJoint(api::JointChange {
+                assembly: AssemblyId(Id(27)),
+                joint: api::JointDraft {
+                    limits: None,
+                    flip: false,
+                    ..joint
+                },
+            }),
+            api::PluginCommand::AddMaterial(api::MaterialDraft {
+                id: api::MaterialId(Id(26)),
+                name: "Steel".into(),
+                density: Some(text),
+                color: api::Rgb {
+                    red: 0.5,
+                    green: 0.5,
+                    blue: 0.5,
+                },
+            }),
+            api::PluginCommand::AssignMaterial(api::AssignMaterial {
+                part: PartId(Id(24)),
+                body: Some(api::BodyRef {
+                    feature: FeatureId(Id(21)),
+                    slot: SlotName::new("body").unwrap(),
+                }),
+                material: None,
+            }),
+        ],
+    };
+    round_trip(&group);
 }
 
 #[test]
@@ -629,6 +927,70 @@ fn an_exporter_behaves_the_same_through_the_world() {
     assert_eq!(refused.unwrap_err().code, "plugin.no-exporter");
 }
 
+#[test]
+fn a_command_behaves_the_same_through_the_world() {
+    use api::Commands;
+
+    assert_eq!(ImportedPlace.commands(), Place.commands());
+    // A plugin that names no commands is empty, and refuses a call.
+    assert!(<PlaceExported as wf::Guest>::describe().is_empty());
+    assert!(<OffsetExported as wc::Guest>::commands().is_empty());
+
+    struct Nothing;
+    impl api::Snapshot for Nothing {
+        fn parts(&mut self) -> Vec<api::PartInfo> {
+            Vec::new()
+        }
+        fn mesh(&mut self, _: PartId, _: &api::BodyRef) -> Result<api::Triangles, Diagnostic> {
+            unreachable!()
+        }
+        fn mass(&mut self, _: PartId) -> Result<api::Inertial, Diagnostic> {
+            unreachable!()
+        }
+        fn assemblies(&mut self) -> Vec<api::AssemblyInfo> {
+            Vec::new()
+        }
+    }
+    let edge = |n: u64| api::CommandInput {
+        name: "edges".into(),
+        value: api::CommandInputValue::Edge(api::ResolvedEdge {
+            path: vec![ComponentId(Id(n))],
+            name: format!("edge:revolve.{}.side.{}", Id(7), Id(n))
+                .parse()
+                .unwrap(),
+            curve: api::EdgeCurve::Other,
+            face_normals: vec![DVec3::Z],
+        }),
+    };
+    let params = [api::ParamValue {
+        name: "size".into(),
+        value: Quantity::si(QuantityKind::Length, 0.003),
+    }];
+    let ids: Vec<Id> = (100..108).map(Id).collect();
+    let assembly = api::Context::Assembly(AssemblyId(Id(5)));
+    let cases = [
+        ("test.place", assembly, vec![edge(1), edge(2)]),
+        ("test.place", api::Context::Part(PartId(Id(5))), vec![]),
+        ("test.place", assembly, vec![edge(1); 5]),
+        ("test.other", assembly, vec![]),
+    ];
+    for (command, context, inputs) in &cases {
+        let direct = Place.expand(&mut Nothing, command, context, &params, &[], inputs, &ids);
+        let through =
+            ImportedPlace.expand(&mut Nothing, command, context, &params, &[], inputs, &ids);
+        assert_eq!(through, direct, "{command} {context:?}");
+    }
+    let refused = <OffsetExported as wc::Guest>::expand(
+        "test.place".into(),
+        assembly.to_wit(),
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+    );
+    assert_eq!(refused.unwrap_err().code, "plugin.no-command");
+}
+
 /// Every type and function of the world, by interface. Each is covered
 /// above: a type by a `Mirror` impl (or by `output_*_wit` for outputs,
 /// `WitKernel` for `body`), a function by `WitKernel` or `Exported`.
@@ -661,6 +1023,12 @@ const COVERED: &[(&str, &[&str], &[&str])] = &[
             "axis",
             "point",
             "motion",
+            "rgb",
+            "body-ref",
+            "joint-kind",
+            "component-of",
+            "param-value",
+            "choice-value",
         ],
         &[],
     ),
@@ -694,8 +1062,6 @@ const COVERED: &[(&str, &[&str], &[&str])] = &[
             "slot-kind",
             "slot-spec",
             "feature-type-spec",
-            "param-value",
-            "choice-value",
             "input-value",
             "resolved-input",
             "tool-op",
@@ -709,16 +1075,13 @@ const COVERED: &[(&str, &[&str], &[&str])] = &[
     (
         "document",
         &[
-            "rgb",
             "material-info",
-            "body-ref",
             "body-info",
+            "feature-info",
             "part-info",
             "triangles",
             "inertia-tensor",
             "inertial",
-            "joint-kind",
-            "component-of",
             "component-info",
             "joint-placement",
             "joint-state",
@@ -731,6 +1094,36 @@ const COVERED: &[(&str, &[&str], &[&str])] = &[
         "exchange",
         &["subject-kind", "subject", "exporter-spec", "file"],
         &["exporters", "run"],
+    ),
+    (
+        "commands",
+        &[
+            "command-spec",
+            "context",
+            "circle-edge",
+            "line-edge",
+            "edge-curve",
+            "resolved-edge",
+            "command-input-value",
+            "command-input",
+            "expression",
+            "named-expression",
+            "named-input",
+            "feature-draft",
+            "part-draft",
+            "add-feature",
+            "pose",
+            "component-draft",
+            "component-change",
+            "anchor",
+            "joint-draft",
+            "joint-change",
+            "material-draft",
+            "assign-material",
+            "plugin-command",
+            "command-group",
+        ],
+        &["commands", "expand"],
     ),
 ];
 
@@ -772,7 +1165,9 @@ fn the_world_is_exactly_what_is_covered() {
     );
     assert_eq!(
         names(&world.exports),
-        BTreeSet::from(["feature", "exchange"].map(|i| format!("arrix:plugin/{i}@{v}")))
+        BTreeSet::from(
+            ["feature", "exchange", "commands"].map(|i| format!("arrix:plugin/{i}@{v}"))
+        )
     );
 
     let mut found = BTreeSet::new();

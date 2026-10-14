@@ -75,6 +75,7 @@ pub enum Def {
 
 #[derive(Clone, Debug)]
 pub struct TypeDef {
+    pub interface: String,
     pub name: String,
     pub def: Def,
     pub docs: String,
@@ -158,6 +159,7 @@ impl World {
                     continue;
                 }
                 types.push(TypeDef {
+                    interface: iface_name.clone(),
                     name: name.clone(),
                     def: read_def(&resolve, name, &def.kind, iface_name),
                     docs: docs(&def.docs),
