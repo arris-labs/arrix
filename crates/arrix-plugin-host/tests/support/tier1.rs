@@ -167,3 +167,24 @@ pub fn dump(name: &str, document_read: bool) -> PathBuf {
     );
     plugin_dir(name, &text, &module)
 }
+
+/// The `place` test commands (`tests/plugins/place`, outside the
+/// workspace) as a tier-1 directory named `name`, `document-read` and
+/// `document-write` granted or not.
+pub fn place(name: &str, document_read: bool, document_write: bool) -> PathBuf {
+    let manifest = root().join("crates/arrix-plugin-host/tests/plugins/place/Cargo.toml");
+    let module = build(&["--manifest-path", manifest.to_str().unwrap()], "place");
+    let text = std::fs::read_to_string(
+        root().join("crates/arrix-plugin-host/tests/plugins/place/arrix-plugin.toml"),
+    )
+    .unwrap()
+    .replace(
+        "document-read = true",
+        &format!("document-read = {document_read}"),
+    )
+    .replace(
+        "document-write = true",
+        &format!("document-write = {document_write}"),
+    );
+    plugin_dir(name, &text, &module)
+}

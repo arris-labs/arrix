@@ -25,20 +25,23 @@ use std::sync::mpsc::{Receiver, Sender, channel};
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
-use arrix_core::Diagnostic;
+use arrix_core::{Diagnostic, Id};
 use arrix_doc::{
-    ExporterType, FeatureArgs, FeatureType, FeatureTypeId, Interrupt, Registry, TypeOutput,
+    CommandType, ExporterType, FeatureArgs, FeatureType, FeatureTypeId, Interrupt, Registry,
+    TypeOutput,
 };
 use arrix_plugin_api::{
-    API_VERSION, ChoiceValue, ExportFile, ExporterSpec, FeatureTypeSpec, Kernel, ParamValue,
-    Snapshot, Subject,
+    API_VERSION, ChoiceValue, CommandGroup, CommandInput, CommandSpec, Context, ExportFile,
+    ExporterSpec, FeatureTypeSpec, Kernel, ParamValue, Snapshot, Subject,
 };
 use serde_json::{Map, Value, json};
 use wasmtime::component::{Component, InstancePre, Linker, ResourceType, Val};
 use wasmtime::{Config, Engine, ResourceLimiter, Store, Trap, UpdateDeadline};
 
 use crate::manifest::Manifest;
-use crate::tier0::{HostError, check, error, register_exporters, register_types};
+use crate::tier0::{
+    HostError, check, error, register_commands, register_exporters, register_types,
+};
 use crate::tier2::process::{CallError, Served};
 use crate::tier2::{MANIFEST, serve};
 use crate::wire::rpc::{Request, RpcError};
@@ -508,6 +511,74 @@ impl ExporterType for Tier1Exporter {
     }
 }
 
+/// One command of a Tier 1 plugin.
+struct Tier1Command {
+    spec: CommandSpec,
+    plugin: Arc<Plugin>,
+}
+
+impl CommandType for Tier1Command {
+    fn spec(&self) -> &CommandSpec {
+        &self.spec
+    }
+
+    /// The component's `expand` in a fresh store, with fuel and the epoch
+    /// interrupt, on a thread of its own; its `document` calls are served
+    /// here from `snapshot`, the base generation's (ADR-0038 §4).
+    fn expand(
+        &self,
+        snapshot: &mut dyn Snapshot,
+        context: &Context,
+        params: &[ParamValue],
+        choices: &[ChoiceValue],
+        inputs: &[CommandInput],
+        ids: &[Id],
+    ) -> Result<CommandGroup, Diagnostic> {
+        let plugin = &self.plugin;
+        let during = format!("expanding {}", self.spec.id);
+        let protocol = |e: WireError| error("plugin.protocol", format!("{during}: {e}"));
+        let args = json!({
+            "command": self.spec.id,
+            "context": context_to_json(context).map_err(protocol)?,
+            "params": list_to(params, param_value_to_json).map_err(protocol)?,
+            "choices": list_to(choices, choice_value_to_json).map_err(protocol)?,
+            "inputs": list_to(inputs, command_input_to_json).map_err(protocol)?,
+            "ids": list_to(ids, id_to).map_err(protocol)?,
+        });
+        let Value::Object(args) = args else {
+            unreachable!("an object literal")
+        };
+        let allowed = plugin.manifest.capabilities.document_read;
+        let (ask, asked) = channel();
+        let (answer, answers) = channel();
+        let result = std::thread::scope(|s| {
+            s.spawn(move || {
+                let calls = Calls {
+                    ask: ask.clone(),
+                    answers,
+                };
+                let _ = ask.send(Ask::Done(plugin.call(
+                    "commands",
+                    "expand",
+                    &args,
+                    Some(calls),
+                    Interrupt::default(),
+                )));
+            });
+            loop {
+                match asked.recv().expect("the component's thread answers once") {
+                    Ask::Call(r) => {
+                        let _ = answer.send(serve::document_call(snapshot, allowed, &r));
+                    }
+                    Ask::Done(result) => break result,
+                }
+            }
+        });
+        let result = result.map_err(|e| e.diagnostic(&plugin.id(), &during))?;
+        serve::result_from(&result, command_group_from_json).map_err(protocol)?
+    }
+}
+
 /// Loads the Tier 1 plugin in `dir` (its `arrix-plugin.toml` and the
 /// component its `[tier1]` table names; a core module is made a component
 /// here) and registers every feature type it describes, or none of them.
@@ -581,10 +652,28 @@ pub fn register_tier1(
     } else {
         Vec::new()
     };
+    // A component without a `commands` export has no commands.
+    let commands = if exports(&component, "commands") {
+        plugin
+            .call(
+                "commands",
+                "commands",
+                &Map::new(),
+                None,
+                Interrupt::default(),
+            )
+            .map_err(|e| failed(&id, e.diagnostic(&id, "describing").message))
+            .and_then(|v| {
+                list_from(&v, command_spec_from_json)
+                    .map_err(|e| failed(&id, format!("its `commands.commands` is malformed: {e}")))
+            })?
+    } else {
+        Vec::new()
+    };
     let m = plugin.manifest.clone();
     let version = m.version.to_string();
     let plugin = Arc::new(plugin);
-    // Types and exporters register together, or neither does.
+    // Types, exporters and commands register together, or none do.
     let mut next = registry.clone();
     let mut ids = register_types(&mut next, &m, specs, |spec| {
         Arc::new(Tier1Type {
@@ -595,6 +684,12 @@ pub fn register_tier1(
     })?;
     ids.extend(register_exporters(&mut next, &m, exporters, |spec| {
         Arc::new(Tier1Exporter {
+            spec,
+            plugin: plugin.clone(),
+        })
+    })?);
+    ids.extend(register_commands(&mut next, &m, commands, |spec| {
+        Arc::new(Tier1Command {
             spec,
             plugin: plugin.clone(),
         })

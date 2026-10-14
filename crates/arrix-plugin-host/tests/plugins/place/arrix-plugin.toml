@@ -1,0 +1,15 @@
+# The place plugin's manifest.
+[plugin]
+id = "place"
+version = "0.1.0"
+api = "^0.8"
+tier = 0
+title = "Place"
+licence = "MIT OR Apache-2.0"
+
+[capabilities]
+document-read = true
+document-write = true
+
+[contributes]
+commands = ["place.block", "place.panic", "place.rogue", "place.refuse"]
