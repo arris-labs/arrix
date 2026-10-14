@@ -3,6 +3,7 @@
 
 mod assembly_commands;
 mod badges;
+mod command_form;
 mod commands;
 mod component_form;
 #[cfg(not(target_arch = "wasm32"))]
@@ -126,6 +127,9 @@ pub struct ArrixApp {
     theme: Theme,
     /// The registered feature types, and the user's defaults for their forms.
     feature_types: Vec<FeatureTypeSpec>,
+    /// The plugin commands the registry holds, each a button on its
+    /// plugin's tab (ADR-0038 §10).
+    plugin_commands: Vec<arrix_plugin_api::CommandSpec>,
     defaults: ParamDefaults,
     /// What the config files got wrong, for `debug_state()` and the status bar.
     config_diagnostics: Vec<ConfigDiagnostic>,
@@ -228,6 +232,7 @@ impl ArrixApp {
             keymap: config.keymap,
             theme: config.theme,
             feature_types: specs,
+            plugin_commands: Vec::new(),
             defaults: config.defaults,
             config_diagnostics: config.diagnostics,
             source: None,
@@ -299,10 +304,41 @@ impl ArrixApp {
             .rsplit(['/', '\\'])
             .next()
             .unwrap_or(path);
+        self.take_in_plugins(&registry);
         let document = OpenDocument::open(title, path, source, registry)?;
         self.documents.push(document);
         self.active = self.documents.len() - 1;
         Ok(())
+    }
+
+    /// The feature types and commands `registry` holds that the app does not
+    /// know yet, such as a plugin directory's: they join the command
+    /// registry and so the ribbon.
+    fn take_in_plugins(&mut self, registry: &arrix_doc::Registry) {
+        let mut changed = false;
+        for spec in registry.creatable_specs() {
+            if !self.feature_types.iter().any(|t| t.id == spec.id) {
+                self.feature_types.push(spec);
+                changed = true;
+            }
+        }
+        for spec in registry.command_specs() {
+            match self.plugin_commands.iter_mut().find(|c| c.id == spec.id) {
+                Some(held) => *held = spec,
+                None => self.plugin_commands.push(spec),
+            }
+            changed = true;
+        }
+        if changed {
+            self.rebuild_commands();
+        }
+    }
+
+    /// The command registry again, from the feature types and the plugin
+    /// commands the app holds.
+    fn rebuild_commands(&mut self) {
+        self.commands = arrix_config::CommandRegistry::new(&self.feature_types)
+            .with_plugin_commands(&self.plugin_commands);
     }
 
     /// [`Self::open`] on a document directory or an `.arrx` file.
@@ -452,7 +488,7 @@ impl ArrixApp {
             }
         }
         if changed {
-            self.commands = arrix_config::CommandRegistry::new(&self.feature_types);
+            self.rebuild_commands();
         }
     }
 
@@ -471,6 +507,7 @@ impl ArrixApp {
         self.finish_imports();
         self.follow_sketches();
         self.follow_forms();
+        self.follow_expansions();
         self.follow_previews();
         for document in &mut self.documents {
             document.follow_part_sketches();
@@ -933,6 +970,10 @@ impl ArrixApp {
             FORM_OK => self.form_ok(),
             FORM_CANCEL => self.form_cancel(),
             other => {
+                if self.plugin_commands.iter().any(|c| c.id == other) {
+                    self.open_command_form(other);
+                    return;
+                }
                 if let Some(ty) = other.strip_suffix(".create") {
                     self.open_create_form(ty);
                     return;

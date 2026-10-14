@@ -9,6 +9,7 @@ mod coarse;
 mod component_form;
 mod component_picks;
 mod export;
+mod fasteners_place;
 mod fixture;
 mod form_diagnostics;
 mod form_pick;

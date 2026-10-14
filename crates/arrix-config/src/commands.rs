@@ -351,6 +351,34 @@ impl CommandRegistry {
         self.commands.iter().find(|c| c.id == id)
     }
 
+    /// This registry with a command for each of `commands` (ADR-0038 §10):
+    /// its id as the spec gives it, in the spec's group on its plugin's
+    /// tab, which is added when no feature type made it.
+    pub fn with_plugin_commands(mut self, commands: &[arrix_plugin_api::CommandSpec]) -> Self {
+        for spec in commands {
+            let tab = spec.id.split('.').next().unwrap_or(&spec.id).to_owned();
+            if !self.tabs.iter().any(|t| t.id == tab) {
+                self.tabs.push(TabSpec {
+                    title: capitalised(&tab),
+                    id: tab.clone(),
+                });
+            }
+            self.commands.push(CommandSpec {
+                id: spec.id.clone(),
+                title: spec.title.clone(),
+                ribbon: Some(RibbonPlacement {
+                    tab,
+                    group: spec.group.clone(),
+                }),
+                keys: Vec::new(),
+                when: None,
+                needs_document: true,
+                listed: true,
+            });
+        }
+        self
+    }
+
     /// The tab that command `id` opens, when it is a tab's command.
     pub fn tab_of_command(&self, id: &str) -> Option<&TabSpec> {
         self.tabs.iter().find(|t| tab_command_id(&t.id) == id)

@@ -135,6 +135,7 @@ impl MaterialForm {
         Some(FormView {
             id: format!("material:{}", self.part),
             title: format!("Material of {}", part.name),
+            named: true,
             create: false,
             name: current.map_or_else(String::new, |m| m.name.clone()),
             state: None,
@@ -172,6 +173,7 @@ impl ArrixApp {
         document.form = None;
         document.component_form = None;
         document.joint_form = None;
+        document.command_form = None;
         document.clear_preview();
         document.material_form = Some(MaterialForm::new(part));
     }

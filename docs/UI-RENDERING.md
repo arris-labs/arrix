@@ -408,14 +408,19 @@ type or version is missing, and a feature whose type is absent shows the
 names and values its record stores. A read-only form takes no edit
 intent.
 
-A **command form** (ADR-0038, as designed; built by plans/c3-m3) is the
-same renderer over a plugin command's spec. The command is in the command
-registry under its id, a button in its ribbon group on the plugin's tab.
-Running it opens a draft in the property card, seeded from the selection
-as a create form is; a pick in an assembly's tab carries its component
-path. OK sends `Expand` and submits the group it answers, one gesture and
-one undo entry; a diagnostic from either shows under the form and keeps
-the draft. Cancel and Escape drop it.
+A **command form** (ADR-0038, built by plans/c3-m3 step 10) is the same
+renderer over a plugin command's spec. The command is in the command
+registry under its id, a button in its ribbon group on the plugin's tab; the
+registry takes a plugin's commands from the registry the document opens on
+(`with_plugin_commands`), so one loaded after open is not shown until
+`SessionEvent::Registry` carries commands (backlog). Running it opens a
+draft in the property card, with no name row (`FormView::named`), seeded
+from the selection as a create form is; a pick in an assembly's tab carries
+its component path, and a shift-click adds to a list input. OK sends
+`Expand`; the group comes back as `Expanded` and is submitted as one
+gesture, so the gesture log shows the OK as none and the submit as one. A
+diagnostic from either shows under the form and keeps the draft. Cancel,
+Escape and a change of context drop it.
 
 Tier 0 drawing its own egui is an escape hatch decided by ADR when a real
 plugin needs it, not before.

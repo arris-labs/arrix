@@ -62,7 +62,7 @@ pub struct Form {
 }
 
 /// What a quantity of `kind` is measured in when its text names no unit.
-fn unit_hint(kind: QuantityKind) -> &'static str {
+pub(crate) fn unit_hint(kind: QuantityKind) -> &'static str {
     match kind {
         QuantityKind::Length => "mm",
         QuantityKind::Angle => "deg",
@@ -333,6 +333,7 @@ impl Form {
                 Some(r) => self.renamed.clone().unwrap_or_else(|| r.name.clone()),
                 None => self.name.clone(),
             },
+            named: true,
             state: standing.map(|s| s.state),
             diagnostic: diagnostic.map(|d| FormDiagnostic {
                 code: d.code.to_string(),
@@ -528,6 +529,7 @@ impl ArrixApp {
         if let Some(document) = self.documents.get_mut(self.active) {
             document.component_form = None;
             document.joint_form = None;
+            document.command_form = None;
             document.material_form = None;
             document.form = Some(form);
         }
@@ -555,6 +557,7 @@ impl ArrixApp {
         if let Some(document) = self.documents.get_mut(self.active) {
             document.component_form = None;
             document.joint_form = None;
+            document.command_form = None;
             document.material_form = None;
             document.form = Some(form);
         }
@@ -570,6 +573,9 @@ impl ArrixApp {
         }
         if self.joint_form_open() {
             return self.joint_form_view();
+        }
+        if self.command_form_open() {
+            return self.command_form_view();
         }
         let document = self.active_document()?;
         let form = document.form.as_ref()?;
@@ -642,6 +648,7 @@ impl ArrixApp {
             d.form.is_some()
                 || d.component_form.is_some()
                 || d.joint_form.is_some()
+                || d.command_form.is_some()
                 || d.material_form.is_some()
         })
     }
@@ -656,6 +663,9 @@ impl ArrixApp {
         }
         if self.joint_form_open() {
             return self.joint_form_intent(intent);
+        }
+        if self.command_form_open() {
+            return self.command_form_intent(intent);
         }
         // A form that shows a stored result takes no edit; it can be closed.
         if self.form_read_only() && !matches!(intent, UiIntent::FormOk | UiIntent::FormCancelled) {
@@ -849,6 +859,9 @@ impl ArrixApp {
         if self.joint_form_open() {
             return self.joint_form_ok();
         }
+        if self.command_form_open() {
+            return self.command_form_ok();
+        }
         // An edit form commits as it goes: Enter only closes it.
         if self
             .active_document()
@@ -892,6 +905,9 @@ impl ArrixApp {
         }
         if self.joint_form_open() {
             return self.joint_form_cancel();
+        }
+        if self.command_form_open() {
+            return self.command_form_cancel();
         }
         if let Some(document) = self.documents.get_mut(self.active) {
             document.form = None;

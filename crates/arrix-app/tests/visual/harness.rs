@@ -106,6 +106,18 @@ pub fn open_settled_without(harness: &mut Harness<'_, ArrixApp>, path: &str, wit
     wait_settled(harness);
 }
 
+/// [`open_settled`] with each plugin directory of `plugins` (relative to the
+/// workspace root) loaded first, as `arrix-app render --plugin` does.
+pub fn open_settled_with(harness: &mut Harness<'_, ArrixApp>, path: &str, plugins: &[&str]) {
+    let root = std::path::Path::new("../..");
+    let plugins: Vec<_> = plugins.iter().map(|p| root.join(p)).collect();
+    harness
+        .state_mut()
+        .open_path_with(&root.join(path), &plugins, &[])
+        .unwrap_or_else(|err| panic!("{err}"));
+    wait_settled(harness);
+}
+
 /// Steps until the active document is settled.
 pub fn wait_settled(harness: &mut Harness<'_, ArrixApp>) {
     let started = web_time::Instant::now();

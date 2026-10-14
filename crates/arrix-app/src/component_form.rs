@@ -222,6 +222,7 @@ impl ComponentForm {
                 Some(r) if self.name.is_empty() => r.name.clone(),
                 _ => self.name.clone(),
             },
+            named: true,
             state: None,
             diagnostic: dangling.or_else(|| {
                 refusal.map(|d| FormDiagnostic {
@@ -359,6 +360,7 @@ impl ArrixApp {
         if let Some(document) = self.documents.get_mut(self.active) {
             document.form = None;
             document.joint_form = None;
+            document.command_form = None;
             document.clear_preview();
             document.component_form = Some(ComponentForm::create(id, assembly, name, of));
         }
@@ -383,6 +385,7 @@ impl ArrixApp {
         };
         document.form = None;
         document.joint_form = None;
+        document.command_form = None;
         document.clear_preview();
         document.component_form = Some(ComponentForm::edit(owner, component));
     }

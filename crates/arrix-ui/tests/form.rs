@@ -33,6 +33,7 @@ fn view() -> FormView {
         title: "Extrude".into(),
         create: true,
         name: "Extrude 1".into(),
+        named: true,
         state: None,
         diagnostic: None,
         read_only: None,

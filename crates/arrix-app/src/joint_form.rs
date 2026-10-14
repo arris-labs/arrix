@@ -328,6 +328,7 @@ impl JointForm {
                 Some(r) if self.name.is_empty() => r.name.clone(),
                 _ => self.name.clone(),
             },
+            named: true,
             state: None,
             diagnostic: failure.or(refusal).map(|d| FormDiagnostic {
                 code: d.code.to_string(),

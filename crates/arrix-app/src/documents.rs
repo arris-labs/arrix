@@ -242,6 +242,11 @@ pub struct OpenDocument {
     /// A joint's form in the property card, while there is one; never open
     /// together with `form` or `component_form`.
     pub joint_form: Option<crate::joint_form::JointForm>,
+    /// A plugin command's form in the property card, while there is one
+    /// (ADR-0038 §10); never open together with another form.
+    pub command_form: Option<crate::command_form::CommandForm>,
+    /// The group the session last expanded, until the app takes it.
+    expanded: Option<Result<Command, Diagnostic>>,
     /// Why the last command was refused by the document, as the form shows
     /// it; cleared by the next that applies.
     pub refusal: Option<Diagnostic>,
@@ -336,6 +341,8 @@ impl OpenDocument {
             form: None,
             component_form: None,
             joint_form: None,
+            command_form: None,
+            expanded: None,
             refusal: None,
             part_sketches: std::collections::BTreeMap::new(),
             preview: crate::preview::FormPreview::default(),
@@ -378,6 +385,20 @@ impl OpenDocument {
             command,
         };
         self.count(self._session.submit(envelope))
+    }
+
+    /// Asks the session to expand a plugin command; the group follows as
+    /// an event, which [`Self::take_expanded`] hands over.
+    pub fn expand(&mut self, request: arrix_doc::ExpandRequest) -> Result<(), String> {
+        match self._session.expand(request) {
+            Ok(_) => Ok(()),
+            Err(rejected) => Err(rejected.to_string()),
+        }
+    }
+
+    /// The group the session expanded since the last call, or why not.
+    pub fn take_expanded(&mut self) -> Option<Result<Command, Diagnostic>> {
+        self.expanded.take()
     }
 
     pub fn undo(&mut self) -> Result<bool, String> {
@@ -548,6 +569,7 @@ impl OpenDocument {
                     .extend(removed.iter().map(|id| id.as_str().to_owned()));
             }
             SessionEvent::Exported { bytes, .. } => self.exports.heard(bytes),
+            SessionEvent::Expanded { group, .. } => self.expanded = Some(group.clone()),
             SessionEvent::StepTree { tag, tree } => self.imports.heard(*tag, tree),
             SessionEvent::Previewed { .. } | SessionEvent::PreviewMeshed { .. } => {
                 self.receive_preview(event, renderer);
@@ -592,6 +614,13 @@ impl OpenDocument {
             .is_some_and(|f| context != Context::Assembly(f.assembly))
         {
             self.joint_form = None;
+        }
+        if self
+            .command_form
+            .as_ref()
+            .is_some_and(|f| !f.runs_in(context))
+        {
+            self.command_form = None;
         }
         // A material form is of a part, which the context may leave.
         if self

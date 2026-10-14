@@ -29,6 +29,10 @@ pub struct FormView {
     pub create: bool,
     /// The feature's name.
     pub name: String,
+    /// Whether the form has a name row. A command form has none: it names
+    /// nothing, it makes records.
+    #[serde(default = "named", skip_serializing_if = "is_named")]
+    pub named: bool,
     /// Where the feature stands; none for a draft not yet evaluated.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub state: Option<FeatureState>,
@@ -40,6 +44,14 @@ pub struct FormView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub read_only: Option<String>,
     pub fields: Vec<FormField>,
+}
+
+fn named() -> bool {
+    true
+}
+
+fn is_named(named: &bool) -> bool {
+    *named
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -154,11 +166,13 @@ pub fn form(ui: &mut egui::Ui, form: &FormView) -> Vec<UiIntent> {
             .num_columns(2)
             .spacing([8.0, 6.0])
             .show(ui, |ui| {
-                ui.label("Name");
-                if let Some(text) = text_field(ui, form, NAME_FIELD, &form.name, &mut intents) {
-                    intents.push(UiIntent::NameCommitted { text });
+                if form.named {
+                    ui.label("Name");
+                    if let Some(text) = text_field(ui, form, NAME_FIELD, &form.name, &mut intents) {
+                        intents.push(UiIntent::NameCommitted { text });
+                    }
+                    ui.end_row();
                 }
-                ui.end_row();
                 for field in &form.fields {
                     field_ui(ui, form, field, &mut intents);
                 }

@@ -197,6 +197,7 @@ impl ArrixApp {
                 Ref::Topo(name) => Some(name),
                 _ => None,
             })
+            .chain(self.command_marks())
             .collect()
     }
 
@@ -218,6 +219,9 @@ impl ArrixApp {
     pub(crate) fn form_pick_topo(&mut self, hit: Option<arrix_viewport::Hit>) -> bool {
         if self.joint_field_asks() {
             return self.joint_pick(hit);
+        }
+        if self.command_field_asks() {
+            return self.command_pick(hit);
         }
         if !self.field_asks() {
             return false;
