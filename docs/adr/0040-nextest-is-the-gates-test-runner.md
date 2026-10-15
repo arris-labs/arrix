@@ -43,7 +43,9 @@ terminal and none flaking.
 ## Consequences
 
 - The test phase is expected at about 130 s instead of 280 s; the plan's
-  acceptance holds it to at most 150 s.
+  acceptance holds it to at most 150 s. The acceptance runs of the whole
+  pre-push measured 136 and 137 s unloaded and 175 s beside 16 busy loops,
+  with no timing failure.
 - Contributors and CI need `cargo-nextest` (`cargo install cargo-nextest
   --locked`); the hook fails with that line when it is missing.
 - **The `timing` group's membership**, from reading every test that
