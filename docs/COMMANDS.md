@@ -30,7 +30,9 @@ Every `cargo test -p x --test y` below runs as well as `cargo nextest run
   Chromium; they skip loudly without Chromium. The probe of plans/c4
   step 3: `cargo test -p arrix-kernel --test web_probe -- --nocapture`
   prints a load's cost, Arris's steps and the stop's latency. The web
-  session of step 7: `cargo test -p arrix-plugin-host --test web_session`.
+  session of step 7: `cargo test -p arrix-plugin-host --test web_session`;
+  its cancellation of step 8, which prints the latency: `--test web_cancel
+  -- --nocapture`.
 - `plugins/gears` and `plugins/robotics` are Cargo workspaces of their own:
   pre-commit and the gate also run clippy, `cargo nextest run`, its doctests and the `guest` wasm32 build on
   each by `--manifest-path plugins/<name>/Cargo.toml`. `cargo test -p

@@ -319,7 +319,7 @@ written here; a missed one stays a target and a backlog line.
 | A UI frame dragging a joint, the accept's assembly on screen | ≤ 16 ms, on the UI thread; gated, measured 0.22 ms median |
 | One inference verdict (`check_candidate`) on a drawn part's sketch | inside the frame, on the UI thread; measured 0.1–0.6 ms median |
 | First coarse mesh after a parameter edit of the acceptance part | ≤ 150 ms; missed, measured 324 ms median |
-| Cancellation latency | ≤ 50 ms; gated, measured 10 ms median |
+| Cancellation latency | ≤ 50 ms; gated, measured 10 ms median natively and 9 ms in the browser (isolated page) |
 | Save and load of the acceptance document | ≤ 100 ms each; gated, measured under 0.5 ms |
 | `arrix eval` throughput over the scenario documents | reported, no target yet; 6.9 documents a second, 21 with `--jobs 4` |
 
@@ -387,6 +387,15 @@ it, to a directory or an `.arrx`, takes 0.2 to 0.4 ms, and loading it as
 much. A newer width edit submitted while the one before is joining the gear
 hears its first event 10 ms later (6 ms in release), which is the stop
 inside the boolean, the restart, and the plate's sketch evaluated again.
+In the browser the same measurement, read on the page (headless Chromium
+155, dev profile, `cargo test -p arrix-plugin-host --test web_cancel --
+--nocapture`), is 9 ms median over 11 runs (6 to 14 ms): the counter bump,
+the stop at Arris's next step, the worker's next message, and the plate's
+sketch evaluated again. It is gated at 50 ms. A preview posted during a
+commit leaves the commit alone and runs behind it; a commit posted during a
+preview stops it, and the preview is never heard. On a page without
+isolation the stale evaluation runs to its end: the newer generation's
+first event comes about 320 ms after the edit, and it still finishes.
 `arrix eval tests/docs` (nine documents) takes 1.30 s on one thread and
 0.43 s with `--jobs 4`.
 

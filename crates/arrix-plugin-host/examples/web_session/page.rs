@@ -14,8 +14,8 @@ use std::sync::Arc;
 use arrix_core::{Id, MeshDetail};
 use arrix_doc::{
     AuthorId, Command, CommandEnvelope, Evaluation, EventStream, FeatureOutcome, Generation,
-    Outcome, Registry, Replica, Session, SessionEvent, WebSession, expr::Expr, open_zip,
-    run_evaluator,
+    Outcome, PreviewId, PreviewTag, Registry, Replica, Session, SessionEvent, WebSession,
+    expr::Expr, open_zip, run_evaluator,
 };
 use arrix_plugin_host::{register_tier0, register_tier0_exporters};
 use serde_json::json;
@@ -82,10 +82,7 @@ impl Page {
     /// and every final body of it is meshed coarse and refined (the
     /// worker meshes all coarse before any refined).
     pub fn done(&mut self, generation: u32) -> Result<bool, JsValue> {
-        while let Ok(event) = self.events.try_recv() {
-            self.replica.receive(&event).map_err(error)?;
-            self.heard.push(event);
-        }
+        self.pump()?;
         let g = Generation(generation.into());
         let finished = self
             .heard
@@ -93,6 +90,67 @@ impl Page {
             .any(|e| matches!(e, SessionEvent::Finished { generation, .. } if *generation == g));
         let (coarse, refined) = self.meshes(g);
         Ok(finished && refined > 0 && coarse == refined)
+    }
+
+    /// Takes the events that have come.
+    fn pump(&mut self) -> Result<(), JsValue> {
+        while let Ok(event) = self.events.try_recv() {
+            self.replica.receive(&event).map_err(error)?;
+            self.heard.push(event);
+        }
+        Ok(())
+    }
+
+    /// Whether `generation` has evaluated its feature called `name`
+    /// (cached or not), or, with an empty `name`, any feature.
+    pub fn evaluated(&mut self, generation: u32, name: &str) -> Result<bool, JsValue> {
+        self.pump()?;
+        let g = Generation(generation.into());
+        let doc = self.replica.document();
+        Ok(self.heard.iter().any(|e| match e {
+            SessionEvent::Evaluated { generation, event } if *generation == g => {
+                name.is_empty()
+                    || doc
+                        .parts()
+                        .values()
+                        .flat_map(|p| p.features.values())
+                        .any(|f| f.id == event.feature && f.name == name)
+            }
+            _ => false,
+        }))
+    }
+
+    /// Whether `generation` has finished (its meshes may follow).
+    pub fn finished(&mut self, generation: u32) -> Result<bool, JsValue> {
+        self.pump()?;
+        let g = Generation(generation.into());
+        Ok(self
+            .heard
+            .iter()
+            .any(|e| matches!(e, SessionEvent::Finished { generation, .. } if *generation == g)))
+    }
+
+    /// How many `Previewed` events preview `preview` has been heard to
+    /// make.
+    pub fn previewed(&mut self, preview: u32) -> Result<u32, JsValue> {
+        self.pump()?;
+        let id = u64::from(preview);
+        let count = self
+            .heard
+            .iter()
+            .filter(|e| matches!(e, SessionEvent::Previewed { tag: PreviewTag { preview: p, .. }, .. } if p.0 == id))
+            .count();
+        Ok(u32::try_from(count).expect("a few"))
+    }
+
+    /// Starts preview `preview` with the parameter `name` set to `expr`,
+    /// on the document as it stands.
+    pub fn preview_param(&self, preview: u32, name: &str, expr: &str) -> Result<(), JsValue> {
+        let envelope = self.set_param_envelope(name, expr)?;
+        match self.session.preview(PreviewId(preview.into()), envelope) {
+            Ok(Outcome::Previewing) => Ok(()),
+            other => Err(error(format!("{other:?}"))),
+        }
     }
 
     fn meshes(&self, g: Generation) -> (usize, usize) {
@@ -110,6 +168,16 @@ impl Page {
 
     /// Sets the parameter called `name` to `expr`: the generation made.
     pub fn set_param(&self, name: &str, expr: &str) -> Result<u32, JsValue> {
+        let envelope = self.set_param_envelope(name, expr)?;
+        match self.session.submit(envelope) {
+            Ok(Outcome::Applied(change)) => {
+                Ok(u32::try_from(change.generation.0).expect("a test's generation"))
+            }
+            other => Err(error(format!("{other:?}"))),
+        }
+    }
+
+    fn set_param_envelope(&self, name: &str, expr: &str) -> Result<CommandEnvelope, JsValue> {
         let doc = self.replica.document();
         let param = *doc
             .params()
@@ -117,20 +185,14 @@ impl Page {
             .find(|(_, p)| p.name == name)
             .ok_or_else(|| error(format!("no parameter `{name}`")))?
             .0;
-        let envelope = CommandEnvelope {
+        Ok(CommandEnvelope {
             author: ME,
             base: self.replica.generation(),
             command: Command::SetParam {
                 param,
                 expr: Expr::parse(expr).map_err(error)?,
             },
-        };
-        match self.session.submit(envelope) {
-            Ok(Outcome::Applied(change)) => {
-                Ok(u32::try_from(change.generation.0).expect("a test's generation"))
-            }
-            other => Err(error(format!("{other:?}"))),
-        }
+        })
     }
 
     /// What was heard of `generation`, as JSON: its features' events and
