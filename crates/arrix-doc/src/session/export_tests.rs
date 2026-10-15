@@ -49,7 +49,7 @@ fn export(s: &LocalSession) -> Result<Outcome, Rejected> {
 }
 
 #[test]
-fn an_export_after_an_edit_is_of_the_edited_generation() {
+pub(super) fn an_export_after_an_edit_is_of_the_edited_generation() {
     let (s, events, key) = open();
     s.submit(envelope(1, extrude(key, "12 mm"))).unwrap();
     assert_eq!(export(&s), Ok(Outcome::Exporting));
@@ -66,7 +66,7 @@ fn an_export_after_an_edit_is_of_the_edited_generation() {
 }
 
 #[test]
-fn a_preview_in_between_does_not_reach_the_file() {
+pub(super) fn a_preview_in_between_does_not_reach_the_file() {
     let (s, events, key) = open();
     s.submit(envelope(1, extrude(key, "12 mm"))).unwrap();
     let preview = Request::Preview {
@@ -83,7 +83,7 @@ fn a_preview_in_between_does_not_reach_the_file() {
 }
 
 #[test]
-fn an_export_changes_nothing_in_the_document() {
+pub(super) fn an_export_changes_nothing_in_the_document() {
     let (s, events, key) = open();
     s.submit(envelope(1, extrude(key, "12 mm"))).unwrap();
     let before = s.save();
@@ -97,7 +97,7 @@ fn an_export_changes_nothing_in_the_document() {
 }
 
 #[test]
-fn a_selection_that_is_no_body_and_a_document_with_none_say_so() {
+pub(super) fn a_selection_that_is_no_body_and_a_document_with_none_say_so() {
     let (s, events, _) = open();
     // Generation 1 holds a sketch and no body.
     export(&s).unwrap();
@@ -114,7 +114,7 @@ fn a_selection_that_is_no_body_and_a_document_with_none_say_so() {
 }
 
 #[test]
-fn an_export_names_its_bodies_and_the_headless_path_agrees() {
+pub(super) fn an_export_names_its_bodies_and_the_headless_path_agrees() {
     let (s, events, key) = open();
     s.submit(envelope(1, extrude(key, "12 mm"))).unwrap();
     let only = BodySlot {

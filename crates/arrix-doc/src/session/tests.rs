@@ -54,7 +54,7 @@ fn plane(id: FeatureId, offset: &str, on: Option<FeatureId>) -> FeatureRecord {
     }
 }
 
-fn set_h(expr: &str) -> Command {
+pub(super) fn set_h(expr: &str) -> Command {
     Command::SetParam {
         param: ids().h,
         expr: Expr::parse(expr).unwrap(),
@@ -63,7 +63,7 @@ fn set_h(expr: &str) -> Command {
 
 /// `h = 5 mm`, a part, a plane `h` above world XY and a plane 2 mm above
 /// that.
-fn build() -> Vec<Command> {
+pub(super) fn build() -> Vec<Command> {
     let i = ids();
     let record = Param {
         name: "h".into(),
@@ -95,7 +95,7 @@ fn build() -> Vec<Command> {
     ]
 }
 
-fn envelope(s: &LocalSession, author: AuthorId, base: u64, command: Command) -> Outcome {
+pub(super) fn envelope(s: &LocalSession, author: AuthorId, base: u64, command: Command) -> Outcome {
     let e = CommandEnvelope {
         author,
         base: Generation(base),
@@ -140,7 +140,7 @@ fn z(replica: &Replica, feature: FeatureId) -> f64 {
 }
 
 #[test]
-fn a_replica_follows_the_applied_stream_and_the_evaluation() {
+pub(super) fn a_replica_follows_the_applied_stream_and_the_evaluation() {
     let s = LocalSession::open(Document::default(), Registry::with_core_types()).unwrap();
     let events = s.subscribe();
     let mut replica = Replica::default();
@@ -168,7 +168,7 @@ fn a_replica_follows_the_applied_stream_and_the_evaluation() {
 }
 
 #[test]
-fn a_stale_command_is_rejected_through_the_session() {
+pub(super) fn a_stale_command_is_rejected_through_the_session() {
     let s = LocalSession::open(Document::default(), Registry::with_core_types()).unwrap();
     for (g, c) in build().into_iter().enumerate() {
         envelope(&s, ME, g as u64, c);
@@ -325,7 +325,7 @@ fn every_rejection_crosses_as_json() {
 }
 
 #[test]
-fn the_evaluation_catches_up_with_the_newest_generation() {
+pub(super) fn the_evaluation_catches_up_with_the_newest_generation() {
     let s = LocalSession::open(Document::default(), Registry::with_core_types()).unwrap();
     let events = s.subscribe();
     for (g, c) in build().into_iter().enumerate() {
@@ -426,7 +426,7 @@ fn a_replica_that_differs_from_the_authority_says_so() {
 /// `Opened`, then the newest generation's outcomes, finish and refined
 /// meshes, with no change made first.
 #[test]
-fn a_late_subscriber_hears_the_latest_outcomes_again() {
+pub(super) fn a_late_subscriber_hears_the_latest_outcomes_again() {
     let s = LocalSession::open(Document::default(), Registry::with_core_types()).unwrap();
     let events = s.subscribe();
     for (g, c) in build().into_iter().enumerate() {

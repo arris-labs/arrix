@@ -11,6 +11,7 @@ use std::sync::mpsc::{Receiver, Sender, channel};
 use super::core::Core;
 use super::plugins::{PluginLoader, Plugins};
 use super::preview::Job;
+use super::wire::{self, Heard};
 use super::worker::EvalWorker;
 use super::{EventStream, Request, Session, SessionEvent};
 use crate::authority::{Authority, Outcome, Rejected};
@@ -76,6 +77,7 @@ impl LocalSession {
         let interrupt = interrupt_rx
             .recv()
             .expect("the evaluator thread hands out its interrupt first");
+        let wired = wire::loopback();
         let thread = executor::spawn("arrix-session", move || {
             serve(
                 Authority::new(document),
@@ -84,6 +86,7 @@ impl LocalSession {
                 jobs,
                 worker,
                 &interrupt,
+                wired,
             );
         })?;
         Ok(Self {
@@ -131,7 +134,8 @@ impl Drop for LocalSession {
 }
 
 /// The session thread: steps the core with each message, posting the jobs
-/// it makes to the worker in order.
+/// it makes to the worker in order. With `wired` (a test's loopback) every
+/// job and every answer crosses through its serialised form.
 fn serve(
     authority: Authority,
     plugins: Plugins,
@@ -139,6 +143,7 @@ fn serve(
     jobs: Sender<Job>,
     worker: Worker,
     interrupt: &Interrupt,
+    wired: bool,
 ) {
     let (mut core, first) = Core::new(authority, plugins);
     // The flag goes up before a snapshot is queued, so a worker that takes
@@ -149,11 +154,28 @@ fn serve(
             if matches!(job, Job::Commit(_)) {
                 interrupt.raise();
             }
+            let job = if wired {
+                let text = wire::encode_job(&job).expect("a loopback session loads no plugin");
+                wire::decode_job(&text).expect("a job decodes as it was encoded")
+            } else {
+                job
+            };
             let _ = jobs.send(job);
         }
     };
     post(first);
     while let Ok(msg) = inbox.recv() {
+        let msg = match msg {
+            Msg::Publish(event) if wired => match decode(&wire::encode_publish(&event)) {
+                Heard::Publish(event) => Msg::Publish(*event),
+                Heard::Freeze(_) => unreachable!("a publish decodes as a publish"),
+            },
+            Msg::Freeze(results) if wired => match decode(&wire::encode_freeze(&results)) {
+                Heard::Freeze(results) => Msg::Freeze(results),
+                Heard::Publish(_) => unreachable!("a freeze decodes as a freeze"),
+            },
+            other => other,
+        };
         match msg {
             Msg::Request(request, reply) => {
                 let (result, list) = core.request(request);
@@ -172,4 +194,8 @@ fn serve(
     // The worker stops once its job channel is closed.
     drop(jobs);
     drop(worker);
+}
+
+fn decode(text: &str) -> Heard {
+    wire::decode_heard(text).expect("an answer decodes as it was encoded")
 }

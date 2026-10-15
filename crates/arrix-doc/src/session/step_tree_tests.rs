@@ -26,7 +26,7 @@ fn tree(events: &EventStream, tag: u64) -> Result<StepTree, Diagnostic> {
 }
 
 #[test]
-fn a_files_tree_comes_back_under_its_tag_and_the_document_stays() {
+pub(super) fn a_files_tree_comes_back_under_its_tag_and_the_document_stays() {
     let (s, events, _) = open();
     let before = s.save();
     let request = Request::ReadStepTree {
@@ -56,7 +56,7 @@ fn a_files_tree_comes_back_under_its_tag_and_the_document_stays() {
 }
 
 #[test]
-fn a_file_that_is_no_step_says_why() {
+pub(super) fn a_file_that_is_no_step_says_why() {
     let (s, events, _) = open();
     s.read_step_tree(3, b"nothing".to_vec()).unwrap();
     let err = tree(&events, 3).unwrap_err();

@@ -81,7 +81,7 @@ fn a_command_the_registry_lacks_is_answered_not_dropped() {
 }
 
 #[test]
-fn a_base_older_than_the_newest_generation_is_stale_at_once() {
+pub(super) fn a_base_older_than_the_newest_generation_is_stale_at_once() {
     let (s, _events, _) = open();
     let rename = Command::EditFeature {
         feature: super::preview_tests::SKETCH,

@@ -28,6 +28,9 @@ mod schema;
 mod step_tree_tests;
 #[cfg(test)]
 mod tests;
+mod wire;
+#[cfg(test)]
+mod wire_tests;
 mod worker;
 
 use std::collections::BTreeMap;

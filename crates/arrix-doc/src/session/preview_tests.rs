@@ -185,7 +185,7 @@ fn plate(events: &[EvalEvent]) -> FeatureOutcome {
 }
 
 #[test]
-fn an_extrude_previewed_is_what_it_gives_once_applied() {
+pub(super) fn an_extrude_previewed_is_what_it_gives_once_applied() {
     let (s, events, key) = open();
     let before = s.save();
     let command = extrude(key, "12 mm");
@@ -249,7 +249,7 @@ fn an_extrude_previewed_is_what_it_gives_once_applied() {
 }
 
 #[test]
-fn a_preview_of_an_unchanged_body_sends_no_mesh() {
+pub(super) fn a_preview_of_an_unchanged_body_sends_no_mesh() {
     let (s, events, key) = open();
     s.submit(envelope(1, extrude(key, "12 mm"))).unwrap();
     until(&events, |e| {
@@ -290,7 +290,7 @@ fn a_preview_of_an_unchanged_body_sends_no_mesh() {
 }
 
 #[test]
-fn a_superseded_or_cleared_preview_is_heard_no_more() {
+pub(super) fn a_superseded_or_cleared_preview_is_heard_no_more() {
     let (s, events, key) = open();
     preview(&s, 1, 1, extrude(key.clone(), "12 mm")).unwrap();
     preview(&s, 2, 1, extrude(key.clone(), "20 mm")).unwrap();
@@ -342,7 +342,7 @@ fn a_superseded_or_cleared_preview_is_heard_no_more() {
 }
 
 #[test]
-fn a_stale_or_refused_preview_is_rejected_as_its_submit_would_be() {
+pub(super) fn a_stale_or_refused_preview_is_rejected_as_its_submit_would_be() {
     let (s, _events, key) = open();
     s.submit(envelope(1, extrude(key.clone(), "12 mm")))
         .unwrap();
