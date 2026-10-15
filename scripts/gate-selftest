@@ -11,6 +11,10 @@ every lint first, so a failing case is never the tree's own fault.
 Every case's file must end in the section the snippet belongs to (a
 manifest's `[dependencies]`, a crate root's items).
 
+It checks that CI's test job sets every `ARRIX_REQUIRE_*` flag a test
+reads (the visual tests' lavapipe, the browser tests' Chromium), so a test
+that skips loudly on a developer's machine never skips quietly in CI.
+
 It also checks that CI runs the gate's commands: the steps of
 `.github/workflows/ci.yml` named `gate: …` must run exactly the commands of
 `.githooks/pre-commit` and `scripts/gate` (ADR-0041), each as often, so the
@@ -82,6 +86,13 @@ CASES = [
         1,
     ),
     (
+        "std::fs in the native-only browser harness",
+        "wasm-lint",
+        "crates/arrix-web-test/src/lib.rs",
+        '\npub fn read() -> Vec<u8> {\n    std::fs::read("x").unwrap_or_default()\n}\n',
+        0,
+    ),
+    (
         "thread::spawn outside the executor",
         "wasm-lint",
         "crates/arrix-kernel/src/lib.rs",
@@ -133,6 +144,12 @@ DRIFT_CASES = [
         CI,
         "        run: cargo nextest run --workspace --all-features\n",
         "        run: cargo nextest run --workspace\n",
+    ),
+    (
+        "CI letting the browser tests skip",
+        CI,
+        '      ARRIX_REQUIRE_BROWSER: "1"\n',
+        "",
     ),
     (
         "a plugin workspace the gate does not run",
@@ -207,8 +224,21 @@ def plugin_drift(tree):
     return out
 
 
+REQUIRE_RE = re.compile(r"\bARRIX_REQUIRE_[A-Z0-9_]+\b")
+
+
+def require_drift(tree):
+    """The `ARRIX_REQUIRE_*` flags the crates' code reads that CI does not
+    set to "1"."""
+    read = set()
+    for path in tree.glob("crates/**/*.rs"):
+        read |= set(REQUIRE_RE.findall(path.read_text(encoding="utf-8", errors="replace")))
+    ci = (tree / CI).read_text()
+    return [f"CI does not set {flag}" for flag in sorted(read) if not re.search(rf'^\s*{flag}: "1"\s*$', ci, re.M)]
+
+
 def gate_drift(tree):
-    return ci_drift(tree) + plugin_drift(tree)
+    return ci_drift(tree) + plugin_drift(tree) + require_drift(tree)
 
 
 def tree_files():
@@ -251,6 +281,7 @@ def main():
             return 1
         print(f"  ok  {CI} runs exactly the gate's {len(gate_commands(clean))} commands")
         print(f"  ok  the gate runs each of the {len(list(clean.glob('plugins/*/Cargo.toml')))} plugin workspaces")
+        print("  ok  CI sets every ARRIX_REQUIRE_* flag the tests read")
         for i, (name, file, old, new) in enumerate(DRIFT_CASES):
             tree = Path(tmp) / f"drift{i}"
             shutil.copytree(clean, tree)

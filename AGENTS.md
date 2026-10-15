@@ -26,7 +26,8 @@ written. The skills live in `.agents/skills/` (symlinked as
   Python 3 runs the lints; `rust-toolchain.toml` brings rustfmt, clippy
   and the wasm32 target.
 - The visual scenarios need Mesa's lavapipe (`mesa-vulkan-drivers` on
-  Debian and Ubuntu). Without it they skip, loudly.
+  Debian and Ubuntu), the browser tests Chromium or Chrome on `PATH` (or
+  `ARRIX_CHROMIUM`). Without them they skip, loudly.
 
 ## Current state
 

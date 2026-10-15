@@ -527,11 +527,14 @@ version = "0.0.0"
 dependencies = [
  "arris",
  "arrix-core",
+ "arrix-web-test",
  "blake3",
+ "js-sys",
  "serde",
  "serde_json",
  "sha2",
  "thiserror 2.0.21",
+ "wasm-bindgen",
  "web-time",
 ]
 
@@ -630,6 +633,10 @@ dependencies = [
  "glam 0.33.10",
  "web-time",
 ]
+
+[[package]]
+name = "arrix-web-test"
+version = "0.0.0"
 
 [[package]]
 name = "as-raw-xcb-connection"

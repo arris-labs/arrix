@@ -20,3 +20,18 @@ thiserror.workspace = true
 
 [dev-dependencies]
 web-time.workspace = true
+
+# The browser probe (plans/c4 step 3): `examples/web_probe`, a page whose
+# worker runs an Arris call under a poll over a `SharedArrayBuffer`, run
+# in headless Chromium by `tests/web_probe.rs`.
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+arrix-web-test.workspace = true
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen.workspace = true
+js-sys.workspace = true
+
+[[example]]
+name = "web_probe"
+path = "examples/web_probe/probe.rs"
+crate-type = ["cdylib"]

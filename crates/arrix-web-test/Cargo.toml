@@ -1,0 +1,15 @@
+[package]
+name = "arrix-web-test"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+# The browser harness (ADR-0042, plans/c4 step 3): a page served with the
+# isolation headers, opened in headless Chromium, its report POSTed back.
+# Native and dev-only: a browser test takes it as a dev-dependency.
+[dependencies]

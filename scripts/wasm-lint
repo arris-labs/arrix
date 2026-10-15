@@ -26,7 +26,7 @@ import sys
 from lintlib import block_end, clean_lines, in_ranges, rel, report, rust_files, test_ranges
 
 # Crates never built for wasm32 (the gate's wasm build excludes them).
-NATIVE_ONLY = ("crates/arrix-cli/", "crates/arrix-plugin-test/")
+NATIVE_ONLY = ("crates/arrix-cli/", "crates/arrix-plugin-test/", "crates/arrix-web-test/")
 
 # Path prefixes where a rule does not apply, besides NATIVE_ONLY.
 PERMITTED = {

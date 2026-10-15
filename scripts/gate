@@ -17,6 +17,10 @@ command -v flock >/dev/null && { flock -n 9 || { echo "gate: another gate holds 
 # nextest runs the tests of many binaries at once under one thread budget
 # (.config/nextest.toml, ADR-0040); it runs no doctests, so those go beside.
 command -v cargo-nextest >/dev/null || { echo "gate: cargo-nextest is missing: cargo install cargo-nextest --locked" >&2; exit 1; }
+# The wasm32 tests run under Node and the browser tests build their pages
+# with wasm-bindgen (plans/c4 steps 2 and 3); both must be the lock's
+# wasm-bindgen (Cargo.toml). The browser tests skip loudly without Chromium.
+command -v wasm-bindgen-test-runner >/dev/null || { echo "gate: wasm-bindgen-cli is missing: cargo install wasm-bindgen-cli --version '=0.2.129' --locked" >&2; exit 1; }
 
 echo "gate: cargo nextest run"
 cargo nextest run --workspace
@@ -28,11 +32,9 @@ echo "gate: doctests"
 cargo test --workspace --doc
 
 echo "gate: wasm32 build"
-cargo build --target wasm32-unknown-unknown --workspace --exclude arrix-cli --exclude arrix-plugin-test
+cargo build --target wasm32-unknown-unknown --workspace --exclude arrix-cli --exclude arrix-plugin-test --exclude arrix-web-test
 
-# wasm32 evaluates as native does (plans/c4 step 2), under Node; the runner
-# must be the lock's wasm-bindgen (Cargo.toml).
-command -v wasm-bindgen-test-runner >/dev/null || { echo "gate: wasm-bindgen-test-runner is missing: cargo install wasm-bindgen-cli --version '=0.2.129' --locked" >&2; exit 1; }
+# wasm32 evaluates as native does (plans/c4 step 2), under Node.
 command -v node >/dev/null || { echo "gate: node is missing: the wasm32 tests run under Node" >&2; exit 1; }
 echo "gate: wasm32 tests"
 cargo test --target wasm32-unknown-unknown -p arrix-plugin-host --test wasm_determinism

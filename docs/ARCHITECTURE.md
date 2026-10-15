@@ -19,7 +19,7 @@ unless an ADR says otherwise.
 | Crate | Holds | May depend on (workspace) | Notable external |
 |---|---|---|---|
 | `arrix-core` | units and quantities, the length tolerance, ids, plugin ids, plain math over `glam` (f64), persistent-reference types, `Diagnostic` | — | `glam`, `serde`, `thiserror` |
-| `arrix-kernel` | the only crate naming Arris types: operations, naming from provenance, render meshes, body bytes, call records | core | `arris`, `blake3`, `serde`, `thiserror` |
+| `arrix-kernel` | the only crate naming Arris types: operations, naming from provenance, render meshes, body bytes, call records; the browser probe (`examples/web_probe`, wasm32, dev) | core, and web-test (its browser probe's test, dev) | `arris`, `blake3`, `serde`, `thiserror`; `wasm-bindgen`, `js-sys` (the probe, wasm32 dev) |
 | `arrix-sketch` | the sketch model and `SketchEdit`, the constraint solver and diagnostics, regions and their keyed profiles, trim/extend/offset/mirror, inference (ported) | core | `serde`, `thiserror` |
 | `arrix-plugin-api` | the WIT world, its Rust traits and plain types; semver of its own | core | `libm` (`math`, ADR-0036), `wit-bindgen` (the `guest` feature, ADR-0035), `wit-parser` (the equality test only, dev) |
 | `arrix-doc` | document, parameters and expressions, DAG, feature registry, commands, undo, evaluator, `.arrx`, the `arrix eval` line, the `PluginLoader` trait, the protocol's schemas (`schema` feature, as in core, sketch and plugin-api); reads no files (a `DocumentSource` hands it bytes) | core, kernel, sketch, plugin-api | `serde_json`, `blake3`, `miniz_oxide`, `crc32fast` |
@@ -30,6 +30,7 @@ unless an ADR says otherwise.
 | `arrix-config` | the user's configuration (ADR-0015): setting specs, the layered model (built-in defaults, then the user's directory), each file's diagnostics with its file and line; reads no files (a `ConfigSource` hands it bytes); never reaches the document or `evaluate`. Holds the settings, the command registry (`CommandSpec` as plain data), the keymap, the themes and the feature parameter defaults (their expression check is handed in by the caller, since this crate cannot depend on `arrix-doc`). Read by app and cli; not by `arrix-ui`, which gets plain view data | core, plugin-api | `toml`, `serde` |
 | `arrix-app` | the binary: the shell, the command registry, translation between document and view types; `arrix-app render`, the headless render (ADR-0025) | all of the above, and each compiled-in plugin (`arrix-gears`, `arrix-robotics`, its own Tier 0 list) | `eframe` |
 | `arrix-cli` | headless open / eval / export / run / test, and `serve` (`--stdio`, `--schema`; native only); its Tier 0 registration list | core, doc, plugin-host, plugin-test, kernel, plugin-api and sketch (its tests), and each compiled-in plugin (`arrix-gears`, `arrix-robotics`) | `clap` |
+| `arrix-web-test` | the browser harness (ADR-0042), dev-only and native only: a wasm page built by `cargo` and `wasm-bindgen --target web`, served from `127.0.0.1` with or without COOP and COEP, opened in headless Chromium, its report POSTed back; skips loudly without Chromium, fails under `ARRIX_REQUIRE_BROWSER=1`. `arrix-kernel` takes it for its browser probe (dev) | — | — |
 | `plugins/*` | first-party plugins, each a project of its own: `gears` (C1) and `robotics` (C3 M2: the URDF exporter, `robotics.urdf`) are Cargo workspaces, at Tier 0 and as Tier 1 components; `fasteners` (C3 M3) is a Python directory at Tier 2 | plugin-api **only** | — |
 | `python/arrix` | the Tier 2 SDK, pure stdlib, not a Cargo crate: `_wire.py` and `shapes.py` generated from the WIT, `@feature_type`, the `kernel` proxy, the stdio loop (`python -m arrix.plugin`); `arrix.session` (spawn and drive `arrix serve --stdio`) and `arrix.eval` (the eval lines), for an agent; `python/examples/standoff` is the sample plugin | — | — |
 
@@ -534,7 +535,10 @@ the same commands in five jobs (fmt, clippy, lints, test, wasm) on a push
 to `main` and on pull requests; its steps named `gate: …` are exactly the
 gate's commands, which `gate-selftest` checks (the test job installs
 `cargo-nextest`, pinned). The test job installs
-`mesa-vulkan-drivers` and sets `ARRIX_REQUIRE_GPU=1`; when it fails, it
+`mesa-vulkan-drivers` and `wasm-bindgen-cli` (the browser tests build
+their pages) and sets `ARRIX_REQUIRE_GPU=1` and `ARRIX_REQUIRE_BROWSER=1`
+(the runner image has Chrome), which `gate-selftest` checks against the
+flags the tests read; when it fails, it
 runs `scripts/snapshot-baseline HEAD~1` and uploads `target/snapshots/`
 as an artifact. The test runner is nextest (ADR-0040): the tests of many
 binaries run at once under one thread budget, 4 in `.config/nextest.toml`
@@ -566,7 +570,7 @@ tests of **the slow half** cover it with no step of their own.
    (`crates/arrix-doc/src/executor`); no `std::fs` outside `arrix-app`'s
    native file dialog (`crates/arrix-app/src/file_dialog`) and config files
    (`crates/arrix-app/src/config_files`), and `arrix-plugin-host`.
-   (`tier2` is also in the thread table, native only.) `arrix-cli` is native-only and exempt from the thread and fs rules, as
+   (`tier2` is also in the thread table, native only.) `arrix-cli`, `arrix-plugin-test` and `arrix-web-test` are native-only and exempt from the thread and fs rules, as
    is test code. The permitted places are one
    table at the top of the script.
 5. `scripts/layer-lint`: the layer rules above, two ways. **Edges**:
@@ -590,7 +594,8 @@ tests of **the slow half** cover it with no step of their own.
 2. `cargo nextest run --workspace --all-features`, then `cargo test
    --workspace --doc` (nextest runs no doctests)
 3. `cargo build --target wasm32-unknown-unknown --workspace --exclude
-   arrix-cli --exclude arrix-plugin-test` (native only, like the CLI). `arrix-plugin-host`'s native tiers (1 and 2) are behind a
+   arrix-cli --exclude arrix-plugin-test --exclude arrix-web-test`
+   (native only, like the CLI). `arrix-plugin-host`'s native tiers (1 and 2) are behind a
    target cfg so the crate still builds.
    Then `cargo test --target wasm32-unknown-unknown -p arrix-plugin-host
    --test wasm_determinism`: every document under `tests/docs` evaluated

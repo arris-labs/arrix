@@ -268,6 +268,19 @@ compiling; C4 makes it run.
   poll answers false: a superseded evaluation runs to its end, previews
   give way at job boundaries, and the status line says so. Terminating the
   worker and threads on nightly are rejected.
+- **The probe** (plans/c4 step 3, `arrix-kernel`'s `tests/web_probe.rs`
+  through the browser harness, `arrix-web-test`): served with COOP and
+  COEP, headless Chromium's page is cross-origin isolated, and a module
+  worker running the same wasm module shares the page's
+  `SharedArrayBuffer`; served without them, the page has none. A bump from
+  the page stops the worker's Arris call as `Stop::Poll`, heard at the
+  first step after it. One `Atomics.load` through `js-sys` costs about
+  30 ns and the median Arris step a few µs (`cut_many` of a box less 64
+  cylinders: 908 steps in 0.8 s, dev profile), so the poll reads the
+  counter at every step. A stop's latency is Arris's step size and the
+  rollback: it waits for the next step, and that `cut_many` has a 0.2 s
+  stretch without one (`docs/BACKLOG.md`), then unwinds in about 2 ms.
+  Step 8 gates the latency on the bracket.
 - **Files** come from the browser's file APIs as bytes; there is no
   filesystem. Importers already take bytes (`docs/PLUGINS.md` §4).
 - **Plugins**: Tier 0 only, and no `PluginLoader`, so `LoadPlugin` and

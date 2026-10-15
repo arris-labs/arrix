@@ -34,7 +34,8 @@ UI_CRATES = {"arrix-viewport", "arrix-ui", "arrix-app"}
 # Workspace crate -> the workspace crates it may depend on (§Crates).
 ALLOWED = {
     "arrix-core": set(),
-    "arrix-kernel": {"arrix-core"},
+    # Its browser probe's test serves a page through the harness (dev only).
+    "arrix-kernel": {"arrix-core", "arrix-web-test"},
     "arrix-sketch": {"arrix-core"},
     "arrix-plugin-api": {"arrix-core"},
     "arrix-doc": {"arrix-core", "arrix-kernel", "arrix-sketch", "arrix-plugin-api"},
@@ -81,6 +82,9 @@ ALLOWED = {
         "arrix-robotics",
         "arrix-config",
     },
+    # The browser harness (ADR-0042): a native test's server and Chromium,
+    # no ArriX crate.
+    "arrix-web-test": set(),
 }
 # Every package under plugins/: the plugin API alone, first-party included.
 PLUGIN_ALLOWED = {"arrix-plugin-api"}
