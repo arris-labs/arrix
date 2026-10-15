@@ -14,6 +14,10 @@ and the visual tests (lavapipe) take gigabytes per parallel job.
   pressure is the run, not the terminal, and it prints the scope's peak
   memory. A bare `cargo nextest run --workspace` in the terminal is the mistake
   this rule exists for.
+- **One gate at a time per target directory.** The pre-push hook holds a
+  `flock` on `target/.pre-push.lock`, so a second push waits for the first:
+  the tests' scratch directories have fixed names and race, and two gates
+  double the memory. A worktree has a target of its own and runs beside.
 - **Budget the two projects together**, not each at half. Measured on this
   machine (32 CPUs, 61 GiB, build warm): `cargo test --workspace` summed to
   320 s at 2 threads, 280 s at 4, 293 s at 16, and 32 was killed by oomd

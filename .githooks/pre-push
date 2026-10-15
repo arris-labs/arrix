@@ -6,6 +6,12 @@ set -e
 # with it (scripts/heavy, .agents/rules/resources.md §Memory).
 [ -n "$ARRIX_HEAVY" ] || exec "$(git rev-parse --show-toplevel)/scripts/heavy" "$0" "$@"
 cd "$(git rev-parse --show-toplevel)"
+# One gate at a time per target directory: the tests' scratch directories
+# under CARGO_TARGET_TMPDIR have fixed names, and two gates at once also
+# double the memory (.agents/rules/resources.md). A second gate waits.
+mkdir -p "${CARGO_TARGET_DIR:-target}"
+exec 9>"${CARGO_TARGET_DIR:-target}/.pre-push.lock"
+command -v flock >/dev/null && { flock -n 9 || { echo "pre-push: another gate holds ${CARGO_TARGET_DIR:-target}; waiting" >&2; flock 9; }; }
 
 # nextest runs the tests of many binaries at once under one thread budget
 # (.config/nextest.toml, ADR-0040); it runs no doctests, so those go beside.
