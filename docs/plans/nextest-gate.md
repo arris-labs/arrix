@@ -52,3 +52,4 @@ Written at planning time; executed before the plan is deleted.
 - Decided by the human at step 4: CI installs `cargo-nextest` with `taiki-e/install-action@v2`, the tool pinned to `nextest@0.9.144`.
 - Decided in step 3: no `ci` profile; the default's 4 threads suit 4 vCPU runners. Revisit only if the CI run time says otherwise.
 - ⚠ OPEN: The `--all-features` run repeats the whole suite; fold it into one run, or keep? Out of scope here, but step 6's figures will show its cost. Human, after step 6 (a BACKLOG line if wanted).
+- Finding (step 6 acceptance, run 2): `visual c3_accept` failed once in the `--all-features` pass (3 components, 6 expected): the document read as settled before the expansion's command was submitted. A latent race, fixed in its own commit by waiting for the placed screws; it is the one test body this plan touches.

@@ -90,6 +90,20 @@ fn saved_assembly(h: &Harness<'_>) -> serde_json::Value {
     serde_json::from_slice(bytes).unwrap()
 }
 
+/// Steps until the saved assembly holds `count` components.
+fn wait_for_components(h: &mut Harness<'_>, count: usize) {
+    let started = web_time::Instant::now();
+    while saved_assembly(h)["components"].as_object().unwrap().len() != count {
+        assert!(
+            started.elapsed() < std::time::Duration::from_secs(60),
+            "the screws were not placed: {}",
+            h.state().debug_state_json()
+        );
+        h.step();
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+}
+
 fn picks(h: &Harness<'_>) -> usize {
     match &form(h)
         .fields
@@ -137,6 +151,9 @@ fn c3_accept() {
         h.run_steps(3);
         h.get_by_label("OK").click();
         harness::wait_settled(h);
+        // The document can read as settled before the expansion's command
+        // is submitted, so wait for the screws themselves.
+        wait_for_components(h, components + 3);
         h.run_steps(4);
         let after = saved_assembly(h);
         assert_eq!(
