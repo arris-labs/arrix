@@ -145,3 +145,45 @@ fn a_budget_stops_a_call_by_its_own_category_and_is_lifted() {
     k.set_budget(None);
     assert!(round(&mut k, body).is_ok());
 }
+
+/// The embedder's source (ADR-0042): calls stop while its count is past the
+/// taken count, and a count equal to it, or a stale one, stops nothing.
+#[test]
+fn a_source_past_the_taken_count_stops_a_call_and_an_equal_one_does_not() {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COMMITS: AtomicU64 = AtomicU64::new(0);
+
+    let mut k = Kernel::new();
+    let body = plate(&mut k);
+    let interrupt = k.interrupt();
+    assert!(interrupt.set_source(|| COMMITS.load(Ordering::Relaxed)));
+    assert!(!interrupt.set_source(|| 0), "one source, installed once");
+
+    // Nothing past the taken count: the fillet runs.
+    COMMITS.store(3, Ordering::Relaxed);
+    interrupt.take(3);
+    round(&mut k, body).unwrap();
+
+    // A newer commit bumps the count past the taken one, from another
+    // thread, while the fillet runs: it stops inside the kernel.
+    let bumper = thread::spawn(|| {
+        thread::sleep(Duration::from_millis(50));
+        COMMITS.store(4, Ordering::Relaxed);
+    });
+    let stopped = round(&mut k, body).unwrap_err();
+    bumper.join().unwrap();
+    assert_eq!(stopped.code().as_str(), "kernel.interrupted", "{stopped}");
+    assert!(interrupt.is_raised(), "and so does every later call");
+
+    // Taking that commit's job ends it without lowering anything, and the
+    // flag stays untouched.
+    interrupt.take(4);
+    assert!(!interrupt.is_raised());
+    round(&mut k, body).unwrap();
+
+    // A stale count, behind the taken one, stops nothing either.
+    COMMITS.store(2, Ordering::Relaxed);
+    assert!(!interrupt.is_raised());
+    interrupt.raise();
+    assert!(interrupt.is_raised(), "the native flag works beside it");
+}
