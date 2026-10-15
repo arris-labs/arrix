@@ -528,10 +528,18 @@ with comments and literal contents blanked first, and each takes the
 repository root from its own path. CI, `.github/workflows/ci.yml`, runs
 the same commands in five jobs (fmt, clippy, lints, test, wasm) on a push
 to `main` and on pull requests; its steps named `gate: …` are exactly the
-hooks' commands, which `gate-selftest` checks. The test job installs
+hooks' commands, which `gate-selftest` checks (the test job installs
+`cargo-nextest`, pinned). The test job installs
 `mesa-vulkan-drivers` and sets `ARRIX_REQUIRE_GPU=1`; when it fails, it
 runs `scripts/snapshot-baseline HEAD~1` and uploads `target/snapshots/`
-as an artifact. The Python SDK's `python -m unittest` runs inside
+as an artifact. The test runner is nextest (ADR-0040): the tests of many
+binaries run at once under one thread budget, 4 in `.config/nextest.toml`
+(each plugin workspace has its own file), and the tests that assert
+wall-clock time sit in its `timing` group, one at a time, so a loaded
+machine cannot fail them. `RUST_TEST_THREADS` does not reach it;
+`cargo test -p x --test y` stays valid for a single test, and the hook
+stops with the install line (`cargo install cargo-nextest --locked`) if
+nextest is missing. The Python SDK's `python -m unittest` runs inside
 `cargo test` (`crates/arrix-plugin-host/tests/python_sdk.rs`), so the
 tests of **pre-push** cover it with no step of their own.
 
@@ -574,13 +582,14 @@ tests of **pre-push** cover it with no step of their own.
 
 **pre-push** (slow):
 
-1. `cargo test --workspace`
-2. `cargo test --workspace --all-features`
+1. `cargo nextest run --workspace`
+2. `cargo nextest run --workspace --all-features`, then `cargo test
+   --workspace --doc` (nextest runs no doctests)
 3. `cargo build --target wasm32-unknown-unknown --workspace --exclude
    arrix-cli --exclude arrix-plugin-test` (native only, like the CLI). `arrix-plugin-host`'s native tiers (C3) go behind a
    target cfg so the crate still builds.
-   Then, for each Rust plugin, `cargo test --manifest-path
-   plugins/<name>/Cargo.toml` and its Tier 1 module, `cargo build
+   Then, for each Rust plugin, `cargo nextest run --manifest-path
+   plugins/<name>/Cargo.toml`, `cargo test --doc` on it, and its Tier 1 module, `cargo build
    --release --target wasm32-unknown-unknown --features guest` into
    `plugins/<name>/target/guest`, where its own guest test builds it.
    `crates/arrix-cli/tests/out_of_tree.rs`, in step 1, installs `arrix`
@@ -596,7 +605,7 @@ tests of **pre-push** cover it with no step of their own.
    crate), which must fail it, and with the exemptions each lint promises
    (test code, the audit marker, a comment), which must pass. It also
    checks that CI's `gate: …` steps run exactly the hooks' commands, each
-   as often, that the hooks run each Rust plugin's three commands, and
+   as often, that the hooks run each Rust plugin's four commands, and
    that the check fails on a planted drift of either kind.
 
 `arrix-app`'s product render is held to the visual harness by a test,

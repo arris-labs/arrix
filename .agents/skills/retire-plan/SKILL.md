@@ -29,7 +29,7 @@ moves first.
 8. **Clean the build cache**: a plan's rebuilds leave tens of gigabytes of
    dead artifacts. Note `du -sh target` before and after. With
    `cargo sweep`: `cargo sweep -s`, rebuild what the gate builds without
-   running it (`cargo test --workspace --no-run`, again with
+   running it (`cargo nextest run --workspace --no-run`, again with
    `--all-features`, `cargo clippy --workspace --all-targets
    --all-features`, the wasm build), `cargo sweep -f`, `rm
    sweep.timestamp`, and `rm -rf target/release` if the gate built no

@@ -16,6 +16,7 @@ skills for the idea → plan → work → retire → close-cycle pipeline live i
 - `.claude/rules` and `.claude/skills` are symlinks into `.agents/`. On
   Windows, clone with symlinks enabled (`git config --global core.symlinks
   true`, with Developer Mode on), or the skills and rules won't load.
+- `cargo install cargo-nextest --locked` (the gate's test runner, ADR-0040).
 - `git config core.hooksPath .githooks` installs the gate's hooks.
   Python 3 runs the lints; `rust-toolchain.toml` brings rustfmt, clippy
   and the wasm32 target.
@@ -78,16 +79,19 @@ c3_accept`, the URDF held to urdfdom and yourdfpy.
 ## Commands
 
 The gate, as `docs/ARCHITECTURE.md` §Gates defines it; `/work` runs all of
-it before ticking a step:
+it before ticking a step. Every `cargo test -p x --test y` below runs as
+well as `cargo nextest run -p x --test y` (`--no-capture` for
+`--nocapture`):
 
 - `.githooks/pre-commit`: `cargo fmt --all -- --check`, `cargo clippy
   --workspace --all-targets --all-features -- -D warnings`,
   `scripts/size-lint`, `scripts/wasm-lint`, `scripts/layer-lint`.
-- `.githooks/pre-push`: `cargo test --workspace` (and `--all-features`),
+- `.githooks/pre-push`: `cargo nextest run --workspace` (and `--all-features`),
+  `cargo test --workspace --doc`,
   `cargo build --target wasm32-unknown-unknown --workspace --exclude
   arrix-cli --exclude arrix-plugin-test`, `scripts/gate-selftest`.
 - `plugins/gears` and `plugins/robotics` are Cargo workspaces of their own:
-  both hooks also run clippy, `cargo test` and the `guest` wasm32 build on
+  both hooks also run clippy, `cargo nextest run`, its doctests and the `guest` wasm32 build on
   each by `--manifest-path plugins/<name>/Cargo.toml`. `cargo test -p
   arrix-cli --test out_of_tree` installs `arrix` into `target/out-of-tree`
   and runs `arrix test` from it on every plugin directory.

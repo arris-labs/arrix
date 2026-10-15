@@ -12,14 +12,17 @@ and the visual tests (lavapipe) take gigabytes per parallel job.
   re-exec themselves under it). It runs the command in a scope of its own
   with `MemoryHigh`/`MemoryMax` and `nice -n 10`, so what dies under
   pressure is the run, not the terminal, and it prints the scope's peak
-  memory. A bare `cargo test --workspace` in the terminal is the mistake
+  memory. A bare `cargo nextest run --workspace` in the terminal is the mistake
   this rule exists for.
 - **Budget the two projects together**, not each at half. Measured on this
-  machine (32 CPUs, 61 GiB; `cargo test --workspace`, build warm): the test
-  phase summed to 320 s at 2 threads, 280 s at 4, 293 s at 16 (an 8-thread
-  run, 428 s, was a cold-cache outlier), and 32 was killed by oomd inside a
-  minute, alone. The suite does not scale past about 4 test threads, so
-  **`RUST_TEST_THREADS=4`**, **`RAYON_NUM_THREADS=8`** and **`--jobs 8`**
+  machine (32 CPUs, 61 GiB, build warm): `cargo test --workspace` summed to
+  320 s at 2 threads, 280 s at 4, 293 s at 16, and 32 was killed by oomd
+  inside a minute, alone; it runs one binary after another and does not
+  scale. `cargo nextest run` (ADR-0040) took 132 to 137 s at 4 threads and
+  96 s at 8, where a timing test flaked. So the gate runs **4 test
+  threads**, set in `.config/nextest.toml` (nextest ignores
+  `RUST_TEST_THREADS`; `cargo test` alone still honours it), with
+  **`RAYON_NUM_THREADS=8`** and **`--jobs 8`**
   for the compile while Arris's tests may be running, and never more than
   16. Set them in `~/.cargo/config.toml` or by hand. (`scripts/heavy`'s
   peak counts page cache, which fills `MemoryHigh`, so it says little about

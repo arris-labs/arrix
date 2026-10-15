@@ -33,7 +33,7 @@ body is the startup state: revert your edits before committing.
 `crates/arrix-app/tests/snapshots/<name>.json`:
 
 ```sh
-cargo test -p arrix-app --test visual
+cargo nextest run -p arrix-app --test visual   # or cargo test -p arrix-app --test visual
 ```
 
 Every run writes each scenario's frame to `target/snapshots/<name>.png`,
