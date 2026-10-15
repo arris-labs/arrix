@@ -10,6 +10,7 @@ use super::tests::{build, envelope, set_h};
 use super::wire::{self, Heard, in_loopback};
 use super::*;
 use crate::authority::Authority;
+use crate::eval::{EvalLine, Evaluation};
 use crate::frozen::{BlobRef, Frozen};
 use crate::registry::Registry;
 
@@ -125,4 +126,35 @@ fn a_frozen_result_crosses_with_its_blob_bytes() {
 
 fn ids_feature() -> FeatureId {
     arrix_core::IdMinter::new(3).mint()
+}
+
+/// The eval line a client reads from a generation's events, in a session
+/// with a body: plain, and through the wire form as a browser hears it.
+fn heard_line() -> (EvalLine, EvalLine) {
+    use super::preview_tests::{envelope, extrude, open, until};
+    let (s, events, key) = open();
+    s.submit(envelope(1, extrude(key, "4 mm"))).unwrap();
+    let seen = until(
+        &events,
+        |e| matches!(e, SessionEvent::Finished { generation, .. } if *generation == Generation(2)),
+    );
+    let saved = s.save();
+    let doc = crate::open::open(&saved).unwrap();
+    let heard = Evaluation::heard(Generation(2), &seen).expect("generation 2 finished");
+    let printed = crate::eval::eval("plate", &saved, &Registry::with_core_types()).unwrap();
+    (heard.line("plate", &doc), printed)
+}
+
+#[test]
+fn the_eval_line_read_from_the_events_is_the_one_arrix_eval_prints() {
+    for (heard, printed) in [heard_line(), in_loopback(heard_line)] {
+        assert!(
+            !heard.bodies.is_empty() && heard.mass.is_some(),
+            "{heard:?}"
+        );
+        assert_eq!(
+            serde_json::to_string(&heard).unwrap(),
+            serde_json::to_string(&printed).unwrap()
+        );
+    }
 }

@@ -79,5 +79,7 @@ pub use session::{
     ExporterRequest, LocalSession, PROTOCOL_VERSION, ParamValues, PluginLoader, PreviewBody,
     PreviewId, PreviewTag, Replica, ReplicaError, Request, Session, SessionEvent,
 };
+#[cfg(target_arch = "wasm32")]
+pub use session::{WebSession, run_evaluator};
 pub use step_tree::{Placement, StepNode, StepTree, read_step_tree};
 pub use zip::{ZipError, from_zip, open_zip, save_zip, to_zip};

@@ -281,6 +281,23 @@ compiling; C4 makes it run.
   rollback: it waits for the next step, and that `cut_many` has a 0.2 s
   stretch without one (`docs/BACKLOG.md`), then unwinds in about 2 ms.
   Step 8 gates the latency on the bracket.
+- **The web session** (plans/c4 step 7, `arrix-doc`'s `session/web.rs`):
+  `WebSession` runs the authority's core on the main thread and
+  `run_evaluator` the native `EvalWorker` in a module worker the executor
+  starts from a script the embedder serves. Jobs go as
+  `[commits, supersedes, job]`, the job in its wire form; answers come
+  back as text. The worker hears messages only between passes, so its
+  queue also reads the counters: a commit evaluation and its meshes stop
+  for a commit posted and not yet received, a preview for any commit,
+  preview or clear, and a pass waits for those to arrive. It takes
+  messages into its queue and runs the pass on a zero timer, so the jobs
+  that came during a pass are all received before the next. The
+  interrupt's source is `commits`, against the count the newest job
+  received carries. A client reads a generation's eval line from its
+  events (`Evaluation::heard`), wherever the evaluator runs.
+  `arrix-plugin-host`'s `tests/web_session.rs` opens the bracket from
+  `.arrx` bytes in headless Chromium, isolated and not, and hears an edit
+  evaluate and mesh.
 - **Files** come from the browser's file APIs as bytes; there is no
   filesystem. Importers already take bytes (`docs/PLUGINS.md` §4).
 - **Plugins**: Tier 0 only, and no `PluginLoader`, so `LoadPlugin` and

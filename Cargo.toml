@@ -120,6 +120,9 @@ wasm-encoder = "0.258"
 wasm-bindgen = "=0.2.129"
 wasm-bindgen-test = "0.3"
 js-sys = "0.3"
+# The web session (ADR-0042, `arrix-doc`'s `session/web.rs`, wasm32 only):
+# the evaluator's worker and its messages.
+web-sys = { version = "0.3", features = ["console", "DedicatedWorkerGlobalScope", "MessageEvent", "Worker", "WorkerGlobalScope", "WorkerOptions", "WorkerType"] }
 # The wire spike (crates/arrix-cli/tests/wire_spike.rs, ADR-0022): the
 # encodings it measures JSON against. Dev-only, run by name.
 ciborium = "0.2"

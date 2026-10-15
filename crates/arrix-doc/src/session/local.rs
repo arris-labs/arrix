@@ -72,7 +72,7 @@ impl LocalSession {
         let worker = executor::spawn("arrix-evaluator", move || {
             let evaluator = Evaluator::new(registry);
             let _ = handle.send(evaluator.interrupt());
-            EvalWorker::new(evaluator).run(&job_rx, &publish);
+            EvalWorker::new(evaluator).run(job_rx, &publish);
         })?;
         let interrupt = interrupt_rx
             .recv()

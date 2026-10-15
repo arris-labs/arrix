@@ -38,9 +38,17 @@ wit-component.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 wasmtime.workspace = true
+arrix-web-test.workspace = true
 
-# The determinism probe runs on wasm32 under Node (tests/wasm_determinism.rs).
+# The determinism probe runs on wasm32 under Node (tests/wasm_determinism.rs);
+# the web session's page (`examples/web_session`) in headless Chromium,
+# served by `tests/web_session.rs` through the browser harness.
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 wasm-bindgen.workspace = true
 wasm-bindgen-test.workspace = true
 js-sys.workspace = true
+
+[[example]]
+name = "web_session"
+path = "examples/web_session/page.rs"
+crate-type = ["cdylib"]

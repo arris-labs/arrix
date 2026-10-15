@@ -40,13 +40,15 @@ ALLOWED = {
     "arrix-plugin-api": {"arrix-core"},
     "arrix-doc": {"arrix-core", "arrix-kernel", "arrix-sketch", "arrix-plugin-api"},
     # Its Tier 1 tests compare a first-party plugin's component with the
-    # plugin compiled in (`arrix-gears`, `arrix-robotics`, dev only).
+    # plugin compiled in (`arrix-gears`, `arrix-robotics`, dev only); its
+    # web session test serves a page through the harness (dev only).
     "arrix-plugin-host": {
         "arrix-core",
         "arrix-doc",
         "arrix-plugin-api",
         "arrix-gears",
         "arrix-robotics",
+        "arrix-web-test",
     },
     # The test kit (ADR-0026): the checks `arrix test` and a plugin's own
     # `cargo test` share; its Tier 0 tests compile a test plugin in.

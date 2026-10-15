@@ -504,6 +504,7 @@ dependencies = [
  "base64",
  "blake3",
  "crc32fast",
+ "js-sys",
  "jsonschema",
  "miniz_oxide 0.9.1",
  "proptest",
@@ -512,6 +513,8 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.21",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]
@@ -561,6 +564,7 @@ dependencies = [
  "arrix-gears",
  "arrix-plugin-api",
  "arrix-robotics",
+ "arrix-web-test",
  "base64",
  "js-sys",
  "regex",

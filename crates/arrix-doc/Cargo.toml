@@ -29,6 +29,13 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 
+# The web session (ADR-0042): the authority on the page's main thread, the
+# evaluator in a web worker, and the counters they share.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen.workspace = true
+js-sys.workspace = true
+web-sys.workspace = true
+
 [dev-dependencies]
 proptest.workspace = true
 jsonschema.workspace = true

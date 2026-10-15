@@ -88,11 +88,25 @@ pub(super) enum Job {
     Structure(StructureJob),
 }
 
+/// What an embedder whose jobs cannot be taken in the middle of a pass
+/// knows of the jobs posted and not yet taken: a browser worker, which
+/// hears its messages only between passes, reads it from the authority's
+/// counters (ADR-0042 §Cancellation).
+#[derive(Clone, Copy, Debug, Default)]
+pub(super) struct Pending {
+    /// A commit newer than every one taken.
+    pub commit: bool,
+    /// A commit, a preview or a clear newer than every one taken.
+    pub supersede: bool,
+}
+
 /// The worker's queue: the newest commit and the newest preview not yet
 /// taken. A commit drops a waiting preview, which was taken on an older
 /// document; a newer preview or a clear replaces it.
-pub(super) struct Queue<'a> {
-    rx: &'a Receiver<Job>,
+pub(super) struct Queue {
+    rx: Receiver<Job>,
+    /// The jobs posted and not yet received, where they cannot be polled.
+    pending: Option<fn() -> Pending>,
     pub commit: Option<Snapshot>,
     /// The newest registry not yet taken, and the types stale in any of
     /// those it replaced.
@@ -110,10 +124,11 @@ pub(super) struct Queue<'a> {
     pub gone: bool,
 }
 
-impl<'a> Queue<'a> {
-    pub fn new(rx: &'a Receiver<Job>) -> Self {
+impl Queue {
+    pub fn new(rx: Receiver<Job>, pending: Option<fn() -> Pending>) -> Self {
         Self {
             rx,
+            pending,
             commit: None,
             registry: None,
             preview: None,
@@ -185,11 +200,27 @@ impl<'a> Queue<'a> {
         !self.gone
     }
 
+    fn pending(&self) -> Pending {
+        self.pending.map(|p| p()).unwrap_or_default()
+    }
+
+    /// Whether a commit newer than the one evaluated is queued or posted.
+    pub fn newer_commit(&mut self) -> bool {
+        self.poll();
+        self.commit.is_some() || self.pending().commit
+    }
+
+    /// Whether a pass should wait for the jobs posted and not yet received
+    /// before it starts: a commit, a preview or a clear on its way.
+    pub fn awaits(&self) -> bool {
+        self.pending().supersede
+    }
+
     /// Whether a running preview is superseded: by a commit, a newer
     /// preview or a clear.
     fn stops_preview(&mut self) -> bool {
         self.poll();
-        self.gone || self.commit.is_some() || self.preview_moved
+        self.gone || self.commit.is_some() || self.preview_moved || self.pending().supersede
     }
 }
 

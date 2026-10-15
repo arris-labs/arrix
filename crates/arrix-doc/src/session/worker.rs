@@ -4,6 +4,7 @@
 //! drains the queue and waits, and a browser worker drains it until idle
 //! (docs/CONCURRENCY-WASM.md §The evaluator).
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender};
 
@@ -15,9 +16,30 @@ use super::{
 use crate::authority::Generation;
 use crate::document::Document;
 use crate::eval::{Evaluator, FinalBody, interrupted};
-use arrix_core::{Diagnostic, MeshDetail, Severity};
+use crate::frozen::Frozen;
+use arrix_core::{Diagnostic, FeatureId, MeshDetail, Severity};
 use arrix_kernel::Interrupt;
 use arrix_plugin_api::Subject;
+
+/// Where the worker's answers go: the session thread's inbox natively, a
+/// `postMessage` to the authority in a browser.
+pub(super) trait Outbox {
+    /// An evaluation event, to publish.
+    fn publish(&self, event: SessionEvent);
+    /// The plugin features' results of an evaluation, sent before that
+    /// evaluation's `Finished`.
+    fn freeze(&self, results: BTreeMap<FeatureId, Arc<Frozen>>);
+}
+
+impl Outbox for Sender<Msg> {
+    fn publish(&self, event: SessionEvent) {
+        let _ = self.send(Msg::Publish(event));
+    }
+
+    fn freeze(&self, results: BTreeMap<FeatureId, Arc<Frozen>>) {
+        let _ = self.send(Msg::Freeze(results));
+    }
+}
 
 /// The evaluator and what it remembers between passes.
 pub(super) struct EvalWorker {
@@ -46,8 +68,8 @@ impl EvalWorker {
 
     /// Runs on a thread: passes over `jobs` until the session thread has
     /// gone.
-    pub fn run(mut self, jobs: &Receiver<Job>, publish: &Sender<Msg>) {
-        let mut queue = Queue::new(jobs);
+    pub fn run(mut self, jobs: Receiver<Job>, publish: &Sender<Msg>) {
+        let mut queue = Queue::new(jobs, None);
         while queue.wait(self.finished.is_some()) {
             if !self.step(&mut queue, publish) {
                 return;
@@ -55,16 +77,30 @@ impl EvalWorker {
         }
     }
 
+    /// Passes over what `queue` holds until it is idle, or until a newer
+    /// commit, preview or clear is posted and not yet received: the
+    /// embedder hears it and calls again (a browser worker, ADR-0042).
+    #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+    pub fn drain(&mut self, queue: &mut Queue, publish: &impl Outbox) {
+        queue.poll();
+        while !queue.awaits() && queue.has_work(self.finished.is_some()) {
+            if !self.step(queue, publish) {
+                return;
+            }
+            queue.poll();
+        }
+    }
+
     /// One pass: the structures, the registry, then the newest commit, or
     /// failing that an export, an expansion or a preview, whichever is
     /// queued first in that order. `false` once the queue's source has gone.
-    pub fn step(&mut self, queue: &mut Queue, publish: &Sender<Msg>) -> bool {
+    pub fn step(&mut self, queue: &mut Queue, publish: &impl Outbox) -> bool {
         // Whatever raised the flag is the job taken now, or an older one.
         self.interrupt.lower();
         // A file's tree is a read of its own, wanted at once.
         while let Some(job) = queue.structures.pop_front() {
             let tree = crate::step_tree::read_step_tree(&job.bytes);
-            let _ = publish.send(Msg::Publish(SessionEvent::StepTree { tag: job.tag, tree }));
+            publish.publish(SessionEvent::StepTree { tag: job.tag, tree });
         }
         if let Some((registry, stale)) = queue.registry.take() {
             self.evaluator.set_registry(*registry, &stale);
@@ -93,9 +129,7 @@ impl EvalWorker {
             );
         } else if let Some(job) = queue.preview.take() {
             self.held = false;
-            let mut send = |event| {
-                let _ = publish.send(Msg::Publish(event));
-            };
+            let mut send = |event| publish.publish(event);
             preview::run(&mut self.evaluator, job, &self.committed, queue, &mut send);
         }
         true
@@ -106,21 +140,20 @@ impl EvalWorker {
         generation: Generation,
         doc: Arc<Document>,
         queue: &mut Queue,
-        publish: &Sender<Msg>,
+        publish: &impl Outbox,
     ) -> bool {
         let done = self.evaluator.evaluate_while(&doc, |event| {
             let event = SessionEvent::Evaluated {
                 generation,
                 event: event.clone(),
             };
-            let _ = publish.send(Msg::Publish(event));
-            queue.poll();
-            queue.commit.is_none() && !queue.gone
+            publish.publish(event);
+            !queue.newer_commit() && !queue.gone
         });
         if queue.gone {
             return false;
         }
-        let _ = publish.send(Msg::Freeze(self.evaluator.frozen().clone()));
+        publish.freeze(self.evaluator.frozen().clone());
         self.held = done.is_some();
         if let Some(evaluation) = done {
             self.finished = Some((generation, doc));
@@ -131,18 +164,18 @@ impl EvalWorker {
                     assembly,
                     outcome,
                 };
-                let _ = publish.send(Msg::Publish(assembled));
+                publish.publish(assembled);
             }
             let massed = SessionEvent::Massed {
                 generation,
                 masses: evaluation.masses,
             };
-            let _ = publish.send(Msg::Publish(massed));
+            publish.publish(massed);
             let finished = SessionEvent::Finished {
                 generation,
                 params: evaluation.params,
             };
-            let _ = publish.send(Msg::Publish(finished));
+            publish.publish(finished);
             mesh_finals(&mut self.evaluator, generation, queue, publish);
         }
         true
@@ -158,7 +191,7 @@ fn export_queued(
     (generation, doc): (Generation, &Arc<Document>),
     held: &mut bool,
     queue: &mut Queue,
-    publish: &Sender<Msg>,
+    publish: &impl Outbox,
 ) {
     while let Some(job) = queue.exports.front() {
         if !*held {
@@ -188,7 +221,7 @@ fn export_queued(
             bytes,
             files,
         };
-        let _ = publish.send(Msg::Publish(event));
+        publish.publish(event);
         queue.exports.pop_front();
     }
 }
@@ -203,7 +236,7 @@ fn expand_queued(
     (generation, doc): (Generation, &Arc<Document>),
     held: &mut bool,
     queue: &mut Queue,
-    publish: &Sender<Msg>,
+    publish: &impl Outbox,
 ) {
     while let Some(job) = queue.expands.front() {
         let base = job.request.base;
@@ -230,7 +263,7 @@ fn expand_queued(
             return;
         }
         let event = SessionEvent::Expanded { generation, group };
-        let _ = publish.send(Msg::Publish(event));
+        publish.publish(event);
         queue.expands.pop_front();
     }
 }
@@ -328,13 +361,12 @@ fn mesh_finals(
     evaluator: &mut Evaluator,
     generation: Generation,
     queue: &mut Queue,
-    publish: &Sender<Msg>,
+    publish: &impl Outbox,
 ) {
     let finals = evaluator.final_bodies().to_vec();
     for detail in [MeshDetail::Coarse, MeshDetail::Refined] {
         for body in &finals {
-            queue.poll();
-            if queue.commit.is_some() || queue.gone {
+            if queue.newer_commit() || queue.gone {
                 return;
             }
             let mesh = evaluator.mesh(body, detail);
@@ -348,7 +380,7 @@ fn mesh_finals(
                 detail,
                 mesh,
             };
-            let _ = publish.send(Msg::Publish(event));
+            publish.publish(event);
         }
     }
 }

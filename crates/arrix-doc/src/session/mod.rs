@@ -28,6 +28,8 @@ mod schema;
 mod step_tree_tests;
 #[cfg(test)]
 mod tests;
+#[cfg(target_arch = "wasm32")]
+mod web;
 mod wire;
 #[cfg(test)]
 mod wire_tests;
@@ -46,11 +48,15 @@ use serde::{Deserialize, Serialize};
 
 pub use local::LocalSession;
 pub use plugins::PluginLoader;
+#[cfg(target_arch = "wasm32")]
+pub use web::{WebSession, run_evaluator};
 
 use crate::authority::{AuthorId, Change, CommandEnvelope, Generation, Outcome, Rejected};
 use crate::command::{Command, CommandError, apply};
 use crate::document::{Document, FeatureTypeId};
-use crate::eval::{AssemblyOutcome, BodySlot, EdgePick, EvalEvent, FeatureOutcome, Masses};
+use crate::eval::{
+    AssemblyOutcome, BodySlot, EdgePick, EvalEvent, Evaluation, FeatureOutcome, Masses,
+};
 use crate::open::{MemorySource, open};
 use crate::save::save;
 use crate::step_tree::StepTree;
@@ -605,6 +611,57 @@ impl Replica {
             | SessionEvent::Exported { .. } => {}
         }
         Ok(())
+    }
+}
+
+impl Evaluation {
+    /// The evaluation of `generation` as a subscriber hears it: its
+    /// features' outcomes in the order evaluated, its assemblies, its
+    /// masses and the parameters its `Finished` carries; `None` until that
+    /// `Finished`. Its [`line`](Evaluation::line) is the eval line `arrix
+    /// eval` prints, read from the stream alone, wherever the evaluator
+    /// runs (plans/c4 step 7).
+    pub fn heard<'a>(
+        generation: Generation,
+        events: impl IntoIterator<Item = &'a SessionEvent>,
+    ) -> Option<Self> {
+        let (mut evaluated, mut assemblies, mut masses) = (Vec::new(), BTreeMap::new(), None);
+        for event in events {
+            match event {
+                SessionEvent::Evaluated {
+                    generation: g,
+                    event,
+                } if *g == generation => {
+                    evaluated.push(event.clone());
+                }
+                SessionEvent::Assembled {
+                    generation: g,
+                    assembly,
+                    outcome,
+                } if *g == generation => {
+                    assemblies.insert(*assembly, outcome.clone());
+                }
+                SessionEvent::Massed {
+                    generation: g,
+                    masses: m,
+                } if *g == generation => {
+                    masses = Some(m.clone());
+                }
+                SessionEvent::Finished {
+                    generation: g,
+                    params,
+                } if *g == generation => {
+                    return Some(Self {
+                        params: params.clone(),
+                        events: evaluated,
+                        assemblies,
+                        masses: masses?,
+                    });
+                }
+                _ => {}
+            }
+        }
+        None
     }
 }
 

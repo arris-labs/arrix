@@ -1,7 +1,8 @@
-//! The executor: the one place a thread is spawned (docs/CONCURRENCY-WASM.md
-//! §Roles and threads, the wasm lint's permit). Native: named OS threads.
-//! On wasm32 spawning fails with an error, not a panic, until C4 runs the
-//! authority and the evaluator in a web worker.
+//! The executor: the one place a thread or a worker is started
+//! (docs/CONCURRENCY-WASM.md §Roles and threads, the wasm lint's permit).
+//! Native: named OS threads. On wasm32 a thread fails to spawn with an
+//! error, not a panic, and the evaluator runs in a web worker instead
+//! (ADR-0042).
 
 use std::thread::{Builder, JoinHandle};
 
@@ -22,4 +23,13 @@ impl Drop for Worker {
             let _ = handle.join();
         }
     }
+}
+
+/// Starts a web worker running the module script at `script`, which the
+/// embedder serves: the browser's evaluator (ADR-0042 §Topology).
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn spawn_worker(script: &str) -> Result<web_sys::Worker, wasm_bindgen::JsValue> {
+    let options = web_sys::WorkerOptions::new();
+    options.set_type(web_sys::WorkerType::Module);
+    web_sys::Worker::new_with_options(script, &options)
 }
