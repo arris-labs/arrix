@@ -238,7 +238,7 @@ The same Rust codebase runs in the browser (`SEED.md` §1). C1 keeps it
 compiling; C4 makes it run.
 
 - **C1**: every crate but `arrix-cli` and the native plugin tiers builds
-  for `wasm32-unknown-unknown` in the pre-push hook and CI. Nothing runs in
+  for `wasm32-unknown-unknown` in the gate and CI. Nothing runs in
   a browser yet, and nothing is built that would make the browser path a
   special case (the wasm lint, `docs/ARCHITECTURE.md` §Gates).
 - **C4**: `arrix-app` as an eframe web app. The client runs on the main

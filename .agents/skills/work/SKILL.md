@@ -13,8 +13,8 @@ argument-hint: <plan slug> [step number or range]
 2. Implement the step with its test or snapshot, and edit the docs it
    changes in the same step. The layer rules (`AGENTS.md`, `SEED.md` §6.7)
    are binding.
-3. Run the whole gate (`docs/ARCHITECTURE.md` §Gates); the hooks cover only
-   part of it. A visible UI change is looked at headless (`visual-debug`).
+3. Run the whole gate (`docs/ARCHITECTURE.md` §Gates): `scripts/gate`, in
+   the background; the pre-commit hook runs the fast half at the commit. A visible UI change is looked at headless (`visual-debug`).
    A failure is fixed or reported, never bypassed. The size lint is met by
    splitting the file or function; an allowlist entry needs a written
    reason and the human's OK.

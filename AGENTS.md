@@ -17,7 +17,7 @@ skills for the idea → plan → work → retire → close-cycle pipeline live i
   Windows, clone with symlinks enabled (`git config --global core.symlinks
   true`, with Developer Mode on), or the skills and rules won't load.
 - `cargo install cargo-nextest --locked` (the gate's test runner, ADR-0040).
-- `git config core.hooksPath .githooks` installs the gate's hooks.
+- `git config core.hooksPath .githooks` installs the pre-commit hook.
   Python 3 runs the lints; `rust-toolchain.toml` brings rustfmt, clippy
   and the wasm32 target.
 - The visual scenarios need Mesa's lavapipe (`mesa-vulkan-drivers` on
@@ -87,12 +87,12 @@ well as `cargo nextest run -p x --test y` (`--no-capture` for
 - `.githooks/pre-commit`: `cargo fmt --all -- --check`, `cargo clippy
   --workspace --all-targets --all-features -- -D warnings`,
   `scripts/size-lint`, `scripts/wasm-lint`, `scripts/layer-lint`.
-- `.githooks/pre-push`: `cargo nextest run --workspace` (and `--all-features`),
+- `scripts/gate` (no hook runs it; `/work` does, ADR-0041): `cargo nextest run --workspace` (and `--all-features`),
   `cargo test --workspace --doc`,
   `cargo build --target wasm32-unknown-unknown --workspace --exclude
   arrix-cli --exclude arrix-plugin-test`, `scripts/gate-selftest`.
 - `plugins/gears` and `plugins/robotics` are Cargo workspaces of their own:
-  both hooks also run clippy, `cargo nextest run`, its doctests and the `guest` wasm32 build on
+  pre-commit and the gate also run clippy, `cargo nextest run`, its doctests and the `guest` wasm32 build on
   each by `--manifest-path plugins/<name>/Cargo.toml`. `cargo test -p
   arrix-cli --test out_of_tree` installs `arrix` into `target/out-of-tree`
   and runs `arrix test` from it on every plugin directory.
@@ -189,8 +189,8 @@ well as `cargo nextest run -p x --test y` (`--no-capture` for
   `cargo run -p arrix-app -- render <doc> -o <png> [--json <file>] [--view …]
   [--context <part|assembly>] [--size WxH] [--plugin <dir>]…` renders a
   document headless (needs lavapipe).
-- Either hook runs by hand as `.githooks/pre-commit` or
-  `.githooks/pre-push`; both re-exec under `scripts/heavy`, which runs any
+- The two halves run by hand as `.githooks/pre-commit` and
+  `scripts/gate`; both re-exec under `scripts/heavy`, which runs any
   heavy command in a memory-limited scope so an oomd kill spares the
   terminal (`.agents/rules/resources.md`). `scripts/size-lint --list` shows offenders past
   the allowlist.

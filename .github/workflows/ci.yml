@@ -1,7 +1,7 @@
 # The gate (docs/ARCHITECTURE.md §Gates), job for job the commands of
-# .githooks/pre-commit and .githooks/pre-push. scripts/gate-selftest checks
+# .githooks/pre-commit and scripts/gate (ADR-0041). scripts/gate-selftest checks
 # that the two stay the same list: the steps named `gate: …` run, one line
-# each, exactly the hooks' commands, each once. Other steps are setup.
+# each, exactly the gate's commands, each once. Other steps are setup.
 name: ci
 
 on:

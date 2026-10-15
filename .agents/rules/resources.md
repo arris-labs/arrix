@@ -8,14 +8,14 @@ above its limit. A CPU cap does not prevent it: the compile and link phase
 and the visual tests (lavapipe) take gigabytes per parallel job.
 
 - **Every heavy command goes through `scripts/heavy`**: a full or workspace
-  `cargo build`/`test`/`clippy`, `arrix-app`'s tests, the hooks (they
-  re-exec themselves under it). It runs the command in a scope of its own
+  `cargo build`/`test`/`clippy`, `arrix-app`'s tests, the gate (pre-commit
+  and `scripts/gate` re-exec themselves under it). It runs the command in a scope of its own
   with `MemoryHigh`/`MemoryMax` and `nice -n 10`, so what dies under
   pressure is the run, not the terminal, and it prints the scope's peak
   memory. A bare `cargo nextest run --workspace` in the terminal is the mistake
   this rule exists for.
-- **One gate at a time per target directory.** The pre-push hook holds a
-  `flock` on `target/.pre-push.lock`, so a second push waits for the first:
+- **One gate at a time per target directory.** `scripts/gate` holds a
+  `flock` on `target/.gate.lock`, so a second run waits for the first:
   the tests' scratch directories have fixed names and race, and two gates
   double the memory. A worktree has a target of its own and runs beside.
 - **Budget the two projects together**, not each at half. Measured on this
@@ -23,7 +23,7 @@ and the visual tests (lavapipe) take gigabytes per parallel job.
   320 s at 2 threads, 280 s at 4, 293 s at 16, and 32 was killed by oomd
   inside a minute, alone; it runs one binary after another and does not
   scale. `cargo nextest run` (ADR-0040) took 132 to 137 s at 4 threads (three
-  acceptance runs of the whole pre-push: 136, 137 and 175 s for the workspace
+  acceptance runs of the whole gate: 136, 137 and 175 s for the workspace
   run, the last beside 16 busy loops, with no timing failure) and 96 s at 8,
   where a timing test flaked. So the gate runs **4 test
   threads**, set in `.config/nextest.toml` (nextest ignores

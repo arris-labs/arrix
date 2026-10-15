@@ -11,10 +11,10 @@ every lint first, so a failing case is never the tree's own fault.
 Every case's file must end in the section the snippet belongs to (a
 manifest's `[dependencies]`, a crate root's items).
 
-It also checks that CI runs the hooks' commands: the steps of
+It also checks that CI runs the gate's commands: the steps of
 `.github/workflows/ci.yml` named `gate: …` must run exactly the commands of
-`.githooks/pre-commit` and `pre-push`, each as often, so the two cannot
-drift; that the hooks run each Rust plugin under `plugins/`, a workspace of
+`.githooks/pre-commit` and `scripts/gate` (ADR-0041), each as often, so the
+two cannot drift; that the gate runs each Rust plugin under `plugins/`, a workspace of
 its own (plans/c3-m3 Findings 7), by its clippy, nextest, doctests and guest build; and
 that the check fails on a planted drift of either kind.
 
@@ -110,20 +110,20 @@ CASES = [
 ]
 
 
-HOOKS = (".githooks/pre-commit", ".githooks/pre-push")
+GATE = (".githooks/pre-commit", "scripts/gate")
 CI = ".github/workflows/ci.yml"
 
 # (name, file, text replaced, replacement): each must make the gate drift.
 # A replaced text of None writes the file whole.
 DRIFT_CASES = [
     (
-        "a hook command CI does not run",
-        ".githooks/pre-push",
+        "a gate command CI does not run",
+        "scripts/gate",
         "scripts/gate-selftest\n",
         "scripts/gate-selftest\ncargo doc --workspace\n",
     ),
     (
-        "a CI gate step no hook runs",
+        "a CI gate step the gate does not run",
         CI,
         "run: cargo nextest run --workspace --all-features",
         "run: cargo nextest run --workspace --all-features --release",
@@ -135,7 +135,7 @@ DRIFT_CASES = [
         "        run: cargo nextest run --workspace\n",
     ),
     (
-        "a plugin workspace the hooks do not run",
+        "a plugin workspace the gate does not run",
         "plugins/extra/Cargo.toml",
         None,
         '[package]\nname = "arrix-extra"\nversion = "0.0.0"\n\n[workspace]\n',
@@ -147,13 +147,13 @@ RUN_RE = re.compile(r"^\s*run:\s*(.*?)\s*$")
 STEP_RE = re.compile(r"^\s*-\s")
 
 
-def hook_commands(tree):
-    """The commands the hooks run: every line but the shebang, comments,
+def gate_commands(tree):
+    """The commands the gate runs: every line but the shebang, comments,
     `echo`, `set`, `cd`, the `command -v` check for a tool, the re-exec under `scripts/heavy`
-    and pre-push's lock on the target directory (`mkdir`, `exec 9>`)."""
+    and the gate's lock on the target directory (`mkdir`, `exec 9>`)."""
     out = []
-    for hook in HOOKS:
-        for line in (tree / hook).read_text().splitlines():
+    for script in GATE:
+        for line in (tree / script).read_text().splitlines():
             line = line.strip()
             if line and not line.startswith("#") and not re.match(r'(echo|set|cd|command|mkdir)\b|exec 9>|\[ -n "\$ARRIX_HEAVY" \]', line):
                 out.append(line)
@@ -177,15 +177,15 @@ def ci_gate_commands(tree):
 
 
 def ci_drift(tree):
-    """How CI and the hooks disagree, as lines; empty when they agree."""
-    hooks, ci = Counter(hook_commands(tree)), Counter(ci_gate_commands(tree))
-    return [f"hooks run {c!r} {n}x, CI {ci[c]}x" for c, n in (hooks - ci).items()] + [
-        f"CI runs {c!r} {n}x, hooks {hooks[c]}x" for c, n in (ci - hooks).items()
+    """How CI and the gate disagree, as lines; empty when they agree."""
+    gate, ci = Counter(gate_commands(tree)), Counter(ci_gate_commands(tree))
+    return [f"the gate runs {c!r} {n}x, CI {ci[c]}x" for c, n in (gate - ci).items()] + [
+        f"CI runs {c!r} {n}x, the gate {gate[c]}x" for c, n in (ci - gate).items()
     ]
 
 
 def plugin_commands(manifest):
-    """The commands the hooks run for the Rust plugin at `manifest`."""
+    """The commands the gate runs for the Rust plugin at `manifest`."""
     at = manifest.parent.as_posix()
     return [
         f"cargo clippy --manifest-path {manifest.as_posix()} --all-targets --all-features -- -D warnings",
@@ -197,13 +197,13 @@ def plugin_commands(manifest):
 
 
 def plugin_drift(tree):
-    """The commands a Rust plugin's workspace needs that the hooks lack."""
-    hooks = set(hook_commands(tree))
+    """The commands a Rust plugin's workspace needs that the gate lacks."""
+    gate = set(gate_commands(tree))
     out = []
     for manifest in sorted(tree.glob("plugins/*/Cargo.toml")):
         for command in plugin_commands(manifest.relative_to(tree)):
-            if command not in hooks:
-                out.append(f"no hook runs {command!r}")
+            if command not in gate:
+                out.append(f"the gate does not run {command!r}")
     return out
 
 
@@ -245,12 +245,12 @@ def main():
                 return 1
         drift = gate_drift(clean)
         if drift:
-            print(f"gate-selftest: {CI}, the hooks and the plugins disagree:", file=sys.stderr)
+            print(f"gate-selftest: {CI}, the gate and the plugins disagree:", file=sys.stderr)
             for d in drift:
                 print(f"- {d}", file=sys.stderr)
             return 1
-        print(f"  ok  {CI} runs exactly the hooks' {len(hook_commands(clean))} commands")
-        print(f"  ok  the hooks run each of the {len(list(clean.glob('plugins/*/Cargo.toml')))} plugin workspaces")
+        print(f"  ok  {CI} runs exactly the gate's {len(gate_commands(clean))} commands")
+        print(f"  ok  the gate runs each of the {len(list(clean.glob('plugins/*/Cargo.toml')))} plugin workspaces")
         for i, (name, file, old, new) in enumerate(DRIFT_CASES):
             tree = Path(tmp) / f"drift{i}"
             shutil.copytree(clean, tree)

@@ -3,10 +3,12 @@
 - Commit directly to `main`, which is always green. A plan step is the unit
   of work and of commit: finish the step, run the checks, tick the box,
   commit.
-- The hooks mirror CI (`docs/ARCHITECTURE.md` §Gates): `pre-commit` runs
-  the fast checks, `pre-push` the tests and the wasm build. Since tests
-  only run on push, a plan step runs them itself before its box is ticked.
-  Fix a failing hook; never pass `--no-verify`.
+- The gate mirrors CI (`docs/ARCHITECTURE.md` §Gates, ADR-0041): the
+  `pre-commit` hook runs the fast checks, `scripts/gate` the tests and the
+  wasm build. No hook runs the tests: a plan step runs `scripts/gate`
+  before its box is ticked, and so does any other commit that can change
+  what the suite tests; CI is the backstop. Fix a failing hook or gate;
+  never pass `--no-verify`.
 - Branch only for an experimental plan that may be thrown away, or when the
   human wants to review before it lands: `plan/<slug>`, rebased onto
   `main`, fast-forwarded in (`git merge --ff-only`), deleted after. No

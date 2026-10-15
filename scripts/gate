@@ -1,6 +1,7 @@
 #!/bin/sh
-# The slow half of the gate (docs/ARCHITECTURE.md §Gates), mirrored by CI.
-# `/work` runs these itself before a step is ticked (.agents/rules/git.md).
+# The slow half of the gate (docs/ARCHITECTURE.md §Gates, ADR-0041), mirrored
+# by CI. `/work` runs it before a step's box is ticked (.agents/rules/git.md);
+# no hook runs it, and pre-commit runs the fast half.
 set -e
 # Runs in a scope of its own, so memory pressure never takes the terminal
 # with it (scripts/heavy, .agents/rules/resources.md §Memory).
@@ -10,35 +11,35 @@ cd "$(git rev-parse --show-toplevel)"
 # under CARGO_TARGET_TMPDIR have fixed names, and two gates at once also
 # double the memory (.agents/rules/resources.md). A second gate waits.
 mkdir -p "${CARGO_TARGET_DIR:-target}"
-exec 9>"${CARGO_TARGET_DIR:-target}/.pre-push.lock"
-command -v flock >/dev/null && { flock -n 9 || { echo "pre-push: another gate holds ${CARGO_TARGET_DIR:-target}; waiting" >&2; flock 9; }; }
+exec 9>"${CARGO_TARGET_DIR:-target}/.gate.lock"
+command -v flock >/dev/null && { flock -n 9 || { echo "gate: another gate holds ${CARGO_TARGET_DIR:-target}; waiting" >&2; flock 9; }; }
 
 # nextest runs the tests of many binaries at once under one thread budget
 # (.config/nextest.toml, ADR-0040); it runs no doctests, so those go beside.
-command -v cargo-nextest >/dev/null || { echo "pre-push: cargo-nextest is missing: cargo install cargo-nextest --locked" >&2; exit 1; }
+command -v cargo-nextest >/dev/null || { echo "gate: cargo-nextest is missing: cargo install cargo-nextest --locked" >&2; exit 1; }
 
-echo "pre-push: cargo nextest run"
+echo "gate: cargo nextest run"
 cargo nextest run --workspace
 
-echo "pre-push: cargo nextest run --all-features"
+echo "gate: cargo nextest run --all-features"
 cargo nextest run --workspace --all-features
 
-echo "pre-push: doctests"
+echo "gate: doctests"
 cargo test --workspace --doc
 
-echo "pre-push: wasm32 build"
+echo "gate: wasm32 build"
 cargo build --target wasm32-unknown-unknown --workspace --exclude arrix-cli --exclude arrix-plugin-test
 
 # Each Rust plugin is a workspace of its own (plans/c3-m3 Findings 7): its
 # tests, and its Tier 1 module where its own guest test builds it.
-echo "pre-push: plugins/gears"
+echo "gate: plugins/gears"
 cargo nextest run --manifest-path plugins/gears/Cargo.toml
 cargo test --doc --manifest-path plugins/gears/Cargo.toml
 cargo build --release --target wasm32-unknown-unknown --features guest --manifest-path plugins/gears/Cargo.toml --target-dir plugins/gears/target/guest
-echo "pre-push: plugins/robotics"
+echo "gate: plugins/robotics"
 cargo nextest run --manifest-path plugins/robotics/Cargo.toml
 cargo test --doc --manifest-path plugins/robotics/Cargo.toml
 cargo build --release --target wasm32-unknown-unknown --features guest --manifest-path plugins/robotics/Cargo.toml --target-dir plugins/robotics/target/guest
 
-echo "pre-push: gate-selftest"
+echo "gate: gate-selftest"
 scripts/gate-selftest

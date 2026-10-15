@@ -520,15 +520,19 @@ is a plan step.
 
 ## Gates
 
-`.githooks/` holds the gate and CI mirrors it (`.agents/rules/git.md`);
-`git config core.hooksPath .githooks` once per clone or worktree.
+The gate is two halves and CI mirrors both (`.agents/rules/git.md`,
+ADR-0041): **pre-commit**, the hook in `.githooks/` (`git config
+core.hooksPath .githooks` once per clone or worktree), and **the slow
+half**, `scripts/gate`, which no hook runs: `/work` runs it before a step
+is ticked, and a second run in the same target directory waits on its
+lock (`target/.gate.lock`).
 `AGENTS.md` §Commands repeats how to run each part. The lints are Python 3
 scripts sharing `scripts/lintlib.py`: they read Rust source as written,
 with comments and literal contents blanked first, and each takes the
 repository root from its own path. CI, `.github/workflows/ci.yml`, runs
 the same commands in five jobs (fmt, clippy, lints, test, wasm) on a push
 to `main` and on pull requests; its steps named `gate: …` are exactly the
-hooks' commands, which `gate-selftest` checks (the test job installs
+gate's commands, which `gate-selftest` checks (the test job installs
 `cargo-nextest`, pinned). The test job installs
 `mesa-vulkan-drivers` and sets `ARRIX_REQUIRE_GPU=1`; when it fails, it
 runs `scripts/snapshot-baseline HEAD~1` and uploads `target/snapshots/`
@@ -537,11 +541,11 @@ binaries run at once under one thread budget, 4 in `.config/nextest.toml`
 (each plugin workspace has its own file), and the tests that assert
 wall-clock time sit in its `timing` group, one at a time, so a loaded
 machine cannot fail them. `RUST_TEST_THREADS` does not reach it;
-`cargo test -p x --test y` stays valid for a single test, and the hook
+`cargo test -p x --test y` stays valid for a single test, and the gate
 stops with the install line (`cargo install cargo-nextest --locked`) if
 nextest is missing. The Python SDK's `python -m unittest` runs inside
 `cargo test` (`crates/arrix-plugin-host/tests/python_sdk.rs`), so the
-tests of **pre-push** cover it with no step of their own.
+tests of **the slow half** cover it with no step of their own.
 
 **pre-commit** (fast):
 
@@ -580,7 +584,7 @@ tests of **pre-push** cover it with no step of their own.
    or wgpu path outside the UI crates, no `arrix_doc` or `arrix_sketch` in
    `arrix-ui`, no `arrix_*` but `arrix_plugin_api` in `plugins/`.
 
-**pre-push** (slow):
+**The slow half**, `scripts/gate`:
 
 1. `cargo nextest run --workspace`
 2. `cargo nextest run --workspace --all-features`, then `cargo test
@@ -604,8 +608,8 @@ tests of **pre-push** cover it with no step of their own.
    files, a second `arrix-*` dependency in `plugins/gears`, `arrix-ui` reaching `arrix-doc` through another
    crate), which must fail it, and with the exemptions each lint promises
    (test code, the audit marker, a comment), which must pass. It also
-   checks that CI's `gate: …` steps run exactly the hooks' commands, each
-   as often, that the hooks run each Rust plugin's four commands, and
+   checks that CI's `gate: …` steps run exactly the gate's commands, each
+   as often, that the gate runs each Rust plugin's four commands, and
    that the check fails on a planted drift of either kind.
 
 `arrix-app`'s product render is held to the visual harness by a test,

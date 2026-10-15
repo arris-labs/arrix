@@ -1,5 +1,5 @@
 #!/bin/sh
-# Runs a heavy command (a test suite, the pre-push gate) in a scope of its
+# Runs a heavy command (a test suite, the gate) in a scope of its
 # own, so a memory squeeze throttles or kills the run and never the terminal
 # that started it (.agents/rules/resources.md §Memory).
 #
@@ -10,7 +10,7 @@
 #
 # Usage:
 #     scripts/heavy cargo test -p arrix-app
-#     HEAVY_HIGH=24G HEAVY_MAX=30G scripts/heavy .githooks/pre-push
+#     HEAVY_HIGH=24G HEAVY_MAX=30G scripts/heavy scripts/gate
 #
 # Defaults are a share of MemTotal (high 40%, max 55%), leaving the rest to
 # the other terminal (Arris's tests). Without systemd-run --user (CI, macOS,

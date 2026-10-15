@@ -59,7 +59,7 @@ idea is not brainstormed twice.
 - The harness's frame step (0.25 s) is longer than a double click's gap, so a scenario cannot open a form by a double click: the accept sets the first servo's placement by `EditComponent` (plans/c2-m2 step 11)
 - A per-body material in the app: the document and `AssignMaterial` hold it, but the material form assigns the part's material only (plans/c2-m3 step 8)
 - A material in the tree beside each part, and a material list or library editor: the form picks, makes and edits from the part only (plans/c2-m3 step 8)
-- The `--all-features` pass of the gate repeats the whole suite (about 140 to 170 s of the pre-push): fold it into one run, or keep it (plans/nextest-gate, step 6)
+- The `--all-features` pass of the gate repeats the whole suite (about 140 to 170 s of `scripts/gate`): fold it into one run, or keep it (plans/nextest-gate, step 6)
 
 ## Rejected
 
