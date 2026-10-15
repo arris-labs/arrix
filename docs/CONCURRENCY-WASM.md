@@ -6,7 +6,7 @@ is, and the performance budgets. Built, as of C3: the evaluator with its cache a
 cancellation, `LocalSession`'s session thread and evaluator worker with the
 clients' replicas, `arrix eval` and its batch mode, the budgets measured,
 and Tier 1 fuel and epoch cancellation.
-The browser is C4 (§The browser build).
+The browser is C4, designed in ADR-0042 (§The browser build).
 
 ## Roles and threads
 
@@ -241,14 +241,22 @@ compiling; C4 makes it run.
   for `wasm32-unknown-unknown` in the gate and CI. Nothing runs in
   a browser yet, and nothing is built that would make the browser path a
   special case (the wasm lint, `docs/ARCHITECTURE.md` §Gates).
-- **C4**: `arrix-app` as an eframe web app. The client runs on the main
-  thread; the authority and the evaluator run in a **web worker**,
-  exchanging the same serialised commands and events the protocol already
-  defines. The kernel never runs on the main thread, in the browser too.
-- **Cancellation in the browser** needs a flag the main thread can set and
-  the worker can read mid-operation: a `SharedArrayBuffer`, which requires
-  a cross-origin-isolated page, or the step budget. Terminating the worker
-  is the fallback and costs its cache. Chosen in C4, by ADR.
+- **C4** (ADR-0042): `arrix-app` as an eframe web app. The client and the
+  authority run on the main thread (the app reads the session
+  synchronously, and the authority makes no kernel call); the evaluator
+  runs alone in one **web worker**. They exchange the same plain data the
+  session thread and the evaluator thread exchange natively. The kernel
+  never runs on the main thread, in the browser too.
+- **Cancellation in the browser**: a `SharedArrayBuffer` of two counters,
+  on a cross-origin-isolated page (COOP `same-origin`, COEP
+  `require-corp`). **commits** is bumped by the authority after it applies
+  a commit and before it posts the job, which carries the count; the
+  worker's Arris poll (`Control::poll`, through `Atomics.load`) answers
+  `commits > taken`. **supersedes** is read at feature and mesh
+  boundaries, so a preview never stops a commit. Without isolation the
+  poll answers false: a superseded evaluation runs to its end, previews
+  give way at job boundaries, and the status line says so. Terminating the
+  worker and threads on nightly are rejected.
 - **Files** come from the browser's file APIs as bytes; there is no
   filesystem. Importers already take bytes (`docs/PLUGINS.md` §4).
 - **Plugins**: Tier 0 only, and no `PluginLoader`, so `LoadPlugin` and
@@ -358,4 +366,3 @@ results, 2 to 8 ms each). The coarse mesh after the evaluation is 9 ms.
 
 ## Open questions
 
-- The browser's cancellation mechanism (§The browser build). C4; ADR.

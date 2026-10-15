@@ -193,18 +193,17 @@ pattern's spacing moves the holes and the screws.
 evaluate in a worker, and one that uses a Tier 1 or Tier 2 plugin opens with
 those features frozen, with their reason (`SEED.md` §7).*
 
-**Status: next, not yet detailed.** The risk to retire: the native evaluator
-and its determinism hold on wasm32 in a worker. Detailed by an ADR at the
-cycle's open, which also takes the worker's cancellation (a
-`SharedArrayBuffer` flag on a cross-origin-isolated page, Arris's step
-budget, or terminating the worker, `docs/CONCURRENCY-WASM.md` §The browser
-build).
+**Status: in progress, `plans/c4`** (ADR-0042). The risk to retire: the
+native evaluator and its determinism hold on wasm32 in a worker. The
+authority runs on the main thread and the evaluator alone in a worker; a
+commit stops a superseded evaluation through a `SharedArrayBuffer` counter
+on a cross-origin-isolated page, within 50 ms.
 
 **In:**
 - The wasm32 app build (eframe on the web), Tier 0 plugins only, no
   `PluginLoader` (`LoadPlugin` and `ReloadPlugin` rejected, ADR-0024).
-- A worker executor behind the existing executor seam, with the cancellation
-  the ADR chooses.
+- A worker executor behind the existing executor seam, with the
+  `SharedArrayBuffer` cancellation of ADR-0042 and its no-isolation fallback.
 - Files as bytes through the browser's file APIs: open, import, save and
   export as downloads.
 - The frozen fallback shown in the page for Tier 1 and Tier 2 features.
