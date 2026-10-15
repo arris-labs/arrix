@@ -31,7 +31,7 @@ Complexity: **[1]** routine; **[2]** careful within a given design; **[3]** unpr
 - [x] **[2]** Step 3 — `.config/nextest.toml` (root and each plugin workspace): `test-threads = 4`, the `timing` group, the overrides from step 2. `cargo nextest list --workspace` parses; one run is green.
 - [x] **[2]** Step 4 — One commit: `.githooks/pre-push` and CI run `cargo nextest run --workspace`, `… --all-features`, each plugin's `cargo nextest run --manifest-path …`, and `cargo test --workspace --doc`; CI installs `cargo-nextest` (pinned); the hook fails with the install line if it is missing, as Arris's does; `scripts/gate-selftest` expects the new commands and still fails on a planted drift of either kind. `scripts/gate-selftest` and `cargo nextest run --workspace` green.
 - [x] **[1]** Step 5 — Docs and skills: `docs/ARCHITECTURE.md` §Gates, `AGENTS.md` Commands (the `cargo test -p … --test …` lines gain "or `cargo nextest run -p … --test …`"; `Setup` gains the `cargo install cargo-nextest --locked` line), `.agents/rules/resources.md`, and the skills that name `cargo test` (`retire-plan` step on `--no-run`, `visual-debug`, `work`).
-- [ ] **[1]** Step 6 — Acceptance run and the measured figures into `resources.md`: `.githooks/pre-push` end to end.
+- [x] **[1]** Step 6 — Acceptance run and the measured figures into `resources.md`: `.githooks/pre-push` end to end.
 
 Each step is one commit-sized unit with its own check.
 
@@ -49,6 +49,7 @@ Each step is one commit-sized unit with its own check.
 Written at planning time; executed before the plan is deleted.
 
 ## Open questions
+- Step 6 figures: pre-push green 3 times (workspace nextest 136, 137, 175 s; `--all-features` 161, 137, 172 s; doctests and plugins 27/42, 27/42, 44/71 s; wall 806, 966, 962 s; peak 25 GiB). The third ran beside 16 busy loops, not Arris's `fast` profile (no Arris checkout on this machine). The `--all-features` pass costs about as much as the first.
 - Decided by the human at step 4: CI installs `cargo-nextest` with `taiki-e/install-action@v2`, the tool pinned to `nextest@0.9.144`.
 - Decided in step 3: no `ci` profile; the default's 4 threads suit 4 vCPU runners. Revisit only if the CI run time says otherwise.
 - ⚠ OPEN: The `--all-features` run repeats the whole suite; fold it into one run, or keep? Out of scope here, but step 6's figures will show its cost. Human, after step 6 (a BACKLOG line if wanted).

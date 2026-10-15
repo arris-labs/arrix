@@ -18,8 +18,10 @@ and the visual tests (lavapipe) take gigabytes per parallel job.
   machine (32 CPUs, 61 GiB, build warm): `cargo test --workspace` summed to
   320 s at 2 threads, 280 s at 4, 293 s at 16, and 32 was killed by oomd
   inside a minute, alone; it runs one binary after another and does not
-  scale. `cargo nextest run` (ADR-0040) took 132 to 137 s at 4 threads and
-  96 s at 8, where a timing test flaked. So the gate runs **4 test
+  scale. `cargo nextest run` (ADR-0040) took 132 to 137 s at 4 threads (three
+  acceptance runs of the whole pre-push: 136, 137 and 175 s for the workspace
+  run, the last beside 16 busy loops, with no timing failure) and 96 s at 8,
+  where a timing test flaked. So the gate runs **4 test
   threads**, set in `.config/nextest.toml` (nextest ignores
   `RUST_TEST_THREADS`; `cargo test` alone still honours it), with
   **`RAYON_NUM_THREADS=8`** and **`--jobs 8`**
