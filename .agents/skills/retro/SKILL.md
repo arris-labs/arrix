@@ -12,10 +12,12 @@ checks, tools, docs) made the work slower, wronger or more dependent on the
 human than it had to be, and the smallest change that fixes it for every
 later session.
 
-1. **Read the sessions.** `scripts/session-digest --slug <slug>` (or
-   `--session <id>`; nothing given: this session, from your own context).
-   It prints each session's human messages, skills, tools, failed calls and
-   stalls. Open a transcript only where the digest points at something
+1. **Read the sessions.** `.agents/skills/retro/session-digest --slug
+   <slug>` (or `--session <id>`; nothing given: this session, from your
+   own context). It prints each session's human messages, skills, tools,
+   failed calls and stalls; sessions from before the checkout moved need
+   `--project-dir` with the old path's transcript directory. Open a
+   transcript only where the digest points at something
    (`~/.claude*/projects/<this repo>/<id>.jsonl`). Read the plan's commits
    too (`git log --grep='plans/<slug>'`).
 2. **Find the candidates**, each with its evidence (session id and a quote
