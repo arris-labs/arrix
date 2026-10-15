@@ -40,7 +40,8 @@ the snapshot read and exporters, plugin commands, `robotics.urdf`,
 `fasteners`, the plugins as projects of their own; ADR-0034 to ADR-0039,
 API 0.8.0): `--test c3_accept` (the north star) and `--test visual
 c3_accept`, the URDF held to urdfdom and yourdfpy.
-**Next:** `/close-cycle` C3.
+**Next:** C4, the web (`docs/ROADMAP.md`): `/idea` its worker's cancellation
+(an ADR), then `/plan`.
 
 ## Rules that are not derivable from the code
 

@@ -2,9 +2,10 @@
 
 Where work runs, how an edit supersedes an evaluation, what determinism
 promises, how many documents are evaluated at once, what the browser build
-is, and the performance budgets. Built, as of C1: the evaluator with its cache and
+is, and the performance budgets. Built, as of C3: the evaluator with its cache and
 cancellation, `LocalSession`'s session thread and evaluator worker with the
-clients' replicas, `arrix eval` and its batch mode, and the budgets measured.
+clients' replicas, `arrix eval` and its batch mode, the budgets measured,
+and Tier 1 fuel and epoch cancellation.
 The browser is C4 (§The browser build).
 
 ## Roles and threads

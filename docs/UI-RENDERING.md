@@ -5,9 +5,10 @@ the viewport and picking, and how the agent sees all of it headless. Crates:
 `arrix-ui` (widgets over view types), `arrix-viewport` (wgpu), `arrix-app`
 (the shell and the translation to and from the document). The stack is
 egui/eframe/wgpu (`SEED.md` §9), pinned to one egui minor for the workspace.
-Built, as of C1: the shell (ADR-0017), the viewport and picking, sketch
-mode, forms and previews, the configurable shell (ADR-0015) and the
-headless harness. Where a section says "not built", it is later than C1.
+Built, as of C3: the shell (ADR-0017), the viewport and picking, sketch
+mode, forms and previews, the configurable shell (ADR-0015), the assembly
+view and joint drag (C2), plugin command forms (C3) and the headless
+harness. Where a section says "not built", it is later than C3.
 
 ## Principles
 
@@ -943,6 +944,12 @@ the way in.
   the bracket at the origin), and it is set to be placed by a joint with one
   `EditComponent` from the scenario (a double click is shorter than a frame
   step). The joint drag's frame budget is `joint_drag_frame_budget`.
+- **The C3 scenarios**: `fasteners_place` runs the plugin command
+  `fasteners.place` from its ribbon button on the bracket (two shift-clicked
+  hole edges, OK expands then submits: one command, one undo entry);
+  `c3_accept` is the north star's, `tests/docs/north-star` with the three
+  counterbore rims picked, M3 chosen, one screw component and fixed joint
+  per hole, and one undo taking them all back.
 - **The golden** is `{"debug_state": …, "coarse_frame": {"cell", "size",
   "rows"}}`, pretty-printed; `debug_state` is the app's JSON with its keys
   sorted. A failure reports the first `debug_state` difference as a JSON

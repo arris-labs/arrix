@@ -4,7 +4,7 @@ The crates, the rules between them, the one data flow, where threads run,
 the kernel's choke point, errors, testing and the gate. The charter is
 `SEED.md` §6; the document model is `docs/DATA-MODEL.md`, the plugin model
 `docs/PLUGINS.md`, the UI `docs/UI-RENDERING.md`, threads and the browser
-`docs/CONCURRENCY-WASM.md`. Built, as of C3 M1: every crate of §Crates
+`docs/CONCURRENCY-WASM.md`. Built, as of C3: every crate of §Crates
 (`arrix-plugin-api` is at 0.8.0), the protocol boundary, errors and
 diagnostics, the kernel choke point, the testing layers and the gates. Where
 a section says "not built", it is later than C1.
@@ -263,7 +263,7 @@ The executor, cancellation, the wasm story and budgets are in
 
 ## The kernel choke point
 
-C2 M3 extends the door (ADR-0031, ADR-0032; not yet built):
+C2 M3 extended the door (ADR-0031, ADR-0032):
 `mass_properties` gains an inertia about the centroid at unit density
 (built; the plugin API's `MassProperties` is unchanged),
 `read_step_structure` returns a plain product tree and `import_step_in`
@@ -586,7 +586,7 @@ tests of **pre-push** cover it with no step of their own.
 2. `cargo nextest run --workspace --all-features`, then `cargo test
    --workspace --doc` (nextest runs no doctests)
 3. `cargo build --target wasm32-unknown-unknown --workspace --exclude
-   arrix-cli --exclude arrix-plugin-test` (native only, like the CLI). `arrix-plugin-host`'s native tiers (C3) go behind a
+   arrix-cli --exclude arrix-plugin-test` (native only, like the CLI). `arrix-plugin-host`'s native tiers (1 and 2) are behind a
    target cfg so the crate still builds.
    Then, for each Rust plugin, `cargo nextest run --manifest-path
    plugins/<name>/Cargo.toml`, `cargo test --doc` on it, and its Tier 1 module, `cargo build

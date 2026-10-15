@@ -8,7 +8,7 @@ to its status line (`/close-cycle`), and the next is detailed below it.
 
 Spine: **C1** (the vertical slice with a plugin feature in it; done), then
 **the boundary opened** (the agent's way in; ADR-0016; done), **C2** (assemblies
-and exchange; done), **C3** (the boundary crossed; done, to close), **C4** (the web). Beyond
+and exchange; done), **C3** (the boundary crossed; done), **C4** (the web). Beyond
 C4, the named cycles are unordered.
 
 ---
@@ -150,33 +150,27 @@ library screws into a bracket's picked holes as components, a Rust plugin
 hosted as a wasm component exports URDF that another reader loads, and the
 file opens with neither plugin, frozen, still following a thickness or spacing edit.*
 
-**Status: M1 (Tier 1) done 2026-10-13, M2 (the snapshot read,
-exporters, `robotics`) done 2026-10-14, M3 (commands, `fasteners`, out of
-tree, the API review and the north-star accept, `--test c3_accept`) done
-2026-10-14; ready for `/close-cycle`.** Detailed by
-ADR-0034. The risk to retire: the plugin API holds across
-every boundary. A Rust plugin runs sandboxed exactly as it runs compiled
-in, and two real domains need nothing but the public API.
+**Status: done 2026-10-14, tag `c3`.** The risk retired: the plugin API
+holds across every boundary. A Rust plugin runs sandboxed as a component
+exactly as it runs compiled in, and two real domains need nothing but the
+public API. M1 (Tier 1; `gears` identical at Tiers 0 and 1), M2 (the snapshot
+read, exporters, `robotics`) and M3 (commands, `fasteners`, out of tree, the
+API review, the accept: `--test c3_accept`, `--test visual c3_accept`) landed
+2026-10-13 to 10-14, API 0.8.0; decisions in ADR-0034 to ADR-0039.
 
 **In:**
-- The Tier 1 host: wasmtime with the component model, native only. A
-  component's imports are the world's alone, fuel is the deterministic
-  step budget, and an epoch interrupt cancels. The Rust guest SDK is a
-  feature of `arrix-plugin-api`.
-- A snapshot read (`document-read`: parts, meshes, assemblies with solved
-  poses, joints, mass and inertia) and the `exchange` export (snapshot
-  in, bytes out), on all three tiers; `arrix export --exporter <id>`.
-- `robotics`, plugin #1: Rust, a Tier 1 component, URDF of an assembly (a
-  link per component, joints with limits, STL meshes, inertials).
+- The Tier 1 host (wasmtime, component model, native only; fuel and an
+  epoch interrupt) and the Rust guest SDK, a feature of `arrix-plugin-api`.
+- A snapshot read (`document-read`) and the `exchange` export, on all three
+  tiers; `arrix export --exporter <id>`.
+- `robotics`, plugin #1: Rust, a Tier 1 component, URDF of an assembly.
 - The `commands` export: a gesture expanded into one `Group` (ADR-0004),
-  bound to a ribbon button and the selection, through Tier 2 and the
-  protocol.
-- `fasteners`, plugin #2: Python, Tier 2 only. ISO 4762 socket-head cap
-  screws, each size a part with a `fasteners.*` feature, each screw a
-  component held by a fixed joint on a picked hole's edge.
+  bound to a ribbon button and the selection.
+- `fasteners`, plugin #2: Python, Tier 2 only; ISO 4762 screws as
+  components held by a fixed joint on a picked hole's edge.
 - Out of tree, proven in tree: each first-party plugin a Cargo workspace
   of its own on `arrix-plugin-api` alone, passing `arrix test` from the
-  installed binary; `arrix-plugin-test`, the Rust kit for Tier 0 and 1.
+  installed binary; `arrix-plugin-test`, the Rust kit.
 - `arrix-plugin-api` reviewed for 0.x stability, by ADR.
 
 **Out:** Tier 1 in the browser (C4's ADR); SDF and MJCF; the plugins'
@@ -185,27 +179,43 @@ after the accept); plugin document data, importers, analyses, panels and
 viewport drawables by plugins; unloading a plugin; FEA export; screw
 families beyond one, and modelled threads; a plugin index; distributions.
 
-**Milestones:** M1 Tier 1 (the host, the guest SDK, `gears` identical at
-Tiers 0 and 1); M2 a plugin reads an assembly (the snapshot read,
-exporters, robotics); M3 commands, fasteners, out of tree, the API review
-and the accept.
-
-**Accept:** the north-star demo, run two ways. Headless, `cargo test -p
-arrix-cli --test c3_accept` drives it through `arrix serve`, with the
-picks as references. In the app, a visual scenario runs the fastener
-command from the ribbon on picked hole edges. The URDF is held to
-urdfdom's and a Python loader's reading (links, joints, limits, masses,
-link poses at two joint values) by a script, never in CI, into a committed
-text golden. Saved and opened with neither plugin, the fastener features
-are frozen with their reason, and an edit of the plate's thickness or of the
-pattern's spacing moves the holes and the screws (a width edit moves
-neither: the plate grows away from its fixed corner).
+**Accept:** the north-star demo, run two ways: headless through `arrix
+serve` with the picks as references, and in the app, the fastener command
+run from the ribbon on picked hole edges. The URDF is held to urdfdom's and a
+Python loader's reading by a script, never in CI, into a committed text
+golden. Saved and opened with neither plugin, the fastener features are
+frozen with their reason, and an edit of the plate's thickness or of the
+pattern's spacing moves the holes and the screws.
 
 ## C4 — the web
 
-The browser build with a worker executor; Tier 0 plugins only; a document
-using Tier 1 or Tier 2 plugins opens with those features frozen
-(`SEED.md` §7).
+*Goal: the app runs in a browser tab. A document opens from bytes, edits
+evaluate in a worker, and one that uses a Tier 1 or Tier 2 plugin opens with
+those features frozen, with their reason (`SEED.md` §7).*
+
+**Status: next, not yet detailed.** The risk to retire: the native evaluator
+and its determinism hold on wasm32 in a worker. Detailed by an ADR at the
+cycle's open, which also takes the worker's cancellation (a
+`SharedArrayBuffer` flag on a cross-origin-isolated page, Arris's step
+budget, or terminating the worker, `docs/CONCURRENCY-WASM.md` §The browser
+build).
+
+**In:**
+- The wasm32 app build (eframe on the web), Tier 0 plugins only, no
+  `PluginLoader` (`LoadPlugin` and `ReloadPlugin` rejected, ADR-0024).
+- A worker executor behind the existing executor seam, with the cancellation
+  the ADR chooses.
+- Files as bytes through the browser's file APIs: open, import, save and
+  export as downloads.
+- The frozen fallback shown in the page for Tier 1 and Tier 2 features.
+
+**Out:** Tier 1 in the browser (its own ADR); Tier 2 (a process); remote mode
+and accounts; offline storage beyond a download; touch and mobile layouts.
+
+**Accept:** in a headless browser, `tests/docs/bracket` opens, a width edit
+evaluates in the worker, and its eval line equals native's, to the bit; the
+north-star document opens with `fasteners` and `robotics` frozen, bodies kept,
+and their reason shown.
 
 ---
 

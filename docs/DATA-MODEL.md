@@ -2,7 +2,7 @@
 
 What a document is, how it changes, how it evaluates, how its geometry is
 named and how it is written to disk. The charter is `SEED.md` §6.4–§6.5;
-this document is the design those sections commit to. Built, as of C1:
+this document is the design those sections commit to. Built, as of C3:
 everything below but plugin-data edits (§Commands and undo) and the
 plugin-record nodes, which wait for plugin document data (not scheduled;
 `docs/BACKLOG.md`).
@@ -969,7 +969,7 @@ through a deleted component, is refused as `assembly.dangling` when the
 command or group ends, never cascaded, so a group may delete the joint,
 the component and the part in order. Component and joint ids are unique
 across the document. They touch the nodes `Assembly`, `Component` and
-`Joint`, which the DAG gains edges for later in M1.
+`Joint`, which the DAG has edges for (§The dependency DAG).
 
 A plugin feature's frozen result is not a command: it is evaluation
 output the session writes on save (§Frozen results, ADR-0009), with no
