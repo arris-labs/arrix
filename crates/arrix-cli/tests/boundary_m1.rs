@@ -258,7 +258,7 @@ fn a_crash_in_the_plugin_is_the_features_diagnostic() {
 fn a_timeout_in_the_plugin_is_the_features_diagnostic() {
     fails_as(
         "timeout",
-        "timeout-seconds = 0.5",
+        "timeout-seconds = 3",
         "time.sleep(60)",
         "plugin.timeout",
     );
