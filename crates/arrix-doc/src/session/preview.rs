@@ -164,14 +164,18 @@ impl<'a> Queue<'a> {
         }
     }
 
-    /// Waits until there is work, then takes everything queued; `false`
-    /// once the session thread has gone. Exports and expansions are work
-    /// only when `exports_ready`: a commit has been evaluated for them to
-    /// read.
-    pub fn wait(&mut self, exports_ready: bool) -> bool {
+    /// Whether a pass has work: a commit, a preview or a structure, or an
+    /// export or expansion when `exports_ready`, a commit having been
+    /// evaluated for them to read.
+    pub fn has_work(&self, exports_ready: bool) -> bool {
         let exports = exports_ready && !(self.exports.is_empty() && self.expands.is_empty());
-        if self.commit.is_none() && self.preview.is_none() && !exports && self.structures.is_empty()
-        {
+        self.commit.is_some() || self.preview.is_some() || exports || !self.structures.is_empty()
+    }
+
+    /// Waits until there is work, then takes everything queued; `false`
+    /// once the session thread has gone.
+    pub fn wait(&mut self, exports_ready: bool) -> bool {
+        if !self.has_work(exports_ready) {
             match self.rx.recv() {
                 Ok(job) => self.take(job),
                 Err(_) => self.gone = true,

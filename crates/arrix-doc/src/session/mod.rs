@@ -8,6 +8,7 @@
 //! (docs/DATA-MODEL.md §Identifiers) with an `IdMinter` seeded by its
 //! caller; nothing here mints, so nothing here needs entropy.
 
+mod core;
 #[cfg(test)]
 mod expand_tests;
 #[cfg(test)]
@@ -27,6 +28,7 @@ mod schema;
 mod step_tree_tests;
 #[cfg(test)]
 mod tests;
+mod worker;
 
 use std::collections::BTreeMap;
 use std::fmt;
