@@ -1,0 +1,3 @@
+# A workspace of its own is a nextest root of its own (ADR-0040).
+[profile.default]
+test-threads = 4
