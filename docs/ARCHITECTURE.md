@@ -526,7 +526,7 @@ core.hooksPath .githooks` once per clone or worktree), and **the slow
 half**, `scripts/gate`, which no hook runs: `/work` runs it before a step
 is ticked, and a second run in the same target directory waits on its
 lock (`target/.gate.lock`).
-`AGENTS.md` §Commands repeats how to run each part. The lints are Python 3
+`docs/COMMANDS.md` says how to run each part. The lints are Python 3
 scripts sharing `scripts/lintlib.py`: they read Rust source as written,
 with comments and literal contents blanked first, and each takes the
 repository root from its own path. CI, `.github/workflows/ci.yml`, runs

@@ -11,6 +11,18 @@ is running:
   links the ADR if one was needed. A small, obvious task skips the idea.
 - **At most two active plans**, always in `docs/plans/`. A third means
   retiring one first.
+- **A plan is read in two minutes**: under ~150 lines and ~10 steps, each
+  step a few lines (its detail lives in *Design deltas* or an ADR). Work
+  larger than that is split into milestone plans (`c4-m1`, `c4-m2`), each
+  with its own accept, planned one after the other.
+- **An idea one plan covers only in part** is cut down when that plan
+  absorbs its part: the file keeps only what is still unplanned, with
+  `Status: Accepted (<option>); <part> absorbed by plans/<slug>`, and the
+  next plan absorbs the rest and deletes it.
+- **`GLOSSARY.md` holds the project's words.** A new or sharpened term is
+  written there in the commit that first uses it in a design doc, ADR or
+  public API; a word the glossary lists under _Avoid_ is replaced by its
+  term.
 - **Work outside the current cycle's in-list needs an ADR first**, naming
   the product scenario it unlocks. The idea proposes it; the plan's first
   step writes it. Scope is argued, not accreted.

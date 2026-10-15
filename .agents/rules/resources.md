@@ -1,46 +1,31 @@
 # Resources: half the cores, and a memory budget
 
 Heavy runs share the machine with other work (Arris's tests run in another
-terminal), and a run that squeezes memory can kill a terminal: systemd-oomd
-kills the whole terminal scope (tmux, the agent, the build) when the user
-session's memory *pressure* (time stalled on reclaim, not RAM used) stays
-above its limit. A CPU cap does not prevent it: the compile and link phase
-and the visual tests (lavapipe) take gigabytes per parallel job.
+terminal). systemd-oomd kills the whole terminal scope (tmux, the agent, the
+build) when the session's memory *pressure* stays above its limit, and the
+compile, link and lavapipe phases take gigabytes per parallel job; a CPU cap
+does not prevent it.
 
 - **Every heavy command goes through `scripts/heavy`**: a full or workspace
   `cargo build`/`test`/`clippy`, `arrix-app`'s tests, the gate (pre-commit
-  and `scripts/gate` re-exec themselves under it). It runs the command in a scope of its own
-  with `MemoryHigh`/`MemoryMax` and `nice -n 10`, so what dies under
-  pressure is the run, not the terminal, and it prints the scope's peak
-  memory. A bare `cargo nextest run --workspace` in the terminal is the mistake
-  this rule exists for.
+  and `scripts/gate` re-exec themselves under it). It runs the command in
+  its own scope with `MemoryHigh`/`MemoryMax` and `nice -n 10`, so pressure
+  kills the run and spares the terminal. `HEAVY_HIGH` and `HEAVY_MAX`
+  override its limits (default 40% and 55% of RAM); its printed peak counts
+  page cache, so the oomd journal is the real signal.
 - **One gate at a time per target directory.** `scripts/gate` holds a
-  `flock` on `target/.gate.lock`, so a second run waits for the first:
-  the tests' scratch directories have fixed names and race, and two gates
-  double the memory. A worktree has a target of its own and runs beside.
-- **Budget the two projects together**, not each at half. Measured on this
-  machine (32 CPUs, 61 GiB, build warm): `cargo test --workspace` summed to
-  320 s at 2 threads, 280 s at 4, 293 s at 16, and 32 was killed by oomd
-  inside a minute, alone; it runs one binary after another and does not
-  scale. `cargo nextest run` (ADR-0040) took 132 to 137 s at 4 threads (three
-  acceptance runs of the whole gate: 136, 137 and 175 s for the workspace
-  run, the last beside 16 busy loops, with no timing failure) and 96 s at 8,
-  where a timing test flaked. So the gate runs **4 test
-  threads**, set in `.config/nextest.toml` (nextest ignores
-  `RUST_TEST_THREADS`; `cargo test` alone still honours it), with
-  **`RAYON_NUM_THREADS=8`** and **`--jobs 8`**
-  for the compile while Arris's tests may be running, and never more than
-  16. Set them in `~/.cargo/config.toml` or by hand. (`scripts/heavy`'s
-  peak counts page cache, which fills `MemoryHigh`, so it says little about
-  the memory a run needs; the oomd journal is the real signal.) Build time
-  against `--jobs` is not measured.
-- A cold or wide compile is the heaviest phase (a first build, a toolchain
-  or dependency bump): pass a lower `--jobs` for it, and don't overlap it
-  with the other terminal's.
-- Run long builds and test suites in the background; `scripts/heavy`
-  already applies `nice -n 10`. `HEAVY_HIGH` and `HEAVY_MAX` override its
-  limits (default 40% and 55% of RAM).
-- If oomd kills a run anyway, the journal says why
-  (`journalctl -u systemd-oomd`); rerun with fewer jobs rather than
-  repeating it. The machine side (oomd's limit and duration, swap) is the
-  human's, noted in `docs/notes/oomd-kills.md`.
+  `flock` on `target/.gate.lock`, so a second run waits: the tests' scratch
+  directories have fixed names, and two gates double the memory. A worktree
+  has its own target and runs beside.
+- **Budget the two projects together**: the gate runs **4 test threads**
+  (`.config/nextest.toml`; nextest ignores `RUST_TEST_THREADS`),
+  **`RAYON_NUM_THREADS=8`** and **`--jobs 8`** while Arris's tests may be
+  running, never more than 16. The suite does not scale past 4 threads and
+  a timing test flakes at 8 (ADR-0040 has the measurements).
+- A cold or wide compile (first build, toolchain or dependency bump) is the
+  heaviest phase: give it a lower `--jobs` and run it apart from the other
+  terminal's.
+- Run long builds and suites in the background.
+- After an oomd kill, read `journalctl -u systemd-oomd` and rerun with fewer
+  jobs. The machine side (oomd's limit, swap) is the human's,
+  `docs/notes/oomd-kills.md`.

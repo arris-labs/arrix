@@ -1,6 +1,7 @@
 ---
 name: work
-description: Executes the next unchecked step(s) of an active plan in docs/plans/ (implement, test, run the gate, commit with the plan-step suffix, tick the box). Use when the human says "work on <plan>", "next step", "continue the plan", or "do steps 3-5". Stops at the step boundary, or earlier when an open question or a missing Arris capability blocks the step.
+description: Execute the next unchecked step(s) of an active plan, a commit per step, then list what is left.
+disable-model-invocation: true
 argument-hint: <plan slug> [step number or range]
 ---
 
@@ -23,6 +24,12 @@ argument-hint: <plan slug> [step number or range]
    One step per commit, even small ones.
 5. If the step showed the plan is wrong, fix the plan in that commit (add or
    split steps, record the finding under *Open questions*) and say so.
+   A failure that resists a first fix gets a loop before a theory: one
+   command that goes red on it in seconds, shrunk until every part is
+   load-bearing; then 3–5 ranked hypotheses, each with the prediction that
+   would refute it, said in the reply before probing; probes one variable
+   at a time, every debug print tagged `[DBG-<4 hex>]` and grepped away
+   before the commit, whose body names the hypothesis that held.
 6. A kernel failure becomes an Arris fixture recipe (saved from the call
    record) plus an Arris backlog line or idea, named in the reply; never an
    `#[ignore]` or a workaround here.

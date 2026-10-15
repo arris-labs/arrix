@@ -2,7 +2,9 @@
 
 - Started: YYYY-MM-DD
 - Cycle: C? (or the ADR that justifies work outside the cycle)
-- Idea: docs/ideas/<slug>.md (absorbed), or verbatim from the human: "…"
+- Idea: docs/ideas/<slug>.md (absorbed, or its <part> absorbed), or verbatim from the human: "…"
+
+Under ~150 lines and ~10 steps; larger work is milestone plans.
 
 ## Goal
 One paragraph: what is true when this plan is done.
@@ -39,6 +41,7 @@ plan.
 - `docs/<TOPIC>.md` §… — …
 - `docs/ROADMAP.md` status line — …
 - `AGENTS.md` current state — …
+- `GLOSSARY.md` — a term this plan introduces or sharpens
 
 Written at planning time; executed before the plan is deleted.
 

@@ -1,6 +1,7 @@
 ---
 name: close-cycle
-description: Closes a finished cycle. Verifies nothing is open, drift-reviews every design doc against the code, compresses the cycle's docs/ROADMAP.md section to its status line, proposes the next section to the human, updates the spine and AGENTS.md, and hands the tag to the human. Use when the human says "close the cycle", "C1 is done", "what's next after this cycle", or after the cycle's last plan was retired.
+description: Close a finished cycle: verify, drift-review every design doc and the glossary, compress its roadmap section, propose the next, hand the tag to the human.
+disable-model-invocation: true
 argument-hint: <cycle, e.g. C1>
 ---
 
@@ -16,8 +17,9 @@ shrinks to its status line, and the next one is already below it.
    what is open.
 2. **Drift review**, the one place it is mandated. Read every design doc
    (`ARCHITECTURE`, `DATA-MODEL`, `PLUGINS`, `UI-RENDERING`,
-   `CONCURRENCY-WASM`) against the code and fix each sentence no longer
-   true. Read `SEED.md` too, without editing it: a contradiction with the
+   `CONCURRENCY-WASM`) and `GLOSSARY.md` against the code and fix each
+   sentence no longer true; a term the docs now use and the glossary
+   lacks gets its entry. Read `SEED.md` too, without editing it: a contradiction with the
    code goes to the human as a needed ADR. Bring *Arris dependencies* up to
    date (asks landed in a released `arris`, asks still open). List the
    fixes in the reply, or why you believe nothing drifted.
