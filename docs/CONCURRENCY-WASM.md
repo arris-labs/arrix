@@ -134,6 +134,17 @@ stand on it.
   `arrix_plugin_api::math` (`libm`, compiled into the plugin), the same
   code everywhere (ADR-0036). `sqrt` and the arithmetic are exact under
   IEEE 754 and need nothing.
+- **Measured on wasm32** (plans/c4 step 2): every document under
+  `tests/docs`, evaluated under Node, prints `arrix eval`'s native line to
+  the bit, except each document with a gear. Arris builds the gear's
+  extrude, a profile of three-point arcs whose bits are the same on both
+  targets, into a body that differs in the last place (its volume
+  `…476e-6` natively, `…4763e-6` on wasm32), and every body made from it
+  differs. Holes, fillets, booleans, imports and mass properties of the
+  other bodies agree. This is Arris's to fix, recipe
+  `crates/arrix-kernel/tests/recipes/gear-extrude-on-wasm32`; the test,
+  `arrix-plugin-host`'s `wasm_determinism`, requires those lines to
+  differ until a release builds them alike, and has no tolerance.
 - An export is the same: a pure function of the snapshot and its options,
   run twice by the test kit and identical to the byte at every tier
   (ADR-0037; `robotics.urdf` at Tier 0 and as a component, `--test c3_m2`).

@@ -112,6 +112,12 @@ wasmtime = { version = "49", default-features = false, features = ["runtime", "c
 wit-component = "0.258"
 wasmparser = "0.258"
 wasm-encoder = "0.258"
+# wasm32 tests under Node (`wasm-bindgen-test-runner`, .cargo/config.toml).
+# Pinned to the `wasm-bindgen-cli` installed beside it (AGENTS.md §Setup),
+# since the runner reads only its own version's output.
+wasm-bindgen = "=0.2.129"
+wasm-bindgen-test = "0.3"
+js-sys = "0.3"
 # The wire spike (crates/arrix-cli/tests/wire_spike.rs, ADR-0022): the
 # encodings it measures JSON against. Dev-only, run by name.
 ciborium = "0.2"

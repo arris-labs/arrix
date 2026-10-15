@@ -592,6 +592,13 @@ tests of **the slow half** cover it with no step of their own.
 3. `cargo build --target wasm32-unknown-unknown --workspace --exclude
    arrix-cli --exclude arrix-plugin-test` (native only, like the CLI). `arrix-plugin-host`'s native tiers (1 and 2) are behind a
    target cfg so the crate still builds.
+   Then `cargo test --target wasm32-unknown-unknown -p arrix-plugin-host
+   --test wasm_determinism`: every document under `tests/docs` evaluated
+   on wasm32 under Node (`wasm-bindgen-test-runner`, the target's runner
+   in `.cargo/config.toml`) against `arrix eval`'s native golden lines,
+   to the bit (`docs/CONCURRENCY-WASM.md` §Determinism). The gate stops
+   with the install line if the runner or Node is missing; the runner is
+   pinned to the lock's `wasm-bindgen`.
    Then, for each Rust plugin, `cargo nextest run --manifest-path
    plugins/<name>/Cargo.toml`, `cargo test --doc` on it, and its Tier 1 module, `cargo build
    --release --target wasm32-unknown-unknown --features guest` into

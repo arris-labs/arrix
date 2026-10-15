@@ -16,7 +16,14 @@ Every `cargo test -p x --test y` below runs as well as `cargo nextest run
 - `scripts/gate` (no hook runs it; `/work` does, ADR-0041): `cargo nextest run --workspace` (and `--all-features`),
   `cargo test --workspace --doc`,
   `cargo build --target wasm32-unknown-unknown --workspace --exclude
-  arrix-cli --exclude arrix-plugin-test`, `scripts/gate-selftest`.
+  arrix-cli --exclude arrix-plugin-test`, the wasm32 tests,
+  `scripts/gate-selftest`.
+- The wasm32 tests run under Node: `cargo test --target
+  wasm32-unknown-unknown -p arrix-plugin-host --test wasm_determinism`
+  (`wasm-bindgen-test-runner`, AGENTS.md §Setup). It evaluates every
+  document under `tests/docs` against `crates/arrix-cli/tests/golden/
+  eval_docs.jsonl` and `eval_bracket_sweep.jsonl`, whose native writers
+  are `--test eval` and `--test sweep`.
 - `plugins/gears` and `plugins/robotics` are Cargo workspaces of their own:
   pre-commit and the gate also run clippy, `cargo nextest run`, its doctests and the `guest` wasm32 build on
   each by `--manifest-path plugins/<name>/Cargo.toml`. `cargo test -p

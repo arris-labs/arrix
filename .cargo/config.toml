@@ -4,3 +4,8 @@
 # `import arrix` fails loudly in its stderr.
 [env]
 PYTHONPATH = { value = "python", relative = true }
+
+# wasm32 tests run under Node (plans/c4 step 2): `cargo test --target
+# wasm32-unknown-unknown` hands each test module to the runner.
+[target.wasm32-unknown-unknown]
+runner = "wasm-bindgen-test-runner"

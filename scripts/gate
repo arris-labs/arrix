@@ -30,6 +30,13 @@ cargo test --workspace --doc
 echo "gate: wasm32 build"
 cargo build --target wasm32-unknown-unknown --workspace --exclude arrix-cli --exclude arrix-plugin-test
 
+# wasm32 evaluates as native does (plans/c4 step 2), under Node; the runner
+# must be the lock's wasm-bindgen (Cargo.toml).
+command -v wasm-bindgen-test-runner >/dev/null || { echo "gate: wasm-bindgen-test-runner is missing: cargo install wasm-bindgen-cli --version '=0.2.129' --locked" >&2; exit 1; }
+command -v node >/dev/null || { echo "gate: node is missing: the wasm32 tests run under Node" >&2; exit 1; }
+echo "gate: wasm32 tests"
+cargo test --target wasm32-unknown-unknown -p arrix-plugin-host --test wasm_determinism
+
 # Each Rust plugin is a workspace of its own (plans/c3-m3 Findings 7): its
 # tests, and its Tier 1 module where its own guest test builds it.
 echo "gate: plugins/gears"

@@ -269,3 +269,62 @@ fn gear_on_plane() {
 
     scenario_directory("gear-on-plane", &scenario);
 }
+
+/// The body native builds for the gear's extrude, by its hash; wasm32
+/// builds `87b72b8d…` from the same call (plans/c4 step 2).
+const NATIVE_GEAR_BODY: &str = "9e7347d226c4ef05f9c6b4fa8cf61f18d4adb0820fcbb5a40ad4c619a7f8fc05";
+
+/// The first kernel call whose result differs on wasm32 (plans/c4 step 2,
+/// `arrix-plugin-host`'s `tests/wasm_determinism.rs`): the extrude of the
+/// gear's profile, whose arcs are three-point arcs. Its inputs are the
+/// same bits on both targets, since `gears` computes them with
+/// `arrix_plugin_api::math` (ADR-0036); the bodies it makes are not.
+/// Written to `crates/arrix-kernel/tests/recipes/` for Arris, rewritten
+/// under `UPDATE_SNAPSHOTS=1`.
+#[test]
+fn the_gear_extrude_wasm32_builds_differently_is_a_recipe() {
+    use arrix_kernel::{CallIndex, FixtureRecipe, KernelOp};
+    let mut files = BTreeMap::new();
+    common::read_tree(
+        &common::workspace().join("tests/docs/gear-on-plane"),
+        "",
+        &mut files,
+    );
+    let mut evaluator = Evaluator::new(registry());
+    evaluator.evaluate(&open(&arrix_doc::MemorySource(files)).unwrap());
+    let records = evaluator.kernel_calls();
+    assert!(
+        matches!(records[0].op, KernelOp::Extrude { .. }),
+        "{:?}",
+        records[0].op
+    );
+    assert_eq!(
+        records[1].operands[0].as_str(),
+        NATIVE_GEAR_BODY,
+        "the body native builds changed: rerun the wasm32 probe"
+    );
+    let recipe = FixtureRecipe::measured(
+        records,
+        CallIndex(0),
+        "kept because its body is not the same on wasm32 as natively: the \
+         gear's extrude in tests/docs/gear-on-plane, a profile of lines and \
+         three-point arcs given the same bits on both targets, hashes (BLAKE3 \
+         of its encoded bytes) to 9e7347d2… on x86_64 Linux and 87b72b8d… on \
+         wasm32-unknown-unknown under Node, and its volume is \
+         2.452232294324476e-6 natively and 2.4522322943244763e-6 on wasm32 \
+         (plans/c4 step 2)",
+    )
+    .unwrap()
+    .to_json();
+    let path = common::workspace()
+        .join("crates/arrix-kernel/tests/recipes/gear-extrude-on-wasm32/fixture.json");
+    if std::env::var_os("UPDATE_SNAPSHOTS").is_some() {
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, &recipe).unwrap();
+    }
+    assert!(
+        std::fs::read_to_string(&path).is_ok_and(|on_disk| on_disk == recipe),
+        "{} differs; rerun with UPDATE_SNAPSHOTS=1 and read the diff",
+        path.display()
+    );
+}

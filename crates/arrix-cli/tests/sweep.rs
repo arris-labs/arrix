@@ -49,6 +49,28 @@ fn a_five_point_sweep_of_the_slices_width_prints_its_golden() {
     assert_eq!(points[4]["sweep"]["value"], 0.06);
 }
 
+/// The native side of the wasm32 determinism probe (plans/c4 step 2):
+/// `arrix-plugin-host`'s `tests/wasm_determinism.rs` runs the same sweep
+/// on wasm32 and compares with this golden. At 40 mm the holes miss the
+/// plate, so a failed point is compared too. Rewritten with
+/// `UPDATE_SNAPSHOTS=1`.
+#[test]
+fn a_three_point_sweep_of_the_brackets_width_prints_its_golden() {
+    let out = arrix_eval(&["tests/docs/bracket", "--sweep", "w=40 mm..80 mm:3"]);
+    assert_eq!(out.status.code(), Some(1), "the 40 mm point fails");
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/golden/eval_bracket_sweep.jsonl");
+    if std::env::var_os("UPDATE_SNAPSHOTS").is_some() {
+        std::fs::write(&path, &out.stdout).unwrap();
+    }
+    let golden = std::fs::read(&path).expect("read the golden");
+    assert_eq!(
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&golden)
+    );
+    let status: Vec<_> = lines(&out).iter().map(|l| l["status"].clone()).collect();
+    assert_eq!(status, ["failed", "ok", "ok"]);
+}
+
 /// A copy of the slice in the scratch space with `w` set to `expr`.
 fn slice_with_width(name: &str, expr: &str) -> PathBuf {
     let dir = Path::new(env!("CARGO_TARGET_TMPDIR"))

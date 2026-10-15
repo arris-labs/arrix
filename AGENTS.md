@@ -20,6 +20,8 @@ written. The skills live in `.agents/skills/` (symlinked as
   Windows, clone with symlinks enabled (`git config --global core.symlinks
   true`, with Developer Mode on), or the skills and rules won't load.
 - `cargo install cargo-nextest --locked` (the gate's test runner, ADR-0040).
+- `cargo install wasm-bindgen-cli --version '=0.2.129' --locked` and Node
+  (the wasm32 tests' runner; the version is the lock's `wasm-bindgen`).
 - `git config core.hooksPath .githooks` installs the pre-commit hook.
   Python 3 runs the lints; `rust-toolchain.toml` brings rustfmt, clippy
   and the wasm32 target.
