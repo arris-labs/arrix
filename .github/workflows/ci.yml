@@ -78,14 +78,24 @@ jobs:
             . -> target
             plugins/gears -> target
             plugins/robotics -> target
+      - name: cargo-nextest, pinned (ADR-0040)
+        uses: taiki-e/install-action@v2
+        with:
+          tool: nextest@0.9.144
       - name: "gate: tests"
-        run: cargo test --workspace
+        run: cargo nextest run --workspace
       - name: "gate: tests, all features"
-        run: cargo test --workspace --all-features
+        run: cargo nextest run --workspace --all-features
+      - name: "gate: doctests"
+        run: cargo test --workspace --doc
       - name: "gate: tests, plugins/gears"
-        run: cargo test --manifest-path plugins/gears/Cargo.toml
+        run: cargo nextest run --manifest-path plugins/gears/Cargo.toml
+      - name: "gate: doctests, plugins/gears"
+        run: cargo test --doc --manifest-path plugins/gears/Cargo.toml
       - name: "gate: tests, plugins/robotics"
-        run: cargo test --manifest-path plugins/robotics/Cargo.toml
+        run: cargo nextest run --manifest-path plugins/robotics/Cargo.toml
+      - name: "gate: doctests, plugins/robotics"
+        run: cargo test --doc --manifest-path plugins/robotics/Cargo.toml
       # Before, after and diff images against the parent: on a push the
       # previous commit, on a pull request the base branch.
       - name: baseline images of a failed scenario

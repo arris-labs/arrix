@@ -15,7 +15,7 @@ It also checks that CI runs the hooks' commands: the steps of
 `.github/workflows/ci.yml` named `gate: …` must run exactly the commands of
 `.githooks/pre-commit` and `pre-push`, each as often, so the two cannot
 drift; that the hooks run each Rust plugin under `plugins/`, a workspace of
-its own (plans/c3-m3 Findings 7), by its clippy, tests and guest build; and
+its own (plans/c3-m3 Findings 7), by its clippy, nextest, doctests and guest build; and
 that the check fails on a planted drift of either kind.
 
 Usage:
@@ -125,14 +125,14 @@ DRIFT_CASES = [
     (
         "a CI gate step no hook runs",
         CI,
-        "run: cargo test --workspace --all-features",
-        "run: cargo test --workspace --all-features --release",
+        "run: cargo nextest run --workspace --all-features",
+        "run: cargo nextest run --workspace --all-features --release",
     ),
     (
         "CI running one test command twice, the other never",
         CI,
-        "        run: cargo test --workspace --all-features\n",
-        "        run: cargo test --workspace\n",
+        "        run: cargo nextest run --workspace --all-features\n",
+        "        run: cargo nextest run --workspace\n",
     ),
     (
         "a plugin workspace the hooks do not run",
@@ -149,12 +149,12 @@ STEP_RE = re.compile(r"^\s*-\s")
 
 def hook_commands(tree):
     """The commands the hooks run: every line but the shebang, comments,
-    `echo`, `set`, `cd` and the re-exec under `scripts/heavy`."""
+    `echo`, `set`, `cd`, the `command -v` check for a tool and the re-exec under `scripts/heavy`."""
     out = []
     for hook in HOOKS:
         for line in (tree / hook).read_text().splitlines():
             line = line.strip()
-            if line and not line.startswith("#") and not re.match(r'(echo|set|cd)\b|\[ -n "\$ARRIX_HEAVY" \]', line):
+            if line and not line.startswith("#") and not re.match(r'(echo|set|cd|command)\b|\[ -n "\$ARRIX_HEAVY" \]', line):
                 out.append(line)
     return out
 
@@ -188,7 +188,8 @@ def plugin_commands(manifest):
     at = manifest.parent.as_posix()
     return [
         f"cargo clippy --manifest-path {manifest.as_posix()} --all-targets --all-features -- -D warnings",
-        f"cargo test --manifest-path {manifest.as_posix()}",
+        f"cargo nextest run --manifest-path {manifest.as_posix()}",
+        f"cargo test --doc --manifest-path {manifest.as_posix()}",
         "cargo build --release --target wasm32-unknown-unknown --features guest "
         f"--manifest-path {manifest.as_posix()} --target-dir {at}/target/guest",
     ]

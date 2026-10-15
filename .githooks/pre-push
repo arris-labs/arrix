@@ -7,11 +7,18 @@ set -e
 [ -n "$ARRIX_HEAVY" ] || exec "$(git rev-parse --show-toplevel)/scripts/heavy" "$0" "$@"
 cd "$(git rev-parse --show-toplevel)"
 
-echo "pre-push: cargo test"
-cargo test --workspace
+# nextest runs the tests of many binaries at once under one thread budget
+# (.config/nextest.toml, ADR-0040); it runs no doctests, so those go beside.
+command -v cargo-nextest >/dev/null || { echo "pre-push: cargo-nextest is missing: cargo install cargo-nextest --locked" >&2; exit 1; }
 
-echo "pre-push: cargo test --all-features"
-cargo test --workspace --all-features
+echo "pre-push: cargo nextest run"
+cargo nextest run --workspace
+
+echo "pre-push: cargo nextest run --all-features"
+cargo nextest run --workspace --all-features
+
+echo "pre-push: doctests"
+cargo test --workspace --doc
 
 echo "pre-push: wasm32 build"
 cargo build --target wasm32-unknown-unknown --workspace --exclude arrix-cli --exclude arrix-plugin-test
@@ -19,10 +26,12 @@ cargo build --target wasm32-unknown-unknown --workspace --exclude arrix-cli --ex
 # Each Rust plugin is a workspace of its own (plans/c3-m3 Findings 7): its
 # tests, and its Tier 1 module where its own guest test builds it.
 echo "pre-push: plugins/gears"
-cargo test --manifest-path plugins/gears/Cargo.toml
+cargo nextest run --manifest-path plugins/gears/Cargo.toml
+cargo test --doc --manifest-path plugins/gears/Cargo.toml
 cargo build --release --target wasm32-unknown-unknown --features guest --manifest-path plugins/gears/Cargo.toml --target-dir plugins/gears/target/guest
 echo "pre-push: plugins/robotics"
-cargo test --manifest-path plugins/robotics/Cargo.toml
+cargo nextest run --manifest-path plugins/robotics/Cargo.toml
+cargo test --doc --manifest-path plugins/robotics/Cargo.toml
 cargo build --release --target wasm32-unknown-unknown --features guest --manifest-path plugins/robotics/Cargo.toml --target-dir plugins/robotics/target/guest
 
 echo "pre-push: gate-selftest"
