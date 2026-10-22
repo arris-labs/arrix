@@ -604,6 +604,15 @@ tests of **the slow half** cover it with no step of their own.
    to the bit (`docs/CONCURRENCY-WASM.md` §Determinism). The gate stops
    with the install line if the runner or Node is missing; the runner is
    pinned to the lock's `wasm-bindgen`.
+   Then `scripts/web-build`: the web app as a page in `target/web`
+   (`arrix-app`'s library as a cdylib, `wasm-bindgen --target web`, `web/`
+   beside), the build `scripts/web-serve` serves. The browser tests of step
+   1 (`arrix-doc`, `arrix-plugin-host`, `arrix-app`, through
+   `arrix-web-test`) build their own pages and run them in headless
+   Chromium; they skip loudly without it, and fail under
+   `ARRIX_REQUIRE_BROWSER=1`, as in CI. `arrix-app`'s wasm32 dependencies
+   (`wasm-bindgen`, `js-sys`, `web-sys`) are external crates, so the layer
+   lint's edges, which name `arrix-*` crates, are unchanged.
    Then, for each Rust plugin, `cargo nextest run --manifest-path
    plugins/<name>/Cargo.toml`, `cargo test --doc` on it, and its Tier 1 module, `cargo build
    --release --target wasm32-unknown-unknown --features guest` into
@@ -622,7 +631,8 @@ tests of **the slow half** cover it with no step of their own.
    (test code, the audit marker, a comment), which must pass. It also
    checks that CI's `gate: …` steps run exactly the gate's commands, each
    as often, that the gate runs each Rust plugin's four commands, and
-   that the check fails on a planted drift of either kind.
+   that the check fails on a planted drift of either kind, among them the
+   web build left out of the gate.
 
 `arrix-app`'s product render is held to the visual harness by a test,
 too: `render_parity`, a module of `cargo test -p arrix-app --test visual`,
@@ -655,7 +665,7 @@ A step blocked on an ask names it and waits.
 |---|---|---|---|
 | A1 | consumer roles: `Role::Consumer { namespace, key }` | C1: plugin topology built directly | released in 0.4.0, not taken: `gears.spur` extrudes and needs none |
 | A2 | body bytes with a compatibility policy | C1: frozen results (fixture recipes replay the calls: Arris's recipe has no body-bytes operand); C3: the Tier 2 boundary | released in 0.4.0, taken in C1 M1 |
-| A3 | cancellation: an interrupt token, optionally a step budget | C1: superseded evaluations; C4: the browser | released in 0.4.0 (`Control`), taken in C1 M4 |
+| A3 | cancellation: an interrupt token, optionally a step budget | C1: superseded evaluations; C4: the browser | released in 0.4.0 (`Control`), taken in C1 M4 and in C4 (the browser's poll) |
 | A11 | `ops::mirror` | C1: the mirror feature | released in 0.4.0, taken in C1 M2 |
 | A4 | STEP product structure | C2 | released in 0.4.0 (`Read::products`, `step::write_products`), taken in C2 M3 (the product tree both ways) |
 | A12 | the STEP writer declares the caller's length unit (the reader's `LengthUnit`) | STEP export; C2's round trip | released in 0.8.0, taken in C2 M3 |

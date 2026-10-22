@@ -140,6 +140,12 @@ DRIFT_CASES = [
         "run: cargo nextest run --workspace --all-features --release",
     ),
     (
+        "a web build the gate does not run",
+        "scripts/gate",
+        "scripts/web-build\n",
+        "",
+    ),
+    (
         "CI running one test command twice, the other never",
         CI,
         "        run: cargo nextest run --workspace --all-features\n",

@@ -133,6 +133,8 @@ jobs:
           node-version: 22
       - name: install wasm-bindgen-cli
         run: cargo install wasm-bindgen-cli --version '=0.2.129' --locked
+      - name: "gate: web build"
+        run: scripts/web-build
       - name: "gate: wasm32 tests"
         run: cargo test --target wasm32-unknown-unknown -p arrix-plugin-host --test wasm_determinism
       - name: "gate: guest build, plugins/gears"

@@ -34,6 +34,12 @@ cargo test --workspace --doc
 echo "gate: wasm32 build"
 cargo build --target wasm32-unknown-unknown --workspace --exclude arrix-cli --exclude arrix-plugin-test --exclude arrix-web-test
 
+# The web app builds as a page (plans/c4 step 13): the cdylib, its
+# wasm-bindgen output and `web/` in target/web. The browser tests build
+# their own copy, so this one is the build the human serves.
+echo "gate: web build"
+scripts/web-build
+
 # wasm32 evaluates as native does (plans/c4 step 2), under Node.
 command -v node >/dev/null || { echo "gate: node is missing: the wasm32 tests run under Node" >&2; exit 1; }
 echo "gate: wasm32 tests"
