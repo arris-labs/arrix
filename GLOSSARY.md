@@ -83,6 +83,12 @@ The single writer that holds the document and applies or rejects commands
 A client's connection to a document: its state (selection, camera, active
 sketch, edit mode) belongs to the client, never to the document.
 
+**Web session**:
+The session on a browser page: the authority on the page's main thread and
+the evaluator alone in a web worker, cancelled through two shared counters
+(`docs/CONCURRENCY-WASM.md` §The browser build).
+_Avoid_: web worker session
+
 **Preview**:
 The document evaluated with a command that is never applied: no
 generation, no undo entry.

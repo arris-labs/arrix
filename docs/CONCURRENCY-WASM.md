@@ -2,11 +2,11 @@
 
 Where work runs, how an edit supersedes an evaluation, what determinism
 promises, how many documents are evaluated at once, what the browser build
-is, and the performance budgets. Built, as of C3: the evaluator with its cache and
+is, and the performance budgets. Built, as of C4: the evaluator with its cache and
 cancellation, `LocalSession`'s session thread and evaluator worker with the
 clients' replicas, `arrix eval` and its batch mode, the budgets measured,
-and Tier 1 fuel and epoch cancellation.
-The browser is C4, designed in ADR-0042 (§The browser build).
+Tier 1 fuel and epoch cancellation, and the browser: the app on
+`WebSession` with the evaluator in a web worker (ADR-0042).
 
 ## Roles and threads
 
@@ -15,9 +15,9 @@ preclude (`SEED.md` §6.1). Locally all three are in one process.
 
 | Role | Thread (native) | Does |
 |---|---|---|
-| **Client** | the UI thread (or the CLI's main thread) | input, egui, the viewport, the sketch solver during sketch edits; keeps a **replica** of the document; submits commands |
-| **Authority** | the session thread | holds the document; applies or rejects each command; publishes the applied stream; hands snapshots to the evaluator |
-| **Evaluator** | one worker thread (C1) | evaluates snapshots through `arrix-kernel`, tessellates, publishes `EvalEvent`s |
+| **Client** | the UI thread (or the CLI's main thread; the page's main thread on the web) | input, egui, the viewport, the sketch solver during sketch edits; keeps a **replica** of the document; submits commands |
+| **Authority** | the session thread (the page's main thread on the web) | holds the document; applies or rejects each command; publishes the applied stream; hands snapshots to the evaluator |
+| **Evaluator** | one worker thread (C1); one web worker on the web (C4) | evaluates snapshots through `arrix-kernel`, tessellates, publishes `EvalEvent`s |
 
 - **Replicas.** A client does not read the authority's document. It
   applies the same applied-command stream to its own copy, which is cheap
@@ -25,7 +25,8 @@ preclude (`SEED.md` §6.1). Locally all three are in one process.
   run. A debug build checks the replica's hash against the authority's at
   each generation. As built: `LocalSession` spawns both threads through
   the executor (`crates/arrix-doc/src/executor`, the one place a thread
-  is spawned; on wasm32 spawning fails with an error until C4). A
+  is spawned; on wasm32 it starts the evaluator as a web worker, and the
+  authority stays on the page's main thread, `WebSession`). A
   `Replica` follows `applied` events and refuses a gap in generations;
   each `applied` event carries the document's BLAKE3 hash over its saved
   files in a debug build, and the replica refuses one it differs from.
@@ -69,6 +70,12 @@ preclude (`SEED.md` §6.1). Locally all three are in one process.
   feature as `kernel.interrupted`, a stop and not `plugin.fuel`
   (`crates/arrix-plugin-host/tests/tier1_cancel.rs`, held to the 50 ms
   budget).
+  On the web the flag is the page's two counters
+  (§The browser build): the authority bumps **commits** after it applies a
+  commit and before it posts that commit's job, the worker's poll answers
+  `commits > taken`, and nothing is lowered. Without cross-origin
+  isolation the poll answers false and a superseded evaluation runs to
+  its end.
 - **Events carry their generation.** A client drops an event older than
   the latest generation it has drawn for that feature.
   As built: the worker publishes each feature's event as it is made and
@@ -242,8 +249,8 @@ arrix eval <docs or dirs>… [--sweep <feature>.<param>=<from>..<to>:<n>]
 
 ## The browser build
 
-The same Rust codebase runs in the browser (`SEED.md` §1). C1 keeps it
-compiling; C4 makes it run.
+The same Rust codebase runs in the browser (`SEED.md` §1). C1 kept it
+compiling; C4 made it run.
 
 - **C1**: every crate but `arrix-cli` and the native plugin tiers builds
   for `wasm32-unknown-unknown` in the gate and CI. Nothing runs in

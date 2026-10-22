@@ -193,7 +193,8 @@ pattern's spacing moves the holes and the screws.
 evaluate in a worker, and one that uses a Tier 1 or Tier 2 plugin opens with
 those features frozen, with their reason (`SEED.md` §7).*
 
-**Status: in progress, `plans/c4`** (ADR-0042). The risk to retire: the
+**Status: done 2026-10-23** (ADR-0042; accept: `cargo nextest run -p arrix-app
+--test c4_accept`). The risk to retire: the
 native evaluator and its determinism hold on wasm32 in a worker. The
 authority runs on the main thread and the evaluator alone in a worker; a
 commit stops a superseded evaluation through a `SharedArrayBuffer` counter
@@ -212,9 +213,10 @@ on a cross-origin-isolated page, within 50 ms.
 and accounts; offline storage beyond a download; touch and mobile layouts.
 
 **Accept:** in a headless browser, `tests/docs/bracket` opens, a width edit
-evaluates in the worker, and its eval line equals native's, to the bit; the
-north-star document opens with `fasteners` and `robotics` frozen, bodies kept,
-and their reason shown.
+evaluates in the worker, and its eval line equals native's, to the bit; an edit
+made during an evaluation stops it within 50 ms; a feature of a plugin the page
+lacks opens frozen, bodies kept, with its reason shown; a document saved as a
+download evaluates natively to native's eval line.
 
 ---
 

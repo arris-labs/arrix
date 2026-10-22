@@ -61,6 +61,9 @@ idea is not brainstormed twice.
 - A per-body material in the app: the document and `AssignMaterial` hold it, but the material form assigns the part's material only (plans/c2-m3 step 8)
 - A material in the tree beside each part, and a material list or library editor: the form picks, makes and edits from the part only (plans/c2-m3 step 8)
 - The `--all-features` pass of the gate repeats the whole suite (about 140 to 170 s of `scripts/gate`): fold it into one run, or keep it (plans/nextest-gate, step 6)
+- A public deployment of the web page: hosting, a service-worker shim for hosts that cannot send COOP and COEP, a domain; `scripts/web-serve` is for development and tests (plans/c4, non-goals)
+- User config in the browser: the page runs the shipped defaults, and storing a config is offline storage (plans/c4, non-goals)
+- Embedding the page in a host page's iframe: a same-origin `postMessage` bridge for open, save and unsaved changes (plans/c4, docs to update)
 
 ## Rejected
 

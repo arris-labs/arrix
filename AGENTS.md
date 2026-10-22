@@ -42,7 +42,10 @@ materials and mass (ADR-0027 to ADR-0033; `arris` 0.8).
 **C3 done 2026-10-14**: Tier 1 components, exporters, plugin commands,
 robotics and fasteners as projects of their own; the north star runs
 (ADR-0034 to ADR-0039, API 0.8.0).
-**Next:** C4, the web (`docs/ROADMAP.md` §C4, ADR-0042), by its plan `c4`.
+**C4 done 2026-10-23**: the web, the app in a browser tab with the evaluator
+in a worker, cancelled within 50 ms (ADR-0042, `c4_accept`).
+**Next:** no cycle is scheduled; `/close-cycle` opens the next
+(`docs/ROADMAP.md` §Named cycles).
 
 ## Rules that are not derivable from the code
 
