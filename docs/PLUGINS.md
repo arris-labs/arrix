@@ -579,7 +579,9 @@ version or API range does not match, its tier cannot run here (Tier 2 in
 the browser, Tier 1 in the browser until an ADR: a wasm build has no
 `tier1` module, so a Tier 1 plugin is not in its registry and its features
 are frozen as any plugin's absent), or the user disabled it.
-The reason is shown on the feature and in `arrix eval`'s output. The
+The reason is shown on the feature and in `arrix eval`'s output. In the
+browser the app's words are "is not available in the browser", whatever
+the plugin's tier (C4, `docs/UI-RENDERING.md` §The web entry). The
 states, staleness and re-freezing are in `docs/DATA-MODEL.md` §Frozen
 results.
 

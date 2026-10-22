@@ -13,6 +13,10 @@
 //! `files.js` brings files in through the page's input and by a drop on the
 //! canvas, and catches the downloads of a save and an export.
 //!
+//! `frozen.js` opens the north star as saved with a plugin the page lacks
+//! (a feature frozen, its bodies kept), `tests/docs/standoff`, which has no
+//! stored result to show, and `tests/docs/north-star` as it is.
+//!
 //! `cargo test -p arrix-app --test web_app`; skips loudly without Chromium.
 #![cfg(not(target_arch = "wasm32"))]
 
@@ -34,8 +38,15 @@ fn report(page: &str, isolated: bool, test: &str) -> Option<Value> {
     let crate_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     copy_files(&crate_dir.join("web"), &out);
     copy_files(&crate_dir.join("tests/web"), &out);
-    let bracket = source(&workspace_root().join("tests/docs/bracket"));
-    fs::write(out.join("bracket.arrx"), to_zip(&bracket).unwrap()).unwrap();
+    for doc in ["bracket", "standoff", "north-star"] {
+        let source = source(&workspace_root().join("tests/docs").join(doc));
+        fs::write(out.join(format!("{doc}.arrx")), to_zip(&source).unwrap()).unwrap();
+    }
+    fs::write(
+        out.join("north-star-missing.arrx"),
+        to_zip(&without_gears()).unwrap(),
+    )
+    .unwrap();
     let screw = workspace_root().join("tests/fixtures/step/screw.step");
     fs::copy(screw, out.join("screw.step")).unwrap();
     let text = open(&browser, &out, page, isolated, Duration::from_secs(180));
@@ -66,6 +77,21 @@ fn source(dir: &Path) -> MemorySource {
     let mut out = MemorySource::default();
     walk(dir, "", &mut out);
     out
+}
+
+/// The north star as a plugin the page lacks would have saved it: its gear
+/// is a `standoff.standoff` feature, whose stored result is kept. The
+/// committed `tests/docs/standoff` has no stored result, since nothing
+/// saved it with the plugin loaded.
+fn without_gears() -> MemorySource {
+    let mut north_star = source(&workspace_root().join("tests/docs/north-star"));
+    for (path, bytes) in &mut north_star.0 {
+        if path.starts_with("parts/") {
+            let text = String::from_utf8(std::mem::take(bytes)).unwrap();
+            *bytes = text.replace("gears.spur", "standoff.standoff").into_bytes();
+        }
+    }
+    north_star
 }
 
 /// The golden line of `file` that `pick` chooses, without what names the
@@ -176,4 +202,37 @@ fn files_come_in_as_bytes_and_go_out_as_downloads() {
         r["refused"].as_str().unwrap().contains("open an .arrx"),
         "{r}"
     );
+}
+
+#[test]
+fn a_feature_of_a_plugin_the_page_lacks_opens_frozen_with_its_bodies() {
+    let Some(r) = report("frozen.html", true, "web_app frozen") else {
+        return;
+    };
+    let reason = "Feature type standoff.standoff is not available in the browser";
+    // The stored result is kept and drawn; the reason is the badge's and
+    // the form's.
+    let missing = &r["missing"];
+    assert_eq!(missing["frozen"].as_array().unwrap().len(), 1, "{missing}");
+    assert!(missing["bodies"].as_u64().unwrap() > 0, "{missing}");
+    let badges = missing["badges"].as_array().unwrap();
+    assert_eq!(badges.len(), 1, "{missing}");
+    assert_eq!(badges[0]["reason"], reason, "{missing}");
+    let read_only = missing["readOnly"].as_str().unwrap();
+    assert!(read_only.starts_with(reason), "{missing}");
+    // With nothing stored the feature fails, and says why.
+    let standoff = &r["standoff"];
+    assert_eq!(standoff["badges"], json!([]), "{standoff}");
+    assert!(
+        standoff["notes"][0]
+            .as_str()
+            .unwrap()
+            .contains("cannot be evaluated here and has no stored result"),
+        "{standoff}"
+    );
+    // The north star's plugins are the app's own: nothing is frozen.
+    let north_star = &r["northStar"];
+    assert_eq!(north_star["frozen"], json!([]), "{north_star}");
+    assert_eq!(north_star["badges"], json!([]), "{north_star}");
+    assert!(north_star["bodies"].as_u64().unwrap() > 0, "{north_star}");
 }

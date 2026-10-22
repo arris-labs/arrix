@@ -125,11 +125,21 @@ pub(crate) struct Standing {
     pub frozen: Option<FrozenInfo>,
 }
 
+/// Why a feature of `type_id` has no type to evaluate with. In a browser
+/// the page has no plugin loader (ADR-0024), so the type a Tier 1 or Tier 2
+/// plugin brings is not available there, however it is installed.
+pub(crate) fn missing_reason(type_id: impl std::fmt::Display) -> String {
+    #[cfg(target_arch = "wasm32")]
+    return format!("Feature type {type_id} is not available in the browser");
+    #[cfg(not(target_arch = "wasm32"))]
+    format!("Feature type {type_id} is not available")
+}
+
 /// Why a feature of `type_id` shows a stored result, in the words the form
 /// and the badge share.
 pub(crate) fn frozen_reason(type_id: impl std::fmt::Display, info: &FrozenInfo) -> String {
     match info.reason {
-        FrozenReason::Missing => format!("Feature type {type_id} is not available"),
+        FrozenReason::Missing => missing_reason(type_id),
         FrozenReason::Version => {
             format!("Feature type {type_id} is not at the version the result was made under")
         }

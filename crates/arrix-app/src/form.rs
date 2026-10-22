@@ -355,7 +355,7 @@ impl Form {
         let frozen = standing.and_then(|s| s.frozen);
         let mut why = match frozen {
             Some(info) => crate::documents::frozen_reason(id, &info),
-            None if self.absent => format!("Feature type {id} is not available"),
+            None if self.absent => crate::documents::missing_reason(id),
             None => return None,
         };
         why.push_str("; showing the stored result and values, read only.");

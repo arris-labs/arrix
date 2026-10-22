@@ -898,7 +898,7 @@ wasm32 as a cdylib, is one module that two entry points load:
   `.arrx` as a tab), `set_param` (a parameter set as one gesture, through
   `ArrixApp::submit`) and `eval_line` (the active tab's newest finished
   generation's line, read from its events), `accept_file`,
-  `save_download` and `run_command`. Each call asks for
+  `save_download`, `activate_feature` and `run_command`. Each call asks for
   a frame, since the page draws only when something asks.
 - **A tab's session** is `WebSession` (`docs/CONCURRENCY-WASM.md` §The
   browser build): the authority on the main thread, each document's
@@ -925,6 +925,13 @@ no command yet, as native has none, and is the handle's `save_download`.
 An answer to an export or an import asked wakes nothing, so the app keeps
 drawing frames while one is pending, and once more after an import's
 command is applied.
+
+**Frozen in the browser.** A page has no plugin loader (ADR-0024), so the
+features of a Tier 1 or Tier 2 plugin are `Missing` there, and the badge,
+the tree and the form say "Feature type standoff.standoff is not
+available in the browser" (a document does not record its plugin's tier).
+A feature with a stored result keeps its bodies; one without fails, as
+natively.
 
 `scripts/web-build` builds it into `target/web` (`cargo rustc --lib
 --crate-type cdylib`, so a native build links no cdylib, then

@@ -161,6 +161,17 @@ impl WebHandle {
         self.with_app(|app| app.save_download())?.map_err(error)
     }
 
+    /// Activates the feature `id` (its tree row, as a double-click does):
+    /// the edit form opens on it, read only when its result is frozen.
+    ///
+    /// # Errors
+    ///
+    /// When `id` is no feature id.
+    pub fn activate_feature(&self, id: &str) -> Result<(), JsValue> {
+        let feature = id.parse().map_err(error)?;
+        self.with_app(|app| app.activate_feature(feature))
+    }
+
     /// Runs the command `id` as a button or a key does: what a test page
     /// uses for the commands that open a picker or a download.
     pub fn run_command(&self, id: &str) -> Result<(), JsValue> {
