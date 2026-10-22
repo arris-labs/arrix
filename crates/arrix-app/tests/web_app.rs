@@ -1,34 +1,39 @@
-//! The web app in a browser (plans/c4 step 9, ADR-0042), run in headless
-//! Chromium by the browser harness (`arrix-web-test`): `arrix-app`'s
-//! library built as `scripts/web-build` builds it, its page
-//! (`crates/arrix-app/web`) and `tests/web/debug.js`, which starts the app
-//! on an empty start and POSTs what it drew.
+//! The web app in a browser (plans/c4 steps 9 and 10, ADR-0042), run in
+//! headless Chromium by the browser harness (`arrix-web-test`):
+//! `arrix-app`'s library built as `scripts/web-build` builds it, its page
+//! (`crates/arrix-app/web`) and a test page of `tests/web`, which drives
+//! the app through its handle (a page can't click egui) and POSTs what it
+//! heard.
+//!
+//! `debug.js` starts the app on an empty start. `edit.js` opens
+//! `tests/docs/bracket` from bytes, its evaluator in a worker, and sets its
+//! width as one gesture: each generation's eval line, read from the
+//! events, is `arrix eval`'s (`crates/arrix-cli/tests/golden`).
 //!
 //! `cargo test -p arrix-app --test web_app`; skips loudly without Chromium.
 #![cfg(not(target_arch = "wasm32"))]
 
-use std::path::PathBuf;
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use arrix_web_test::{build_lib, chromium, copy_files, open, target_dir};
-use serde_json::Value;
+use arrix_doc::{MemorySource, to_zip};
+use arrix_web_test::{build_lib, chromium, copy_files, open, target_dir, workspace_root};
+use serde_json::{Value, json};
 
-/// The app's page and the test's, in a directory of `test`'s own: nextest
-/// runs each test in a process of its own.
-fn report(isolated: bool, test: &str) -> Option<Value> {
+/// The app's page, the test's and the bracket's bytes, in a directory of
+/// `test`'s own (nextest runs each test in a process of its own), opened
+/// at `page`: the page's report.
+fn report(page: &str, isolated: bool, test: &str) -> Option<Value> {
     let browser = chromium(test)?;
     let out = target_dir().join("web-test").join(test.replace(' ', "-"));
     build_lib("arrix-app", &out);
     let crate_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     copy_files(&crate_dir.join("web"), &out);
     copy_files(&crate_dir.join("tests/web"), &out);
-    let text = open(
-        &browser,
-        &out,
-        "debug.html",
-        isolated,
-        Duration::from_secs(120),
-    );
+    let bracket = source(&workspace_root().join("tests/docs/bracket"));
+    fs::write(out.join("bracket.arrx"), to_zip(&bracket).unwrap()).unwrap();
+    let text = open(&browser, &out, page, isolated, Duration::from_secs(180));
     let report: Value = serde_json::from_str(&text).unwrap_or_else(|e| panic!("{e}: {text}"));
     assert!(
         report.get("error").is_none(),
@@ -38,23 +43,55 @@ fn report(isolated: bool, test: &str) -> Option<Value> {
     Some(report)
 }
 
+/// The files of the document directory `dir`, by their `/`-separated
+/// path inside it.
+fn source(dir: &Path) -> MemorySource {
+    fn walk(dir: &Path, prefix: &str, out: &mut MemorySource) {
+        for entry in fs::read_dir(dir).unwrap() {
+            let path = entry.unwrap().path();
+            let name = path.file_name().unwrap().to_str().unwrap().to_owned();
+            if path.is_dir() {
+                walk(&path, &format!("{prefix}{name}/"), out);
+            } else {
+                out.0
+                    .insert(format!("{prefix}{name}"), fs::read(&path).unwrap());
+            }
+        }
+    }
+    let mut out = MemorySource::default();
+    walk(dir, "", &mut out);
+    out
+}
+
+/// The golden line of `file` that `pick` chooses, without what names the
+/// run rather than the evaluation: its sweep point.
+fn golden(file: &str, pick: impl Fn(&Value) -> bool) -> Value {
+    let path = workspace_root()
+        .join("crates/arrix-cli/tests/golden")
+        .join(file);
+    let mut line = fs::read_to_string(path)
+        .unwrap()
+        .lines()
+        .map(|l| serde_json::from_str::<Value>(l).unwrap())
+        .find(|l| pick(l))
+        .unwrap_or_else(|| panic!("no such line in {file}"));
+    line.as_object_mut().unwrap().remove("sweep");
+    line
+}
+
 /// The empty start, drawn: the shell's layout and no document.
 fn drew_the_empty_start(r: &Value) {
     let state = &r["debug_state"];
     assert_eq!(state["window"].as_array().map(Vec::len), Some(2), "{state}");
     assert!(state["layout"]["viewport"].is_array(), "{state}");
-    assert_eq!(
-        state["shell"]["documents"]["tabs"],
-        serde_json::json!([]),
-        "{state}"
-    );
+    assert_eq!(state["shell"]["documents"]["tabs"], json!([]), "{state}");
     assert!(state["evaluation"].is_null(), "{state}");
     assert_eq!(state["theme"], "dark", "{state}");
 }
 
 #[test]
 fn the_app_starts_in_the_page_and_draws() {
-    let Some(r) = report(true, "web_app isolated") else {
+    let Some(r) = report("debug.html", true, "web_app isolated") else {
         return;
     };
     assert_eq!(r["isolated"], true, "{r}");
@@ -62,4 +99,48 @@ fn the_app_starts_in_the_page_and_draws() {
     // (docs/UI-RENDERING.md §The web entry).
     assert_eq!(r["backend"], "Gl", "{r}");
     drew_the_empty_start(&r);
+}
+
+/// What both edit pages must have heard: the bracket opened at generation
+/// 0 and the edit made generation 1, each settled with its bodies drawn,
+/// and each line `arrix eval`'s to the bit.
+fn heard_the_edit(r: &Value) {
+    assert_eq!(r["applied"], true, "{r}");
+    let opened = golden("eval_docs.jsonl", |l| l["doc"] == "tests/docs/bracket");
+    let edited = golden("eval_bracket_sweep.jsonl", |l| l["sweep"]["index"] == 2);
+    for (name, heard, generation, line) in [
+        ("opened", &r["opened"], 0, opened),
+        ("edited", &r["edited"], 1, edited),
+    ] {
+        let evaluation = &heard["evaluation"];
+        assert_eq!(evaluation["generation"], generation, "{name}: {evaluation}");
+        assert_eq!(evaluation["problems"], json!([]), "{name}: {evaluation}");
+        assert!(heard["bodies"].as_u64().unwrap() > 0, "{name}: {heard}");
+        let mut heard_line: Value = serde_json::from_str(heard["line"].as_str().unwrap()).unwrap();
+        heard_line.as_object_mut().unwrap().remove("sweep");
+        assert_eq!(
+            heard_line, line,
+            "{name}: the eval line is not arrix eval's"
+        );
+    }
+}
+
+#[test]
+fn an_edit_in_the_page_evaluates_in_the_worker_as_arrix_eval_does() {
+    let Some(r) = report("edit.html", true, "web_app edit isolated") else {
+        return;
+    };
+    assert_eq!(r["isolated"], true, "{r}");
+    assert_ne!(r["hint"], arrix_app::UNINTERRUPTIBLE, "{r}");
+    heard_the_edit(&r);
+}
+
+#[test]
+fn without_isolation_the_app_says_so_and_still_evaluates() {
+    let Some(r) = report("edit.html", false, "web_app edit unisolated") else {
+        return;
+    };
+    assert_eq!(r["isolated"], false, "{r}");
+    assert_eq!(r["hint"], arrix_app::UNINTERRUPTIBLE, "{r}");
+    heard_the_edit(&r);
 }

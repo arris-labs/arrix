@@ -893,8 +893,18 @@ wasm32 as a cdylib, is one module that two entry points load:
   `WebHandle` (`src/web.rs`), which starts the app on eframe's
   `WebRunner` on the page's canvas, on the built-in configuration: the
   page has no config files (ADR-0015). The handle is `window.arrix`, and
-  a test page drives the app through its exports (`debug_state()`, the
-  backend drawn on), since a page can't click egui.
+  a test page drives the app through its exports, since a page can't
+  click egui: `debug_state()`, the backend drawn on, `open_bytes` (an
+  `.arrx` as a tab), `set_param` (a parameter set as one gesture, through
+  `ArrixApp::submit`) and `eval_line` (the active tab's newest finished
+  generation's line, read from its events). Each call asks for a frame,
+  since the page draws only when something asks.
+- **A tab's session** is `WebSession` (`docs/CONCURRENCY-WASM.md` §The
+  browser build): the authority on the main thread, each document's
+  evaluator in its own worker. On a page that is not cross-origin
+  isolated, the first document opened has the status line say that
+  evaluation can't be interrupted there (`arrix_app::UNINTERRUPTIBLE`),
+  once.
 - **The evaluator's worker** (`web/worker.js`) calls `run_evaluator`,
   which runs `arrix-doc`'s evaluator on the app's Tier 0 registry
   (`commands::feature_types`). It keeps the messages that come while the
@@ -905,7 +915,8 @@ wasm32 as a cdylib, is one module that two entry points load:
 `wasm-bindgen --target web`, then `web/` beside), and `scripts/web-serve`
 serves that with COOP `same-origin` and COEP `require-corp` (or without,
 `--unisolated`). The browser test `--test web_app` builds the same way
-(`arrix_web_test::build_lib`) and reads `debug_state()` from the page.
+(`arrix_web_test::build_lib`): it reads `debug_state()` from the page,
+and opens the bracket and edits its width, isolated and not.
 
 **The renderer** is eframe's wgpu on both backends wgpu offers the web:
 WebGPU where the browser gives an adapter, else WebGL2. Headless

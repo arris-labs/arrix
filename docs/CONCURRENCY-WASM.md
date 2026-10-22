@@ -295,6 +295,18 @@ compiling; C4 makes it run.
   `arrix-plugin-host`'s `tests/web_session.rs` opens the bracket from
   `.arrx` bytes in headless Chromium, isolated and not, and hears an edit
   evaluate and mesh.
+- **The app on it** (plans/c4 step 10): a tab's session is
+  `LocalSession` natively and `WebSession` on wasm32, one type alias in
+  `arrix-app`'s `documents.rs`, both behind `Session`; nothing else in the
+  app names either. The worker's script is the one the page hands
+  `WebHandle::start`. Each tab keeps its newest finished generation's eval
+  line from its events (`ArrixApp::eval_line`), natively too, and
+  `arrix-app`'s `tests/eval_line.rs` (native) and `tests/web_app.rs`
+  (headless Chromium, isolated and not) hold it equal to `arrix eval`'s
+  golden lines for the bracket and a width edit, to the bit. On a page
+  without isolation the first document opened has the status line say
+  "Evaluation can't be interrupted on this page: it is not cross-origin
+  isolated" (`arrix_app::UNINTERRUPTIBLE`).
 - **Files** come from the browser's file APIs as bytes; there is no
   filesystem. Importers already take bytes (`docs/PLUGINS.md` §4).
 - **Plugins**: Tier 0 only, and no `PluginLoader`, so `LoadPlugin` and

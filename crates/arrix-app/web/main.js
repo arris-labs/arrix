@@ -6,7 +6,7 @@ import init, { WebHandle } from "./arrix_app.js";
 export async function start(canvas) {
   await init();
   const handle = new WebHandle();
-  await handle.start(canvas);
+  await handle.start(canvas, new URL("./worker.js", import.meta.url).href);
   window.arrix = handle;
   return handle;
 }

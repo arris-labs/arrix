@@ -19,6 +19,7 @@ mod file_import;
 mod form;
 mod form_pick;
 mod gestures;
+mod heard_line;
 mod joint_drag;
 mod joint_drag_app;
 mod joint_form;
@@ -97,7 +98,15 @@ struct Session {
     /// Why the feature whose badge the pointer is over is frozen, as of the
     /// last frame: the status line's hint.
     badge_hover: Option<String>,
+    /// Whether the status line has said that evaluation can't be
+    /// interrupted on this page: it says so once (ADR-0042).
+    said_uninterruptible: bool,
 }
+
+/// What the status line says, once, when a document opens on a page that
+/// is not cross-origin isolated (ADR-0042 §Without isolation).
+pub const UNINTERRUPTIBLE: &str =
+    "Evaluation can't be interrupted on this page: it is not cross-origin isolated";
 
 /// A seed for the id minter: the clock, which a session's ids need only to
 /// differ from the last session's, whose ids a document may hold.
@@ -251,6 +260,7 @@ impl ArrixApp {
                 shift: false,
                 wake_at: None,
                 badge_hover: None,
+                said_uninterruptible: false,
             },
             drawn: None,
             renderer: render_state.map(|rs| Renderer::new(&rs.device, rs.target_format)),
@@ -308,9 +318,27 @@ impl ArrixApp {
             .unwrap_or(path);
         self.take_in_plugins(&registry);
         let document = OpenDocument::open(title, path, source, registry)?;
+        self.show_document(document);
+        Ok(())
+    }
+
+    /// The shown document's newest finished generation's eval line, as
+    /// `arrix eval` prints it, read from its session's events alone
+    /// (`Evaluation::heard`); `None` before one has finished.
+    pub fn eval_line(&self) -> Option<arrix_doc::EvalLine> {
+        Some(self.active_document()?.eval_line()?.1.clone())
+    }
+
+    /// Adds `document` as the last tab and shows it. The first whose
+    /// evaluation can't be interrupted (a browser page without isolation)
+    /// has the status line say so.
+    fn show_document(&mut self, document: OpenDocument) {
+        if !document.interruptible() && !self.session.said_uninterruptible {
+            self.session.said_uninterruptible = true;
+            self.session.notice = Some(UNINTERRUPTIBLE.to_owned());
+        }
         self.documents.push(document);
         self.active = self.documents.len() - 1;
-        Ok(())
     }
 
     /// The feature types and commands `registry` holds that the app does not
@@ -398,10 +426,7 @@ impl ArrixApp {
     fn new_document(&mut self) {
         let n = self.documents.len() + 1;
         match OpenDocument::empty(&format!("Untitled {n}"), commands::feature_types()) {
-            Ok(document) => {
-                self.documents.push(document);
-                self.active = self.documents.len() - 1;
-            }
+            Ok(document) => self.show_document(document),
             Err(reason) => self.session.notice = Some(reason),
         }
     }

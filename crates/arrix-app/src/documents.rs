@@ -1,4 +1,4 @@
-//! The open documents: each one a [`LocalSession`], the replica of its
+//! The open documents: each one a [`DocSession`], the replica of its
 //! applied stream, and the scene and camera it is looked at through
 //! (docs/UI-RENDERING.md §The shell; the viewport's state is session state,
 //! SEED.md §6.1 rule 4).
@@ -13,8 +13,7 @@ use arrix_core::{
 };
 use arrix_doc::{
     AuthorId, Command, CommandEnvelope, Document, DocumentSource, EventStream, FeatureOutcome,
-    FrozenInfo, FrozenReason, Generation, LocalSession, Outcome, Registry, Replica, Session,
-    SessionEvent,
+    FrozenInfo, FrozenReason, Generation, Outcome, Registry, Replica, Session, SessionEvent,
 };
 use arrix_ui::{FeatureState, TreeFeature, TreePart, TreeView};
 use arrix_viewport::{BodyKey, GpuMesh, Hit, OrbitCamera, PendingPick, Renderer, Scene};
@@ -25,6 +24,24 @@ use web_time::Instant;
 /// published, so this only has to outlast a hop between threads and a busy
 /// machine; the wall clock, since egui's can run ahead of it in a test.
 const NO_BODIES_AFTER: Duration = Duration::from_secs(1);
+
+/// The session a tab holds: its evaluator on the executor's thread
+/// natively, and in a web worker on wasm32, where the authority stays on
+/// the page's main thread (ADR-0042).
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) type DocSession = arrix_doc::LocalSession;
+#[cfg(target_arch = "wasm32")]
+pub(crate) type DocSession = arrix_doc::WebSession;
+
+#[cfg(not(target_arch = "wasm32"))]
+fn start_session(document: Document, registry: Registry) -> Result<DocSession, String> {
+    DocSession::open(document, registry).map_err(|e| e.to_string())
+}
+
+#[cfg(target_arch = "wasm32")]
+fn start_session(document: Document, registry: Registry) -> Result<DocSession, String> {
+    DocSession::open(document, registry, &crate::web::worker_script()).map_err(|e| format!("{e:?}"))
+}
 
 /// The local user, as the authority knows them: undo is per author
 /// (SEED.md §6.1), and in local mode there is one.
@@ -224,7 +241,9 @@ pub struct OpenDocument {
     /// (ADR-0017), and stay with the tab.
     pub cards: CardToggles,
     events: EventStream,
-    _session: LocalSession,
+    _session: DocSession,
+    /// The newest finished generation's eval line, read from the events.
+    heard_line: crate::heard_line::HeardLine,
     /// The feature types the session has said it loaded or dropped
     /// (ADR-0024), until the app takes them (`take_type_changes`).
     type_changes: TypeChanges,
@@ -327,7 +346,7 @@ impl OpenDocument {
         document: Document,
         registry: Registry,
     ) -> Result<Self, String> {
-        let session = LocalSession::open(document, registry)
+        let session = start_session(document, registry)
             .map_err(|e| format!("{path}: the session does not start: {e}"))?;
         Ok(Self {
             title: title.to_owned(),
@@ -335,6 +354,7 @@ impl OpenDocument {
             cards: CardToggles::default(),
             events: session.subscribe(),
             _session: session,
+            heard_line: Default::default(),
             replica: Replica::default(),
             view: ViewState::default(),
             sketch: None,
@@ -365,8 +385,24 @@ impl OpenDocument {
     }
 
     /// The session the tab's requests go to.
-    pub(crate) fn session(&self) -> &LocalSession {
+    pub(crate) fn session(&self) -> &DocSession {
         &self._session
+    }
+
+    /// Whether a commit stops a superseded evaluation inside its kernel
+    /// call: always natively, and on wasm32 only on a cross-origin-isolated
+    /// page (ADR-0042 §Without isolation).
+    pub fn interruptible(&self) -> bool {
+        #[cfg(target_arch = "wasm32")]
+        return self._session.interruptible();
+        #[cfg(not(target_arch = "wasm32"))]
+        true
+    }
+
+    /// The newest finished generation and its eval line, as `arrix eval`
+    /// prints it, read from the session's events (`Evaluation::heard`).
+    pub fn eval_line(&self) -> Option<&(Generation, arrix_doc::EvalLine)> {
+        self.heard_line.line()
     }
 
     /// How many commands the authority has applied for this tab's author,
@@ -501,6 +537,18 @@ impl OpenDocument {
             self.broken = true;
             return;
         }
+        // Named as `arrix eval` names it: by the path it was opened from.
+        let name = if self.path.is_empty() {
+            &self.title
+        } else {
+            &self.path
+        };
+        self.heard_line.receive(
+            event,
+            name,
+            self.replica.document(),
+            self.replica.generation(),
+        );
         match event {
             SessionEvent::Finished { generation, .. } => {
                 self.finished_at = Some((*generation, Instant::now()));
