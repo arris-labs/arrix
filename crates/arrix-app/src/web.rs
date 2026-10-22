@@ -161,6 +161,44 @@ impl WebHandle {
         self.with_app(|app| app.save_download())?.map_err(error)
     }
 
+    /// The active document's generation as the app has heard it: the one a
+    /// `set_param` just made.
+    pub fn generation(&self) -> Option<u64> {
+        self.pumped(|app| app.active_document().map(|d| d.replica.generation().0))
+            .ok()
+            .flatten()
+    }
+
+    /// Whether the active document's `generation` has evaluated its
+    /// feature called `name` (any, when empty). Hears what the session has
+    /// said first, rather than at the next frame, so a page can time it.
+    pub fn evaluated(&self, generation: u64, name: &str) -> bool {
+        let generation = arrix_doc::Generation(generation);
+        self.pumped(|app| {
+            app.active_document()
+                .is_some_and(|d| d.evaluated(generation, name))
+        })
+        .unwrap_or(false)
+    }
+
+    /// Whether the active document's `generation` has finished, as
+    /// [`Self::evaluated`] hears it.
+    pub fn finished(&self, generation: u64) -> bool {
+        let generation = arrix_doc::Generation(generation);
+        self.pumped(|app| {
+            app.active_document()
+                .is_some_and(|d| d.finished_generation(generation))
+        })
+        .unwrap_or(false)
+    }
+
+    /// Whether a commit stops a superseded evaluation inside its kernel
+    /// call here: the page is cross-origin isolated.
+    pub fn interruptible(&self) -> bool {
+        self.with_app(|app| app.active_document().is_some_and(|d| d.interruptible()))
+            .unwrap_or(false)
+    }
+
     /// Activates the feature `id` (its tree row, as a double-click does):
     /// the edit form opens on it, read only when its result is frozen.
     ///
@@ -183,6 +221,19 @@ impl WebHandle {
     pub fn eval_line(&self) -> Option<String> {
         let line = self.runner.app_mut::<ArrixApp>()?.eval_line()?;
         serde_json::to_string(&line).ok()
+    }
+
+    /// Runs `f` on the app after it has heard what its sessions said.
+    fn pumped<R>(&self, f: impl FnOnce(&mut ArrixApp) -> R) -> Result<R, JsValue> {
+        let ctx = self.ctx.borrow().clone();
+        let mut app = self
+            .runner
+            .app_mut::<ArrixApp>()
+            .ok_or_else(|| error("the app is not running"))?;
+        if let Some(ctx) = &ctx {
+            app.pump(ctx);
+        }
+        Ok(f(&mut app))
     }
 
     /// Runs `f` on the app, then asks for a frame to show what it did.

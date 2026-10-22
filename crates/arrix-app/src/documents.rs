@@ -415,6 +415,24 @@ impl OpenDocument {
         self.heard_line.line()
     }
 
+    /// Whether the session has said that `generation` evaluated its
+    /// feature called `name`, or any feature with an empty `name`.
+    #[cfg(target_arch = "wasm32")]
+    pub fn evaluated(&self, generation: Generation, name: &str) -> bool {
+        let doc = self.replica.document();
+        doc.parts()
+            .values()
+            .flat_map(|p| p.features.values())
+            .filter(|f| name.is_empty() || f.name == name)
+            .any(|f| self.heard_line.reached(generation, f.id))
+    }
+
+    /// Whether the session has said that `generation` finished.
+    #[cfg(target_arch = "wasm32")]
+    pub fn finished_generation(&self, generation: Generation) -> bool {
+        self.heard_line.finished(generation)
+    }
+
     /// How many commands the authority has applied for this tab's author,
     /// undo and redo included: a gesture's count is the difference.
     pub fn applied(&self) -> usize {

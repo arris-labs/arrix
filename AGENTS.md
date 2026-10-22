@@ -86,7 +86,10 @@ robotics and fasteners as projects of their own; the north star runs
 - One test: `cargo nextest run -p <crate> --test <file>`. Each cycle's
   accept test is named in its `docs/ROADMAP.md` section.
 - The CLI: `cargo run -p arrix-cli -- --help`; the GUI headless: the
-  `visual-debug` skill.
+  `visual-debug` skill. The web app: `scripts/web-build` and
+  `scripts/web-serve` (`docs/UI-RENDERING.md` §The web entry); its
+  browser tests run in headless Chromium (`cargo nextest run -p arrix-app
+  --test web_app --test c4_accept`).
 - Which test is which milestone's accept, the Tier 1 build recipe and the
   golden writers that run off CI (`scripts/urdf-read`, `scripts/occt-read`):
   `docs/COMMANDS.md`.

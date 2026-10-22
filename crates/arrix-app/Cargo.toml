@@ -54,8 +54,9 @@ web-sys = { workspace = true, features = ["Blob", "Document", "Element", "HtmlAn
 egui_kittest.workspace = true
 egui-wgpu.workspace = true
 jsonschema.workspace = true
-# The web app's browser test (tests/web_app.rs, ADR-0042).
+# The web app's browser tests (tests/web_app.rs and c4_accept.rs, ADR-0042).
 arrix-web-test.workspace = true
+base64.workspace = true
 
 # Looked at on demand, compared against nothing: not run by `cargo test`.
 [[test]]

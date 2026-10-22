@@ -521,6 +521,13 @@ impl ArrixApp {
         }
     }
 
+    /// [`Self::drain_documents`] outside a frame: how a page that times
+    /// what the sessions say hears it without waiting for the next one.
+    #[cfg(target_arch = "wasm32")]
+    pub(crate) fn pump(&mut self, ctx: &egui::Context) {
+        self.drain_documents(ctx);
+    }
+
     /// Takes in what each session has said since the last frame. A document
     /// still waiting for its meshes asks for another frame soon; one that
     /// has said everything does not, so an idle app does not repaint.

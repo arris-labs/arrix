@@ -32,8 +32,12 @@ Every `cargo test -p x --test y` below runs as well as `cargo nextest run
   prints a load's cost, Arris's steps and the stop's latency. The web
   session of step 7: `cargo test -p arrix-plugin-host --test web_session`;
   its cancellation of step 8, which prints the latency: `--test web_cancel
-  -- --nocapture`. The web app of step 9: `cargo test -p arrix-app --test
-  web_app`.
+  -- --nocapture`. The web app of steps 9 to 12: `cargo test -p arrix-app
+  --test web_app`. `cargo test -p arrix-app --test c4_accept --
+  --nocapture` is C4's accept: the bracket's edit equals `arrix eval`'s to
+  the bit, the stop of a superseded evaluation is gated at 50 ms (it
+  prints the samples), a plugin the page lacks leaves a feature frozen
+  with its bodies, and the saved download opens natively to native's line.
 - The web app by hand (`docs/UI-RENDERING.md` §The web entry):
   `scripts/web-build [--release]` builds it into `target/web`, and
   `scripts/web-serve [--port N] [--unisolated]` serves it on

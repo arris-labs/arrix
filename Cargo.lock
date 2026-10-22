@@ -432,6 +432,7 @@ dependencies = [
  "arrix-ui",
  "arrix-viewport",
  "arrix-web-test",
+ "base64",
  "clap",
  "eframe",
  "egui",

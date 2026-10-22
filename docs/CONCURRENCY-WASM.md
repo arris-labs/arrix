@@ -328,7 +328,7 @@ written here; a missed one stays a target and a backlog line.
 | A UI frame dragging a joint, the accept's assembly on screen | ≤ 16 ms, on the UI thread; gated, measured 0.22 ms median |
 | One inference verdict (`check_candidate`) on a drawn part's sketch | inside the frame, on the UI thread; measured 0.1–0.6 ms median |
 | First coarse mesh after a parameter edit of the acceptance part | ≤ 150 ms; missed, measured 324 ms median |
-| Cancellation latency | ≤ 50 ms; gated, measured 10 ms median natively and 9 ms in the browser (isolated page) |
+| Cancellation latency | ≤ 50 ms; gated, measured 10 ms median natively, 9 ms in the browser (isolated page) and 16 to 19 ms in the web app |
 | Save and load of the acceptance document | ≤ 100 ms each; gated, measured under 0.5 ms |
 | `arrix eval` throughput over the scenario documents | reported, no target yet; 6.9 documents a second, 21 with `--jobs 4` |
 
@@ -405,6 +405,13 @@ commit leaves the commit alone and runs behind it; a commit posted during a
 preview stops it, and the preview is never heard. On a page without
 isolation the stale evaluation runs to its end: the newer generation's
 first event comes about 320 ms after the edit, and it still finishes.
+In the web app itself (`cargo test -p arrix-app --test c4_accept --
+--nocapture`, C4's accept), the same edit, made through the handle's
+`set_param`, hears the newer generation's first event 16 to 19 ms later at
+the median over 11 runs (three runs: 17.9, 15.7, 18.5), with a run in five
+or six at 52 to 57 ms. The app hears the session's events when the page
+asks (the handle drains them), not at its next frame, which would add the
+frame's cost in a software-rendered tab. The gate is the median.
 `arrix eval tests/docs` (nine documents) takes 1.30 s on one thread and
 0.43 s with `--jobs 4`.
 
