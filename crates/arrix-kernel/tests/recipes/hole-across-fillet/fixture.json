@@ -1,5 +1,5 @@
 {
-  "description": "ArriX's kernel call 3 (cut) on arris 0.8.0, which failed as kernel.internal.split: the call and every call that made its operands, one step each named c<call>, exported from their records. Lengths in metres.",
+  "description": "ArriX's kernel call 3 (cut) on arris 0.9.0, which failed as kernel.internal.split: the call and every call that made its operands, one step each named c<call>, exported from their records. Lengths in metres.",
   "steps": [
     {
       "op": "profile",

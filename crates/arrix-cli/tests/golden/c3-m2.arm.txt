@@ -58,7 +58,7 @@
     <inertial>
       <origin xyz="-0.000104852063 0 0.00439995817" rpy="0 0 0"/>
       <mass value="0.022651381191382162"/>
-      <inertia ixx="1.6490462242037353e-6" ixy="0" ixz="-4.512484340472145e-9" iyy="2.5605465792903557e-6" iyz="0" izz="3.6762343451089594e-6"/>
+      <inertia ixx="1.6490462242037351e-6" ixy="0" ixz="-4.5124843404721e-9" iyy="2.560546579290356e-6" iyz="0" izz="3.6762343451089602e-6"/>
     </inertial>
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
@@ -139,8 +139,8 @@
 </robot>
 
 meshes (bytes, blake3):
-  meshes/Bracket.stl 97684 b0f8bbda15e551ab4a9f2a3600dbfd119fccf7820da21aabadf45c0cd6a05634
-  meshes/Horn.stl 14084 c42d4828e4b71356c735c8cdba7952b491c476f8cc400d45265ede00530bbdca
-  meshes/Screw.stl 18084 fff875a3d10c890da6a3af95f9b234e5d2862f7af0d2df30ad2f4358e360b828
-  meshes/Servo.stl 19084 92f8c00a1efdef49dd20f2a8b4eda358f7bae7a87ddcb8b9fa8c33139a9eb9b2
-  meshes/Vendor.stl 688984 c1a3d94c5fc95c97b791dd7f2150db677f8974fa32cbaf598599ed16821a4467
+  meshes/Bracket.stl 97684 e0bd9ca491613332ae09eeb717e953e4f43764b29d991acf3d22796d38735359
+  meshes/Horn.stl 14084 7d00ba524e330515fdb027dc57822147ddd91b4ff39f0256c2f9eee18b4f470c
+  meshes/Screw.stl 18084 a76ddcec0f3dc2fd095490db06d5bd9575666ce8ec07a4814c3c5e3c0c722c66
+  meshes/Servo.stl 19084 b95ee289c57b814b04f757fac57dc27fe1598e355ad8817bd34aae47178e6d11
+  meshes/Vendor.stl 688984 14b98c5238f92d616beb64f862de6d75f15b7f286059c557aa91e9934e00b55b

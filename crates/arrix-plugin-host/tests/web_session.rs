@@ -11,8 +11,7 @@
 //! the worker; served without, it has none and still evaluates.
 //!
 //! Bit equality with native `arrix eval` is the accept's (plans/c4
-//! Acceptance 1), and waits on Arris for a document with a gear
-//! (`tests/wasm_determinism.rs`).
+//! Acceptance 1; `tests/wasm_determinism.rs` holds it without a page).
 //!
 //! `cargo test -p arrix-plugin-host --test web_session`; skips loudly
 //! without Chromium.

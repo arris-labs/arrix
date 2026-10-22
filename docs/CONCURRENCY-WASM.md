@@ -136,15 +136,12 @@ stand on it.
   IEEE 754 and need nothing.
 - **Measured on wasm32** (plans/c4 step 2): every document under
   `tests/docs`, evaluated under Node, prints `arrix eval`'s native line to
-  the bit, except each document with a gear. Arris builds the gear's
-  extrude, a profile of three-point arcs whose bits are the same on both
-  targets, into a body that differs in the last place (its volume
-  `…476e-6` natively, `…4763e-6` on wasm32), and every body made from it
-  differs. Holes, fillets, booleans, imports and mass properties of the
-  other bodies agree. This is Arris's to fix, recipe
-  `crates/arrix-kernel/tests/recipes/gear-extrude-on-wasm32`; the test,
-  `arrix-plugin-host`'s `wasm_determinism`, requires those lines to
-  differ until a release builds them alike, and has no tolerance.
+  the bit, and so does each point of a sweep of the bracket's width;
+  `arrix-plugin-host`'s `wasm_determinism` holds it, with no tolerance.
+  Under arris 0.8 each document with a gear differed in the last place:
+  its extrude's three-point arcs took their sweeps from `f64::atan2`,
+  glibc's natively and Rust's `libm` on wasm32. Arris 0.9 runs its
+  transcendentals on one `libm` on every target (`arris_math::real`).
 - An export is the same: a pure function of the snapshot and its options,
   run twice by the test kit and identical to the byte at every tier
   (ADR-0037; `robotics.urdf` at Tier 0 and as a component, `--test c3_m2`).

@@ -42,7 +42,7 @@ dependency standing in for the published crate; the binaries still compile
 it in by path. Its fixtures are in its own
 directory, so it needs nothing else in the tree. External versions are
 pinned once, in the root `Cargo.toml`'s `[workspace.dependencies]`:
-`arris` 0.8, and one egui minor for `egui`, `eframe`, `egui-wgpu` and the
+`arris` 0.9, and one egui minor for `egui`, `eframe`, `egui-wgpu` and the
 dev-only `egui_kittest` (0.36). The table's externals not yet in a
 manifest (`wgpu` directly)
 join with the code that needs them; `miniz_oxide` (0.9, deflate, no default
@@ -665,10 +665,15 @@ A step blocked on an ask names it and waits.
 | A5 | `region2` as public API | C1–C2: sketch regions | open; the ported arrangement is used |
 | A6, A7 | the query cycle; the sweep and healing cycles (A7's shell and offset are in 0.6.0) | C2 and later | open |
 
-The pin is `arris` 0.8 (taken in C2 M3: `ReadOptions` gains `heal`, left
+The pin is `arris` 0.9 (taken in C4: a body built on wasm32 is the
+same bits as natively, its transcendentals on one `libm`, which closed
+the gear's difference C4's step 2 found; `OpError` gains `Path` and
+`Loft`, keyed `kernel.path` and `kernel.loft`; native results moved in
+the last place, and the recorded version changes every stored input
+hash). Before it, 0.8 (taken in C2 M3: `ReadOptions` gains `heal`, left
 at its default, the reader healing small gaps and turned faces and naming
 each in `ReadBody::healing`; a surface model reads as a `Sheet`, refused at
-import as `kernel.import.sheet`; `write_with` declares metres). Before it,
+import as `kernel.import.sheet`; `write_with` declares metres), and before that
 0.6 (taken after C1: `Reason` is grouped, and `arrix-kernel` keys a refusal
 on the leaf's `Reason::name`).
 

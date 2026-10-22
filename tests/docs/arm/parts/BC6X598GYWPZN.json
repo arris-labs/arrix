@@ -233,11 +233,11 @@
     },
     "D04J62MBR1BVY": {
       "frozen": {
-        "input_hash": "8eeae7af2e78589e08cfeffd3faaabd01aec21d612c5360bd5d3b4e08f0a9b63",
+        "input_hash": "cb4138017415f52149ea868aabf81ad10cddd6bc49e9edba1b9388e022204d74",
         "names": "fe90a7b10a9ec38679dff7cae1586ff461d833aa425d8171a5ee151521002e5b.json",
         "plugin_version": "0.1.0",
         "slots": {
-          "body": "0381fee6ff00159503bc77f1bef5338d917ec30800d221a12c1f90060de6ba4c.arrisbody"
+          "body": "90805bf73622805bcb42a733e28d56f928bc6ab45326c5e058837a754b7e220e.arrisbody"
         }
       },
       "id": "D04J62MBR1BVY",

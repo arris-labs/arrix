@@ -2,15 +2,9 @@
 //! docs/CONCURRENCY-WASM.md §Determinism): every document under
 //! `tests/docs`, opened from bytes and evaluated with this build's Tier 0
 //! plugins, prints `arrix eval`'s native golden line, and so does a sweep
-//! of the bracket's width, each point an edit on one evaluator.
-//!
-//! Except, for now, a document with a `gears.spur` feature: Arris builds
-//! the gear's extrude, a profile of three-point arcs, into a body that is
-//! not the same bits on wasm32 as natively, though its inputs are
-//! (`crates/arrix-kernel/tests/recipes/gear-extrude-on-wasm32`,
-//! `docs/BACKLOG.md`). Such a line must still differ, so an Arris release
-//! that fixes it turns this red and the exception is deleted; no tolerance
-//! stands in for it.
+//! of the bracket's width, each point an edit on one evaluator. No
+//! tolerance: since arris 0.9 the gear's three-point arcs, whose sweeps
+//! differed in the last place under 0.8, build the same bits too.
 //!
 //! Run under Node by `wasm-bindgen-test-runner` (.cargo/config.toml):
 //! `cargo test --target wasm32-unknown-unknown -p arrix-plugin-host --test
@@ -88,27 +82,9 @@ fn doc_of(line: &str) -> String {
         .to_owned()
 }
 
-/// Whether the line's document has a gear, whose body differs on wasm32
-/// until Arris builds it as natively (the module's comment).
-fn waits_on_arris(line: &str) -> bool {
-    let v: serde_json::Value = serde_json::from_str(line).expect("a golden line is JSON");
-    v["features"]
-        .as_array()
-        .expect("a line lists its features")
-        .iter()
-        .any(|f| f["type"] == "gears.spur")
-}
-
 /// What is wrong with `got` against the native `want`, if anything.
 fn mismatch(what: &str, got: &str, want: &str) -> Option<String> {
-    match (got == want, waits_on_arris(want)) {
-        (true, false) | (false, true) => None,
-        (false, false) => Some(format!("{what}\n  native: {want}\n  wasm32: {got}")),
-        (true, true) => Some(format!(
-            "{what} now equals native: Arris builds the gear as natively, so delete \
-             waits_on_arris, the recipe gear-extrude-on-wasm32 and its backlog line"
-        )),
-    }
+    (got != want).then(|| format!("{what}\n  native: {want}\n  wasm32: {got}"))
 }
 
 #[wasm_bindgen_test]

@@ -210,6 +210,8 @@ fn category(e: &OpError) -> String {
         OpError::Unsupported { .. } => "kernel.unsupported".into(),
         OpError::Degenerate { reason, .. } => format!("kernel.degenerate.{}", reason_word(reason)),
         OpError::Profile(_) => "kernel.profile".into(),
+        OpError::Path(_) => "kernel.path".into(),
+        OpError::Loft(_) => "kernel.loft".into(),
         OpError::Tolerance { .. } => "kernel.tolerance".into(),
         OpError::NotFound(_) => "kernel.not-found".into(),
         OpError::Internal(fault) => format!("kernel.internal.{}", fault_word(fault)),
