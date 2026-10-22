@@ -40,12 +40,22 @@ clap.workspace = true
 pollster.workspace = true
 image.workspace = true
 
+# The web entry (src/web.rs, ADR-0042): the page's handle and the
+# evaluator's worker, exported through `wasm-bindgen`.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen.workspace = true
+wasm-bindgen-futures.workspace = true
+js-sys.workspace = true
+web-sys = { workspace = true, features = ["HtmlCanvasElement"] }
+
 # The visual scenarios and the scratch render (tests/visual/): native and
 # dev-only, never in the shipped binary or the wasm build.
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 egui_kittest.workspace = true
 egui-wgpu.workspace = true
 jsonschema.workspace = true
+# The web app's browser test (tests/web_app.rs, ADR-0042).
+arrix-web-test.workspace = true
 
 # Looked at on demand, compared against nothing: not run by `cargo test`.
 [[test]]

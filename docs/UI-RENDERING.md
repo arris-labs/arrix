@@ -884,6 +884,40 @@ draws). Ported, reviewed on the way in (`SEED.md` §8.1).
   feature has one: failed, suppressed and rolled-back features show in the
   tree alone, and the preview's bodies have none.
 
+## The web entry
+
+Built in C4 (ADR-0042, plans/c4 step 9). `arrix-app`'s library, built for
+wasm32 as a cdylib, is one module that two entry points load:
+
+- **The page** (`crates/arrix-app/web/index.html` and `main.js`) makes a
+  `WebHandle` (`src/web.rs`), which starts the app on eframe's
+  `WebRunner` on the page's canvas, on the built-in configuration: the
+  page has no config files (ADR-0015). The handle is `window.arrix`, and
+  a test page drives the app through its exports (`debug_state()`, the
+  backend drawn on), since a page can't click egui.
+- **The evaluator's worker** (`web/worker.js`) calls `run_evaluator`,
+  which runs `arrix-doc`'s evaluator on the app's Tier 0 registry
+  (`commands::feature_types`). It keeps the messages that come while the
+  module loads and hands them over in order.
+
+`scripts/web-build` builds it into `target/web` (`cargo rustc --lib
+--crate-type cdylib`, so a native build links no cdylib, then
+`wasm-bindgen --target web`, then `web/` beside), and `scripts/web-serve`
+serves that with COOP `same-origin` and COEP `require-corp` (or without,
+`--unisolated`). The browser test `--test web_app` builds the same way
+(`arrix_web_test::build_lib`) and reads `debug_state()` from the page.
+
+**The renderer** is eframe's wgpu on both backends wgpu offers the web:
+WebGPU where the browser gives an adapter, else WebGL2. Headless
+Chromium under the harness (`--disable-gpu`) has `navigator.gpu` but no
+adapter, so the viewport draws through WebGL2 there, and so it does on
+this development machine even with `--enable-unsafe-webgpu`. A desktop
+browser with WebGPU lands on WebGPU. Since the tests draw through WebGL2
+and nobody would see a WGSL shader that WebGPU takes and WebGL2 does not,
+`arrix-viewport`'s `tests/webgl2_shaders.rs` translates every viewport
+shader to GLSL ES 3.0 through wgpu's own `naga`, natively, as wgpu's GL
+backend does when it makes a pipeline.
+
 ## Visual debugging
 
 The agent looks at the UI itself, headless; the human is never asked to

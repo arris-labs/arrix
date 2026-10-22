@@ -431,17 +431,22 @@ dependencies = [
  "arrix-sketch",
  "arrix-ui",
  "arrix-viewport",
+ "arrix-web-test",
  "clap",
  "eframe",
  "egui",
  "egui-wgpu",
  "egui_kittest",
  "image",
+ "js-sys",
  "jsonschema",
  "pollster 1.0.1",
  "rfd",
  "serde",
  "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
  "web-time",
 ]
 
@@ -636,6 +641,7 @@ dependencies = [
  "egui",
  "egui-wgpu",
  "glam 0.33.10",
+ "naga",
  "web-time",
 ]
 

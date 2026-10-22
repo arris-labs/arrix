@@ -96,6 +96,29 @@ pub fn build_example(package: &str, example: &str, out: &Path) {
         .arg(&wasm));
 }
 
+/// Builds `package`'s library for wasm32 as a cdylib (`cargo rustc --lib
+/// --crate-type cdylib`, so its native builds link none) and runs
+/// `wasm-bindgen --target web` on it into `out`, as `<crate>.js` and
+/// `<crate>_bg.wasm`: `scripts/web-build`'s recipe.
+///
+/// # Panics
+///
+/// When either command fails.
+pub fn build_lib(package: &str, out: &Path) {
+    let cargo = env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
+    run(Command::new(cargo)
+        .current_dir(workspace_root())
+        .args(["rustc", "--target", "wasm32-unknown-unknown", "-p", package])
+        .args(["--lib", "--crate-type", "cdylib"]));
+    let wasm = target_dir()
+        .join("wasm32-unknown-unknown/debug")
+        .join(format!("{}.wasm", package.replace('-', "_")));
+    run(Command::new("wasm-bindgen")
+        .args(["--target", "web", "--no-typescript", "--out-dir"])
+        .arg(out)
+        .arg(&wasm));
+}
+
 fn run(command: &mut Command) {
     let status = command
         .status()

@@ -16,3 +16,7 @@ egui.workspace = true
 egui-wgpu.workspace = true
 glam.workspace = true
 web-time.workspace = true
+
+# The WebGL2 fallback's shaders, checked natively (tests/webgl2_shaders.rs).
+[dev-dependencies]
+naga.workspace = true

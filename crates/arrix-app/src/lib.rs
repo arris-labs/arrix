@@ -40,6 +40,8 @@ mod sketch_view;
 mod theme;
 mod tree_assembly;
 mod viewport;
+#[cfg(target_arch = "wasm32")]
+pub mod web;
 
 pub use debug::DebugState;
 pub use file_dialog::{NativeDialog, OpenDialog, SaveDialog};
@@ -1132,6 +1134,12 @@ fn remove_plugins(registry: &mut arrix_doc::Registry, without: &[&str]) -> Resul
 impl eframe::App for ArrixApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.show(ui);
+    }
+
+    /// The page's handle reaches the app through this (`web::WebHandle`).
+    #[cfg(target_arch = "wasm32")]
+    fn as_any_mut(&mut self) -> Option<&mut dyn std::any::Any> {
+        Some(&mut *self)
     }
 }
 

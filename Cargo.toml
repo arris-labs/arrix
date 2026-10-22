@@ -120,6 +120,8 @@ wasm-encoder = "0.258"
 wasm-bindgen = "=0.2.129"
 wasm-bindgen-test = "0.3"
 js-sys = "0.3"
+# `#[wasm_bindgen] async fn`, the app's web entry (crates/arrix-app/src/web.rs).
+wasm-bindgen-futures = "0.4"
 # The web session (ADR-0042, `arrix-doc`'s `session/web.rs`, wasm32 only):
 # the evaluator's worker and its messages.
 web-sys = { version = "0.3", features = ["console", "DedicatedWorkerGlobalScope", "MessageEvent", "Worker", "WorkerGlobalScope", "WorkerOptions", "WorkerType"] }
@@ -134,6 +136,11 @@ regex = "1"
 # round-trip tests hold them to (dev-only; no fetching of remote schemas).
 schemars = { version = "1.2", features = ["semver1"] }
 jsonschema = { version = "0.58", default-features = false }
+
+# The viewport's WGSL translated to GLSL ES 3.0 as wgpu's WebGL2 backend
+# does (crates/arrix-viewport/tests/webgl2_shaders.rs, plans/c4 step 9):
+# wgpu's own `naga`, dev-only.
+naga = { version = "30", default-features = false, features = ["wgsl-in", "glsl-out"] }
 
 # The headless visual harness (docs/UI-RENDERING.md §Visual debugging):
 # drives the real eframe app and renders through wgpu, preferring a CPU

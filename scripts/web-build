@@ -1,0 +1,27 @@
+#!/bin/sh
+# Builds the web app (ADR-0042, docs/UI-RENDERING.md §The web entry) into
+# <target>/web: `arrix-app`'s library as a cdylib for wasm32 (`cargo rustc
+# --crate-type cdylib`, so native builds link none), `wasm-bindgen --target
+# web` on it, and the page beside (crates/arrix-app/web). `scripts/web-serve`
+# serves the result. The browser tests build the same way
+# (`arrix_web_test::build_lib`).
+#
+# Usage:
+#     scripts/web-build [--release]
+set -e
+cd "$(git rev-parse --show-toplevel)"
+profile=debug
+case "$1" in
+    "") ;;
+    --release) profile=release ;;
+    *) echo "usage: scripts/web-build [--release]" >&2; exit 2 ;;
+esac
+command -v wasm-bindgen >/dev/null || { echo "web-build: wasm-bindgen-cli is missing: cargo install wasm-bindgen-cli --version '=0.2.129' --locked" >&2; exit 1; }
+target="${CARGO_TARGET_DIR:-target}"
+cargo rustc ${1:+--release} --target wasm32-unknown-unknown -p arrix-app --lib --crate-type cdylib
+out="$target/web"
+rm -rf "$out"
+mkdir -p "$out"
+wasm-bindgen --target web --no-typescript --out-dir "$out" "$target/wasm32-unknown-unknown/$profile/arrix_app.wasm"
+cp crates/arrix-app/web/* "$out/"
+echo "web-build: $out (scripts/web-serve serves it)"

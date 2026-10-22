@@ -32,7 +32,12 @@ Every `cargo test -p x --test y` below runs as well as `cargo nextest run
   prints a load's cost, Arris's steps and the stop's latency. The web
   session of step 7: `cargo test -p arrix-plugin-host --test web_session`;
   its cancellation of step 8, which prints the latency: `--test web_cancel
-  -- --nocapture`.
+  -- --nocapture`. The web app of step 9: `cargo test -p arrix-app --test
+  web_app`.
+- The web app by hand (`docs/UI-RENDERING.md` §The web entry):
+  `scripts/web-build [--release]` builds it into `target/web`, and
+  `scripts/web-serve [--port N] [--unisolated]` serves it on
+  `http://127.0.0.1:8000/`, cross-origin isolated.
 - `plugins/gears` and `plugins/robotics` are Cargo workspaces of their own:
   pre-commit and the gate also run clippy, `cargo nextest run`, its doctests and the `guest` wasm32 build on
   each by `--manifest-path plugins/<name>/Cargo.toml`. `cargo test -p

@@ -69,6 +69,9 @@ ALLOWED = {
         "arrix-config",
         "arrix-gears",
         "arrix-robotics",
+        # Its web app's browser test serves the page through the harness
+        # (dev only, native).
+        "arrix-web-test",
     },
     # The CLI's Tier 0 registration list names each compiled-in plugin; its
     # scenario tests draw sketches (`arrix-sketch`, dev only).

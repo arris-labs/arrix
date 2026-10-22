@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+"""Serves the web app `scripts/web-build` made (ADR-0042) on localhost, with
+the headers that make the page cross-origin isolated (COOP `same-origin`,
+COEP `require-corp`), so the evaluator's worker shares its counters and a
+commit stops a superseded evaluation. For development; a public deployment
+is out of C4.
+
+Usage:
+    scripts/web-serve [--port N] [--unisolated] [DIR]
+
+DIR defaults to <target>/web. `--unisolated` leaves the headers out: the
+app still works, and a superseded evaluation runs to its end.
+"""
+import argparse
+import functools
+import http.server
+import os
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+
+
+class Handler(http.server.SimpleHTTPRequestHandler):
+    isolated = True
+    extensions_map = {
+        **http.server.SimpleHTTPRequestHandler.extensions_map,
+        ".js": "text/javascript",
+        ".wasm": "application/wasm",
+    }
+
+    def end_headers(self):
+        if self.isolated:
+            self.send_header("Cross-Origin-Opener-Policy", "same-origin")
+            self.send_header("Cross-Origin-Embedder-Policy", "require-corp")
+        self.send_header("Cache-Control", "no-store")
+        super().end_headers()
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("dir", nargs="?", type=Path)
+    parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--unisolated", action="store_true")
+    args = parser.parse_args()
+    target = Path(os.environ.get("CARGO_TARGET_DIR", ROOT / "target"))
+    directory = args.dir or (target if target.is_absolute() else ROOT / target) / "web"
+    if not (directory / "index.html").is_file():
+        sys.exit(f"web-serve: no index.html in {directory}; run scripts/web-build")
+    Handler.isolated = not args.unisolated
+    handler = functools.partial(Handler, directory=str(directory))
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", args.port), handler)
+    kind = "unisolated" if args.unisolated else "cross-origin isolated"
+    print(f"web-serve: http://127.0.0.1:{args.port}/ ({kind}), from {directory}")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+
+
+if __name__ == "__main__":
+    main()
