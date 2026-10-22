@@ -31,6 +31,12 @@ impl Exports {
         }
     }
 
+    /// Whether a request is asked and its file not yet heard: the app keeps
+    /// drawing frames until it is, since the answer wakes nothing.
+    pub(crate) fn pending(&self) -> bool {
+        !self.waiting.is_empty()
+    }
+
     fn take(&mut self) -> Vec<(PathBuf, Result<Vec<u8>, Diagnostic>)> {
         std::mem::take(&mut self.heard)
     }
@@ -87,7 +93,10 @@ impl ArrixApp {
         let Some(document) = self.documents.get(self.active) else {
             return;
         };
-        let name = format!("{}.step", document.title.replace(' ', "-").to_lowercase());
+        let stem = std::path::Path::new(&document.title)
+            .file_stem()
+            .map_or_else(|| "document".into(), |s| s.to_string_lossy().into_owned());
+        let name = format!("{}.step", stem.replace(' ', "-").to_lowercase());
         let Some(path) = self.dialog.choose(&name) else {
             return;
         };

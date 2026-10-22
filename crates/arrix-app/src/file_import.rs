@@ -37,6 +37,13 @@ impl Imports {
     }
 }
 
+impl Imports {
+    /// Whether a tree is asked and not yet heard (see `Exports::pending`).
+    pub(crate) fn pending(&self) -> bool {
+        !self.waiting.is_empty()
+    }
+}
+
 impl OpenDocument {
     fn request_tree(&mut self, file_name: String, bytes: Vec<u8>) -> Result<(), String> {
         let tag = self.imports.next;
@@ -57,6 +64,20 @@ impl ArrixApp {
     /// Replaces the dialog the import asks (a scenario answers it).
     pub fn set_open_dialog(&mut self, dialog: Box<dyn crate::file_dialog::OpenDialog>) {
         self.open_dialog = dialog;
+    }
+
+    /// Asks the shown document's session for `bytes`' tree, as a file the
+    /// browser handed over (`web_files`).
+    #[cfg(target_arch = "wasm32")]
+    pub(crate) fn request_import(
+        &mut self,
+        file_name: String,
+        bytes: Vec<u8>,
+    ) -> Result<(), String> {
+        self.documents
+            .get_mut(self.active)
+            .ok_or_else(|| format!("{file_name}: open a document to import into"))?
+            .request_tree(file_name, bytes)
     }
 
     /// `core.import-step.create`: asks which file, then asks the session
@@ -87,7 +108,7 @@ impl ArrixApp {
     /// Turns the trees the sessions have answered into their one command
     /// each, each its own gesture; what went wrong is the notice, what was
     /// left out too.
-    pub(crate) fn finish_imports(&mut self) {
+    pub(crate) fn finish_imports(&mut self, ctx: &egui::Context) {
         let mut heard = Vec::new();
         for (index, document) in self.documents.iter_mut().enumerate() {
             heard.extend(
@@ -95,6 +116,11 @@ impl ArrixApp {
                     .into_iter()
                     .map(|(pending, tree)| (index, pending, tree)),
             );
+        }
+        // The command is heard back as an applied event on the next frame,
+        // and nothing else wakes an idle app for it.
+        if !heard.is_empty() {
+            ctx.request_repaint();
         }
         for (index, pending, tree) in heard {
             self.gesture("import tree", |app| app.apply_import(index, pending, tree));

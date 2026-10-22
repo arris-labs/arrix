@@ -43,6 +43,8 @@ mod tree_assembly;
 mod viewport;
 #[cfg(target_arch = "wasm32")]
 pub mod web;
+#[cfg(target_arch = "wasm32")]
+mod web_files;
 
 pub use debug::DebugState;
 pub use file_dialog::{NativeDialog, OpenDialog, SaveDialog};
@@ -527,11 +529,14 @@ impl ArrixApp {
         let mut waiting = false;
         for document in &mut self.documents {
             document.drain(self.renderer.as_ref());
-            waiting |= !document.settled();
+            waiting |=
+                !document.settled() || document.exports.pending() || document.imports.pending();
         }
+        #[cfg(target_arch = "wasm32")]
+        self.take_in_files(ctx);
         self.follow_registry();
         self.write_exports();
-        self.finish_imports();
+        self.finish_imports(ctx);
         self.follow_sketches();
         self.follow_forms();
         self.follow_expansions();

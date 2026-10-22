@@ -10,6 +10,9 @@
 //! width as one gesture: each generation's eval line, read from the
 //! events, is `arrix eval`'s (`crates/arrix-cli/tests/golden`).
 //!
+//! `files.js` brings files in through the page's input and by a drop on the
+//! canvas, and catches the downloads of a save and an export.
+//!
 //! `cargo test -p arrix-app --test web_app`; skips loudly without Chromium.
 #![cfg(not(target_arch = "wasm32"))]
 
@@ -33,6 +36,8 @@ fn report(page: &str, isolated: bool, test: &str) -> Option<Value> {
     copy_files(&crate_dir.join("tests/web"), &out);
     let bracket = source(&workspace_root().join("tests/docs/bracket"));
     fs::write(out.join("bracket.arrx"), to_zip(&bracket).unwrap()).unwrap();
+    let screw = workspace_root().join("tests/fixtures/step/screw.step");
+    fs::copy(screw, out.join("screw.step")).unwrap();
     let text = open(&browser, &out, page, isolated, Duration::from_secs(180));
     let report: Value = serde_json::from_str(&text).unwrap_or_else(|e| panic!("{e}: {text}"));
     assert!(
@@ -143,4 +148,32 @@ fn without_isolation_the_app_says_so_and_still_evaluates() {
     assert_eq!(r["isolated"], false, "{r}");
     assert_eq!(r["hint"], arrix_app::UNINTERRUPTIBLE, "{r}");
     heard_the_edit(&r);
+}
+
+#[test]
+fn files_come_in_as_bytes_and_go_out_as_downloads() {
+    let Some(r) = report("files.html", true, "web_app files") else {
+        return;
+    };
+    // Picked and dropped: a tab each, named for the file.
+    assert_eq!(r["picked"], json!(["bracket.arrx"]), "{r}");
+    assert_eq!(r["dropped"], json!(["bracket.arrx", "dropped.arrx"]), "{r}");
+    // A save is the document's zip; the export a STEP file of its bodies.
+    assert_eq!(r["saved"]["name"], "dropped.arrx", "{r}");
+    assert_eq!(r["saved"]["head"].as_str().unwrap()[..2], *"PK", "{r}");
+    assert!(r["saved"]["size"].as_u64().unwrap() > 1000, "{r}");
+    assert_eq!(r["exported"]["name"], "dropped.step", "{r}");
+    assert!(
+        r["exported"]["head"]
+            .as_str()
+            .unwrap()
+            .starts_with("ISO-10303-21"),
+        "{r}"
+    );
+    // A STEP file added parts, and a file of no known kind is refused aloud.
+    assert!(r["imported"].as_u64().unwrap() > 0, "{r}");
+    assert!(
+        r["refused"].as_str().unwrap().contains("open an .arrx"),
+        "{r}"
+    );
 }

@@ -897,8 +897,9 @@ wasm32 as a cdylib, is one module that two entry points load:
   click egui: `debug_state()`, the backend drawn on, `open_bytes` (an
   `.arrx` as a tab), `set_param` (a parameter set as one gesture, through
   `ArrixApp::submit`) and `eval_line` (the active tab's newest finished
-  generation's line, read from its events). Each call asks for a frame,
-  since the page draws only when something asks.
+  generation's line, read from its events), `accept_file`,
+  `save_download` and `run_command`. Each call asks for
+  a frame, since the page draws only when something asks.
 - **A tab's session** is `WebSession` (`docs/CONCURRENCY-WASM.md` §The
   browser build): the authority on the main thread, each document's
   evaluator in its own worker. On a page that is not cross-origin
@@ -909,6 +910,21 @@ wasm32 as a cdylib, is one module that two entry points load:
   which runs `arrix-doc`'s evaluator on the app's Tier 0 registry
   (`commands::feature_types`). It keeps the messages that come while the
   module loads and hands them over in order.
+
+**Files** are bytes (plans/c4 step 11, `src/web_files.rs`). A browser has
+no filesystem, so open and import come from the page's `<input type=file>`
+(`main.js` makes it; the Import command clicks it) or from files dropped
+on the canvas, which eframe hands over and the app reads asynchronously.
+Each file waits in a queue that the next frame takes in: an `.arrx` is
+opened as a tab, a `.step`/`.stp` imported into the shown document, and
+anything else is refused in the status line. Export and save are `Blob`
+downloads on a hidden `<a download>`, its object URL revoked a minute
+later. The export names its file as the tab's file stem plus `.step` and
+has no format choice there (the save dialog is native only); a save has
+no command yet, as native has none, and is the handle's `save_download`.
+An answer to an export or an import asked wakes nothing, so the app keeps
+drawing frames while one is pending, and once more after an import's
+command is applied.
 
 `scripts/web-build` builds it into `target/web` (`cargo rustc --lib
 --crate-type cdylib`, so a native build links no cdylib, then

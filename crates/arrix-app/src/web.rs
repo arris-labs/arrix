@@ -141,6 +141,32 @@ impl WebHandle {
         .map_err(error)
     }
 
+    /// Queues a file the page read (its input's, `main.js`): an `.arrx` is
+    /// opened as a tab and a STEP file imported into the shown one, by the
+    /// next frame.
+    pub fn accept_file(&self, name: String, bytes: Vec<u8>) {
+        crate::web_files::arrive(name, bytes);
+        if let Some(ctx) = &*self.ctx.borrow() {
+            ctx.request_repaint();
+        }
+    }
+
+    /// Downloads the active document as an `.arrx` (the app has no save
+    /// command yet: native has none either).
+    ///
+    /// # Errors
+    ///
+    /// The reason it was not saved.
+    pub fn save_download(&self) -> Result<(), JsValue> {
+        self.with_app(|app| app.save_download())?.map_err(error)
+    }
+
+    /// Runs the command `id` as a button or a key does: what a test page
+    /// uses for the commands that open a picker or a download.
+    pub fn run_command(&self, id: &str) -> Result<(), JsValue> {
+        self.with_app(|app| app.run(id))
+    }
+
     /// The active document's newest finished generation's eval line, as
     /// `arrix eval` prints it (JSON), read from the session's events.
     pub fn eval_line(&self) -> Option<String> {
