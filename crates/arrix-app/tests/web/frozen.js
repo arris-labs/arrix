@@ -21,7 +21,7 @@ async function opened(handle, name, bytes) {
   const end = performance.now() + TIMEOUT_MS;
   for (;;) {
     const s = state(handle);
-    const tab = s.shell.documents.tabs.find((t) => t.active);
+    const tab = s.shell?.documents.tabs.find((t) => t.active);
     if (tab?.title === name && s.evaluation?.settled) return s;
     if (performance.now() > end) throw new Error(`${name} did not settle`);
     await sleep(20);

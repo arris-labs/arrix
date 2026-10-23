@@ -96,7 +96,7 @@ async function opened(handle, name, bytes) {
   let s;
   await until(`${name} to settle`, () => {
     s = state(handle);
-    return s.shell.documents.tabs.find((t) => t.active)?.title === name && s.evaluation?.settled;
+    return s.shell?.documents.tabs.find((t) => t.active)?.title === name && s.evaluation?.settled;
   });
   return s;
 }

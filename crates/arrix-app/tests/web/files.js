@@ -37,7 +37,7 @@ async function until(what, ready) {
     const value = await ready();
     if (value) return value;
     if (performance.now() > end) {
-      throw new Error(`timed out: ${what}; the status line says: ${state(window.arrix).shell.status.hint}; tree ${JSON.stringify(state(window.arrix).shell.tree)}`);
+      throw new Error(`timed out: ${what}; the status line says: ${state(window.arrix).shell?.status.hint}; tree ${JSON.stringify(state(window.arrix).shell?.tree)}`);
     }
     await sleep(20);
   }
@@ -49,10 +49,11 @@ function state(handle) {
   return JSON.parse(handle.debug_state());
 }
 
-// Settled: the active document finished, its bodies meshed.
+// Settled: the active document finished, its bodies meshed. The shell is
+// null until the first frame is drawn.
 const settled = (handle, tabs) => until(`${tabs} settled tabs`, () => {
   const s = state(handle);
-  return s.shell.documents.tabs.length === tabs && s.evaluation?.settled && s;
+  return s.shell?.documents.tabs.length === tabs && s.evaluation?.settled && s;
 });
 
 function file(name, bytes) {
