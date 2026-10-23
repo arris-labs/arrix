@@ -8,7 +8,7 @@ to its status line (`/close-cycle`), and the next is detailed below it.
 
 Spine: **C1** (the vertical slice with a plugin feature in it; done), then
 **the boundary opened** (the agent's way in; ADR-0016; done), **C2** (assemblies
-and exchange; done), **C3** (the boundary crossed; done), **C4** (the web). Beyond
+and exchange; done), **C3** (the boundary crossed; done), **C4** (the web; done). Beyond
 C4, the named cycles are unordered.
 
 ---
@@ -193,12 +193,12 @@ pattern's spacing moves the holes and the screws.
 evaluate in a worker, and one that uses a Tier 1 or Tier 2 plugin opens with
 those features frozen, with their reason (`SEED.md` §7).*
 
-**Status: done 2026-10-23** (ADR-0042; accept: `cargo nextest run -p arrix-app
---test c4_accept`). The risk to retire: the
-native evaluator and its determinism hold on wasm32 in a worker. The
-authority runs on the main thread and the evaluator alone in a worker; a
-commit stops a superseded evaluation through a `SharedArrayBuffer` counter
-on a cross-origin-isolated page, within 50 ms.
+**Status: done 2026-10-23, tag `c4`.** The risk retired: the native
+evaluator and its determinism hold on wasm32 in a worker. Every document
+under `tests/docs` evaluates to native's eval line to the bit (on `arris`
+0.9's one `libm`), and a commit stops a superseded evaluation within 50 ms
+through a `SharedArrayBuffer` counter (`cargo nextest run -p arrix-app
+--test c4_accept`); decisions in ADR-0042.
 
 **In:**
 - The wasm32 app build (eframe on the web), Tier 0 plugins only, no
@@ -224,12 +224,13 @@ download evaluates natively to native's eval line.
 
 None is scheduled. Each earns a section when `/close-cycle` opens it.
 
-- Sweep, loft, shell and draft features (on Arris's sweep cycle).
-- Interference checks (on Arris's query cycle).
+- Sweep, loft, shell and draft features (Arris 0.9 has sweep along a path,
+  loft and shell; draft is open there, A7).
+- Interference checks (Arris's query cycle is in 0.8, A6).
 - A drawings plugin.
 - Sheet metal.
 - The mechanical core completed: measure, section view, 3MF, DXF/SVG
-  sketch exchange (after Arris's query cycle, ADR-0027).
+  sketch exchange (Arris's query cycle is in 0.8, A6; ADR-0027).
 - A general assembly mate solver.
 - Configurations.
 - A plugin index.

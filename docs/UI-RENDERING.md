@@ -713,7 +713,7 @@ draws). Ported, reviewed on the way in (`SEED.md` §8.1).
   the scene's body (`Scene::set_body_colour`), by the app, whenever a mesh
   arrives or a material changes.
 
-- **Scene per body.** A `SceneView` is a list of bodies, each keyed by its
+- **Scene per body.** The viewport's `Scene` is a list of bodies, each keyed by its
   slot, with its mesh, transform, visibility and bounds. Updating one body
   re-uploads only it. The upload is behind a payload trait so the
   bookkeeping is tested without a GPU. Each body also keeps the box of its

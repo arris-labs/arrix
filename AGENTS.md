@@ -44,8 +44,8 @@ robotics and fasteners as projects of their own; the north star runs
 (ADR-0034 to ADR-0039, API 0.8.0).
 **C4 done 2026-10-23**: the web, the app in a browser tab with the evaluator
 in a worker, cancelled within 50 ms (ADR-0042, `c4_accept`).
-**Next:** no cycle is scheduled; `/close-cycle` opens the next
-(`docs/ROADMAP.md` §Named cycles).
+**Next:** no cycle is scheduled; the human picks one of
+`docs/ROADMAP.md` §Named cycles, and its section is written then.
 
 ## Rules that are not derivable from the code
 

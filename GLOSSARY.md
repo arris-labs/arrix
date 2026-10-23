@@ -77,7 +77,7 @@ Whoever submits commands; undo is per author, by inverse commands.
 
 **Authority**:
 The single writer that holds the document and applies or rejects commands
-(the session thread locally).
+(the session thread natively, the page's main thread on the web).
 
 **Session**:
 A client's connection to a document: its state (selection, camera, active
@@ -96,6 +96,14 @@ generation, no undo entry.
 **Evaluation**:
 Replaying the features that changed, off the UI thread, into bodies and
 `EvalEvent`s.
+
+**Eval line**:
+One generation's evaluation as one versioned JSON line, what `arrix eval`
+prints and what native and wasm32 are held equal on, to the bit (ADR-0026).
+
+**Replica**:
+A client's own copy of the document, kept by applying the authority's
+applied-command stream, never by reading the authority's document.
 
 ## Plugins
 

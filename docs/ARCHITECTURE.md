@@ -676,7 +676,8 @@ A step blocked on an ask names it and waits.
 | A9 | per-face tessellation (`tessellate_faces`, `TriMesh::weld`) | per-face mesh caching | released in 0.6.0, not taken |
 | A10 | the Python binding | the Tier 2 SDK, which does not need it (ADR-0021) | released by 2026-10-01, not taken |
 | A5 | `region2` as public API | C1–C2: sketch regions | open; the ported arrangement is used |
-| A6, A7 | the query cycle; the sweep and healing cycles (A7's shell and offset are in 0.6.0) | C2 and later | open |
+| A6 | the query cycle: minimum distance, ray fire, interference, planar section | measure, section view, interference checks, the drawings plugin | released in 0.8.0 (`query::distance`, `ray_fire`, `interference`, `ops::section`), not taken |
+| A7 | the sweep and healing cycles: sweep along a path, loft, shell, offset, draft, thicken; sheet bodies | sweep, loft, shell and draft features | shell and offset in 0.6.0, sheet bodies and orientation repair in 0.8.0, sweep along a path and loft in 0.9.0, none taken; draft, thicken and free-edge sewing open |
 
 The pin is `arris` 0.9 (taken in C4: a body built on wasm32 is the
 same bits as natively, its transcendentals on one `libm`, which closed
