@@ -4,7 +4,8 @@
 test-threads = 4
 
 # Tests that assert wall-clock time run one at a time, so a loaded machine
-# cannot fail them by running two together. Membership: ADR-0040 §Consequences.
+# cannot fail them by running two together. Membership: ADR-0040 §Consequences,
+# and C4's two cancellation budgets (docs/ARCHITECTURE.md §Gates).
 [test-groups]
 timing = { max-threads = 1 }
 
@@ -13,6 +14,8 @@ filter = '''
 (package(arrix-cli) & binary(c1_benchmark))
 | (package(arrix-cli) & binary(tessellate) & test(the_slice_s_meshes_are_measured))
 | (package(arrix-plugin-host) & binary(tier1_cancel) & test(the_interrupt_stops_a_looping_component_within_the_budget))
+| (package(arrix-plugin-host) & binary(web_cancel))
+| (package(arrix-app) & binary(c4_accept))
 | (package(arrix-sketch) & binary(solver_benchmarks) & (test(test_analytical_vs_fd_speedup_benchmark) | test(a_drag_frame_on_a_200_entity_sketch_is_within_its_budget)))
 | (package(arrix-sketch) & binary(inference_probe) & test(a_verdict_on_the_plate_costs_under_a_frame))
 '''

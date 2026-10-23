@@ -544,7 +544,10 @@ as an artifact. The test runner is nextest (ADR-0040): the tests of many
 binaries run at once under one thread budget, 4 in `.config/nextest.toml`
 (each plugin workspace has its own file), and the tests that assert
 wall-clock time sit in its `timing` group, one at a time, so a loaded
-machine cannot fail them. `RUST_TEST_THREADS` does not reach it;
+machine cannot fail them: ADR-0040's members, and C4's 50 ms cancellation
+in the browser (`arrix-plugin-host`'s `web_cancel`, `arrix-app`'s
+`c4_accept`), which a loaded gate measured at a 70 ms median outside it.
+`RUST_TEST_THREADS` does not reach it;
 `cargo test -p x --test y` stays valid for a single test, and the gate
 stops with the install line (`cargo install cargo-nextest --locked`) if
 nextest is missing. The Python SDK's `python -m unittest` runs inside
