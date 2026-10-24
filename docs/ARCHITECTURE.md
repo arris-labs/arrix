@@ -534,7 +534,10 @@ repository root from its own path. CI, `.github/workflows/ci.yml`, runs
 the same commands in five jobs (fmt, clippy, lints, test, wasm) on a push
 to `main` and on pull requests; its steps named `gate: …` are exactly the
 gate's commands, which `gate-selftest` checks (the test job installs
-`cargo-nextest`, pinned). The test job installs
+`cargo-nextest`, pinned). The test job first deletes the runner image's
+toolchains it never uses (Android, .NET, GHC, CodeQL) and builds with
+`CARGO_PROFILE_DEV_DEBUG=line-tables-only`: its target directories
+outgrew the runner's disk otherwise. It installs
 `mesa-vulkan-drivers` and `wasm-bindgen-cli` (the browser tests build
 their pages) and sets `ARRIX_REQUIRE_GPU=1` and `ARRIX_REQUIRE_BROWSER=1`
 (the runner image has Chrome), which `gate-selftest` checks against the

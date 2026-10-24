@@ -67,7 +67,18 @@ jobs:
       # (crates/arrix-web-test).
       ARRIX_REQUIRE_GPU: "1"
       ARRIX_REQUIRE_BROWSER: "1"
+      # The job fills several target directories (the workspace, each
+      # plugin workspace, the tests' own Tier 1 and out-of-tree builds);
+      # with full debuginfo they outgrow the runner's disk. Line tables
+      # keep a panic's backtrace.
+      CARGO_PROFILE_DEV_DEBUG: line-tables-only
     steps:
+      # The image's Android SDK, .NET, GHC and CodeQL take tens of GB the
+      # job never uses; without them the runner ran out of disk mid-test.
+      - name: free the runner's disk
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          df -h /
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
